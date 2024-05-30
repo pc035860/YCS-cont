@@ -7838,6 +7838,37 @@
         return acc;
       }, {});
     }
+    /**
+     * Generate full watch runs from watchRuns
+     * @param {string} baseText
+     * @param {Array} watchRuns
+     * @returns {Array}
+     *
+     * @example
+     * generateFullWatchRuns('Hello world', [{startIndex: 6, length: 5, navigationEndpoint: {watchEndpoint: {videoId: 'abc'}}}])
+     * [{text: 'Hello '}, {text: 'world', navigationEndpoint: {watchEndpoint: {videoId: 'abc'}}}]
+     */
+    function generateFullWatchRuns(baseText, watchRuns) {
+      let curr = 0;
+      let watchRun;
+      const runs = [];
+      while ((watchRun = watchRuns.shift())) {
+        const { startIndex, length } = watchRun;
+        if (curr !== startIndex) {
+          runs.push({
+            text: baseText.slice(curr, startIndex),
+          });
+        }
+        runs.push(watchRun);
+        curr = startIndex + length;
+      }
+      if (curr < baseText.length) {
+        runs.push({
+          text: baseText.slice(curr),
+        });
+      }
+      return runs;
+    }
     function migrateContinuationItems(
       continuationItems,
       frameworkUpdatesByCommentId
@@ -7863,30 +7894,20 @@
 
           const propContent = update.properties.content;
 
-          const runs = [
+          const baseText = propContent.content;
+          let runs = [
             {
               // full text as first run
-              text: propContent.content,
+              text: baseText,
             },
           ];
 
           // from commandRuns to runs
           if (propContent.commandRuns) {
-            propContent.commandRuns.forEach((commandRun) => {
-              // const browseEndpoint = qt(
-              //   () =>
-              //     update.author.channelCommand.innertubeCommand.browseEndpoint
-              // );
-              // if (browseEndpoint) {
-              //   runs.push({
-              //     text: update.author.displayName,
-              //     navigationEndpoint: {
-              //       browseEndpoint,
-              //     },
-              //   });
-              //   return;
-              // }
+            const watchRuns = [];
+            const otherRuns = [];
 
+            propContent.commandRuns.forEach((commandRun) => {
               const watchEndpoint = qt(
                 () => commandRun.onTap.innertubeCommand.watchEndpoint
               );
@@ -7904,12 +7925,14 @@
                   );
                 }
 
-                runs.push({
+                watchRuns.push({
                   text,
+                  startIndex,
+                  length,
                   navigationEndpoint: {
                     watchEndpoint: {
                       videoId,
-                      startTimeSeconds,
+                      startTimeSeconds: startTimeSeconds || 0,
                     },
                   },
                 });
@@ -7920,7 +7943,7 @@
                 () => commandRun.onTap.commandMetadata
               );
               if (commandMetadata && commandMetadata.webCommandMetadata) {
-                runs.push({
+                otherRuns.push({
                   text: '',
                   navigationEndpoint: {
                     commandMetadata,
@@ -7929,6 +7952,11 @@
                 return;
               }
             });
+
+            runs = [
+              ...generateFullWatchRuns(baseText, watchRuns),
+              ...otherRuns,
+            ];
           }
 
           const comment = {
@@ -7994,10 +8022,6 @@
           }
 
           return newItem;
-          // try {
-          // } catch (e) {
-          //   return null;
-          // }
         })
         .filter((item) => !!item);
     }
@@ -8025,30 +8049,20 @@
 
           const propContent = update.properties.content;
 
-          const runs = [
+          const baseText = propContent.content;
+          let runs = [
             {
               // full text as first run
-              text: propContent.content,
+              text: baseText,
             },
           ];
 
           // from commandRuns to runs
           if (propContent.commandRuns) {
-            propContent.commandRuns.forEach((commandRun) => {
-              // const browseEndpoint = qt(
-              //   () =>
-              //     update.author.channelCommand.innertubeCommand.browseEndpoint
-              // );
-              // if (browseEndpoint) {
-              //   runs.push({
-              //     text: update.author.displayName,
-              //     navigationEndpoint: {
-              //       browseEndpoint,
-              //     },
-              //   });
-              //   return;
-              // }
+            const watchRuns = [];
+            const otherRuns = [];
 
+            propContent.commandRuns.forEach((commandRun) => {
               const watchEndpoint = qt(
                 () => commandRun.onTap.innertubeCommand.watchEndpoint
               );
@@ -8066,12 +8080,14 @@
                   );
                 }
 
-                runs.push({
+                watchRuns.push({
                   text,
+                  startIndex,
+                  length,
                   navigationEndpoint: {
                     watchEndpoint: {
                       videoId,
-                      startTimeSeconds,
+                      startTimeSeconds: startTimeSeconds || 0,
                     },
                   },
                 });
@@ -8082,7 +8098,7 @@
                 () => commandRun.onTap.commandMetadata
               );
               if (commandMetadata && commandMetadata.webCommandMetadata) {
-                runs.push({
+                otherRuns.push({
                   text: '',
                   navigationEndpoint: {
                     commandMetadata,
@@ -8091,6 +8107,11 @@
                 return;
               }
             });
+
+            runs = [
+              ...generateFullWatchRuns(baseText, watchRuns),
+              ...otherRuns,
+            ];
           }
 
           const comment = {
