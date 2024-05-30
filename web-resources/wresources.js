@@ -7515,464 +7515,548 @@
       s = new (e(Ke))({
         concurrency: 4,
       });
-    async function c(e, t) {
-      if (!e) return;
-      const o = e;
-      for (const e of o)
+    async function processComments(continuationItems, t) {
+      if (!continuationItems) return;
+      for (const item of continuationItems) {
         try {
-          var r;
-          if (
-            null === (r = e.commentThreadRenderer) || void 0 === r
-              ? void 0
-              : r.comment
-          ) {
-            var c, l, d, u, h, m, p, f, v;
-            let n = '',
-              o = '';
-            const r =
-              (null === (c = e.commentThreadRenderer) ||
-              void 0 === c ||
-              null === (l = c.comment) ||
-              void 0 === l ||
-              null === (d = l.commentRenderer) ||
-              void 0 === d ||
-              null === (u = d.contentText) ||
-              void 0 === u
-                ? void 0
-                : u.runs) || [];
-            for (const t of r) {
-              n += (null == t ? void 0 : t.text) || '';
+          if (item.commentThreadRenderer.comment) {
+            const contentText =
+              item.commentThreadRenderer.comment.commentRenderer.contentText;
+            let fullText = '';
+            let renderFullText = '';
+            const runs = contentText.runs || [];
+            for (const run of runs) {
+              fullText += run.text || '';
               try {
-                var y, g, w, b, x, _, C, E, T, I, k, R, M, A, S, L, B;
-                if (
-                  parseInt(
-                    null == t ||
-                      null === (y = t.navigationEndpoint) ||
-                      void 0 === y ||
-                      null === (g = y.watchEndpoint) ||
-                      void 0 === g
-                      ? void 0
-                      : g.startTimeSeconds
-                  ) >= 0
-                )
-                  (o += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${
-                    null == t ||
-                    null === (I = t.navigationEndpoint) ||
-                    void 0 === I ||
-                    null === (k = I.watchEndpoint) ||
-                    void 0 === k
-                      ? void 0
-                      : k.videoId
-                  }&t=${
-                    null == t ||
-                    null === (R = t.navigationEndpoint) ||
-                    void 0 === R ||
-                    null === (M = R.watchEndpoint) ||
-                    void 0 === M
-                      ? void 0
-                      : M.startTimeSeconds
-                  }s" data-offsetvideo="${
-                    null == t ||
-                    null === (A = t.navigationEndpoint) ||
-                    void 0 === A ||
-                    null === (S = A.watchEndpoint) ||
-                    void 0 === S
-                      ? void 0
-                      : S.startTimeSeconds
-                  }">${(null == t ? void 0 : t.text) || ''}</a>`),
-                    (null === (L = e.commentThreadRenderer) ||
-                    void 0 === L ||
-                    null === (B = L.comment) ||
-                    void 0 === B
-                      ? void 0
-                      : B.commentRenderer) &&
-                      (e.commentThreadRenderer.comment.commentRenderer.isTimeLine =
-                        'timeline');
-                else
-                  (null == t ? void 0 : t.navigationEndpoint)
-                    ? (o += `<a class="ycs-cpointer ycs-comment-link" href="${
-                        (null == t ||
-                        null === (w = t.navigationEndpoint) ||
-                        void 0 === w ||
-                        null === (b = w.browseEndpoint) ||
-                        void 0 === b
-                          ? void 0
-                          : b.canonicalBaseUrl) ||
-                        (null == t ||
-                        null === (x = t.navigationEndpoint) ||
-                        void 0 === x ||
-                        null === (_ = x.urlEndpoint) ||
-                        void 0 === _
-                          ? void 0
-                          : _.url) ||
-                        (null == t ||
-                        null === (C = t.navigationEndpoint) ||
-                        void 0 === C ||
-                        null === (E = C.commandMetadata) ||
-                        void 0 === E ||
-                        null === (T = E.webCommandMetadata) ||
-                        void 0 === T
-                          ? void 0
-                          : T.url) ||
-                        (null == t ? void 0 : t.text) ||
-                        '#'
-                      }" target="_blank">${
-                        (null == t ? void 0 : t.text) || ''
-                      }</a>`)
-                    : (o += (null == t ? void 0 : t.text) || '');
+                if (run.navigationEndpoint) {
+                  if (
+                    parseInt(
+                      run.navigationEndpoint.watchEndpoint.startTimeSeconds
+                    ) >= 0
+                  ) {
+                    renderFullText += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${
+                      run.navigationEndpoint.watchEndpoint.videoId
+                    }&t=${
+                      run.navigationEndpoint.watchEndpoint.startTimeSeconds
+                    }s" data-offsetvideo="${
+                      run.navigationEndpoint.watchEndpoint.startTimeSeconds
+                    }">${run.text || ''}</a>`;
+                    item.commentThreadRenderer.comment.commentRenderer.isTimeLine =
+                      'timeline';
+                  } else {
+                    if (run.navigationEndpoint.browseEndpoint) {
+                      renderFullText += `<a class="ycs-cpointer ycs-comment-link" href="${
+                        run.navigationEndpoint.browseEndpoint.canonicalBaseUrl
+                      }" target="_blank">${run.text || ''}</a>`;
+                    } else if (run.navigationEndpoint.urlEndpoint) {
+                      renderFullText += `<a class="ycs-cpointer ycs-comment-link" href="${
+                        run.navigationEndpoint.urlEndpoint.url
+                      }" target="_blank">${run.text || ''}</a>`;
+                    } else if (
+                      run.navigationEndpoint.commandMetadata &&
+                      run.navigationEndpoint.commandMetadata.webCommandMetadata
+                    ) {
+                      renderFullText += `<a class="ycs-cpointer ycs-comment-link" href="${
+                        run.navigationEndpoint.commandMetadata
+                          .webCommandMetadata.url
+                      }" target="_blank">${run.text || ''}</a>`;
+                    } else {
+                      renderFullText += run.text || '';
+                    }
+                  }
+                } else {
+                  renderFullText += run.text || '';
+                }
               } catch (e) {
-                o += (null == t ? void 0 : t.text) || '';
+                renderFullText += run.text || '';
                 continue;
               }
             }
-            (null === (h = e.commentThreadRenderer) ||
-            void 0 === h ||
-            null === (m = h.comment) ||
-            void 0 === m ||
-            null === (p = m.commentRenderer) ||
-            void 0 === p
-              ? void 0
-              : p.contentText) &&
-              ((e.commentThreadRenderer.comment.commentRenderer.contentText.fullText =
-                n),
-              (e.commentThreadRenderer.comment.commentRenderer.contentText.renderFullText =
-                o)),
-              (null === (f = e.commentThreadRenderer) ||
-              void 0 === f ||
-              null === (v = f.comment) ||
-              void 0 === v
-                ? void 0
-                : v.commentRenderer) &&
-                ((e.commentThreadRenderer.comment.typeComment = 'C'),
-                a.push(i(e.commentThreadRenderer.comment)),
-                Kt(a.length, t));
+            if (
+              item.commentThreadRenderer.comment.commentRenderer.contentText
+            ) {
+              item.commentThreadRenderer.comment.commentRenderer.contentText.fullText =
+                fullText;
+              item.commentThreadRenderer.comment.commentRenderer.contentText.renderFullText =
+                renderFullText;
+            }
+            item.commentThreadRenderer.comment.typeComment = 'C';
+            a.push(i(item.commentThreadRenderer.comment));
+            Kt(a.length, t);
           }
-          const o = {
-            token:
-              qt(
-                () =>
-                  e.commentThreadRenderer.replies.commentRepliesRenderer
-                    .continuations[0].nextContinuationData.continuation
-              ) ||
-              qt(
-                () =>
-                  e.commentThreadRenderer.replies.commentRepliesRenderer
-                    .contents[0].continuationItemRenderer.continuationEndpoint
-                    .continuationCommand.token
-              ),
-            cTrParams:
-              qt(
-                () =>
-                  e.commentThreadRenderer.replies.commentRepliesRenderer
-                    .continuations[0].nextContinuationData.clickTrackingParams
-              ) ||
-              qt(
-                () =>
-                  e.commentThreadRenderer.replies.commentRepliesRenderer
-                    .contents[0].continuationItemRenderer.continuationEndpoint
-                    .clickTrackingParams
-              ),
-          };
-          o.token &&
+          const continuationData =
+            item.commentThreadRenderer.replies.commentRepliesRenderer
+              .continuations[0].nextContinuationData;
+          const token = continuationData.continuation;
+          const cTrParams = continuationData.clickTrackingParams;
+          if (token) {
             s.add(async () => {
               try {
-                const D = {
-                    continue: o.token,
-                    clickTracking: o.cTrParams,
-                  },
-                  V = tn(window, D),
-                  H = await Ft(
+                const data = {
+                  continue: token,
+                  clickTracking: cTrParams,
+                };
+                const requestOptions = tn(window, data);
+                const response = await Ft(
+                  `https://www.youtube.com/youtubei/v1/next?key=${nn()}`,
+                  {
+                    ...requestOptions,
+                    signal: t,
+                    cache: 'no-store',
+                  }
+                );
+                let responseData = await response.json();
+                if (
+                  responseData.onResponseReceivedEndpoints[0]
+                    .appendContinuationItemsAction.continuationItems
+                ) {
+                  const continuationItems =
+                    responseData.onResponseReceivedEndpoints[0]
+                      .appendContinuationItemsAction.continuationItems;
+                  const frameworkUpdatesByCommentId =
+                    getFrameworkUpdatesByCommentId(responseData);
+                  const subItems = migrateContinuationSubItems(
+                    continuationItems,
+                    frameworkUpdatesByCommentId
+                  );
+                  for (const subItem of subItems) {
+                    if (!subItem.commentRenderer) continue;
+                    let fullText = '';
+                    let renderFullText = '';
+                    const runs = subItem.commentRenderer.contentText.runs || [];
+                    for (const run of runs) {
+                      try {
+                        if (run.text) {
+                          fullText += run.text;
+                          if (
+                            parseInt(
+                              run.navigationEndpoint.watchEndpoint
+                                .startTimeSeconds
+                            ) >= 0
+                          ) {
+                            renderFullText += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${
+                              run.navigationEndpoint.watchEndpoint.videoId
+                            }&t=${
+                              run.navigationEndpoint.watchEndpoint
+                                .startTimeSeconds
+                            }s" data-offsetvideo="${
+                              run.navigationEndpoint.watchEndpoint
+                                .startTimeSeconds
+                            }">${run.text || ''}</a>`;
+                            subItem.commentRenderer.isTimeLine = 'timeline';
+                          } else {
+                            if (run.navigationEndpoint.browseEndpoint) {
+                              renderFullText += `<a class="ycs-cpointer ycs-comment-link" href="${
+                                run.navigationEndpoint.browseEndpoint
+                                  .canonicalBaseUrl
+                              }" target="_blank">${run.text || ''}</a>`;
+                            } else if (run.navigationEndpoint.urlEndpoint) {
+                              renderFullText += `<a class="ycs-cpointer ycs-comment-link" href="${
+                                run.navigationEndpoint.urlEndpoint.url
+                              }" target="_blank">${run.text || ''}</a>`;
+                            } else if (
+                              run.navigationEndpoint.commandMetadata &&
+                              run.navigationEndpoint.commandMetadata
+                                .webCommandMetadata
+                            ) {
+                              renderFullText += `<a class="ycs-cpointer ycs-comment-link" href="${
+                                run.navigationEndpoint.commandMetadata
+                                  .webCommandMetadata.url
+                              }" target="_blank">${run.text || ''}</a>`;
+                            } else {
+                              renderFullText += run.text || '';
+                            }
+                          }
+                        }
+                      } catch (t) {
+                        renderFullText += run.text || '';
+                      }
+                    }
+                    if (subItem.commentRenderer.contentText) {
+                      subItem.commentRenderer.contentText.fullText = fullText;
+                      subItem.commentRenderer.contentText.renderFullText =
+                        renderFullText;
+                    }
+                    subItem.typeComment = 'R';
+                    subItem.originComment = item.commentThreadRenderer.comment;
+                    a.push(i(subItem));
+                    Kt(a.length, t);
+                  }
+                }
+                while (
+                  responseData.onResponseReceivedEndpoints[0]
+                    .appendContinuationItemsAction.continuationItems[
+                    responseData.onResponseReceivedEndpoints[0]
+                      .appendContinuationItemsAction.continuationItems.length -
+                      1
+                  ].continuationItemRenderer.button.buttonRenderer.command
+                    .continuationCommand
+                ) {
+                  const token =
+                    responseData.onResponseReceivedEndpoints[0]
+                      .appendContinuationItemsAction.continuationItems[
+                      responseData.onResponseReceivedEndpoints[0]
+                        .appendContinuationItemsAction.continuationItems
+                        .length - 1
+                    ].continuationItemRenderer.button.buttonRenderer.command
+                      .continuationCommand.token;
+                  const clickTrackingParams =
+                    responseData.onResponseReceivedEndpoints[0]
+                      .appendContinuationItemsAction.continuationItems[
+                      responseData.onResponseReceivedEndpoints[0]
+                        .appendContinuationItemsAction.continuationItems
+                        .length - 1
+                    ].continuationItemRenderer.button.buttonRenderer.command
+                      .clickTrackingParams;
+                  const data = {
+                    continue: token,
+                    clickTracking: clickTrackingParams,
+                  };
+                  const requestOptions = tn(window, data);
+                  const response = await Ft(
                     `https://www.youtube.com/youtubei/v1/next?key=${nn()}`,
                     {
-                      ...V,
-                      signal: n,
+                      ...requestOptions,
+                      signal: t,
                       cache: 'no-store',
                     }
                   );
-                let G = await H.json();
-                if (
-                  qt(
-                    () =>
-                      G.onResponseReceivedEndpoints[0]
-                        .appendContinuationItemsAction.continuationItems
-                  )
-                ) {
-                  const n =
-                    qt(
-                      () =>
-                        G.onResponseReceivedEndpoints[0]
-                          .appendContinuationItemsAction.continuationItems
-                    ) || [];
-                  for (const o of n) {
-                    var r, s, c;
-                    if (!(null == o ? void 0 : o.commentRenderer)) continue;
-                    let n = '',
-                      E = '';
-                    const T =
-                      (null === (r = o.commentRenderer) ||
-                      void 0 === r ||
-                      null === (s = r.contentText) ||
-                      void 0 === s
-                        ? void 0
-                        : s.runs) || [];
-                    for (const e of T)
-                      try {
-                        var l, d, u, h, m, p, f, v, y, g, w, b, x, _, C;
-                        if (
-                          ((n += (null == e ? void 0 : e.text) || ''),
-                          parseInt(
-                            null == e ||
-                              null === (l = e.navigationEndpoint) ||
-                              void 0 === l ||
-                              null === (d = l.watchEndpoint) ||
-                              void 0 === d
-                              ? void 0
-                              : d.startTimeSeconds
-                          ) >= 0)
-                        )
-                          (E += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${
-                            null == e ||
-                            null === (g = e.navigationEndpoint) ||
-                            void 0 === g ||
-                            null === (w = g.watchEndpoint) ||
-                            void 0 === w
-                              ? void 0
-                              : w.videoId
-                          }&t=${
-                            null == e ||
-                            null === (b = e.navigationEndpoint) ||
-                            void 0 === b ||
-                            null === (x = b.watchEndpoint) ||
-                            void 0 === x
-                              ? void 0
-                              : x.startTimeSeconds
-                          }s" data-offsetvideo="${
-                            null == e ||
-                            null === (_ = e.navigationEndpoint) ||
-                            void 0 === _ ||
-                            null === (C = _.watchEndpoint) ||
-                            void 0 === C
-                              ? void 0
-                              : C.startTimeSeconds
-                          }">${(null == e ? void 0 : e.text) || ''}</a>`),
-                            o.commentRenderer &&
-                              (o.commentRenderer.isTimeLine = 'timeline');
-                        else
-                          (null == e ? void 0 : e.navigationEndpoint)
-                            ? (E += `<a class="ycs-cpointer ycs-comment-link" href="${
-                                (null == e ||
-                                null === (u = e.navigationEndpoint) ||
-                                void 0 === u ||
-                                null === (h = u.browseEndpoint) ||
-                                void 0 === h
-                                  ? void 0
-                                  : h.canonicalBaseUrl) ||
-                                (null == e ||
-                                null === (m = e.navigationEndpoint) ||
-                                void 0 === m ||
-                                null === (p = m.urlEndpoint) ||
-                                void 0 === p
-                                  ? void 0
-                                  : p.url) ||
-                                (null == e ||
-                                null === (f = e.navigationEndpoint) ||
-                                void 0 === f ||
-                                null === (v = f.commandMetadata) ||
-                                void 0 === v ||
-                                null === (y = v.webCommandMetadata) ||
-                                void 0 === y
-                                  ? void 0
-                                  : y.url) ||
-                                (null == e ? void 0 : e.text) ||
-                                '#'
-                              }" target="_blank">${
-                                (null == e ? void 0 : e.text) || ''
-                              }</a>`)
-                            : (E += (null == e ? void 0 : e.text) || '');
-                      } catch (t) {
-                        E += (null == e ? void 0 : e.text) || '';
-                      }
-                    (null == o ||
-                    null === (c = o.commentRenderer) ||
-                    void 0 === c
-                      ? void 0
-                      : c.contentText) &&
-                      ((o.commentRenderer.contentText.fullText = n),
-                      (o.commentRenderer.contentText.renderFullText = E)),
-                      (o.typeComment = 'R'),
-                      (o.originComment = e.commentThreadRenderer.comment),
-                      a.push(i(o)),
-                      Kt(a.length, t);
-                  }
-                }
-                for (
-                  ;
-                  qt(
-                    () =>
-                      G.onResponseReceivedEndpoints[0]
-                        .appendContinuationItemsAction.continuationItems[
-                        G.onResponseReceivedEndpoints[0]
-                          .appendContinuationItemsAction.continuationItems
-                          .length - 1
-                      ].continuationItemRenderer.button.buttonRenderer.command
-                        .continuationCommand
-                  );
-
-                ) {
-                  const o = {
-                      continue: qt(
-                        () =>
-                          G.onResponseReceivedEndpoints[0]
-                            .appendContinuationItemsAction.continuationItems[
-                            G.onResponseReceivedEndpoints[0]
-                              .appendContinuationItemsAction.continuationItems
-                              .length - 1
-                          ].continuationItemRenderer.button.buttonRenderer
-                            .command.continuationCommand.token
-                      ),
-                      clickTracking: qt(
-                        () =>
-                          G.onResponseReceivedEndpoints[0]
-                            .appendContinuationItemsAction.continuationItems[
-                            G.onResponseReceivedEndpoints[0]
-                              .appendContinuationItemsAction.continuationItems
-                              .length - 1
-                          ].continuationItemRenderer.button.buttonRenderer
-                            .command.clickTrackingParams
-                      ),
-                    },
-                    r = tn(window, o),
-                    s = await Ft(
-                      `https://www.youtube.com/youtubei/v1/next?key=${nn()}`,
-                      {
-                        ...r,
-                        signal: n,
-                        cache: 'no-store',
-                      }
-                    );
+                  responseData = await response.json();
                   if (
-                    ((G = await s.json()),
-                    qt(
-                      () =>
-                        G.onResponseReceivedEndpoints[0]
-                          .appendContinuationItemsAction.continuationItems
-                    ))
+                    responseData.onResponseReceivedEndpoints[0]
+                      .appendContinuationItemsAction.continuationItems
                   ) {
-                    const n =
-                      qt(
-                        () =>
-                          G.onResponseReceivedEndpoints[0]
-                            .appendContinuationItemsAction.continuationItems
-                      ) || [];
-                    for (const o of n) {
-                      var E, T, I;
-                      if (!(null == o ? void 0 : o.commentRenderer)) continue;
-                      let n = '',
-                        r = '';
-                      const s =
-                        (null === (E = o.commentRenderer) ||
-                        void 0 === E ||
-                        null === (T = E.contentText) ||
-                        void 0 === T
-                          ? void 0
-                          : T.runs) || [];
-                      for (const e of s)
+                    const continuationItems =
+                      responseData.onResponseReceivedEndpoints[0]
+                        .appendContinuationItemsAction.continuationItems;
+                    for (const item of continuationItems) {
+                      if (!item.commentRenderer) continue;
+                      let fullText = '';
+                      let renderFullText = '';
+                      const runs = item.commentRenderer.contentText.runs || [];
+                      for (const run of runs) {
                         try {
-                          var k, R, M, A, S, L, B, O, z, N, $, P, j, F, U;
-                          if (
-                            (e.text &&
-                              (n += (null == e ? void 0 : e.text) || ''),
-                            parseInt(
-                              null == e ||
-                                null === (k = e.navigationEndpoint) ||
-                                void 0 === k ||
-                                null === (R = k.watchEndpoint) ||
-                                void 0 === R
-                                ? void 0
-                                : R.startTimeSeconds
-                            ) >= 0)
-                          )
-                            (r += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${
-                              null == e ||
-                              null === (N = e.navigationEndpoint) ||
-                              void 0 === N ||
-                              null === ($ = N.watchEndpoint) ||
-                              void 0 === $
-                                ? void 0
-                                : $.videoId
-                            }&t=${
-                              null == e ||
-                              null === (P = e.navigationEndpoint) ||
-                              void 0 === P ||
-                              null === (j = P.watchEndpoint) ||
-                              void 0 === j
-                                ? void 0
-                                : j.startTimeSeconds
-                            }s" data-offsetvideo="${
-                              null == e ||
-                              null === (F = e.navigationEndpoint) ||
-                              void 0 === F ||
-                              null === (U = F.watchEndpoint) ||
-                              void 0 === U
-                                ? void 0
-                                : U.startTimeSeconds
-                            }">${(null == e ? void 0 : e.text) || ''}</a>`),
-                              o.commentRenderer &&
-                                (o.commentRenderer.isTimeLine = 'timeline');
-                          else
-                            (null == e ? void 0 : e.navigationEndpoint)
-                              ? (r += `<a class="ycs-cpointer ycs-comment-link" href="${
-                                  (null == e ||
-                                  null === (M = e.navigationEndpoint) ||
-                                  void 0 === M ||
-                                  null === (A = M.browseEndpoint) ||
-                                  void 0 === A
-                                    ? void 0
-                                    : A.canonicalBaseUrl) ||
-                                  (null == e ||
-                                  null === (S = e.navigationEndpoint) ||
-                                  void 0 === S ||
-                                  null === (L = S.urlEndpoint) ||
-                                  void 0 === L
-                                    ? void 0
-                                    : L.url) ||
-                                  (null == e ||
-                                  null === (B = e.navigationEndpoint) ||
-                                  void 0 === B ||
-                                  null === (O = B.commandMetadata) ||
-                                  void 0 === O ||
-                                  null === (z = O.webCommandMetadata) ||
-                                  void 0 === z
-                                    ? void 0
-                                    : z.url) ||
-                                  (null == e ? void 0 : e.text) ||
-                                  '#'
-                                }" target="_blank">${
-                                  (null == e ? void 0 : e.text) || ''
-                                }</a>`)
-                              : (r += (null == e ? void 0 : e.text) || '');
+                          if (run.text) {
+                            fullText += run.text;
+                            if (
+                              parseInt(
+                                run.navigationEndpoint.watchEndpoint
+                                  .startTimeSeconds
+                              ) >= 0
+                            ) {
+                              renderFullText += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${
+                                run.navigationEndpoint.watchEndpoint.videoId
+                              }&t=${
+                                run.navigationEndpoint.watchEndpoint
+                                  .startTimeSeconds
+                              }s" data-offsetvideo="${
+                                run.navigationEndpoint.watchEndpoint
+                                  .startTimeSeconds
+                              }">${run.text || ''}</a>`;
+                              item.commentRenderer.isTimeLine = 'timeline';
+                            } else {
+                              if (run.navigationEndpoint.browseEndpoint) {
+                                renderFullText += `<a class="ycs-cpointer ycs-comment-link" href="${
+                                  run.navigationEndpoint.browseEndpoint
+                                    .canonicalBaseUrl
+                                }" target="_blank">${run.text || ''}</a>`;
+                              } else if (run.navigationEndpoint.urlEndpoint) {
+                                renderFullText += `<a class="ycs-cpointer ycs-comment-link" href="${
+                                  run.navigationEndpoint.urlEndpoint.url
+                                }" target="_blank">${run.text || ''}</a>`;
+                              } else if (
+                                run.navigationEndpoint.commandMetadata &&
+                                run.navigationEndpoint.commandMetadata
+                                  .webCommandMetadata
+                              ) {
+                                renderFullText += `<a class="ycs-cpointer ycs-comment-link" href="${
+                                  run.navigationEndpoint.commandMetadata
+                                    .webCommandMetadata.url
+                                }" target="_blank">${run.text || ''}</a>`;
+                              } else {
+                                renderFullText += run.text || '';
+                              }
+                            }
+                          }
                         } catch (t) {
-                          r += (null == e ? void 0 : e.text) || '';
+                          renderFullText += run.text || '';
                         }
-                      (null == o ||
-                      null === (I = o.commentRenderer) ||
-                      void 0 === I
-                        ? void 0
-                        : I.contentText) &&
-                        ((o.commentRenderer.contentText.fullText = n),
-                        (o.commentRenderer.contentText.renderFullText = r)),
-                        (o.typeComment = 'R'),
-                        (o.originComment = e.commentThreadRenderer.comment),
-                        a.push(i(o)),
-                        Kt(a.length, t);
+                      }
+                      if (item.commentRenderer.contentText) {
+                        item.commentRenderer.contentText.fullText = fullText;
+                        item.commentRenderer.contentText.renderFullText =
+                          renderFullText;
+                      }
+                      item.typeComment = 'R';
+                      item.originComment = item.commentThreadRenderer.comment;
+                      a.push(i(item));
+                      Kt(a.length, t);
                     }
                   }
                 }
               } catch (e) {}
             });
+          }
         } catch (e) {
           continue;
         }
+      }
+    }
+    function getFrameworkUpdatesByCommentId(data) {
+      const mutations = data?.frameworkUpdates?.entityBatchUpdate?.mutations;
+
+      if (!mutations || mutations.length === 0) {
+        return {};
+      }
+
+      return mutations.reduce((acc, mutation) => {
+        const commentEntityPayload = mutation.payload?.commentEntityPayload;
+        if (commentEntityPayload) {
+          const { properties } = commentEntityPayload;
+          const commentId = properties?.commentId;
+          if (commentId) {
+            acc[commentId] = commentEntityPayload;
+          }
+        }
+        return acc;
+      }, {});
+    }
+    function migrateContinuationItems(
+      continuationItems,
+      frameworkUpdatesByCommentId
+    ) {
+      return continuationItems
+        .map((item) => {
+          let newItem = { ...item };
+          if (!item.commentThreadRenderer) {
+            return item;
+          }
+
+          const commentId =
+            item.commentThreadRenderer.commentViewModel.commentViewModel
+              .commentId;
+          const update = frameworkUpdatesByCommentId[commentId];
+
+          if (!update) {
+            return item;
+          }
+
+          const propContent = update.properties.content;
+
+          const runs = [
+            {
+              // full text as first run
+              text: propContent.content,
+            },
+          ];
+
+          // from commandRuns to runs
+          if (propContent.commandRuns) {
+            propContent.commandRuns.forEach((commandRun) => {
+              // const browseEndpoint = qt(
+              //   () =>
+              //     update.author.channelCommand.innertubeCommand.browseEndpoint
+              // );
+              // if (browseEndpoint) {
+              //   runs.push({
+              //     text: update.author.displayName,
+              //     navigationEndpoint: {
+              //       browseEndpoint,
+              //     },
+              //   });
+              //   return;
+              // }
+
+              const watchEndpoint = qt(() => commandRun.onTap.wathEndpoint);
+              if (watchEndpoint) {
+                const { startIndex, length } = commandRun;
+                const { videoId, startTimeSeconds } = watchEndpoint;
+                let text;
+                if (
+                  typeof startindex === 'number' &&
+                  typeof length === 'number'
+                ) {
+                  text = propContent.content.slice(
+                    startIndex,
+                    startIndex + length
+                  );
+                }
+
+                runs.push({
+                  text,
+                  navigationEndpoint: {
+                    watchEndpoint: {
+                      videoId,
+                      startTimeSeconds,
+                    },
+                  },
+                });
+                return;
+              }
+
+              const commandMetadata = qt(
+                () => commandRun.onTap.commandMetadata
+              );
+              if (commandMetadata && commandMetadata.webCommandMetadata) {
+                runs.push({
+                  text: '',
+                  navigationEndpoint: {
+                    commandMetadata,
+                  },
+                });
+                return;
+              }
+            });
+          }
+
+          const comment = {
+            commentRenderer: {
+              contentText: {
+                runs,
+              },
+            },
+          };
+
+          newItem.commentThreadRenderer = {
+            ...newItem.commentThreadRenderer,
+            comment,
+          };
+
+          if (item.commentThreadRenderer.replies) {
+            const continuationEndpoint = qt(
+              () =>
+                item.commentThreadRenderer.replies.commentRepliesRenderer
+                  .contents[0].continuationItemRenderer.continuationEndpoint
+            );
+            if (continuationEndpoint) {
+              newItem.commentThreadRenderer.replies = {
+                ...newItem.commentThreadRenderer.replies,
+                commentRepliesRenderer: {
+                  continuations: [
+                    {
+                      nextContinuationData: {
+                        continuation:
+                          continuationEndpoint.continuationCommand.token,
+                        clickTrackingParams:
+                          continuationEndpoint.clickTrackingParams,
+                      },
+                    },
+                  ],
+                },
+              };
+            }
+          }
+
+          return newItem;
+          // try {
+          // } catch (e) {
+          //   return null;
+          // }
+        })
+        .filter((item) => !!item);
+    }
+    function migrateContinuationSubItems(
+      continuationItems,
+      frameworkUpdatesByCommentId
+    ) {
+      return continuationItems
+        .map((item) => {
+          let newItem = { ...item };
+          if (!item.commentThreadRenderer) {
+            return item;
+          }
+
+          const commentId =
+            item.commentThreadRenderer.commentViewModel.commentViewModel
+              .commentId;
+          const update = frameworkUpdatesByCommentId[commentId];
+
+          if (!update) {
+            return item;
+          }
+
+          const propContent = update.properties.content;
+
+          const runs = [
+            {
+              // full text as first run
+              text: propContent.content,
+            },
+          ];
+
+          console.log('@commandRuns sub', propContent.commandRuns);
+          // from commandRuns to runs
+          if (propContent.commandRuns) {
+            propContent.commandRuns.forEach((commandRun) => {
+              // const browseEndpoint = qt(
+              //   () =>
+              //     update.author.channelCommand.innertubeCommand.browseEndpoint
+              // );
+              // if (browseEndpoint) {
+              //   runs.push({
+              //     text: update.author.displayName,
+              //     navigationEndpoint: {
+              //       browseEndpoint,
+              //     },
+              //   });
+              //   return;
+              // }
+
+              const watchEndpoint = qt(() => commandRun.onTap.wathEndpoint);
+              if (watchEndpoint) {
+                const { startIndex, length } = commandRun;
+                const { videoId, startTimeSeconds } = watchEndpoint;
+                let text;
+                if (
+                  typeof startindex === 'number' &&
+                  typeof length === 'number'
+                ) {
+                  text = propContent.content.slice(
+                    startIndex,
+                    startIndex + length
+                  );
+                }
+
+                runs.push({
+                  text,
+                  navigationEndpoint: {
+                    watchEndpoint: {
+                      videoId,
+                      startTimeSeconds,
+                    },
+                  },
+                });
+                return;
+              }
+
+              const commandMetadata = qt(
+                () => commandRun.onTap.commandMetadata
+              );
+              if (commandMetadata && commandMetadata.webCommandMetadata) {
+                runs.push({
+                  text: '',
+                  navigationEndpoint: {
+                    commandMetadata,
+                  },
+                });
+                return;
+              }
+            });
+          }
+
+          const comment = {
+            commentRenderer: {
+              contentText: {
+                runs,
+              },
+            },
+          };
+
+          newItem.commentRenderer = comment.commentRenderer;
+
+          return newItem;
+        })
+        .filter((item) => !!item);
     }
     try {
       let e, o;
@@ -8035,9 +8119,15 @@
           o.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand
             .continuationItems
       );
+      // temporarily store last response
+      let contData;
       for (; (null == i ? void 0 : i.length) > 0; ) {
         var l, d, u;
-        await c(i, t);
+        const updatesByCommentId = getFrameworkUpdatesByCommentId(
+          contData || o
+        );
+        i = migrateContinuationItems(i, updatesByCommentId);
+        await processComments(i, t);
         const e = i[i.length - 1];
         if (
           null == e ||
@@ -8080,6 +8170,8 @@
                   e.onResponseReceivedEndpoints[0].appendContinuationItemsAction
                     .continuationItems
               ) || [];
+            // update last response
+            contData = e;
           } else i = [];
         } else i = [];
       }
