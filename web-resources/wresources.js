@@ -7584,6 +7584,7 @@
             a.push(i(item.commentThreadRenderer.comment));
             Kt(a.length, t);
           }
+
           const continuationData =
             item.commentThreadRenderer.replies.commentRepliesRenderer
               .continuations[0].nextContinuationData;
@@ -7601,7 +7602,7 @@
                   `https://www.youtube.com/youtubei/v1/next?key=${nn()}`,
                   {
                     ...requestOptions,
-                    signal: t,
+                    signal: n,
                     cache: 'no-store',
                   }
                 );
@@ -7717,7 +7718,7 @@
                     `https://www.youtube.com/youtubei/v1/next?key=${nn()}`,
                     {
                       ...requestOptions,
-                      signal: t,
+                      signal: n,
                       cache: 'no-store',
                     }
                   );
@@ -7729,11 +7730,18 @@
                     const continuationItems =
                       responseData.onResponseReceivedEndpoints[0]
                         .appendContinuationItemsAction.continuationItems;
-                    for (const item of continuationItems) {
-                      if (!item.commentRenderer) continue;
+                    const frameworkUpdatesByCommentId =
+                      getFrameworkUpdatesByCommentId(responseData);
+                    const subItems = migrateContinuationSubItems(
+                      continuationItems,
+                      frameworkUpdatesByCommentId
+                    );
+                    for (const subItem of subItems) {
+                      if (!subItem.commentRenderer) continue;
                       let fullText = '';
                       let renderFullText = '';
-                      const runs = item.commentRenderer.contentText.runs || [];
+                      const runs =
+                        subItem.commentRenderer.contentText.runs || [];
                       for (const run of runs) {
                         try {
                           if (run.text) {
@@ -7753,7 +7761,7 @@
                                 run.navigationEndpoint.watchEndpoint
                                   .startTimeSeconds
                               }">${run.text || ''}</a>`;
-                              item.commentRenderer.isTimeLine = 'timeline';
+                              subItem.commentRenderer.isTimeLine = 'timeline';
                             } else {
                               if (run.navigationEndpoint.browseEndpoint) {
                                 renderFullText += `<a class="ycs-cpointer ycs-comment-link" href="${
@@ -7782,14 +7790,15 @@
                           renderFullText += run.text || '';
                         }
                       }
-                      if (item.commentRenderer.contentText) {
-                        item.commentRenderer.contentText.fullText = fullText;
-                        item.commentRenderer.contentText.renderFullText =
+                      if (subItem.commentRenderer.contentText) {
+                        subItem.commentRenderer.contentText.fullText = fullText;
+                        subItem.commentRenderer.contentText.renderFullText =
                           renderFullText;
                       }
-                      item.typeComment = 'R';
-                      item.originComment = item.commentThreadRenderer.comment;
-                      a.push(i(item));
+                      subItem.typeComment = 'R';
+                      subItem.originComment =
+                        item.commentThreadRenderer.comment;
+                      a.push(i(subItem));
                       Kt(a.length, t);
                     }
                   }
@@ -7818,6 +7827,14 @@
             acc[commentId] = commentEntityPayload;
           }
         }
+
+        // also support commentSurfaceEntityKey
+        const commentSurfaceEntityPayload =
+          mutation.payload?.commentSurfaceEntityPayload;
+        if (commentSurfaceEntityPayload) {
+          const { key } = commentSurfaceEntityPayload;
+          acc[key] = commentSurfaceEntityPayload;
+        }
         return acc;
       }, {});
     }
@@ -7832,10 +7849,13 @@
             return item;
           }
 
-          const commentId =
-            item.commentThreadRenderer.commentViewModel.commentViewModel
-              .commentId;
+          const vm =
+            item.commentThreadRenderer.commentViewModel.commentViewModel;
+          const commentId = vm.commentId;
           const update = frameworkUpdatesByCommentId[commentId];
+
+          const commentSurfaceKey = vm.commentSurfaceKey;
+          const surface = frameworkUpdatesByCommentId[commentSurfaceKey];
 
           if (!update) {
             return item;
@@ -7867,13 +7887,15 @@
               //   return;
               // }
 
-              const watchEndpoint = qt(() => commandRun.onTap.wathEndpoint);
+              const watchEndpoint = qt(
+                () => commandRun.onTap.innertubeCommand.watchEndpoint
+              );
               if (watchEndpoint) {
                 const { startIndex, length } = commandRun;
                 const { videoId, startTimeSeconds } = watchEndpoint;
                 let text;
                 if (
-                  typeof startindex === 'number' &&
+                  typeof startIndex === 'number' &&
                   typeof length === 'number'
                 ) {
                   text = propContent.content.slice(
@@ -7911,11 +7933,35 @@
 
           const comment = {
             commentRenderer: {
+              authorText: {
+                simpleText: update.author.displayName,
+              },
+              authorThumbnail: {
+                thumbnails: [
+                  {
+                    url: update.author.avatarThumbnailUrl,
+                  },
+                ],
+              },
               contentText: {
                 runs,
               },
             },
           };
+          if (surface) {
+            comment.commentRenderer.publishedTimeText = {
+              runs: [
+                {
+                  text: update.properties.publishedTime,
+                  navigationEndpoint: {
+                    commandMetadata:
+                      surface.publishedTimeCommand.innertubeCommand
+                        .commandMetadata,
+                  },
+                },
+              ],
+            };
+          }
 
           newItem.commentThreadRenderer = {
             ...newItem.commentThreadRenderer,
@@ -7962,14 +8008,16 @@
       return continuationItems
         .map((item) => {
           let newItem = { ...item };
-          if (!item.commentThreadRenderer) {
+          if (!item.commentViewModel) {
             return item;
           }
 
-          const commentId =
-            item.commentThreadRenderer.commentViewModel.commentViewModel
-              .commentId;
+          const vm = item.commentViewModel;
+          const commentId = vm.commentId;
           const update = frameworkUpdatesByCommentId[commentId];
+
+          const commentSurfaceKey = vm.commentSurfaceKey;
+          const surface = frameworkUpdatesByCommentId[commentSurfaceKey];
 
           if (!update) {
             return item;
@@ -7984,7 +8032,6 @@
             },
           ];
 
-          console.log('@commandRuns sub', propContent.commandRuns);
           // from commandRuns to runs
           if (propContent.commandRuns) {
             propContent.commandRuns.forEach((commandRun) => {
@@ -8002,13 +8049,15 @@
               //   return;
               // }
 
-              const watchEndpoint = qt(() => commandRun.onTap.wathEndpoint);
+              const watchEndpoint = qt(
+                () => commandRun.onTap.innertubeCommand.watchEndpoint
+              );
               if (watchEndpoint) {
                 const { startIndex, length } = commandRun;
                 const { videoId, startTimeSeconds } = watchEndpoint;
                 let text;
                 if (
-                  typeof startindex === 'number' &&
+                  typeof startIndex === 'number' &&
                   typeof length === 'number'
                 ) {
                   text = propContent.content.slice(
@@ -8046,11 +8095,39 @@
 
           const comment = {
             commentRenderer: {
+              authorEndpoint: {
+                commandMetadata:
+                  update.author.channelCommand.innertubeCommand.commandMetadata,
+              },
+              authorText: {
+                simpleText: update.author.displayName,
+              },
+              authorThumbnail: {
+                thumbnails: [
+                  {
+                    url: update.author.avatarThumbnailUrl,
+                  },
+                ],
+              },
               contentText: {
                 runs,
               },
             },
           };
+          if (surface) {
+            comment.commentRenderer.publishedTimeText = {
+              runs: [
+                {
+                  text: update.properties.publishedTime,
+                  navigationEndpoint: {
+                    commandMetadata:
+                      surface.publishedTimeCommand.innertubeCommand
+                        .commandMetadata,
+                  },
+                },
+              ],
+            };
+          }
 
           newItem.commentRenderer = comment.commentRenderer;
 
