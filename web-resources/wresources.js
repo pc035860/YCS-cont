@@ -7528,7 +7528,18 @@
             for (const run of runs) {
               fullText += run.text || '';
               try {
-                if (run.navigationEndpoint) {
+                if (run.attachment) {
+                  let image;
+                  if ((image = run.attachment.image)) {
+                    const { url, width, height, margin } = image;
+                    const style = `margin-left: ${margin.left}px; margin-right: ${margin.right}px;`;
+                    renderFullText += `<img src="${url}" alt="${
+                      run.text || ''
+                    }" width="${width}" height="${height}" style="${style}" class="ycs-attachment" />`;
+                  } else {
+                    renderFullText += run.text || '';
+                  }
+                } else if (run.navigationEndpoint) {
                   if (
                     parseInt(
                       run.navigationEndpoint.watchEndpoint.startTimeSeconds
@@ -7897,9 +7908,8 @@
       ];
 
       // from commandRuns to runs
+      const rawRuns = [];
       if (propContent.commandRuns) {
-        const rawRuns = [];
-
         propContent.commandRuns.forEach((commandRun) => {
           const watchEndpoint = qt(
             () => commandRun.onTap.innertubeCommand.watchEndpoint
@@ -7957,9 +7967,47 @@
             return;
           }
         });
-
-        runs = [...migrateRuns(baseText, rawRuns)];
       }
+      if (propContent.attachmentRuns) {
+        propContent.attachmentRuns.forEach((attachmentRun) => {
+          const image = qt(() => attachmentRun.element.type.imageType.image);
+          if (!image) {
+            return;
+          }
+          const { startIndex, length } = attachmentRun;
+
+          let text;
+          if (typeof startIndex === 'number' && typeof length === 'number') {
+            text = propContent.content.slice(startIndex, startIndex + length);
+          }
+
+          const imageSource = image.sources[0];
+          const imageMargin = qt(
+            () => attachmentRun.element.properties.layoutProperties.margin
+          );
+          rawRuns.push({
+            text,
+            startIndex,
+            length,
+            attachment: {
+              image: {
+                width: imageSource.width,
+                height: imageSource.height,
+                url: imageSource.url,
+                margin: {
+                  left: qt(() => imageMargin.left.value) || 0,
+                  right: qt(() => imageMargin.right.value) || 0,
+                },
+              },
+            },
+          });
+        });
+      }
+      // sort runs by startIndex
+      rawRuns.sort((a, b) => a.startIndex - b.startIndex);
+
+      // migrate runs
+      runs = [...migrateRuns(baseText, rawRuns)];
 
       const { author } = update;
 

@@ -403,6 +403,11 @@ html[dark] .ycs_chat_info {
   font-size: 14px;
   white-space: pre-wrap;
 }
+.ycs-comment__main-text img.ycs-attachment {
+  position: relative;
+  top: -1px;
+  vertical-align: middle;
+}
 html[dark='true'] .ycs-comment__main-text,
 html[dark] .ycs-comment__main-text {
   color: #fff;
