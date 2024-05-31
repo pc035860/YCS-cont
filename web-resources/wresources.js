@@ -7839,27 +7839,27 @@
       }, {});
     }
     /**
-     * Generate full watch runs from watchRuns
+     * Migrate command runs to previous version
      * @param {string} baseText
-     * @param {Array} watchRuns
+     * @param {Array} runs
      * @returns {Array}
      *
      * @example
-     * generateFullWatchRuns('Hello world', [{startIndex: 6, length: 5, navigationEndpoint: {watchEndpoint: {videoId: 'abc'}}}])
+     * migrateRuns('Hello world', [{startIndex: 6, length: 5, navigationEndpoint: {watchEndpoint: {videoId: 'abc'}}}])
      * [{text: 'Hello '}, {text: 'world', navigationEndpoint: {watchEndpoint: {videoId: 'abc'}}}]
      */
-    function generateFullWatchRuns(baseText, watchRuns) {
+    function migrateRuns(baseText, rawRuns) {
       let curr = 0;
-      let watchRun;
+      let currRun;
       const runs = [];
-      while ((watchRun = watchRuns.shift())) {
-        const { startIndex, length } = watchRun;
+      while ((currRun = rawRuns.shift())) {
+        const { startIndex, length } = currRun;
         if (curr !== startIndex) {
           runs.push({
             text: baseText.slice(curr, startIndex),
           });
         }
-        runs.push(watchRun);
+        runs.push(currRun);
         curr = startIndex + length;
       }
       if (curr < baseText.length) {
@@ -7868,6 +7868,123 @@
         });
       }
       return runs;
+    }
+    /**
+     * Generate comment object from update
+     */
+    function generateCommentObject({ commentId, update, surfaceUpdate }) {
+      const propContent = update.properties.content;
+
+      const baseText = propContent.content;
+      let runs = [
+        {
+          // full text as first run
+          text: baseText,
+        },
+      ];
+
+      // from commandRuns to runs
+      if (propContent.commandRuns) {
+        const rawRuns = [];
+
+        propContent.commandRuns.forEach((commandRun) => {
+          const watchEndpoint = qt(
+            () => commandRun.onTap.innertubeCommand.watchEndpoint
+          );
+          const browseEndpoint = qt(
+            () => commandRun.onTap.innertubeCommand.browseEndpoint
+          );
+          if (watchEndpoint || browseEndpoint) {
+            const { startIndex, length } = commandRun;
+
+            let text;
+            if (typeof startIndex === 'number' && typeof length === 'number') {
+              text = propContent.content.slice(startIndex, startIndex + length);
+            }
+
+            if (watchEndpoint) {
+              const { videoId, startTimeSeconds } = watchEndpoint;
+              rawRuns.push({
+                text,
+                startIndex,
+                length,
+                navigationEndpoint: {
+                  watchEndpoint: {
+                    videoId,
+                    startTimeSeconds: startTimeSeconds || 0,
+                  },
+                },
+              });
+            } else if (browseEndpoint) {
+              const { browseId } = browseEndpoint;
+              const url = qt(
+                () =>
+                  commandRun.onTap.innertubeCommand.commandMetadata
+                    .webCommandMetadata.url
+              );
+              const canonicalBaseUrl = url
+                ? `https://www.youtube.com${url}`
+                : '';
+              rawRuns.push({
+                text,
+                startIndex,
+                length,
+                navigationEndpoint: {
+                  watchEndpoint: {
+                    // error tolerance
+                    startTimeSeconds: -1,
+                  },
+                  browseEndpoint: {
+                    browseId,
+                    canonicalBaseUrl,
+                  },
+                },
+              });
+            }
+            return;
+          }
+        });
+
+        runs = [...migrateRuns(baseText, rawRuns)];
+      }
+
+      const comment = {
+        commentRenderer: {
+          commentId,
+          likeCount: Number(update.toolbar.likeCountLiked || 0),
+          replyCount: Number(update.toolbar.replyCount || 0),
+          authorText: {
+            simpleText: update.author.displayName,
+          },
+          authorThumbnail: {
+            thumbnails: [
+              {
+                url: update.author.avatarThumbnailUrl,
+              },
+            ],
+          },
+          contentText: {
+            runs,
+            fullText: baseText,
+          },
+        },
+      };
+      if (surfaceUpdate) {
+        comment.commentRenderer.publishedTimeText = {
+          runs: [
+            {
+              text: update.properties.publishedTime,
+              navigationEndpoint: {
+                commandMetadata:
+                  surfaceUpdate.publishedTimeCommand.innertubeCommand
+                    .commandMetadata,
+              },
+            },
+          ],
+        };
+      }
+
+      return comment;
     }
     function migrateContinuationItems(
       continuationItems,
@@ -7886,116 +8003,24 @@
           const update = frameworkUpdatesByCommentId[commentId];
 
           const commentSurfaceKey = vm.commentSurfaceKey;
-          const surface = frameworkUpdatesByCommentId[commentSurfaceKey];
+          const surfaceUpdate = frameworkUpdatesByCommentId[commentSurfaceKey];
 
           if (!update) {
             return item;
           }
 
-          const propContent = update.properties.content;
-
-          const baseText = propContent.content;
-          let runs = [
-            {
-              // full text as first run
-              text: baseText,
-            },
-          ];
-
-          // from commandRuns to runs
-          if (propContent.commandRuns) {
-            const watchRuns = [];
-            const otherRuns = [];
-
-            propContent.commandRuns.forEach((commandRun) => {
-              const watchEndpoint = qt(
-                () => commandRun.onTap.innertubeCommand.watchEndpoint
-              );
-              if (watchEndpoint) {
-                const { startIndex, length } = commandRun;
-                const { videoId, startTimeSeconds } = watchEndpoint;
-                let text;
-                if (
-                  typeof startIndex === 'number' &&
-                  typeof length === 'number'
-                ) {
-                  text = propContent.content.slice(
-                    startIndex,
-                    startIndex + length
-                  );
-                }
-
-                watchRuns.push({
-                  text,
-                  startIndex,
-                  length,
-                  navigationEndpoint: {
-                    watchEndpoint: {
-                      videoId,
-                      startTimeSeconds: startTimeSeconds || 0,
-                    },
-                  },
-                });
-                return;
-              }
-
-              const commandMetadata = qt(
-                () => commandRun.onTap.commandMetadata
-              );
-              if (commandMetadata && commandMetadata.webCommandMetadata) {
-                otherRuns.push({
-                  text: '',
-                  navigationEndpoint: {
-                    commandMetadata,
-                  },
-                });
-                return;
-              }
-            });
-
-            runs = [
-              ...generateFullWatchRuns(baseText, watchRuns),
-              ...otherRuns,
-            ];
-          }
-
-          const comment = {
-            commentRenderer: {
-              authorText: {
-                simpleText: update.author.displayName,
-              },
-              authorThumbnail: {
-                thumbnails: [
-                  {
-                    url: update.author.avatarThumbnailUrl,
-                  },
-                ],
-              },
-              contentText: {
-                runs,
-              },
-            },
-          };
-          if (surface) {
-            comment.commentRenderer.publishedTimeText = {
-              runs: [
-                {
-                  text: update.properties.publishedTime,
-                  navigationEndpoint: {
-                    commandMetadata:
-                      surface.publishedTimeCommand.innertubeCommand
-                        .commandMetadata,
-                  },
-                },
-              ],
-            };
-          }
+          const comment = generateCommentObject({
+            commentId,
+            update,
+            surfaceUpdate,
+          });
 
           newItem.commentThreadRenderer = {
             ...newItem.commentThreadRenderer,
             comment,
           };
 
+          // check if replies continuation exists
           if (item.commentThreadRenderer.replies) {
             const continuationEndpoint = qt(
               () =>
@@ -8003,6 +8028,7 @@
                   .contents[0].continuationItemRenderer.continuationEndpoint
             );
             if (continuationEndpoint) {
+              // add structure for replies continuation
               newItem.commentThreadRenderer.replies = {
                 ...newItem.commentThreadRenderer.replies,
                 commentRepliesRenderer: {
@@ -8041,114 +8067,17 @@
           const update = frameworkUpdatesByCommentId[commentId];
 
           const commentSurfaceKey = vm.commentSurfaceKey;
-          const surface = frameworkUpdatesByCommentId[commentSurfaceKey];
+          const surfaceUpdate = frameworkUpdatesByCommentId[commentSurfaceKey];
 
           if (!update) {
             return item;
           }
 
-          const propContent = update.properties.content;
-
-          const baseText = propContent.content;
-          let runs = [
-            {
-              // full text as first run
-              text: baseText,
-            },
-          ];
-
-          // from commandRuns to runs
-          if (propContent.commandRuns) {
-            const watchRuns = [];
-            const otherRuns = [];
-
-            propContent.commandRuns.forEach((commandRun) => {
-              const watchEndpoint = qt(
-                () => commandRun.onTap.innertubeCommand.watchEndpoint
-              );
-              if (watchEndpoint) {
-                const { startIndex, length } = commandRun;
-                const { videoId, startTimeSeconds } = watchEndpoint;
-                let text;
-                if (
-                  typeof startIndex === 'number' &&
-                  typeof length === 'number'
-                ) {
-                  text = propContent.content.slice(
-                    startIndex,
-                    startIndex + length
-                  );
-                }
-
-                watchRuns.push({
-                  text,
-                  startIndex,
-                  length,
-                  navigationEndpoint: {
-                    watchEndpoint: {
-                      videoId,
-                      startTimeSeconds: startTimeSeconds || 0,
-                    },
-                  },
-                });
-                return;
-              }
-
-              const commandMetadata = qt(
-                () => commandRun.onTap.commandMetadata
-              );
-              if (commandMetadata && commandMetadata.webCommandMetadata) {
-                otherRuns.push({
-                  text: '',
-                  navigationEndpoint: {
-                    commandMetadata,
-                  },
-                });
-                return;
-              }
-            });
-
-            runs = [
-              ...generateFullWatchRuns(baseText, watchRuns),
-              ...otherRuns,
-            ];
-          }
-
-          const comment = {
-            commentRenderer: {
-              authorEndpoint: {
-                commandMetadata:
-                  update.author.channelCommand.innertubeCommand.commandMetadata,
-              },
-              authorText: {
-                simpleText: update.author.displayName,
-              },
-              authorThumbnail: {
-                thumbnails: [
-                  {
-                    url: update.author.avatarThumbnailUrl,
-                  },
-                ],
-              },
-              contentText: {
-                runs,
-              },
-            },
-          };
-          if (surface) {
-            comment.commentRenderer.publishedTimeText = {
-              runs: [
-                {
-                  text: update.properties.publishedTime,
-                  navigationEndpoint: {
-                    commandMetadata:
-                      surface.publishedTimeCommand.innertubeCommand
-                        .commandMetadata,
-                  },
-                },
-              ],
-            };
-          }
+          const comment = generateCommentObject({
+            commentId,
+            update,
+            surfaceUpdate,
+          });
 
           newItem.commentRenderer = comment.commentRenderer;
 
