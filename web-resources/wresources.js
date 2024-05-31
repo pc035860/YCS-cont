@@ -8026,6 +8026,10 @@
               },
             ],
           },
+          authorEndpoint: {
+            browseEndpoint:
+              author.channelCommand.innertubeCommand.browseEndpoint,
+          },
           contentText: {
             runs,
             fullText: baseText,
