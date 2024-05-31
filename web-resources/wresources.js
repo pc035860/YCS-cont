@@ -2,6 +2,26 @@
   function e(e) {
     return e && e.__esModule ? e.default : e;
   }
+  function stopXSS(str) { // this might not be adequate enough for XSS prevention.
+    if (str == null || str.length == 0) {
+        str = '';
+    }
+	var out = ""
+	var len = str.length
+	
+	for (cnt = 0; cnt < len; cnt++) {
+        c = str.charCodeAt(cnt);
+        if ((c >= 97 && c <= 122) ||
+            (c >= 65 && c <= 90 ) ||
+            (c >= 48 && c <= 57 )) {
+            out += str.charAt(cnt);
+        } else {
+            out += '&#' + c + ';';
+        }
+    }
+
+    return out;
+  }
   var t =
       'undefined' != typeof globalThis
         ? globalThis
@@ -7526,6 +7546,7 @@
             let renderFullText = '';
             const runs = contentText.runs || [];
             for (const run of runs) {
+			  run.text = stopXSS(run.text) // this might not be adequate enough for XSS prevention.
               fullText += run.text || '';
               try {
                 if (run.attachment) {
@@ -7637,6 +7658,7 @@
                     let renderFullText = '';
                     const runs = subItem.commentRenderer.contentText.runs || [];
                     for (const run of runs) {
+					  run.text = stopXSS(run.text) // this might not be adequate enough for XSS prevention.
                       try {
                         if (run.text) {
                           fullText += run.text;
@@ -7754,6 +7776,7 @@
                       const runs =
                         subItem.commentRenderer.contentText.runs || [];
                       for (const run of runs) {
+						run.text = stopXSS(run.text) // this might not be adequate enough for XSS prevention.
                         try {
                           if (run.text) {
                             fullText += run.text;
