@@ -7997,6 +7997,13 @@
             },
           ],
         };
+        if (surfaceUpdate.pdgCommentChip) {
+          comment.commentRenderer.pdgCommentChip = {
+            chipText:
+              surfaceUpdate.pdgCommentChip.pdgCommentChipRenderer.chipText
+                .simpleText,
+          };
+        }
       }
       if (
         toolbarStateUpdate &&
@@ -8020,6 +8027,14 @@
             },
           },
         };
+      }
+
+      if (author.isVerified) {
+        comment.commentRenderer.verifiedAuthor = true;
+      }
+
+      if (author.isCreator) {
+        comment.commentRenderer.authorIsChannelOwner = true;
       }
 
       return comment;
