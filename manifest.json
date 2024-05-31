@@ -42,5 +42,10 @@
    "web_accessible_resources": [ {
       "matches": [ "*://*.youtube.com/*" ],
       "resources": [ "web-resources/wresources.js" ]
-   } ]
+   } ],
+   "browser_specific_settings": {
+      "gecko": {
+         "id": "ycs-cont@pymaster.tw"
+      }
+   }
 }
