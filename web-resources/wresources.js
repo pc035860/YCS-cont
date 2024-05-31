@@ -7614,11 +7614,11 @@
                   const continuationItems =
                     responseData.onResponseReceivedEndpoints[0]
                       .appendContinuationItemsAction.continuationItems;
-                  const frameworkUpdatesByCommentId =
-                    getFrameworkUpdatesByCommentId(responseData);
+                  const frameworkUpdatesById =
+                    getFrameworkUpdatesById(responseData);
                   const subItems = migrateContinuationSubItems(
                     continuationItems,
-                    frameworkUpdatesByCommentId
+                    frameworkUpdatesById
                   );
                   for (const subItem of subItems) {
                     if (!subItem.commentRenderer) continue;
@@ -7730,11 +7730,11 @@
                     const continuationItems =
                       responseData.onResponseReceivedEndpoints[0]
                         .appendContinuationItemsAction.continuationItems;
-                    const frameworkUpdatesByCommentId =
-                      getFrameworkUpdatesByCommentId(responseData);
+                    const frameworkUpdatesById =
+                      getFrameworkUpdatesById(responseData);
                     const subItems = migrateContinuationSubItems(
                       continuationItems,
-                      frameworkUpdatesByCommentId
+                      frameworkUpdatesById
                     );
                     for (const subItem of subItems) {
                       if (!subItem.commentRenderer) continue;
@@ -7811,7 +7811,7 @@
         }
       }
     }
-    function getFrameworkUpdatesByCommentId(data) {
+    function getFrameworkUpdatesById(data) {
       const mutations = data?.frameworkUpdates?.entityBatchUpdate?.mutations;
 
       if (!mutations || mutations.length === 0) {
@@ -7828,12 +7828,20 @@
           }
         }
 
-        // also support commentSurfaceEntityKey
+        // support commentSurfaceEntityKey
         const commentSurfaceEntityPayload =
           mutation.payload?.commentSurfaceEntityPayload;
         if (commentSurfaceEntityPayload) {
           const { key } = commentSurfaceEntityPayload;
           acc[key] = commentSurfaceEntityPayload;
+        }
+
+        // support engagementToolbarStateEntityKey
+        const engagementToolbarStateEntityPayload =
+          mutation.payload?.engagementToolbarStateEntityPayload;
+        if (engagementToolbarStateEntityPayload) {
+          const { key } = engagementToolbarStateEntityPayload;
+          acc[key] = engagementToolbarStateEntityPayload;
         }
         return acc;
       }, {});
@@ -7872,7 +7880,12 @@
     /**
      * Generate comment object from update
      */
-    function generateCommentObject({ commentId, update, surfaceUpdate }) {
+    function generateCommentObject({
+      commentId,
+      update,
+      surfaceUpdate,
+      toolbarStateUpdate,
+    }) {
       const propContent = update.properties.content;
 
       const baseText = propContent.content;
@@ -7948,18 +7961,20 @@
         runs = [...migrateRuns(baseText, rawRuns)];
       }
 
+      const { author } = update;
+
       const comment = {
         commentRenderer: {
           commentId,
           likeCount: Number(update.toolbar.likeCountLiked || 0),
           replyCount: Number(update.toolbar.replyCount || 0),
           authorText: {
-            simpleText: update.author.displayName,
+            simpleText: author.displayName,
           },
           authorThumbnail: {
             thumbnails: [
               {
-                url: update.author.avatarThumbnailUrl,
+                url: author.avatarThumbnailUrl,
               },
             ],
           },
@@ -7981,6 +7996,29 @@
               },
             },
           ],
+        };
+      }
+      if (
+        toolbarStateUpdate &&
+        toolbarStateUpdate.heartState === 'TOOLBAR_HEART_STATE_HEARTED'
+      ) {
+        comment.commentRenderer.creatorHeart = {
+          tooltip: update.toolbar.heartActiveTooltip,
+        };
+      }
+
+      if (author.sponsorBadgeUrl) {
+        comment.commentRenderer.sponsorCommentBadge = {
+          sponsorCommentBadgeRenderer: {
+            tooltip: author.sponsorBadgeA11y,
+            customBadge: {
+              thumbnails: [
+                {
+                  url: author.sponsorBadgeUrl,
+                },
+              ],
+            },
+          },
         };
       }
 
@@ -8005,6 +8043,10 @@
           const commentSurfaceKey = vm.commentSurfaceKey;
           const surfaceUpdate = frameworkUpdatesByCommentId[commentSurfaceKey];
 
+          const engagementToolbarStateKey = vm.toolbarStateKey;
+          const toolbarStateUpdate =
+            frameworkUpdatesByCommentId[engagementToolbarStateKey];
+
           if (!update) {
             return item;
           }
@@ -8013,6 +8055,7 @@
             commentId,
             update,
             surfaceUpdate,
+            toolbarStateUpdate,
           });
 
           newItem.commentThreadRenderer = {
@@ -8053,7 +8096,7 @@
     }
     function migrateContinuationSubItems(
       continuationItems,
-      frameworkUpdatesByCommentId
+      frameworkUpdatesById
     ) {
       return continuationItems
         .map((item) => {
@@ -8064,10 +8107,10 @@
 
           const vm = item.commentViewModel;
           const commentId = vm.commentId;
-          const update = frameworkUpdatesByCommentId[commentId];
+          const update = frameworkUpdatesById[commentId];
 
           const commentSurfaceKey = vm.commentSurfaceKey;
-          const surfaceUpdate = frameworkUpdatesByCommentId[commentSurfaceKey];
+          const surfaceUpdate = frameworkUpdatesById[commentSurfaceKey];
 
           if (!update) {
             return item;
@@ -8150,10 +8193,8 @@
       let contData;
       for (; (null == i ? void 0 : i.length) > 0; ) {
         var l, d, u;
-        const updatesByCommentId = getFrameworkUpdatesByCommentId(
-          contData || o
-        );
-        i = migrateContinuationItems(i, updatesByCommentId);
+        const updatesById = getFrameworkUpdatesById(contData || o);
+        i = migrateContinuationItems(i, updatesById);
         await processComments(i, t);
         const e = i[i.length - 1];
         if (
@@ -8723,9 +8764,7 @@
               ? void 0
               : n.creatorHeart
           ) {
-            return `\n                    <div class="ycs-heart-wrap" title="${
-              'Liked by the author: ' + e.item.commentRenderer.creatorHeart.name
-            }">\n                        <span class="ycs-heart-icon">❤</span>\n                    </div>\n                `;
+            return `\n                    <div class="ycs-heart-wrap" title="${e.item.commentRenderer.creatorHeart.tooltip}">\n                        <span class="ycs-heart-icon">❤</span>\n                    </div>\n                `;
           }
         } catch (e) {}
         return '';
