@@ -24,3 +24,8 @@ This version tries to migrate the latest API data back to the old version, allow
 - Clone this repository.
 - Navigate to the chrome://extensions/ page and enable developer mode.
 - Click "Load unpacked" and select the repository folder.
+
+### Download xpi (Firefox)
+
+- Download the xpi file from the release page.
+- Open the xpi file with Firefox.

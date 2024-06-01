@@ -38,7 +38,7 @@
    "options_page": "options/options.html",
    "permissions": [ "storage", "scripting" ],
    "short_name": "YCS",
-   "version": "1.2.1",
+   "version": "1.2.2",
    "web_accessible_resources": [ {
       "matches": [ "*://*.youtube.com/*" ],
       "resources": [ "web-resources/wresources.js" ]
