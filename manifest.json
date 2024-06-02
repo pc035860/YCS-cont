@@ -41,6 +41,6 @@
    "version": "1.2.2",
    "web_accessible_resources": [ {
       "matches": [ "*://*.youtube.com/*" ],
-      "resources": [ "web-resources/wresources.js" ]
+      "resources": [ "web-resources/*.js" ]
    } ]
 }
