@@ -10547,6 +10547,7 @@
                   let cueGroups;
                   try {
                     transcriptData = await loadTranscript(t.signal);
+                    i = transcriptData;
 
                     cueGroups =
                       transcriptData?.actions?.[0]?.updateEngagementPanelAction
