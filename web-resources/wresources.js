@@ -7119,80 +7119,139 @@
       return;
     }
   }
-  async function an(e) {
-    try {
-      const t = await Qt(Xt(window.location.href), e);
-      if (t) {
-        const n = (function (e) {
-            try {
-              if (e) {
-                let t;
-                for (const n of e) {
-                  const e = Wt(n, 'serializedShareEntity')[0];
-                  if ((e && ([, t] = Object.entries(e)[0]), t)) break;
-                }
-                return t;
-              }
-            } catch (e) {
-              return;
-            }
-          })(t),
-          o = (function (e, t) {
-            try {
-              var n, o, r, i, a;
-              return JSON.parse(
-                JSON.stringify({
-                  headers: {
-                    accept: '*/*',
-                    'accept-language':
-                      (null === (n = e.ytcfg) ||
-                      void 0 === n ||
-                      null === (o = n.data_) ||
-                      void 0 === o ||
-                      null === (r = o.GOOGLE_FEEDBACK_PRODUCT_DATA) ||
-                      void 0 === r
-                        ? void 0
-                        : r.accept_language) || 'en-US,en;q=0.9',
-                    'content-type': 'application/json',
-                    pragma: 'no-cache',
-                    'cache-control': 'no-store',
-                    'x-youtube-client-name':
-                      (null === (i = e.ytcfg) ||
-                      void 0 === i ||
-                      null === (a = i.data_) ||
-                      void 0 === a
-                        ? void 0
-                        : a.INNERTUBE_CONTEXT_CLIENT_NAME) || '1',
-                    'x-youtube-client-version':
-                      e.ytcfg.data_.INNERTUBE_CONTEXT_CLIENT_VERSION,
-                  },
-                  referrer: Xt(e.location.href),
-                  referrerPolicy: 'origin-when-cross-origin',
-                  body: JSON.stringify({
-                    context: {
-                      client: e.ytcfg.data_.INNERTUBE_CONTEXT.client,
-                    },
-                    params: t,
-                  }),
-                  method: 'POST',
-                  mode: 'cors',
-                  credentials: 'include',
-                })
-              );
-            } catch (e) {
-              return;
-            }
-          })(window, n),
-          r = await fetch(
-            `https://www.youtube.com/youtubei/v1/get_transcript?key=${nn()}`,
-            {
-              ...o,
-              signal: e,
-              cache: 'no-store',
-            }
-          );
-        return await r.json();
+  async function loadTranscript(e) {
+    const getTimedTextUrl = async () => {
+      const videoId = Jt(window.location.href);
+      const response = await fetch(
+        `https://www.youtube.com/watch?v=${videoId}`,
+        {
+          method: 'GET',
+          mode: 'no-cors',
+          credentials: 'include',
+          signal: e,
+          cache: 'no-store',
+        }
+      );
+      const html = await response.text();
+      const splittedHtml = html.split('"captions":');
+      if (splittedHtml.length <= 1) {
+        throw new Error('Fail to load video html');
       }
+      const captions = JSON.parse(
+        splittedHtml[1].split(',"videoDetails')[0].replace('\n', '')
+      ).playerCaptionsTracklistRenderer;
+      const generatedTracks = captions.captionTracks.filter(
+        ({ kind }) => kind === 'asr'
+      );
+      const englishTracks = generatedTracks.filter(
+        ({ languageCode }) => languageCode === 'en'
+      );
+      return englishTracks.length > 0
+        ? englishTracks[0].baseUrl
+        : generatedTracks[0].baseUrl;
+    };
+
+    const getRawTranscript = async (url) => {
+      const response = await fetch(url, {
+        method: 'GET',
+        mode: 'no-cors',
+        credentials: 'include',
+        signal: e,
+        cache: 'no-store',
+      });
+      const xmlText = await response.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xmlText, 'application/xml');
+      return [].slice.call(doc.childNodes[0].childNodes).map((node) => {
+        return {
+          text: node.textContent,
+          start: Number(qt(() => node.attributes.start.value) || 0),
+          duration: Number(qt(() => node.attributes.dur.value) || 0),
+        };
+      });
+    };
+
+    const toFormatted = (seconds) => {
+      let left = seconds;
+      const h = (left / 3600) >>> 0;
+      left -= h * 3600;
+      const m = (left / 60) >>> 0;
+      left -= m * 60;
+      const s = left >>> 0;
+
+      let output = `${s}`.padStart(2, '0');
+
+      if (m || h) {
+        let seg;
+
+        if (!m) {
+          seg = '00';
+        } else {
+          if (h) {
+            seg = `${m}`.padStart(2, '0');
+          } else {
+            seg = m;
+          }
+        }
+
+        output = `${seg}:${output}`;
+      }
+
+      if (h) {
+        output = `${h}:${output}`;
+      }
+
+      if (!m && !h) {
+        output = `0:${output}`;
+      }
+
+      return output;
+    };
+
+    const migrateTranscript = (rawTranscript) => {
+      const cueGroups = rawTranscript.map(({ text, start, duration }) => {
+        return {
+          transcriptCueGroupRenderer: {
+            formattedStartOffset: {
+              simpleText: toFormatted(start),
+            },
+            cues: [
+              {
+                transcriptCueRenderer: {
+                  startOffsetMs: start * 1000,
+                  cue: {
+                    simpleText: text,
+                  },
+                },
+              },
+            ],
+          },
+        };
+      });
+
+      return {
+        actions: [
+          {
+            updateEngagementPanelAction: {
+              content: {
+                transcriptRenderer: {
+                  body: {
+                    transcriptBodyRenderer: {
+                      cueGroups,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      };
+    };
+
+    try {
+      const url = await getTimedTextUrl();
+      const rawTranscript = await getRawTranscript(url);
+      return migrateTranscript(rawTranscript);
     } catch (e) {
       return;
     }
@@ -8665,39 +8724,35 @@
       }
   }
   function fn(e) {
-    if (Array.isArray(e))
+    if (Array.isArray(e)) {
       try {
-        let o = '',
-          r = 0;
-        for (const i of e)
+        let formattedTranscript = '';
+        let count = 0;
+        for (const item of e) {
           try {
-            var t, n;
-            r++,
-              (o += `\n\n#####\n\nTime: ${
-                (null == i ||
-                null === (t = i.transcriptCueGroupRenderer) ||
-                void 0 === t ||
-                null === (n = t.formattedStartOffset) ||
-                void 0 === n
-                  ? void 0
-                  : n.simpleText) || 0
-              }\n\n${
-                qt(
-                  () =>
-                    i.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer
-                      .cue.simpleText
-                ) || ''
-              }\n\n#####\n`);
-          } catch (e) {
+            let time =
+              item.transcriptCueGroupRenderer.formattedStartOffset.simpleText ||
+              0;
+            let cue =
+              qt(
+                () =>
+                  item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer
+                    .cue.simpleText
+              ) || '';
+            count++;
+            formattedTranscript += `\n\n#####\n\nTime: ${time}\n\n${cue}\n\n#####\n`;
+          } catch (error) {
             continue;
           }
+        }
         return {
-          count: r,
-          html: o,
+          count: count,
+          html: formattedTranscript,
         };
-      } catch (e) {
+      } catch (error) {
         return;
       }
+    }
   }
   function vn() {
     try {
@@ -9325,108 +9380,161 @@
       }
     }
   }
-  function xn(e, t, n) {
-    if ('string' != typeof e) return;
-    const o = document.createElement('div');
-    o.id = 'ycs_wrap_comments_trvideo';
-    const r = document.querySelector(e);
-    if ((null == r || r.appendChild(o), r)) {
-      const r = [],
-        c = 200;
-      let l = 0,
-        d = 0;
-      for (const e of t)
+  function xn(elementSelector, comments, searchText) {
+    if (typeof elementSelector !== 'string') {
+      return;
+    }
+
+    const container = document.createElement('div');
+    container.id = 'ycs_wrap_comments_trvideo';
+
+    const targetElement = document.querySelector(elementSelector);
+    if (targetElement) {
+      targetElement.appendChild(container);
+
+      const renderedComments = [];
+      const batchSize = 200;
+      let startIndex = 0;
+      let endIndex = 0;
+
+      for (const comment of comments) {
         try {
-          var i, a, s;
-          r.push({
-            html: `\n                    <div id="ycs-number-comment-${++d}" class="ycs-render-comment ycs-oc-ml">\n                        <div class="ycs-left">\n                            <a class="ycs-goto-video ycs-cpointer"\n                                href="${
-              ln(
-                qt(
-                  () =>
-                    e.item.transcriptCueGroupRenderer.cues[0]
-                      .transcriptCueRenderer.startOffsetMs
-                )
-              ) || ''
-            }"\n                                target="_blank"\n                                data-offsetvideo="${
-              qt(
-                () =>
-                  e.item.transcriptCueGroupRenderer.cues[0]
-                    .transcriptCueRenderer.startOffsetMs
-              ) || ''
-            }"\n                                title="Go to the video by time.">\n                                \n        |▶\n     Go to: ${
-              (null === (i = e.item) ||
-              void 0 === i ||
-              null === (a = i.transcriptCueGroupRenderer) ||
-              void 0 === a ||
-              null === (s = a.formattedStartOffset) ||
-              void 0 === s
-                ? void 0
-                : s.simpleText) || 0
-            }\n                            </a>\n                            <div class="ycs-head-block__dib ycs-head-block ycs-head__title-main">\n                                <a class="ycs-datetime-goto"\n                                    href="${
-              ln(
-                qt(
-                  () =>
-                    e.item.transcriptCueGroupRenderer.cues[0]
-                      .transcriptCueRenderer.startOffsetMs
-                )
-              ) || ''
-            }"\n                                    target="_blank" title="Timestamp link">\n                                    Share link\n                                </a>\n                            </div>\n                        </div>\n                        <div class="ycs-comment__main-text ycs-clear">${
-              qt(
-                () =>
-                  e.item.transcriptCueGroupRenderer.cues[0]
-                    .transcriptCueRenderer.cue.simpleText
-              ) || ''
-            }</div>\n                    </div>\n                `,
+          const startOffsetMs = qt(
+            () =>
+              comment.item.transcriptCueGroupRenderer.cues[0]
+                .transcriptCueRenderer.startOffsetMs
+          );
+          const formattedStartOffset = qt(
+            () =>
+              comment.item.transcriptCueGroupRenderer.formattedStartOffset
+                .simpleText
+          );
+          const cueText = qt(
+            () =>
+              comment.item.transcriptCueGroupRenderer.cues[0]
+                .transcriptCueRenderer.cue.simpleText
+          );
+
+          renderedComments.push({
+            html: `
+              <div id="ycs-number-comment-${++endIndex}" class="ycs-render-comment ycs-oc-ml">
+                <div class="ycs-left">
+                  <a class="ycs-goto-video ycs-cpointer" href="${
+                    ln(startOffsetMs) || ''
+                  }" target="_blank" data-offsetvideo="${
+              startOffsetMs || ''
+            }" title="Go to the video by time.">
+                    |▶ Go to: ${formattedStartOffset || 0}
+                  </a>
+                  <div class="ycs-head-block__dib ycs-head-block ycs-head__title-main">
+                    <a class="ycs-datetime-goto" href="${
+                      ln(startOffsetMs) || ''
+                    }" target="_blank" title="Timestamp link">
+                      Share link
+                    </a>
+                  </div>
+                </div>
+                <div class="ycs-comment__main-text ycs-clear">
+                  ${cueText || ''}
+                </div>
+              </div>
+            `,
           });
-        } catch (e) {
+        } catch (error) {
           continue;
         }
+      }
+
       try {
-        const t = r.slice(l, c);
-        if (t.length > 0) {
-          for (const e of t) o.insertAdjacentHTML('beforeend', e.html), l++;
-          if (r.length > c) {
-            o.insertAdjacentHTML(
-              'beforeend',
-              `\n                        <div id="ycs_search_trvideo_show_more" class="ycs-render-comment ycs-show_more_block">\n                            <div id="ycs__show-more-button"\n                                class="ycs-title">\n                                Show more, found transcript video (${
-                r.length - l
-              }) \n        <span class="ycs-icons__coll_exp">\n            <svg version="1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" enable-background="new 0 0 48 48">\n                <polygon fill="#2196F3" points="43,17.1 39.9,14 24,29.9 8.1,14 5,17.1 24,36"/>\n            </svg>    \n        </span>\n    \n                            </div>\n                        </div>\n                    `
+        const batch = renderedComments.slice(startIndex, batchSize);
+        if (batch.length > 0) {
+          for (const comment of batch) {
+            container.insertAdjacentHTML('beforeend', comment.html);
+            startIndex++;
+          }
+
+          if (renderedComments.length > batchSize) {
+            container.insertAdjacentHTML(`
+              <div id="ycs_search_trvideo_show_more" class="ycs-render-comment ycs-show_more_block">
+                <div id="ycs__show-more-button" class="ycs-title">
+                  Show more, found transcript video (${
+                    renderedComments.length - startIndex
+                  })
+                  <span class="ycs-icons__coll_exp">
+                    <svg version="1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" enable-background="new 0 0 48 48">
+                      <polygon fill="#2196F3" points="43,17.1 39.9,14 24,29.9 8.1,14 5,17.1 24,36"/>
+                    </svg>
+                  </span>
+                </div>
+              </div>
+            `);
+
+            const showMoreButton = document.getElementById(
+              'ycs_search_trvideo_show_more'
             );
-            const e = document.getElementById('ycs_search_trvideo_show_more');
-            null == e ||
-              e.addEventListener('click', () => {
-                const t = r.slice(l, c + l);
-                if (t.length > 0) {
-                  const o = Dt(15);
-                  e.insertAdjacentHTML(
+            if (showMoreButton) {
+              showMoreButton.addEventListener('click', () => {
+                const nextBatch = renderedComments.slice(
+                  startIndex,
+                  batchSize + startIndex
+                );
+                if (nextBatch.length > 0) {
+                  const uniqueClass = Dt(15);
+                  container.insertAdjacentHTML(
                     'beforebegin',
-                    `<div class="${o}"></div>`
+                    `<div class="${uniqueClass}"></div>`
                   );
-                  const i = document.getElementsByClassName(o)[0];
-                  for (const e of t)
-                    i.insertAdjacentHTML('beforeend', e.html), l++;
-                  if ((n && yn(`.${o}`, n), r.length - l <= 0)) {
-                    const e = document.getElementById(
+                  const batchContainer =
+                    document.getElementsByClassName(uniqueClass)[0];
+                  for (const comment of nextBatch) {
+                    batchContainer.insertAdjacentHTML(
+                      'beforeend',
+                      comment.html
+                    );
+                    startIndex++;
+                  }
+
+                  if (searchText) {
+                    yn(`.${uniqueClass}`, searchText);
+                  }
+
+                  if (renderedComments.length - startIndex <= 0) {
+                    const showMoreButton = document.getElementById(
                       'ycs_search_trvideo_show_more'
                     );
-                    e && e.remove();
+                    if (showMoreButton) {
+                      showMoreButton.remove();
+                    }
                   } else {
-                    const e = document.querySelector(
+                    const showMoreButton = document.querySelector(
                       '#ycs_search_trvideo_show_more #ycs__show-more-button'
                     );
-                    e &&
-                      (e.innerHTML = `Show more, found transcript video (${
-                        r.length - l
-                      }) \n        <span class="ycs-icons__coll_exp">\n            <svg version="1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" enable-background="new 0 0 48 48">\n                <polygon fill="#2196F3" points="43,17.1 39.9,14 24,29.9 8.1,14 5,17.1 24,36"/>\n            </svg>    \n        </span>\n    `);
+                    if (showMoreButton) {
+                      showMoreButton.innerHTML = `Show more, found transcript video (${
+                        renderedComments.length - startIndex
+                      })
+                        <span class="ycs-icons__coll_exp">
+                          <svg version="1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" enable-background="new 0 0 48 48">
+                            <polygon fill="#2196F3" points="43,17.1 39.9,14 24,29.9 8.1,14 5,17.1 24,36"/>
+                          </svg>
+                        </span>
+                      `;
+                    }
                   }
                 }
               });
+            }
           }
         }
-        n && yn(e, n);
-      } catch (e) {
-        l = 0;
-        for (const e of r) o.insertAdjacentHTML('beforeend', e.html);
+
+        if (searchText) {
+          yn(elementSelector, searchText);
+        }
+      } catch (error) {
+        startIndex = 0;
+        for (const comment of renderedComments) {
+          container.insertAdjacentHTML('beforeend', comment.html);
+        }
       }
     }
   }
@@ -10412,128 +10520,99 @@
             const v = document.getElementById('ycs-load-transcript-video');
             v &&
               v.addEventListener('click', async function (e) {
+                // Ensure the element has a parent node or parent element
                 if (!h.parentNode || !h.parentElement) return;
-                const n = e.currentTarget;
-                (n.disabled = !0), (n.innerText = 'reload');
-                const r = document.getElementById('ycs_status_trvideo'),
-                  c = document.getElementById('ycs_cmnts_video');
-                if (c && r) {
-                  (c.textContent = '0'),
-                    (r.innerHTML =
-                      '\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="48" height="48" viewBox="0 0 48 48">\n                <path fill="#ff6f02" d="M31 7.002l13 1.686L33.296 19 31 7.002zM17 41L4 39.314 14.704 29 17 41z"></path>\n                <path fill="#ff6f00"\n                    d="M8 24c0-8.837 7.163-16 16-16 1.024 0 2.021.106 2.992.29l.693-3.865C26.525 4.112 25.262 4.005 24 4.005c-11.053 0-20 8.947-20 20 0 4.844 1.686 9.474 4.844 13.051l3.037-2.629C9.468 31.625 8 27.987 8 24zM39.473 11.267l-3.143 2.537C38.622 16.572 40 20.125 40 24c0 8.837-7.163 16-16 16-1.029 0-2.033-.106-3.008-.292l-.676 3.771c1.262.21 2.525.317 3.684.317 11.053 0 20-8.947 20-20C44 19.375 42.421 14.848 39.473 11.267z">\n                </path>\n            </svg>\n        </span>\n    '),
-                    (i = await an(t.signal));
+
+                const button = e.currentTarget;
+                button.disabled = true;
+                button.innerText = 'reload';
+
+                const statusElement =
+                  document.getElementById('ycs_status_trvideo');
+                const commentsElement =
+                  document.getElementById('ycs_cmnts_video');
+
+                if (statusElement && commentsElement) {
+                  commentsElement.textContent = '0';
+                  statusElement.innerHTML = `
+                      <span class="ycs-icons">
+                          <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="48" height="48" viewBox="0 0 48 48">
+                              <path fill="#ff6f02" d="M31 7.002l13 1.686L33.296 19 31 7.002zM17 41L4 39.314 14.704 29 17 41z"></path>
+                              <path fill="#ff6f00" d="M8 24c0-8.837 7.163-16 16-16 1.024 0 2.021.106 2.992.29l.693-3.865C26.525 4.112 25.262 4.005 24 4.005c-11.053 0-20 8.947-20 20 0 4.844 1.686 9.474 4.844 13.051l3.037-2.629C9.468 31.625 8 27.987 8 24zM39.473 11.267l-3.143 2.537C38.622 16.572 40 20.125 40 24c0 8.837-7.163 16-16 16-1.029 0-2.033-.106-3.008-.292l-.676 3.771c1.262.21 2.525.317 3.684.317 11.053 0 20-8.947 20-20C44 19.375 42.421 14.848 39.473 11.267z"></path>
+                          </svg>
+                      </span>
+                  `;
+
+                  let transcriptData;
+                  let cueGroups;
                   try {
-                    var l, d, u, p, f, v, y, g, w, b;
-                    i &&
-                    c &&
-                    (null === (l = i) ||
-                    void 0 === l ||
-                    null === (d = l.actions) ||
-                    void 0 === d
-                      ? void 0
-                      : d.length) > 0 &&
-                    (null ===
-                      (p =
-                        null === (u = i) || void 0 === u
-                          ? void 0
-                          : u.actions[0]) ||
-                    void 0 === p ||
-                    null === (f = p.updateEngagementPanelAction) ||
-                    void 0 === f ||
-                    null === (v = f.content) ||
-                    void 0 === v ||
-                    null === (y = v.transcriptRenderer) ||
-                    void 0 === y ||
-                    null === (g = y.body) ||
-                    void 0 === g ||
-                    null === (w = g.transcriptBodyRenderer) ||
-                    void 0 === w ||
-                    null === (b = w.cueGroups) ||
-                    void 0 === b
-                      ? void 0
-                      : b.length) > 0
-                      ? (Kt(
-                          i.actions[0].updateEngagementPanelAction.content
-                            .transcriptRenderer.body.transcriptBodyRenderer
-                            .cueGroups.length,
-                          c
-                        ),
-                        gn(
-                          {
-                            comments: a,
-                            commentsChat: JSON.stringify(
-                              Array.from(s.entries())
-                            ),
-                            commentsTrVideo: i,
-                          },
-                          window.location.href,
-                          document.title
-                        ))
-                      : (i = void 0);
-                  } catch (e) {
-                    i = void 0;
+                    transcriptData = await loadTranscript(t.signal);
+
+                    cueGroups =
+                      transcriptData?.actions?.[0]?.updateEngagementPanelAction
+                        ?.content?.transcriptRenderer?.body
+                        ?.transcriptBodyRenderer?.cueGroups;
+                    const cueGroupLength = cueGroups?.length || 0;
+
+                    if (cueGroupLength > 0) {
+                      Kt(cueGroupLength, commentsElement);
+                      gn(
+                        {
+                          comments: a,
+                          commentsChat: JSON.stringify(Array.from(s.entries())),
+                          commentsTrVideo: transcriptData,
+                        },
+                        window.location.href,
+                        document.title
+                      );
+                    } else {
+                      transcriptData = undefined;
+                    }
+                  } catch (error) {
+                    transcriptData = undefined;
                   }
-                  qt(() => {
-                    var e, t, n, o, r, a, s, c;
-                    return (
-                      (null ===
-                        (t =
-                          null === (e = i) || void 0 === e
-                            ? void 0
-                            : e.actions[0]) ||
-                      void 0 === t ||
-                      null === (n = t.updateEngagementPanelAction) ||
-                      void 0 === n ||
-                      null === (o = n.content) ||
-                      void 0 === o ||
-                      null === (r = o.transcriptRenderer) ||
-                      void 0 === r ||
-                      null === (a = r.body) ||
-                      void 0 === a ||
-                      null === (s = a.transcriptBodyRenderer) ||
-                      void 0 === s ||
-                      null === (c = s.cueGroups) ||
-                      void 0 === c
-                        ? void 0
-                        : c.length) > 0
-                    );
-                  }) &&
-                    (r.innerHTML =
-                      '\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"\n            width="48" height="48"\n            viewBox="0 0 48 48"\n            style=" fill:#000000;"><linearGradient id="I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1" x1="9.858" x2="38.142" y1="9.858" y2="38.142" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#21ad64"></stop><stop offset="1" stop-color="#088242"></stop></linearGradient><path fill="url(#I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1)" d="M44,24c0,11.045-8.955,20-20,20S4,35.045,4,24S12.955,4,24,4S44,12.955,44,24z"></path><path d="M32.172,16.172L22,26.344l-5.172-5.172c-0.781-0.781-2.047-0.781-2.828,0l-1.414,1.414\tc-0.781,0.781-0.781,2.047,0,2.828l8,8c0.781,0.781,2.047,0.781,2.828,0l13-13c0.781-0.781,0.781-2.047,0-2.828L35,16.172\tC34.219,15.391,32.953,15.391,32.172,16.172z" opacity=".05"></path><path d="M20.939,33.061l-8-8c-0.586-0.586-0.586-1.536,0-2.121l1.414-1.414c0.586-0.586,1.536-0.586,2.121,0\tL22,27.051l10.525-10.525c0.586-0.586,1.536-0.586,2.121,0l1.414,1.414c0.586,0.586,0.586,1.536,0,2.121l-13,13\tC22.475,33.646,21.525,33.646,20.939,33.061z" opacity=".07"></path><path fill="#fff" d="M21.293,32.707l-8-8c-0.391-0.391-0.391-1.024,0-1.414l1.414-1.414c0.391-0.391,1.024-0.391,1.414,0\tL22,27.758l10.879-10.879c0.391-0.391,1.024-0.391,1.414,0l1.414,1.414c0.391,0.391,0.391,1.024,0,1.414l-13,13\tC22.317,33.098,21.683,33.098,21.293,32.707z"></path></svg>\n        </span>\n    ');
+
+                  if (hasCueGroups(transcriptData)) {
+                    statusElement.innerHTML = `
+                        <span class="ycs-icons">
+                            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="48" height="48" viewBox="0 0 48 48" style="fill:#000000;">
+                                <linearGradient id="I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1" x1="9.858" x2="38.142" y1="9.858" y2="38.142" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0" stop-color="#21ad64"></stop>
+                                    <stop offset="1" stop-color="#088242"></stop>
+                                </linearGradient>
+                                <path fill="url(#I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1)" d="M44,24c0,11.045-8.955,20-20,20S4,35.045,4,24S12.955,4,24,4S44,12.955,44,24z"></path>
+                                <path d="M32.172,16.172L22,26.344l-5.172-5.172c-0.781-0.781-2.047-0.781-2.828,0l-1.414,1.414c-0.781,0.781-0.781,2.047,0,2.828l8,8c0.781,0.781,2.047,0.781,2.828,0l13-13c0.781-0.781,0.781-2.047,0-2.828L35,16.172C34.219,15.391,32.953,15.391,32.172,16.172z" opacity=".05"></path>
+                                <path d="M20.939,33.061l-8-8c-0.586-0.586-0.586-1.536,0-2.121l1.414-1.414c0.586-0.586,1.536-0.586,2.121,0L22,27.051l10.525-10.525c0.586-0.586,1.536-0.586,2.121,0l1.414,1.414c0.586,0.586,0.586,1.536,0,2.121l-13,13C22.475,33.646,21.525,33.646,20.939,33.061z" opacity=".07"></path>
+                                <path fill="#fff" d="M21.293,32.707l-8-8c-0.391-0.391-0.391-1.024,0-1.414l1.414-1.414c0.391-0.391,1.024-0.391,1.414,0L22,27.758l10.879-10.879c0.391-0.391,1.024-0.391,1.414,0l1.414,1.414c0.391,0.391,0.391,1.024,0,1.414l-13,13C22.317,33.098,21.683,33.098,21.293,32.707z"></path>
+                            </svg>
+                        </span>
+                    `;
+                  }
+
+                  if (
+                    hasCueGroups(transcriptData) &&
+                    (h.parentNode || h.parentElement)
+                  ) {
+                    o.commentsTrVideo = cueGroups.length;
+                  }
+
+                  const totalComments =
+                    o.comments + o.commentsChat + o.commentsTrVideo;
+                  dn('NUMBER_COMMENTS', totalComments);
+
+                  if (m) {
+                    m.textContent = `(${totalComments})`;
+                  }
+
+                  button.disabled = false;
                 }
-                qt(() => {
-                  var e, t, n, o, r, a, s, c;
-                  return (
-                    (null ===
-                      (t =
-                        null === (e = i) || void 0 === e
-                          ? void 0
-                          : e.actions[0]) ||
-                    void 0 === t ||
-                    null === (n = t.updateEngagementPanelAction) ||
-                    void 0 === n ||
-                    null === (o = n.content) ||
-                    void 0 === o ||
-                    null === (r = o.transcriptRenderer) ||
-                    void 0 === r ||
-                    null === (a = r.body) ||
-                    void 0 === a ||
-                    null === (s = a.transcriptBodyRenderer) ||
-                    void 0 === s ||
-                    null === (c = s.cueGroups) ||
-                    void 0 === c
-                      ? void 0
-                      : c.length) > 0
-                  );
-                }) &&
-                  (h.parentNode || h.parentElement) &&
-                  (o.commentsTrVideo =
-                    i.actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length);
-                const x = o.comments + o.commentsChat + o.commentsTrVideo;
-                dn('NUMBER_COMMENTS', x),
-                  m && (m.textContent = `(${x})`),
-                  (n.disabled = !1);
               });
+
+            function hasCueGroups(transcriptData) {
+              return !!transcriptData?.actions?.[0]?.updateEngagementPanelAction
+                ?.content?.transcriptRenderer?.body?.transcriptBodyRenderer
+                ?.cueGroups?.length;
+            }
             const y = document.getElementById('ycs-load-all');
             y &&
               y.addEventListener('click', function () {
