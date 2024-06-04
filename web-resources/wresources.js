@@ -5525,7 +5525,8 @@
       () => `Option "${t}" not one of [${n.join(', ')}]`
     );
   };
-  var Ye = (e, t = {}) => {
+  // https://github.com/blackflux/object-scan
+  var objectScan = (e, t = {}) => {
       if (
         (R(Array.isArray(e), 'Argument "needles" expected to be Array'),
         R(
@@ -7333,7 +7334,7 @@
                 return;
               }
             })(window, Xt(window.location.href), n),
-            t = Ye(
+            t = objectScan(
               [
                 '**.contents.twoColumnWatchNextResults.results.results.contents[?].itemSectionRenderer.contents[?].continuationItemRenderer.continuationEndpoint.continuationCommand.token',
               ],
@@ -7431,7 +7432,7 @@
           for (const e of r)
             try {
               if (
-                ((i = Ye([`${e}`], {
+                ((i = objectScan([`${e}`], {
                   joined: !0,
                   rtn: 'value',
                   abort: !0,
@@ -7443,7 +7444,7 @@
               continue;
             }
           return {
-            continue: Ye(
+            continue: objectScan(
               [
                 '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token',
               ],
@@ -8293,7 +8294,7 @@
               })
             : en(window, {
                 continue: qt(() =>
-                  Ye(
+                  objectScan(
                     [
                       '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token',
                     ],
@@ -8305,7 +8306,7 @@
                   )(window.ytInitialData)
                 ),
                 clickTrackingParams: qt(() =>
-                  Ye(
+                  objectScan(
                     [
                       '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.clickTrackingParams',
                     ],
@@ -9574,9 +9575,9 @@
                 commentsChat: 0,
                 commentsTrVideo: 0,
               };
-            let i,
-              a = [],
-              s = new Map();
+            let transcriptDataBuf,
+              commentsDataBuf = [],
+              chatDataBuf = new Map();
             t = new AbortController();
             const c = {
               isCaseSensitive: !1,
@@ -9640,7 +9641,7 @@
                         null === (t = n) ||
                           void 0 === t ||
                           t.classList.add('ycs_btn_active'),
-                        S('#ycs-search-result', {
+                        handleAllSearch('#ycs-search-result', {
                           timestamp: !0,
                         });
                     } catch (e) {}
@@ -9657,7 +9658,7 @@
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          S('#ycs-search-result', {
+                          handleAllSearch('#ycs-search-result', {
                             author: !0,
                           });
                       } catch (e) {}
@@ -9674,7 +9675,7 @@
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          S('#ycs-search-result', {
+                          handleAllSearch('#ycs-search-result', {
                             heart: !0,
                           });
                       } catch (e) {}
@@ -9691,7 +9692,7 @@
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          S('#ycs-search-result', {
+                          handleAllSearch('#ycs-search-result', {
                             verified: !0,
                           });
                       } catch (e) {}
@@ -9708,7 +9709,7 @@
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          S('#ycs-search-result', {
+                          handleAllSearch('#ycs-search-result', {
                             links: !0,
                           });
                       } catch (e) {}
@@ -9725,7 +9726,7 @@
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          S('#ycs-search-result', {
+                          handleAllSearch('#ycs-search-result', {
                             likes: !0,
                           });
                       } catch (e) {}
@@ -9742,7 +9743,7 @@
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          S('#ycs-search-result', {
+                          handleAllSearch('#ycs-search-result', {
                             replied: !0,
                           });
                       } catch (e) {}
@@ -9759,7 +9760,7 @@
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          S('#ycs-search-result', {
+                          handleAllSearch('#ycs-search-result', {
                             members: !0,
                           });
                       } catch (e) {}
@@ -9776,7 +9777,7 @@
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          S('#ycs-search-result', {
+                          handleAllSearch('#ycs-search-result', {
                             donated: !0,
                           });
                       } catch (e) {}
@@ -9808,7 +9809,7 @@
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          S('#ycs-search-result', {
+                          handleAllSearch('#ycs-search-result', {
                             random: !0,
                           });
                       } catch (e) {}
@@ -9825,7 +9826,7 @@
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          S('#ycs-search-result', {
+                          handleAllSearch('#ycs-search-result', {
                             sortFirst: !0,
                           });
                       } catch (e) {}
@@ -9838,7 +9839,7 @@
             p &&
               p.addEventListener('click', async function (e) {
                 if (!h.parentNode || !h.parentElement) return;
-                a.length = 0;
+                commentsDataBuf.length = 0;
                 const n = e.currentTarget;
                 (n.disabled = !0), (n.innerText = 'reload');
                 const r = document.getElementById('ycs_status_cmnt'),
@@ -9848,23 +9849,26 @@
                   ((c.textContent = '0'),
                   (r.innerHTML =
                     '\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="48" height="48" viewBox="0 0 48 48">\n                <path fill="#ff6f02" d="M31 7.002l13 1.686L33.296 19 31 7.002zM17 41L4 39.314 14.704 29 17 41z"></path>\n                <path fill="#ff6f00"\n                    d="M8 24c0-8.837 7.163-16 16-16 1.024 0 2.021.106 2.992.29l.693-3.865C26.525 4.112 25.262 4.005 24 4.005c-11.053 0-20 8.947-20 20 0 4.844 1.686 9.474 4.844 13.051l3.037-2.629C9.468 31.625 8 27.987 8 24zM39.473 11.267l-3.143 2.537C38.622 16.572 40 20.125 40 24c0 8.837-7.163 16-16 16-1.029 0-2.033-.106-3.008-.292l-.676 3.771c1.262.21 2.525.317 3.684.317 11.053 0 20-8.947 20-20C44 19.375 42.421 14.848 39.473 11.267z">\n                </path>\n            </svg>\n        </span>\n    '),
-                  await cn(c, t.signal, a),
-                  a.length > 0 &&
+                  await cn(c, t.signal, commentsDataBuf),
+                  commentsDataBuf.length > 0 &&
                     ((r.innerHTML =
                       '\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"\n            width="48" height="48"\n            viewBox="0 0 48 48"\n            style=" fill:#000000;"><linearGradient id="I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1" x1="9.858" x2="38.142" y1="9.858" y2="38.142" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#21ad64"></stop><stop offset="1" stop-color="#088242"></stop></linearGradient><path fill="url(#I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1)" d="M44,24c0,11.045-8.955,20-20,20S4,35.045,4,24S12.955,4,24,4S44,12.955,44,24z"></path><path d="M32.172,16.172L22,26.344l-5.172-5.172c-0.781-0.781-2.047-0.781-2.828,0l-1.414,1.414\tc-0.781,0.781-0.781,2.047,0,2.828l8,8c0.781,0.781,2.047,0.781,2.828,0l13-13c0.781-0.781,0.781-2.047,0-2.828L35,16.172\tC34.219,15.391,32.953,15.391,32.172,16.172z" opacity=".05"></path><path d="M20.939,33.061l-8-8c-0.586-0.586-0.586-1.536,0-2.121l1.414-1.414c0.586-0.586,1.536-0.586,2.121,0\tL22,27.051l10.525-10.525c0.586-0.586,1.536-0.586,2.121,0l1.414,1.414c0.586,0.586,0.586,1.536,0,2.121l-13,13\tC22.475,33.646,21.525,33.646,20.939,33.061z" opacity=".07"></path><path fill="#fff" d="M21.293,32.707l-8-8c-0.391-0.391-0.391-1.024,0-1.414l1.414-1.414c0.391-0.391,1.024-0.391,1.414,0\tL22,27.758l10.879-10.879c0.391-0.391,1.024-0.391,1.414,0l1.414,1.414c0.391,0.391,0.391,1.024,0,1.414l-13,13\tC22.317,33.098,21.683,33.098,21.293,32.707z"></path></svg>\n        </span>\n    '),
                     gn(
                       {
-                        comments: a,
-                        commentsChat: JSON.stringify(Array.from(s.entries())),
-                        commentsTrVideo: i,
+                        comments: commentsDataBuf,
+                        commentsChat: JSON.stringify(
+                          Array.from(chatDataBuf.entries())
+                        ),
+                        commentsTrVideo: transcriptDataBuf,
                       },
                       window.location.href,
                       document.title
                     ))),
-                  a.length > 0 && (o.comments = a.length);
+                  commentsDataBuf.length > 0 &&
+                    (o.comments = commentsDataBuf.length);
                 const l = o.comments + o.commentsChat + o.commentsTrVideo;
                 dn('NUMBER_COMMENTS', l),
-                  c && (c.textContent = `${a.length}`),
+                  c && (c.textContent = `${commentsDataBuf.length}`),
                   m && (m.textContent = `(${l})`),
                   (n.disabled = !1);
               });
@@ -9872,7 +9876,7 @@
             f &&
               f.addEventListener('click', async function (e) {
                 if (!h.parentNode || !h.parentElement) return;
-                s.clear();
+                chatDataBuf.clear();
                 const n = e.currentTarget;
                 (n.disabled = !0), (n.innerText = 'reload');
                 const r = document.getElementById('ycs_status_chat'),
@@ -10493,25 +10497,27 @@
                     } catch (e) {
                       return;
                     }
-                  })(t.signal, c, s),
-                  s &&
-                    s.size > 0 &&
-                    ((c.textContent = s.size.toString()),
+                  })(t.signal, c, chatDataBuf),
+                  chatDataBuf &&
+                    chatDataBuf.size > 0 &&
+                    ((c.textContent = chatDataBuf.size.toString()),
                     (r.innerHTML =
                       '\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"\n            width="48" height="48"\n            viewBox="0 0 48 48"\n            style=" fill:#000000;"><linearGradient id="I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1" x1="9.858" x2="38.142" y1="9.858" y2="38.142" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#21ad64"></stop><stop offset="1" stop-color="#088242"></stop></linearGradient><path fill="url(#I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1)" d="M44,24c0,11.045-8.955,20-20,20S4,35.045,4,24S12.955,4,24,4S44,12.955,44,24z"></path><path d="M32.172,16.172L22,26.344l-5.172-5.172c-0.781-0.781-2.047-0.781-2.828,0l-1.414,1.414\tc-0.781,0.781-0.781,2.047,0,2.828l8,8c0.781,0.781,2.047,0.781,2.828,0l13-13c0.781-0.781,0.781-2.047,0-2.828L35,16.172\tC34.219,15.391,32.953,15.391,32.172,16.172z" opacity=".05"></path><path d="M20.939,33.061l-8-8c-0.586-0.586-0.586-1.536,0-2.121l1.414-1.414c0.586-0.586,1.536-0.586,2.121,0\tL22,27.051l10.525-10.525c0.586-0.586,1.536-0.586,2.121,0l1.414,1.414c0.586,0.586,0.586,1.536,0,2.121l-13,13\tC22.475,33.646,21.525,33.646,20.939,33.061z" opacity=".07"></path><path fill="#fff" d="M21.293,32.707l-8-8c-0.391-0.391-0.391-1.024,0-1.414l1.414-1.414c0.391-0.391,1.024-0.391,1.414,0\tL22,27.758l10.879-10.879c0.391-0.391,1.024-0.391,1.414,0l1.414,1.414c0.391,0.391,0.391,1.024,0,1.414l-13,13\tC22.317,33.098,21.683,33.098,21.293,32.707z"></path></svg>\n        </span>\n    '),
                     gn(
                       {
-                        comments: a,
-                        commentsChat: JSON.stringify(Array.from(s.entries())),
-                        commentsTrVideo: i,
+                        comments: commentsDataBuf,
+                        commentsChat: JSON.stringify(
+                          Array.from(chatDataBuf.entries())
+                        ),
+                        commentsTrVideo: transcriptDataBuf,
                       },
                       window.location.href,
                       document.title
                     ))),
-                  s &&
-                    s.size > 0 &&
+                  chatDataBuf &&
+                    chatDataBuf.size > 0 &&
                     (h.parentNode || h.parentElement) &&
-                    (o.commentsChat = s.size);
+                    (o.commentsChat = chatDataBuf.size);
                 const l = o.comments + o.commentsChat + o.commentsTrVideo;
                 dn('NUMBER_COMMENTS', l),
                   m && (m.textContent = `(${l})`),
@@ -10547,7 +10553,7 @@
                   let cueGroups;
                   try {
                     transcriptData = await loadTranscript(t.signal);
-                    i = transcriptData;
+                    transcriptDataBuf = transcriptData;
 
                     cueGroups =
                       transcriptData?.actions?.[0]?.updateEngagementPanelAction
@@ -10559,8 +10565,10 @@
                       Kt(cueGroupLength, commentsElement);
                       gn(
                         {
-                          comments: a,
-                          commentsChat: JSON.stringify(Array.from(s.entries())),
+                          comments: commentsDataBuf,
+                          commentsChat: JSON.stringify(
+                            Array.from(chatDataBuf.entries())
+                          ),
                           commentsTrVideo: transcriptData,
                         },
                         window.location.href,
@@ -10642,7 +10650,7 @@
             const x = document.getElementById('ycs_open_all_comments_window');
             null == x ||
               x.addEventListener('click', () => {
-                if (0 !== a.length)
+                if (0 !== commentsDataBuf.length)
                   try {
                     !(function (e) {
                       if (e.count || e.html)
@@ -10674,7 +10682,7 @@
                         } catch (e) {
                           return;
                         }
-                    })(mn(a));
+                    })(mn(commentsDataBuf));
                   } catch (e) {
                     return;
                   }
@@ -10682,9 +10690,9 @@
             const _ = document.getElementById('ycs_save_all_comments');
             null == _ ||
               _.addEventListener('click', () => {
-                if (0 !== a.length)
+                if (0 !== commentsDataBuf.length)
                   try {
-                    const e = mn(a);
+                    const e = mn(commentsDataBuf);
                     hn(
                       `\nYCS - YouTube Comment Search\n\nComments\nFile created by ${new Date().toString()}\nVideo URL: ${Xt(
                         window.location.href
@@ -10703,7 +10711,7 @@
             );
             null == C ||
               C.addEventListener('click', () => {
-                if (0 !== s.size)
+                if (0 !== chatDataBuf.size)
                   try {
                     !(function (e) {
                       if (e.count || e.html)
@@ -10735,7 +10743,7 @@
                         } catch (e) {
                           return;
                         }
-                    })(pn([...s.values()]));
+                    })(pn([...chatDataBuf.values()]));
                   } catch (e) {
                     return;
                   }
@@ -10743,9 +10751,9 @@
             const E = document.getElementById('ycs_save_all_comments_chat');
             null == E ||
               E.addEventListener('click', () => {
-                if (0 !== s.size)
+                if (0 !== chatDataBuf.size)
                   try {
-                    const e = pn([...s.values()]);
+                    const e = pn([...chatDataBuf.values()]);
                     hn(
                       `\nYCS - YouTube Comment Search\n\nComments chat\nFile created by ${new Date().toString()}\nVideo URL: ${Xt(
                         window.location.href
@@ -10766,8 +10774,8 @@
               T.addEventListener('click', () => {
                 try {
                   var e, t, n, o, r, a, s, c, l, d;
-                  i &&
-                    (null === (e = i) ||
+                  transcriptDataBuf &&
+                    (null === (e = transcriptDataBuf) ||
                     void 0 === e ||
                     null === (t = e.actions) ||
                     void 0 === t
@@ -10775,7 +10783,7 @@
                       : t.length) > 0 &&
                     (null ===
                       (o =
-                        null === (n = i) || void 0 === n
+                        null === (n = transcriptDataBuf) || void 0 === n
                           ? void 0
                           : n.actions[0]) ||
                     void 0 === o ||
@@ -10825,9 +10833,9 @@
                         }
                     })(
                       fn(
-                        i.actions[0].updateEngagementPanelAction.content
-                          .transcriptRenderer.body.transcriptBodyRenderer
-                          .cueGroups
+                        transcriptDataBuf.actions[0].updateEngagementPanelAction
+                          .content.transcriptRenderer.body
+                          .transcriptBodyRenderer.cueGroups
                       )
                     );
                 } catch (e) {
@@ -10840,14 +10848,14 @@
                 try {
                   var e, t, n, o, r, a, s, c, l;
                   if (
-                    i &&
-                    (null === (e = i) ||
+                    transcriptDataBuf &&
+                    (null === (e = transcriptDataBuf) ||
                     void 0 === e ||
                     null === (t = e.actions) ||
                     void 0 === t
                       ? void 0
                       : t.length) > 0 &&
-                    (null === (n = i.actions[0]) ||
+                    (null === (n = transcriptDataBuf.actions[0]) ||
                     void 0 === n ||
                     null === (o = n.updateEngagementPanelAction) ||
                     void 0 === o ||
@@ -10865,8 +10873,8 @@
                       : l.length) > 0
                   ) {
                     const e = fn(
-                      i.actions[0].updateEngagementPanelAction.content
-                        .transcriptRenderer.body.transcriptBodyRenderer
+                      transcriptDataBuf.actions[0].updateEngagementPanelAction
+                        .content.transcriptRenderer.body.transcriptBodyRenderer
                         .cueGroups
                     );
                     hn(
@@ -10883,9 +10891,12 @@
                   return;
                 }
               });
-            const R = (t, n) => {
+            const handleCommentsSearch = (t, n) => {
                 try {
-                  if (0 === a.length || (null == n ? void 0 : n.donated))
+                  if (
+                    0 === commentsDataBuf.length ||
+                    (null == n ? void 0 : n.donated)
+                  )
                     return;
                   const o = document.getElementById('ycs-input-search'),
                     i = null == o ? void 0 : o.value,
@@ -10983,7 +10994,7 @@
                         return [];
                       }
                       var r;
-                    })(a);
+                    })(commentsDataBuf);
                     (p = e), wn(t, p, !0, i);
                   } else if (null == n ? void 0 : n.links) {
                     const n = (function (t) {
@@ -11006,7 +11017,7 @@
                       } catch (e) {
                         return [];
                       }
-                    })(a);
+                    })(commentsDataBuf);
                     if (((p = n), p.length > 0)) {
                       null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_links'),
@@ -11054,7 +11065,7 @@
                       } catch (e) {
                         return [];
                       }
-                    })(a);
+                    })(commentsDataBuf);
                     if (((p = e), p.length > 0)) {
                       null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_members'),
@@ -11109,7 +11120,7 @@
                       } catch (e) {
                         return [];
                       }
-                    })(a);
+                    })(commentsDataBuf);
                     (p = e), wn(t, p, !0, i);
                   } else if (null == n ? void 0 : n.author) {
                     const e = (function (e) {
@@ -11131,7 +11142,7 @@
                       } catch (e) {
                         return [];
                       }
-                    })(a);
+                    })(commentsDataBuf);
                     if (((p = e), p.length > 0)) {
                       null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_author'),
@@ -11174,7 +11185,7 @@
                       } catch (e) {
                         return [];
                       }
-                    })(a);
+                    })(commentsDataBuf);
                     if (((p = e), p.length > 0)) {
                       null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_heart'),
@@ -11212,7 +11223,7 @@
                       } catch (e) {
                         return [];
                       }
-                    })(a);
+                    })(commentsDataBuf);
                     if (((p = e), p.length > 0)) {
                       null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_verified'),
@@ -11292,12 +11303,13 @@
                       } catch (e) {
                         return [];
                       }
-                    })(a);
+                    })(commentsDataBuf);
                     (p = e), wn(t, p, !0, i);
                   } else if (null == n ? void 0 : n.timestamp) {
                     m.keys = ['commentRenderer.isTimeLine'];
                     if (
-                      ((p = new (e(I))(a, m).search('timeline')), p.length > 0)
+                      ((p = new (e(I))(commentsDataBuf, m).search('timeline')),
+                      p.length > 0)
                     ) {
                       null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_timestamps'),
@@ -11337,7 +11349,7 @@
                           }
                         if (t.length > 0) return t;
                       } catch (e) {}
-                    })(a);
+                    })(commentsDataBuf);
                     if (((p = e), p.length > 0)) {
                       const e = document.getElementById('ycs_btn_sort_first'),
                         n = e.dataset.sort;
@@ -11360,7 +11372,8 @@
                             'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
                     }
                   } else {
-                    (p = new (e(I))(a, m).search(i.trim())), wn(t, p, !0, i);
+                    (p = new (e(I))(commentsDataBuf, m).search(i.trim())),
+                      wn(t, p, !0, i);
                   }
                   const f = document.getElementById('ycs-search-total-result');
                   f && (f.innerText = `(Comments) Found: ${p.length}`),
@@ -11388,7 +11401,7 @@
                             try {
                               var l, d, u, h;
                               const o = {
-                                  item: a[t].originComment,
+                                  item: commentsDataBuf[t].originComment,
                                   refIndex: t,
                                 },
                                 r = document.createElement('div');
@@ -11399,7 +11412,7 @@
                                 n.insertAdjacentElement('beforebegin', r),
                                 wn('#' + r.id, [o], !0, i),
                                 n.classList.add('ycs-oc-ml'),
-                                (null === (l = a[t]) ||
+                                (null === (l = commentsDataBuf[t]) ||
                                 void 0 === l ||
                                 null === (d = l.commentRenderer) ||
                                 void 0 === d ||
@@ -11410,8 +11423,8 @@
                                   ? void 0
                                   : h.length) > 0)
                               )
-                                for (const e of a[t].commentRenderer.contentText
-                                  .runs)
+                                for (const e of commentsDataBuf[t]
+                                  .commentRenderer.contentText.runs)
                                   try {
                                     var m, p;
                                     if (
@@ -11437,11 +11450,12 @@
                                   }
                               const c = [];
                               if (s)
-                                for (const e of a)
+                                for (const e of commentsDataBuf)
                                   try {
                                     var y, g, w;
                                     'R' === e.typeComment &&
-                                      e.originComment === a[t].originComment &&
+                                      e.originComment ===
+                                        commentsDataBuf[t].originComment &&
                                       (null === (y = e.commentRenderer) ||
                                       void 0 === y ||
                                       null === (g = y.authorEndpoint) ||
@@ -11517,7 +11531,7 @@
                           const o = [];
                           if (t) {
                             let e;
-                            for (const [n, o] of a.entries())
+                            for (const [n, o] of commentsDataBuf.entries())
                               try {
                                 var b;
                                 if (
@@ -11533,9 +11547,9 @@
                                 continue;
                               }
                             if (Number.isInteger(e) && e >= 0)
-                              for (const n of a)
+                              for (const n of commentsDataBuf)
                                 try {
-                                  a[e] === n.originComment &&
+                                  commentsDataBuf[e] === n.originComment &&
                                     o.push({
                                       item: n,
                                       refIndex: t,
@@ -11560,7 +11574,7 @@
                     });
                 } catch (e) {}
               },
-              M = (t, n) => {
+              handleChatSearch = (t, n) => {
                 try {
                   if (
                     (null == n ? void 0 : n.likes) ||
@@ -11569,10 +11583,10 @@
                     (null == n ? void 0 : n.heart)
                   )
                     return;
-                  if (s && s.size > 0) {
+                  if (chatDataBuf && chatDataBuf.size > 0) {
                     const o = document.querySelector(t),
                       i = document.getElementById('ycs-input-search'),
-                      a = [...s.values()];
+                      a = [...chatDataBuf.values()];
                     let l = '';
                     i && (l = i.value), o && (o.textContent = '');
                     const d = document.getElementById(
@@ -11795,7 +11809,7 @@
                             }
                           if ((null == t ? void 0 : t.length) > 0) return t;
                         } catch (e) {}
-                      })(s);
+                      })(chatDataBuf);
                       if (((f = e), (null == f ? void 0 : f.length) > 0)) {
                         null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                         const e = document.getElementById('ycs_btn_sort_first'),
@@ -11836,7 +11850,7 @@
                         } catch (e) {
                           return [];
                         }
-                      })(s);
+                      })(chatDataBuf);
                       if (((f = e), (null == f ? void 0 : f.length) > 0)) {
                         null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                         const e = document.getElementById('ycs_btn_verified'),
@@ -11878,7 +11892,7 @@
                         } catch (e) {
                           return [];
                         }
-                      })(s);
+                      })(chatDataBuf);
                       if (((f = n), (null == f ? void 0 : f.length) > 0)) {
                         null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                         const e = document.getElementById('ycs_btn_links'),
@@ -11933,20 +11947,20 @@
                   }
                 } catch (e) {}
               },
-              A = (t, n) => {
+              handleTranscriptSearch = (t, n) => {
                 try {
                   if (
-                    i &&
-                    i.actions[0].updateEngagementPanelAction.content
-                      .transcriptRenderer.body.transcriptBodyRenderer.cueGroups
-                      .length > 0
+                    transcriptDataBuf &&
+                    transcriptDataBuf.actions[0].updateEngagementPanelAction
+                      .content.transcriptRenderer.body.transcriptBodyRenderer
+                      .cueGroups.length > 0
                   ) {
                     const o = document.querySelector(t),
                       a = document.getElementById('ycs-input-search'),
                       s =
-                        i.actions[0].updateEngagementPanelAction.content
-                          .transcriptRenderer.body.transcriptBodyRenderer
-                          .cueGroups;
+                        transcriptDataBuf.actions[0].updateEngagementPanelAction
+                          .content.transcriptRenderer.body
+                          .transcriptBodyRenderer.cueGroups;
                     let l = '';
                     a && (l = a.value), o && (o.textContent = '');
                     const d = document.getElementById(
@@ -12105,7 +12119,7 @@
                   }
                 } catch (e) {}
               },
-              S = (e, t) => {
+              handleAllSearch = (e, t) => {
                 const n = document.querySelector(e),
                   o = document.getElementById('ycs-search-total-result');
                 o && (null == o || o.classList.add('ycs-hidden')),
@@ -12118,22 +12132,29 @@
                 d.id = 'ycs_allsearch__wrap_comments_trvideo';
                 try {
                   if (
-                    (a.length > 0 &&
+                    (commentsDataBuf.length > 0 &&
                       (null == n || n.appendChild(c),
-                      R('#ycs_allsearch__wrap_comments', t)),
-                    s &&
-                      s.size > 0 &&
+                      handleCommentsSearch('#ycs_allsearch__wrap_comments', t)),
+                    chatDataBuf &&
+                      chatDataBuf.size > 0 &&
                       (null == n || n.appendChild(l),
-                      M('#ycs_allsearch__wrap_comments_chat', t)),
-                    i &&
+                      handleChatSearch(
+                        '#ycs_allsearch__wrap_comments_chat',
+                        t
+                      )),
+                    transcriptDataBuf &&
                       qt(
                         () =>
-                          i.actions[0].updateEngagementPanelAction.content
+                          transcriptDataBuf.actions[0]
+                            .updateEngagementPanelAction.content
                             .transcriptRenderer.body.transcriptBodyRenderer
                             .cueGroups.length
                       ) > 0 &&
                       (null == n || n.appendChild(d),
-                      A('#ycs_allsearch__wrap_comments_trvideo', t)),
+                      handleTranscriptSearch(
+                        '#ycs_allsearch__wrap_comments_trvideo',
+                        t
+                      )),
                     o)
                   ) {
                     const e = r.comments + r.commentsChat + r.commentsTrVideo;
@@ -12180,16 +12201,16 @@
                         ].value
                   ) {
                     case 'comments':
-                      R('#ycs-search-result');
+                      handleCommentsSearch('#ycs-search-result');
                       break;
                     case 'chat':
-                      M('#ycs-search-result');
+                      handleChatSearch('#ycs-search-result');
                       break;
                     case 'video':
-                      A('#ycs-search-result');
+                      handleTranscriptSearch('#ycs-search-result');
                       break;
                     case 'all':
-                      S('#ycs-search-result');
+                      handleAllSearch('#ycs-search-result');
                   }
                 }
               }),
@@ -12274,41 +12295,44 @@
                                   t.originComment = n;
                                   break;
                                 }
-                          a = e.data.body.comments;
+                          commentsDataBuf = e.data.body.comments;
                         }
                       } catch (e) {}
-                      (s = new Map(JSON.parse(e.data.body.commentsChat))),
-                        (i = e.data.body.commentsTrVideo);
+                      (chatDataBuf = new Map(
+                        JSON.parse(e.data.body.commentsChat)
+                      )),
+                        (transcriptDataBuf = e.data.body.commentsTrVideo);
                       const t = e.data.body.date,
                         n = document.getElementById('ycs_status_cmnt');
-                      a.length > 0 &&
+                      commentsDataBuf.length > 0 &&
                         n &&
                         (n.innerHTML =
                           '\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"\n            width="48" height="48"\n            viewBox="0 0 48 48"\n            style=" fill:#000000;"><linearGradient id="I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1" x1="9.858" x2="38.142" y1="9.858" y2="38.142" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#21ad64"></stop><stop offset="1" stop-color="#088242"></stop></linearGradient><path fill="url(#I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1)" d="M44,24c0,11.045-8.955,20-20,20S4,35.045,4,24S12.955,4,24,4S44,12.955,44,24z"></path><path d="M32.172,16.172L22,26.344l-5.172-5.172c-0.781-0.781-2.047-0.781-2.828,0l-1.414,1.414\tc-0.781,0.781-0.781,2.047,0,2.828l8,8c0.781,0.781,2.047,0.781,2.828,0l13-13c0.781-0.781,0.781-2.047,0-2.828L35,16.172\tC34.219,15.391,32.953,15.391,32.172,16.172z" opacity=".05"></path><path d="M20.939,33.061l-8-8c-0.586-0.586-0.586-1.536,0-2.121l1.414-1.414c0.586-0.586,1.536-0.586,2.121,0\tL22,27.051l10.525-10.525c0.586-0.586,1.536-0.586,2.121,0l1.414,1.414c0.586,0.586,0.586,1.536,0,2.121l-13,13\tC22.475,33.646,21.525,33.646,20.939,33.061z" opacity=".07"></path><path fill="#fff" d="M21.293,32.707l-8-8c-0.391-0.391-0.391-1.024,0-1.414l1.414-1.414c0.391-0.391,1.024-0.391,1.414,0\tL22,27.758l10.879-10.879c0.391-0.391,1.024-0.391,1.414,0l1.414,1.414c0.391,0.391,0.391,1.024,0,1.414l-13,13\tC22.317,33.098,21.683,33.098,21.293,32.707z"></path></svg>\n        </span>\n    '),
-                        a.length > 0 &&
+                        commentsDataBuf.length > 0 &&
                           (h.parentNode || h.parentElement) &&
-                          (o.comments = a.length);
+                          (o.comments = commentsDataBuf.length);
                       const r = document.getElementById('ycs_cmnts');
                       if (
-                        (r && (r.textContent = `${a.length}`), s && s.size > 0)
+                        (r && (r.textContent = `${commentsDataBuf.length}`),
+                        chatDataBuf && chatDataBuf.size > 0)
                       ) {
                         const e = document.getElementById('ycs_cmnts_chat'),
                           t = document.getElementById('ycs_status_chat');
-                        (e.textContent = s.size.toString()),
+                        (e.textContent = chatDataBuf.size.toString()),
                           (t.innerHTML =
                             '\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"\n            width="48" height="48"\n            viewBox="0 0 48 48"\n            style=" fill:#000000;"><linearGradient id="I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1" x1="9.858" x2="38.142" y1="9.858" y2="38.142" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#21ad64"></stop><stop offset="1" stop-color="#088242"></stop></linearGradient><path fill="url(#I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1)" d="M44,24c0,11.045-8.955,20-20,20S4,35.045,4,24S12.955,4,24,4S44,12.955,44,24z"></path><path d="M32.172,16.172L22,26.344l-5.172-5.172c-0.781-0.781-2.047-0.781-2.828,0l-1.414,1.414\tc-0.781,0.781-0.781,2.047,0,2.828l8,8c0.781,0.781,2.047,0.781,2.828,0l13-13c0.781-0.781,0.781-2.047,0-2.828L35,16.172\tC34.219,15.391,32.953,15.391,32.172,16.172z" opacity=".05"></path><path d="M20.939,33.061l-8-8c-0.586-0.586-0.586-1.536,0-2.121l1.414-1.414c0.586-0.586,1.536-0.586,2.121,0\tL22,27.051l10.525-10.525c0.586-0.586,1.536-0.586,2.121,0l1.414,1.414c0.586,0.586,0.586,1.536,0,2.121l-13,13\tC22.475,33.646,21.525,33.646,20.939,33.061z" opacity=".07"></path><path fill="#fff" d="M21.293,32.707l-8-8c-0.391-0.391-0.391-1.024,0-1.414l1.414-1.414c0.391-0.391,1.024-0.391,1.414,0\tL22,27.758l10.879-10.879c0.391-0.391,1.024-0.391,1.414,0l1.414,1.414c0.391,0.391,0.391,1.024,0,1.414l-13,13\tC22.317,33.098,21.683,33.098,21.293,32.707z"></path></svg>\n        </span>\n    ');
                       }
                       if (
-                        (s &&
-                          s.size > 0 &&
+                        (chatDataBuf &&
+                          chatDataBuf.size > 0 &&
                           (h.parentNode || h.parentElement) &&
-                          (o.commentsChat = s.size),
+                          (o.commentsChat = chatDataBuf.size),
                         qt(() => {
                           var e, t, n, o, r, a, s, c;
                           return (
                             (null ===
                               (t =
-                                null === (e = i) || void 0 === e
+                                null === (e = transcriptDataBuf) || void 0 === e
                                   ? void 0
                                   : e.actions[0]) ||
                             void 0 === t ||
@@ -12332,7 +12356,8 @@
                         const e = document.getElementById('ycs_status_trvideo'),
                           t = document.getElementById('ycs_cmnts_video');
                         Kt(
-                          i.actions[0].updateEngagementPanelAction.content
+                          transcriptDataBuf.actions[0]
+                            .updateEngagementPanelAction.content
                             .transcriptRenderer.body.transcriptBodyRenderer
                             .cueGroups.length,
                           t
@@ -12345,7 +12370,7 @@
                         return (
                           (null ===
                             (t =
-                              null === (e = i) || void 0 === e
+                              null === (e = transcriptDataBuf) || void 0 === e
                                 ? void 0
                                 : e.actions[0]) ||
                           void 0 === t ||
@@ -12367,7 +12392,7 @@
                       }) &&
                         (h.parentNode || h.parentElement) &&
                         (o.commentsTrVideo =
-                          i.actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length);
+                          transcriptDataBuf.actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length);
                       const c = o.comments + o.commentsChat + o.commentsTrVideo;
                       dn('NUMBER_COMMENTS', c), m && (m.textContent = `(${c})`);
                       document
