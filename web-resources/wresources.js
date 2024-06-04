@@ -12223,12 +12223,18 @@
                 elPMembers: 'members',
                 elPDonated: 'donated',
                 elPRandom: 'random',
+                elFirstComments: 'sortFirst',
               };
               const options = {};
+              let hit = false;
               for (const key in pool) {
                 if (pool[key].classList.contains('ycs_btn_active')) {
                   options[map[key]] = true;
+                  hit = true;
                 }
+              }
+              if (!hit) {
+                return undefined;
               }
               return options;
             }
@@ -12256,7 +12262,10 @@
                       handleChatSearch('#ycs-search-result', searchOptions);
                       break;
                     case 'video':
-                      handleTranscriptSearch('#ycs-search-result', searchOptions);
+                      handleTranscriptSearch(
+                        '#ycs-search-result',
+                        searchOptions
+                      );
                       break;
                     case 'all':
                       handleAllSearch('#ycs-search-result', searchOptions);
