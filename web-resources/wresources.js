@@ -10922,6 +10922,14 @@
                     ...u,
                     keys: h,
                   };
+                  const searchText = i.trim();
+                  const textSearchFuseResults = searchText
+                    ? new (e(I))(commentsDataBuf, m).search(searchText)
+                    : null;
+                  const textSearchResults =
+                    textSearchFuseResults !== null
+                      ? textSearchFuseResults.map(({ item }) => item)
+                      : commentsDataBuf;
                   let p = [];
                   if (null == n ? void 0 : n.likes) {
                     const e = (function (e) {
@@ -10994,7 +11002,7 @@
                         return [];
                       }
                       var r;
-                    })(commentsDataBuf);
+                    })(textSearchResults);
                     (p = e), wn(t, p, !0, i);
                   } else if (null == n ? void 0 : n.links) {
                     const n = (function (t) {
@@ -11017,7 +11025,7 @@
                       } catch (e) {
                         return [];
                       }
-                    })(commentsDataBuf);
+                    })(textSearchResults);
                     if (((p = n), p.length > 0)) {
                       null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_links'),
@@ -11065,7 +11073,7 @@
                       } catch (e) {
                         return [];
                       }
-                    })(commentsDataBuf);
+                    })(textSearchResults);
                     if (((p = e), p.length > 0)) {
                       null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_members'),
@@ -11120,7 +11128,7 @@
                       } catch (e) {
                         return [];
                       }
-                    })(commentsDataBuf);
+                    })(textSearchResults);
                     (p = e), wn(t, p, !0, i);
                   } else if (null == n ? void 0 : n.author) {
                     const e = (function (e) {
@@ -11142,7 +11150,7 @@
                       } catch (e) {
                         return [];
                       }
-                    })(commentsDataBuf);
+                    })(textSearchResults);
                     if (((p = e), p.length > 0)) {
                       null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_author'),
@@ -11185,7 +11193,7 @@
                       } catch (e) {
                         return [];
                       }
-                    })(commentsDataBuf);
+                    })(textSearchResults);
                     if (((p = e), p.length > 0)) {
                       null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_heart'),
@@ -11223,7 +11231,7 @@
                       } catch (e) {
                         return [];
                       }
-                    })(commentsDataBuf);
+                    })(textSearchResults);
                     if (((p = e), p.length > 0)) {
                       null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_verified'),
@@ -11303,12 +11311,14 @@
                       } catch (e) {
                         return [];
                       }
-                    })(commentsDataBuf);
+                    })(textSearchResults);
                     (p = e), wn(t, p, !0, i);
                   } else if (null == n ? void 0 : n.timestamp) {
                     m.keys = ['commentRenderer.isTimeLine'];
                     if (
-                      ((p = new (e(I))(commentsDataBuf, m).search('timeline')),
+                      ((p = new (e(I))(textSearchResults, m).search(
+                        'timeline'
+                      )),
                       p.length > 0)
                     ) {
                       null == p || p.sort((e, t) => e.refIndex - t.refIndex);
@@ -11349,7 +11359,7 @@
                           }
                         if (t.length > 0) return t;
                       } catch (e) {}
-                    })(commentsDataBuf);
+                    })(textSearchResults);
                     if (((p = e), p.length > 0)) {
                       const e = document.getElementById('ycs_btn_sort_first'),
                         n = e.dataset.sort;
@@ -11372,8 +11382,7 @@
                             'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
                     }
                   } else {
-                    (p = new (e(I))(commentsDataBuf, m).search(i.trim())),
-                      wn(t, p, !0, i);
+                    (p = textSearchFuseResults), wn(t, p, !0, i);
                   }
                   const f = document.getElementById('ycs-search-total-result');
                   f && (f.innerText = `(Comments) Found: ${p.length}`),
@@ -12185,11 +12194,51 @@
                   }
                 } catch (e) {}
               };
+
+            /**
+             * Get search filter options via checking button DOM class
+             * @param {object} pool
+             * @returns {object} {
+             *   timestamp: boolean,
+             *   author: boolean,
+             *   heart: boolean,
+             *   verified: boolean,
+             *   links: boolean,
+             *   likes: boolean,
+             *   replied: boolean,
+             *   members: boolean,
+             *   donated: boolean,
+             *   random: boolean
+             * }
+             */
+            function getSearchOptions(pool) {
+              const map = {
+                elPTimeStamps: 'timestamp',
+                elPAuthor: 'author',
+                elPHeart: 'heart',
+                elPVerified: 'verified',
+                elPLinks: 'links',
+                elPLikes: 'likes',
+                elPReplied: 'replied',
+                elPMembers: 'members',
+                elPDonated: 'donated',
+                elPRandom: 'random',
+              };
+              const options = {};
+              for (const key in pool) {
+                if (pool[key].classList.contains('ycs_btn_active')) {
+                  options[map[key]] = true;
+                }
+              }
+              return options;
+            }
             w &&
               w.addEventListener('click', () => {
-                Ht(u, 'ycs_btn_active');
+                // Ht() function cleans up the active states of buttons
+                // Ht(u, 'ycs_btn_active');
                 const e = document.getElementById('ycs_search_select');
                 if (e) {
+                  const searchOptions = getSearchOptions(u);
                   var t;
                   switch (
                     null == e
@@ -12201,16 +12250,16 @@
                         ].value
                   ) {
                     case 'comments':
-                      handleCommentsSearch('#ycs-search-result');
+                      handleCommentsSearch('#ycs-search-result', searchOptions);
                       break;
                     case 'chat':
-                      handleChatSearch('#ycs-search-result');
+                      handleChatSearch('#ycs-search-result', searchOptions);
                       break;
                     case 'video':
-                      handleTranscriptSearch('#ycs-search-result');
+                      handleTranscriptSearch('#ycs-search-result', searchOptions);
                       break;
                     case 'all':
-                      handleAllSearch('#ycs-search-result');
+                      handleAllSearch('#ycs-search-result', searchOptions);
                   }
                 }
               }),
