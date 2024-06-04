@@ -7975,6 +7975,30 @@
       return runs;
     }
     /**
+     * From formatted number to raw number
+     * @param {string} formattedNumber
+     * @returns {number}
+     */
+    function parseFormattedNumber(formattedNumber) {
+      const m = {
+        k: 1000,
+        m: 1000000,
+        萬: 10000,
+        만: 10000,
+        mil: 1000,
+      };
+      const buf = formattedNumber.toLowerCase();
+      let multiply = 1;
+      for (const key of Object.keys(m)) {
+        if (buf.includes(key)) {
+          multiply = m[key];
+          break;
+        }
+      }
+      const res = parseFloat(buf.replace(/,/g, '')) * multiply;
+      return res;
+    }
+    /**
      * Generate comment object from update
      */
     function generateCommentObject({
@@ -8097,11 +8121,20 @@
 
       const { author } = update;
 
+      const likeCountLiked = update.toolbar.likeCountLiked;
+      let likeCount;
+      if (likeCountLiked === '1') {
+        likeCount = 0;
+      } else {
+        // likeCountLike is always one more than actual like count
+        likeCount = parseFormattedNumber(likeCountLiked) - 1;
+      }
+
       const comment = {
         commentRenderer: {
           commentId,
-          likeCount: Number(update.toolbar.likeCountLiked || 0),
-          replyCount: Number(update.toolbar.replyCount || 0),
+          likeCount,
+          replyCount: parseFormattedNumber(update.toolbar.replyCount || '0'),
           authorText: {
             simpleText: author.displayName,
           },
