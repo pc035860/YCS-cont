@@ -7658,8 +7658,8 @@
             let renderFullText = '';
             const runs = contentText.runs || [];
             for (const run of runs) {
-              run.text = stopXSS(run.text); // this might not be adequate enough for XSS prevention.
               fullText += run.text || '';
+              run.text = stopXSS(run.text); // this might not be adequate enough for XSS prevention.
               try {
                 if (run.attachment) {
                   let image;
@@ -7770,10 +7770,10 @@
                     let renderFullText = '';
                     const runs = subItem.commentRenderer.contentText.runs || [];
                     for (const run of runs) {
-                      run.text = stopXSS(run.text); // this might not be adequate enough for XSS prevention.
                       try {
                         if (run.text) {
                           fullText += run.text;
+                          run.text = stopXSS(run.text); // this might not be adequate enough for XSS prevention.
                           if (
                             parseInt(
                               run.navigationEndpoint.watchEndpoint
@@ -7888,10 +7888,10 @@
                       const runs =
                         subItem.commentRenderer.contentText.runs || [];
                       for (const run of runs) {
-                        run.text = stopXSS(run.text); // this might not be adequate enough for XSS prevention.
                         try {
                           if (run.text) {
                             fullText += run.text;
+                            run.text = stopXSS(run.text); // this might not be adequate enough for XSS prevention.
                             if (
                               parseInt(
                                 run.navigationEndpoint.watchEndpoint
