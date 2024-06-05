@@ -1,5 +1,8 @@
 // scripts injected into the page by the content script
-const SCRIPT_SRCS = ['web-resources/wresources.js'];
+const SCRIPT_SRCS = [
+  'web-resources/htmlEntities.js',
+  'web-resources/wresources.js',
+];
 
 const fullSrcs = SCRIPT_SRCS.map((src) => chrome.runtime.getURL(src));
 
