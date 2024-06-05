@@ -25,6 +25,73 @@
 
     return out;
   }
+
+  const FORMATTED_NUMBER_CONFIG_ENTRIES = Object.entries({
+    k: 1000,
+    rb: 1000,
+    mil: 1000,
+    'hilj.': 1000,
+    'tis.': 1000,
+    elfu: 1000,
+    'þ.': 1000,
+    'tūkst.': 1000,
+    E: 1000,
+    ming: 1000,
+    mijë: 1000,
+    N: 1000,
+    B: 1000,
+    'хил.': 1000,
+    миң: 1000,
+    мянга: 1000,
+    'тыс.': 1000,
+    'хиљ.': 1000,
+    'тис.': 1000,
+    'χιλ.': 1000,
+    հզր: 1000,
+    ද: 1000,
+    พัน: 1000,
+    ພັນ: 1000,
+    ထောင်: 1000,
+    'ათ.': 1000,
+    ሺ: 1000,
+    ពាន់: 1000,
+    천: 1000,
+    သောင်း: 10000,
+    万: 10000,
+    만: 10000,
+    萬: 10000,
+    m: 1000000,
+  }).sort((a, b) => b[0].length - a[0].length);
+  /**
+   * From formatted number to raw number
+   * @param {string} formattedNumber
+   * @returns {number}
+   */
+  function parseFormattedNumber(formattedNumber) {
+    const configEntries = FORMATTED_NUMBER_CONFIG_ENTRIES;
+    let buf = formattedNumber.toLowerCase();
+    let multiply = 1;
+
+    for (const [key, value] of configEntries) {
+      if (buf.includes(key)) {
+        multiply = value;
+        buf = buf.replace(key, '');
+        break;
+      }
+    }
+
+    let num;
+    if (multiply === 1) {
+      num = parseInt(buf.replace(/[,.]/g, ''));
+    } else {
+      num = parseFloat(buf.replace(/,/g, '')) * multiply;
+    }
+    return {
+      number: num,
+      multiply,
+    };
+  }
+
   var t =
       'undefined' != typeof globalThis
         ? globalThis
@@ -8097,11 +8164,33 @@
 
       const { author } = update;
 
+      const likeCountLiked = update.toolbar.likeCountLiked;
+      let likeCount;
+      if (likeCountLiked === '1') {
+        likeCount = 0;
+      } else {
+        // likeCountLike is always one more than actual like count
+        const { number, multiply } = parseFormattedNumber(likeCountLiked);
+        if (multiply === 1) {
+          likeCount = number - 1;
+        } else {
+          likeCount = number;
+        }
+      }
+
+      let replyCount;
+      {
+        const { number } = parseFormattedNumber(
+          update.toolbar.replyCount || '0'
+        );
+        replyCount = number;
+      }
+
       const comment = {
         commentRenderer: {
           commentId,
-          likeCount: Number(update.toolbar.likeCountLiked || 0),
-          replyCount: Number(update.toolbar.replyCount || 0),
+          likeCount,
+          replyCount,
           authorText: {
             simpleText: author.displayName,
           },
