@@ -11655,6 +11655,21 @@
                 } catch (e) {}
               },
               handleChatSearch = (t, n) => {
+                function rebuildChatData(chatItems) {
+                  const chatData = new Map();
+                  chatItems.forEach((chatItem) => {
+                    const key = qt(() =>
+                      Number(
+                        chatItem.replayChatItemAction.actions[0]
+                          .addChatItemAction.item.liveChatTextMessageRenderer
+                          .timestampUsec
+                      )
+                    );
+                    chatData.set(key, chatItem);
+                  });
+                  return chatData;
+                }
+
                 try {
                   if (
                     (null == n ? void 0 : n.likes) ||
@@ -11666,7 +11681,8 @@
                   if (chatDataBuf && chatDataBuf.size > 0) {
                     const o = document.querySelector(t),
                       i = document.getElementById('ycs-input-search'),
-                      a = [...chatDataBuf.values()];
+                      // chat data is a Map keyed with microsecond timestamp
+                      chatItemsBuf = [...chatDataBuf.values()];
                     let l = '';
                     i && (l = i.value), o && (o.textContent = '');
                     const d = document.getElementById(
@@ -11693,6 +11709,14 @@
                       ...h,
                       keys: m,
                     };
+                    const searchText = l.trim();
+                    const textSearchFuseResults = searchText
+                      ? new (e(I))(chatItemsBuf, p).search(searchText)
+                      : null;
+                    const textSearchResults =
+                      textSearchFuseResults !== null
+                        ? textSearchFuseResults.map(({ item }) => item)
+                        : chatItemsBuf;
                     let f = [];
                     if (null == n ? void 0 : n.author) {
                       const e = (function (e) {
@@ -11725,7 +11749,7 @@
                         } catch (e) {
                           return [];
                         }
-                      })(a);
+                      })(textSearchResults);
                       if (((f = e), (null == f ? void 0 : f.length) > 0)) {
                         null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                         const e = document.getElementById('ycs_btn_author'),
@@ -11761,12 +11785,21 @@
                             ) &&
                               t.push({
                                 item: n,
+                                refIndex: qt(
+                                  () =>
+                                    Number(
+                                      n.replayChatItemAction.actions[0]
+                                        .addChatItemAction.item
+                                        .liveChatTextMessageRenderer
+                                        .timestampUsec
+                                    ) ?? 0
+                                ),
                               });
                           return t;
                         } catch (e) {
                           return [];
                         }
-                      })(a);
+                      })(textSearchResults);
                       if (((f = e), (null == f ? void 0 : f.length) > 0)) {
                         null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                         const e = document.getElementById('ycs_btn_donated'),
@@ -11819,13 +11852,22 @@
                             r &&
                               n.push({
                                 item: o,
+                                refIndex: qt(
+                                  () =>
+                                    Number(
+                                      o.replayChatItemAction.actions[0]
+                                        .addChatItemAction.item
+                                        .liveChatTextMessageRenderer
+                                        .timestampUsec
+                                    ) ?? 0
+                                ),
                               });
                           }
                           return n;
                         } catch (e) {
                           return [];
                         }
-                      })(a);
+                      })(textSearchResults);
                       if (((f = e), (null == f ? void 0 : f.length) > 0)) {
                         null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                         const e = document.getElementById('ycs_btn_members'),
@@ -11851,7 +11893,9 @@
                         'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine',
                       ];
                       if (
-                        ((f = new (e(I))(a, p).search('timeline')),
+                        ((f = new (e(I))(textSearchResults, p).search(
+                          'timeline'
+                        )),
                         (null == f ? void 0 : f.length) > 0)
                       ) {
                         null == f || f.sort((e, t) => e.refIndex - t.refIndex);
@@ -11889,7 +11933,7 @@
                             }
                           if ((null == t ? void 0 : t.length) > 0) return t;
                         } catch (e) {}
-                      })(chatDataBuf);
+                      })(rebuildChatData(textSearchResults));
                       if (((f = e), (null == f ? void 0 : f.length) > 0)) {
                         null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                         const e = document.getElementById('ycs_btn_sort_first'),
@@ -11930,7 +11974,7 @@
                         } catch (e) {
                           return [];
                         }
-                      })(chatDataBuf);
+                      })(rebuildChatData(textSearchResults));
                       if (((f = e), (null == f ? void 0 : f.length) > 0)) {
                         null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                         const e = document.getElementById('ycs_btn_verified'),
@@ -11972,7 +12016,7 @@
                         } catch (e) {
                           return [];
                         }
-                      })(chatDataBuf);
+                      })(rebuildChatData(textSearchResults));
                       if (((f = n), (null == f ? void 0 : f.length) > 0)) {
                         null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                         const e = document.getElementById('ycs_btn_links'),
@@ -11994,7 +12038,7 @@
                           : bn(t, f, l);
                       }
                     } else {
-                      (f = new (e(I))(a, p).search(l.trim())), bn(t, f, l);
+                      (f = textSearchFuseResults), bn(t, f, l);
                     }
                     const v = document.getElementById(
                       'ycs-search-total-result'
