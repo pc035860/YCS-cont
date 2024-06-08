@@ -7169,7 +7169,7 @@
       return;
     }
   }
-  async function loadTranscript(e) {
+  async function loadTranscript(signal) {
     const getTimedTextUrl = async () => {
       const videoId = Jt(window.location.href);
       const response = await fetch(
@@ -7178,7 +7178,7 @@
           method: 'GET',
           mode: 'no-cors',
           credentials: 'include',
-          signal: e,
+          signal,
           cache: 'no-store',
         }
       );
@@ -7206,7 +7206,7 @@
         method: 'GET',
         mode: 'no-cors',
         credentials: 'include',
-        signal: e,
+        signal,
         cache: 'no-store',
       });
       const xmlText = await response.text();
