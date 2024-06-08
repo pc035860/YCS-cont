@@ -7085,9 +7085,9 @@
       return;
     }
   }
-  async function rn(e) {
+  async function loadChatReplay(signal) {
     try {
-      const n = await on(e),
+      const n = await on(signal),
         o = (function (e, t) {
           if (t)
             try {
@@ -7153,7 +7153,7 @@
             `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key=${nn()}`,
             {
               ...o,
-              signal: e,
+              signal,
               cache: 'no-store',
             }
           ),
@@ -9957,7 +9957,71 @@
                   ((c.textContent = '0'),
                   (r.innerHTML =
                     '\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="48" height="48" viewBox="0 0 48 48">\n                <path fill="#ff6f02" d="M31 7.002l13 1.686L33.296 19 31 7.002zM17 41L4 39.314 14.704 29 17 41z"></path>\n                <path fill="#ff6f00"\n                    d="M8 24c0-8.837 7.163-16 16-16 1.024 0 2.021.106 2.992.29l.693-3.865C26.525 4.112 25.262 4.005 24 4.005c-11.053 0-20 8.947-20 20 0 4.844 1.686 9.474 4.844 13.051l3.037-2.629C9.468 31.625 8 27.987 8 24zM39.473 11.267l-3.143 2.537C38.622 16.572 40 20.125 40 24c0 8.837-7.163 16-16 16-1.029 0-2.033-.106-3.008-.292l-.676 3.771c1.262.21 2.525.317 3.684.317 11.053 0 20-8.947 20-20C44 19.375 42.421 14.848 39.473 11.267z">\n                </path>\n            </svg>\n        </span>\n    '),
-                  await (async function (e, t, n) {
+                  await (async function (signal, t, n) {
+                    function processChatRun(run, { item }) {
+                      let plainText = '';
+                      let htmlText = '';
+                      try {
+                        let text = run?.text || '';
+
+                        if (
+                          parseInt(
+                            run?.navigationEndpoint?.watchEndpoint
+                              ?.startTimeSeconds
+                          ) >= 0
+                        ) {
+                          const videoId =
+                            run?.navigationEndpoint?.watchEndpoint?.videoId;
+                          const startTime =
+                            run?.navigationEndpoint?.watchEndpoint
+                              ?.startTimeSeconds;
+
+                          htmlText += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${videoId}&t=${startTime}s" data-offsetvideo="${startTime}">${text}</a>`;
+
+                          if (
+                            qt(
+                              () =>
+                                item.replayChatItemAction.actions[0]
+                                  .addChatItemAction.item
+                                  .liveChatTextMessageRenderer
+                            )
+                          ) {
+                            item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
+                              'timeline';
+                          }
+                        } else if (run?.navigationEndpoint) {
+                          const baseUrl =
+                            run?.navigationEndpoint?.browseEndpoint
+                              ?.canonicalBaseUrl;
+                          const url = run?.navigationEndpoint?.urlEndpoint?.url;
+                          const webUrl =
+                            run?.navigationEndpoint?.commandMetadata
+                              ?.webCommandMetadata?.url;
+
+                          const link = baseUrl || url || webUrl || text;
+                          htmlText += `<a class="ycs-cpointer ycs-comment-link" href="${link}" target="_blank">${text}</a>`;
+                        } else if (run?.emoji) {
+                          const url = qt(() => {
+                            const thumbnails = run.emoji.image.thumbnails;
+                            // retrieve best resolution url
+                            return thumbnails[thumbnails.length - 1].url;
+                          });
+                          const alt = run.emoji.shortcuts?.[0] || '';
+                          const style = `margin-left: 2px; margin-right: 2px;`;
+                          htmlText += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment" />`;
+                        } else {
+                          htmlText += text || '';
+                        }
+
+                        plainText +=
+                          run.text || run.emoji?.shortcuts?.[0] || '';
+                      } catch (e) {
+                        htmlText += run?.text || '';
+                      }
+
+                      return { plainText, htmlText };
+                    }
+
                     try {
                       const N = (e) => {
                           try {
@@ -9990,10 +10054,10 @@
                             return e;
                           }
                         },
-                        $ = await on(e);
+                        $ = await on(signal);
                       if (!$) return;
                       const P = n || new Map(),
-                        j = await rn(e);
+                        j = await loadChatReplay(signal);
                       if (j)
                         try {
                           var o;
@@ -10101,7 +10165,7 @@
                                       .liveChatTextMessageRenderer.timestampUsec
                                 );
                                 if (w && !P.has(parseInt(w, 10))) {
-                                  const e =
+                                  const runs =
                                     qt(
                                       () =>
                                         o.replayChatItemAction.actions[0]
@@ -10109,137 +10173,30 @@
                                           .liveChatTextMessageRenderer.message
                                           .runs
                                     ) || [];
-                                  let n = '',
-                                    b = '';
-                                  qt(
-                                    () =>
-                                      o.replayChatItemAction.actions[0]
-                                        .addChatItemAction.item
-                                        .liveChatTextMessageRenderer
-                                        .purchaseAmountText.simpleText
-                                  ) &&
-                                    ((b += `<span class="ycs-chat_donation ycs-chat_donation__title">Donated: </span><span class="ycs-chat_donation ycs-chat_donation__bg">${o.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText}</span><br><br>`),
-                                    (n += `${o.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText} `));
-                                  for (const t of e)
-                                    try {
-                                      var r,
-                                        i,
-                                        a,
-                                        s,
-                                        c,
-                                        l,
-                                        d,
-                                        u,
-                                        h,
-                                        m,
-                                        p,
-                                        f,
-                                        v,
-                                        y,
-                                        g;
-                                      (n +=
-                                        (null == t ? void 0 : t.text) || ''),
-                                        parseInt(
-                                          null == t ||
-                                            null ===
-                                              (r = t.navigationEndpoint) ||
-                                            void 0 === r ||
-                                            null === (i = r.watchEndpoint) ||
-                                            void 0 === i
-                                            ? void 0
-                                            : i.startTimeSeconds
-                                        ) >= 0
-                                          ? ((b += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${
-                                              null == t ||
-                                              null ===
-                                                (m = t.navigationEndpoint) ||
-                                              void 0 === m ||
-                                              null === (p = m.watchEndpoint) ||
-                                              void 0 === p
-                                                ? void 0
-                                                : p.videoId
-                                            }&t=${
-                                              null == t ||
-                                              null ===
-                                                (f = t.navigationEndpoint) ||
-                                              void 0 === f ||
-                                              null === (v = f.watchEndpoint) ||
-                                              void 0 === v
-                                                ? void 0
-                                                : v.startTimeSeconds
-                                            }s" data-offsetvideo="${
-                                              null == t ||
-                                              null ===
-                                                (y = t.navigationEndpoint) ||
-                                              void 0 === y ||
-                                              null === (g = y.watchEndpoint) ||
-                                              void 0 === g
-                                                ? void 0
-                                                : g.startTimeSeconds
-                                            }">${
-                                              (null == t ? void 0 : t.text) ||
-                                              ''
-                                            }</a>`),
-                                            qt(
-                                              () =>
-                                                o.replayChatItemAction
-                                                  .actions[0].addChatItemAction
-                                                  .item
-                                                  .liveChatTextMessageRenderer
-                                            ) &&
-                                              (o.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
-                                                'timeline'))
-                                          : (
-                                              null == t
-                                                ? void 0
-                                                : t.navigationEndpoint
-                                            )
-                                          ? (b += `<a class="ycs-cpointer ycs-comment-link" href="${
-                                              (null == t ||
-                                              null ===
-                                                (a = t.navigationEndpoint) ||
-                                              void 0 === a ||
-                                              null === (s = a.browseEndpoint) ||
-                                              void 0 === s
-                                                ? void 0
-                                                : s.canonicalBaseUrl) ||
-                                              (null == t ||
-                                              null ===
-                                                (c = t.navigationEndpoint) ||
-                                              void 0 === c ||
-                                              null === (l = c.urlEndpoint) ||
-                                              void 0 === l
-                                                ? void 0
-                                                : l.url) ||
-                                              (null == t ||
-                                              null ===
-                                                (d = t.navigationEndpoint) ||
-                                              void 0 === d ||
-                                              null ===
-                                                (u = d.commandMetadata) ||
-                                              void 0 === u ||
-                                              null ===
-                                                (h = u.webCommandMetadata) ||
-                                              void 0 === h
-                                                ? void 0
-                                                : h.url) ||
-                                              (null == t ? void 0 : t.text) ||
-                                              '#'
-                                            }" target="_blank">${
-                                              (null == t ? void 0 : t.text) ||
-                                              ''
-                                            }</a>`)
-                                          : (b +=
-                                              (null == t ? void 0 : t.text) ||
-                                              '');
-                                    } catch (e) {
-                                      b += (null == t ? void 0 : t.text) || '';
-                                    }
-                                  n &&
+                                  let fullText = '';
+                                  let renderFullText = '';
+
+                                  if (
+                                    o.replayChatItemAction.actions[0]
+                                      .addChatItemAction.item
+                                      .liveChatTextMessageRenderer
+                                      .purchaseAmountText.simpleText
+                                  ) {
+                                    renderFullText += `<span class="ycs-chat_donation ycs-chat_donation__title">Donated: </span><span class="ycs-chat_donation ycs-chat_donation__bg">${o.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText}</span><br><br>`;
+                                    fullText += `${o.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText} `;
+                                  }
+
+                                  for (const run of runs) {
+                                    const { plainText, htmlText } =
+                                      processChatRun(run, { item: o });
+                                    fullText += plainText;
+                                    renderFullText += htmlText;
+                                  }
+                                  fullText &&
                                     ((o.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText =
-                                      n),
+                                      fullText),
                                     (o.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText =
-                                      b || n)),
+                                      renderFullText || fullText)),
                                     qt(
                                       () =>
                                         o.replayChatItemAction.actions[0]
@@ -10269,7 +10226,7 @@
                                 `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?key=${nn()}`,
                                 {
                                   ...r,
-                                  signal: e,
+                                  signal,
                                   cache: 'no-store',
                                 }
                               );
@@ -10385,7 +10342,7 @@
                                           .timestampUsec
                                     );
                                     if (n && !P.has(parseInt(n, 10))) {
-                                      const o =
+                                      const runs =
                                         qt(
                                           () =>
                                             e.replayChatItemAction.actions[0]
@@ -10393,8 +10350,9 @@
                                               .liveChatTextMessageRenderer
                                               .message.runs
                                         ) || [];
-                                      let r = '',
-                                        i = '';
+                                      let fullText = '';
+                                      let renderFullText = '';
+
                                       qt(
                                         () =>
                                           e.replayChatItemAction.actions[0]
@@ -10402,148 +10360,20 @@
                                             .liveChatTextMessageRenderer
                                             .purchaseAmountText.simpleText
                                       ) &&
-                                        ((i += `<span class="ycs-chat_donation ycs-chat_donation__title">Donated: </span><span class="ycs-chat_donation ycs-chat_donation__bg">${e.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText}</span><br><br>`),
-                                        (r += `${e.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText} `));
-                                      for (const t of o)
-                                        try {
-                                          var x,
-                                            _,
-                                            C,
-                                            E,
-                                            T,
-                                            I,
-                                            k,
-                                            R,
-                                            M,
-                                            A,
-                                            S,
-                                            L,
-                                            B,
-                                            O,
-                                            z;
-                                          (r +=
-                                            (null == t ? void 0 : t.text) ||
-                                            ''),
-                                            parseInt(
-                                              null == t ||
-                                                null ===
-                                                  (x = t.navigationEndpoint) ||
-                                                void 0 === x ||
-                                                null ===
-                                                  (_ = x.watchEndpoint) ||
-                                                void 0 === _
-                                                ? void 0
-                                                : _.startTimeSeconds
-                                            ) >= 0
-                                              ? ((i += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${
-                                                  null == t ||
-                                                  null ===
-                                                    (A =
-                                                      t.navigationEndpoint) ||
-                                                  void 0 === A ||
-                                                  null ===
-                                                    (S = A.watchEndpoint) ||
-                                                  void 0 === S
-                                                    ? void 0
-                                                    : S.videoId
-                                                }&t=${
-                                                  null == t ||
-                                                  null ===
-                                                    (L =
-                                                      t.navigationEndpoint) ||
-                                                  void 0 === L ||
-                                                  null ===
-                                                    (B = L.watchEndpoint) ||
-                                                  void 0 === B
-                                                    ? void 0
-                                                    : B.startTimeSeconds
-                                                }s" data-offsetvideo="${
-                                                  null == t ||
-                                                  null ===
-                                                    (O =
-                                                      t.navigationEndpoint) ||
-                                                  void 0 === O ||
-                                                  null ===
-                                                    (z = O.watchEndpoint) ||
-                                                  void 0 === z
-                                                    ? void 0
-                                                    : z.startTimeSeconds
-                                                }">${
-                                                  (null == t
-                                                    ? void 0
-                                                    : t.text) || ''
-                                                }</a>`),
-                                                qt(
-                                                  () =>
-                                                    e.replayChatItemAction
-                                                      .actions[0]
-                                                      .addChatItemAction.item
-                                                      .liveChatTextMessageRenderer
-                                                ) &&
-                                                  (e.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
-                                                    'timeline'))
-                                              : (
-                                                  null == t
-                                                    ? void 0
-                                                    : t.navigationEndpoint
-                                                )
-                                              ? (i += `<a class="ycs-cpointer ycs-comment-link" href="${
-                                                  (null == t ||
-                                                  null ===
-                                                    (C =
-                                                      t.navigationEndpoint) ||
-                                                  void 0 === C ||
-                                                  null ===
-                                                    (E = C.browseEndpoint) ||
-                                                  void 0 === E
-                                                    ? void 0
-                                                    : E.canonicalBaseUrl) ||
-                                                  (null == t ||
-                                                  null ===
-                                                    (T =
-                                                      t.navigationEndpoint) ||
-                                                  void 0 === T ||
-                                                  null ===
-                                                    (I = T.urlEndpoint) ||
-                                                  void 0 === I
-                                                    ? void 0
-                                                    : I.url) ||
-                                                  (null == t ||
-                                                  null ===
-                                                    (k =
-                                                      t.navigationEndpoint) ||
-                                                  void 0 === k ||
-                                                  null ===
-                                                    (R = k.commandMetadata) ||
-                                                  void 0 === R ||
-                                                  null ===
-                                                    (M =
-                                                      R.webCommandMetadata) ||
-                                                  void 0 === M
-                                                    ? void 0
-                                                    : M.url) ||
-                                                  (null == t
-                                                    ? void 0
-                                                    : t.text) ||
-                                                  '#'
-                                                }" target="_blank">${
-                                                  (null == t
-                                                    ? void 0
-                                                    : t.text) || ''
-                                                }</a>`)
-                                              : (i +=
-                                                  (null == t
-                                                    ? void 0
-                                                    : t.text) || '');
-                                        } catch (e) {
-                                          i +=
-                                            (null == t ? void 0 : t.text) || '';
-                                        }
-                                      r &&
+                                        ((renderFullText += `<span class="ycs-chat_donation ycs-chat_donation__title">Donated: </span><span class="ycs-chat_donation ycs-chat_donation__bg">${e.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText}</span><br><br>`),
+                                        (fullText += `${e.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText} `));
+
+                                      for (const run of runs) {
+                                        const { plainText, htmlText } =
+                                          processChatRun(run, { item: e });
+                                        fullText += plainText;
+                                        renderFullText += htmlText;
+                                      }
+                                      fullText &&
                                         ((e.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText =
-                                          r),
+                                          fullText),
                                         (e.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText =
-                                          i || r)),
+                                          renderFullText || fullText)),
                                         qt(
                                           () =>
                                             e.replayChatItemAction.actions[0]
