@@ -7665,10 +7665,9 @@
                   let image;
                   if ((image = run.attachment.image)) {
                     const { url, width, height, margin } = image;
+                    const alt = run.text || '';
                     const style = `margin-left: ${margin.left}px; margin-right: ${margin.right}px;`;
-                    renderFullText += `<img src="${url}" alt="${
-                      run.text || ''
-                    }" width="${width}" height="${height}" style="${style}" class="ycs-attachment" />`;
+                    renderFullText += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment" />`;
                   } else {
                     renderFullText += run.text || '';
                   }
