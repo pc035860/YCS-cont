@@ -12037,7 +12037,7 @@
                   ) {
                     const o = document.querySelector(t),
                       a = document.getElementById('ycs-input-search'),
-                      s =
+                      cueGroupsBuf =
                         transcriptDataBuf.actions[0].updateEngagementPanelAction
                           .content.transcriptRenderer.body
                           .transcriptBodyRenderer.cueGroups;
@@ -12067,6 +12067,14 @@
                       ...h,
                       keys: m,
                     };
+                    const searchText = l.trim();
+                    const textSearchFuseResults = searchText
+                      ? new (e(I))(cueGroupsBuf, p).search(searchText)
+                      : null;
+                    const textSearchResults =
+                      textSearchFuseResults !== null
+                        ? textSearchFuseResults.map(({ item }) => item)
+                        : cueGroupsBuf;
                     let f = [];
                     if (n)
                       if (null == n ? void 0 : n.links) {
@@ -12093,7 +12101,7 @@
                           } catch (e) {
                             return [];
                           }
-                        })(s);
+                        })(textSearchResults);
                         if (((f = n), (null == f ? void 0 : f.length) > 0)) {
                           null == f ||
                             f.sort((e, t) => e.refIndex - t.refIndex);
@@ -12137,7 +12145,7 @@
                             } catch (e) {
                               return [];
                             }
-                          })(s);
+                          })(textSearchResults);
                           if (((f = e), (null == f ? void 0 : f.length) > 0)) {
                             null == f ||
                               f.sort((e, t) => e.refIndex - t.refIndex);
@@ -12163,7 +12171,7 @@
                         }
                       }
                     else {
-                      (f = new (e(I))(s, p).search(l.trim())), xn(t, f, l);
+                      (f = textSearchFuseResults), xn(t, f, l);
                     }
                     const v = document.getElementById(
                       'ycs-search-total-result'
