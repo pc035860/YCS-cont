@@ -8231,10 +8231,7 @@
               },
             ],
           },
-          authorEndpoint: {
-            browseEndpoint:
-              author.channelCommand.innertubeCommand.browseEndpoint,
-          },
+          authorEndpoint: author.channelCommand.innertubeCommand,
           contentText: {
             runs,
             fullText: baseText,
