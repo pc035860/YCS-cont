@@ -1,6 +1,8 @@
 /* global htmlEntities */
 
 (() => {
+  const IS_DEBUG = /ycs_debug/.test(window.location.search);
+
   function e(e) {
     return e && e.__esModule ? e.default : e;
   }
@@ -9223,6 +9225,8 @@
                 ? void 0
                 : U.fullText) ||
               ''
+            }${
+              IS_DEBUG ? ` [${[e.item._index, e.item._score]}]` : ''
             }</div>\n                        </div>\n                    </div>\n                `,
           });
         } catch (e) {
@@ -11208,13 +11212,24 @@
                   keys: h,
                 };
                 const searchText = i.trim();
+                const commentsCount = commentsDataBuf.length;
+                const indexedBuf = commentsDataBuf.map((d, index) => ({
+                  ...d,
+                  _index: commentsCount - index - 1,
+                }));
                 const textSearchFuseResults = searchText
-                  ? new (e(I))(commentsDataBuf, m).search(searchText)
+                  ? new (e(I))(indexedBuf, m).search(searchText).map((d) => ({
+                      ...d,
+                      item: {
+                        ...d.item,
+                        _score: d.score,
+                      },
+                    }))
                   : null;
                 const textSearchResults =
                   textSearchFuseResults !== null
                     ? textSearchFuseResults.map(({ item }) => item)
-                    : commentsDataBuf;
+                    : indexedBuf;
                 let p = [];
                 if (null == n ? void 0 : n.likes) {
                   const e = (function (e) {
@@ -11301,7 +11316,7 @@
                           ) &&
                             n.push({
                               item: r,
-                              refIndex: o,
+                              refIndex: r._index,
                             });
                         } catch (e) {
                           continue;
@@ -11351,7 +11366,7 @@
                           : o.tooltip) &&
                           r.push({
                             item: a,
-                            refIndex: i,
+                            refIndex: a._index,
                           });
                       }
                       return r;
@@ -11399,7 +11414,7 @@
                             ((r.commentRenderer.repliedForSort = e),
                             n.push({
                               item: r,
-                              refIndex: o,
+                              refIndex: r._index,
                             }));
                       }
                       return n.length > 0
@@ -11429,7 +11444,7 @@
                           : t.authorIsChannelOwner) &&
                           n.push({
                             item: r,
-                            refIndex: o,
+                            refIndex: r._index,
                           });
                       return n;
                     } catch (e) {
@@ -11472,7 +11487,7 @@
                           : t.creatorHeart) &&
                           n.push({
                             item: r,
-                            refIndex: o,
+                            refIndex: r._index,
                           });
                       return n;
                     } catch (e) {
@@ -11510,7 +11525,7 @@
                         o.commentRenderer.verifiedAuthor &&
                           t.push({
                             item: o,
-                            refIndex: n,
+                            refIndex: o._index,
                           });
                       return t;
                     } catch (e) {
@@ -11599,11 +11614,23 @@
                   })(textSearchResults);
                   (p = e), wn(t, p, !0, i);
                 } else if (null == n ? void 0 : n.timestamp) {
-                  m.keys = ['commentRenderer.isTimeLine'];
-                  if (
-                    ((p = new (e(I))(textSearchResults, m).search('timeline')),
-                    p.length > 0)
-                  ) {
+                  p = (function (e) {
+                    if (0 === e.length) return [];
+                    try {
+                      const t = [];
+                      for (const [n, o] of e.entries())
+                        o.commentRenderer?.isTimeLine === 'timeline' &&
+                          t.push({
+                            item: o,
+                            refIndex: o._index,
+                          });
+                      return t;
+                    } catch (e) {
+                      return [];
+                    }
+                  })(textSearchResults);
+
+                  if (p.length > 0) {
                     null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_timestamps'),
                       n = e.dataset.sort;
@@ -11635,7 +11662,7 @@
                           'C' === (null == o ? void 0 : o.typeComment) &&
                             t.push({
                               item: o,
-                              refIndex: n,
+                              refIndex: o._index,
                             });
                         } catch (e) {
                           continue;
@@ -11644,6 +11671,7 @@
                     } catch (e) {}
                   })(textSearchResults);
                   if (((p = e), p.length > 0)) {
+                    null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_sort_first'),
                       n = e.dataset.sort;
                     'newest' === n
