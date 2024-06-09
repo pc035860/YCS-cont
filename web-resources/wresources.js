@@ -8491,7 +8491,7 @@
       return;
     }
   }
-  function dn(e, t) {
+  function postTextMessage(e, t) {
     try {
       ('string' != typeof t && 'number' != typeof t) ||
         'string' != typeof e ||
@@ -8915,7 +8915,7 @@
       }
     } catch (e) {}
   }
-  function gn(e, t, n) {
+  function saveCache(e, t, n) {
     try {
       window.postMessage(
         {
@@ -9638,12 +9638,14 @@
           function o() {
             if (!Yt()) return;
             n && window.removeEventListener('message', n);
-            const o = {
+            // counters to be used for action button display
+            const countsAct = {
                 comments: 0,
                 commentsChat: 0,
                 commentsTrVideo: 0,
               },
-              r = {
+              // counters to be used for search results
+              countsReport = {
                 comments: 0,
                 commentsChat: 0,
                 commentsTrVideo: 0,
@@ -9652,7 +9654,7 @@
               commentsDataBuf = [],
               chatDataBuf = new Map();
             t = new AbortController();
-            const c = {
+            const fuseOptionsBase = {
               isCaseSensitive: !1,
               findAllMatches: !1,
               includeMatches: !1,
@@ -9665,7 +9667,7 @@
               distance: 1e5,
             };
             if (
-              (dn('NUMBER_COMMENTS', ''),
+              (postTextMessage('NUMBER_COMMENTS', ''),
               sn('.ycs-app'),
               document.querySelector('#meta.style-scope.ytd-watch-flexy'))
             )
@@ -9698,9 +9700,9 @@
               if (pool) {
                 var t, n, o, i, a, s, c, l, d, h, m, p;
                 const f = () => {
-                  (r.comments = 0),
-                    (r.commentsChat = 0),
-                    (r.commentsTrVideo = 0);
+                  (countsReport.comments = 0),
+                    (countsReport.commentsChat = 0),
+                    (countsReport.commentsTrVideo = 0);
                 };
                 null == pool ||
                   null === (t = pool.elPTimeStamps) ||
@@ -9937,7 +9939,7 @@
                   commentsDataBuf.length > 0 &&
                     ((r.innerHTML =
                       '\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"\n            width="48" height="48"\n            viewBox="0 0 48 48"\n            style=" fill:#000000;"><linearGradient id="I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1" x1="9.858" x2="38.142" y1="9.858" y2="38.142" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#21ad64"></stop><stop offset="1" stop-color="#088242"></stop></linearGradient><path fill="url(#I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1)" d="M44,24c0,11.045-8.955,20-20,20S4,35.045,4,24S12.955,4,24,4S44,12.955,44,24z"></path><path d="M32.172,16.172L22,26.344l-5.172-5.172c-0.781-0.781-2.047-0.781-2.828,0l-1.414,1.414\tc-0.781,0.781-0.781,2.047,0,2.828l8,8c0.781,0.781,2.047,0.781,2.828,0l13-13c0.781-0.781,0.781-2.047,0-2.828L35,16.172\tC34.219,15.391,32.953,15.391,32.172,16.172z" opacity=".05"></path><path d="M20.939,33.061l-8-8c-0.586-0.586-0.586-1.536,0-2.121l1.414-1.414c0.586-0.586,1.536-0.586,2.121,0\tL22,27.051l10.525-10.525c0.586-0.586,1.536-0.586,2.121,0l1.414,1.414c0.586,0.586,0.586,1.536,0,2.121l-13,13\tC22.475,33.646,21.525,33.646,20.939,33.061z" opacity=".07"></path><path fill="#fff" d="M21.293,32.707l-8-8c-0.391-0.391-0.391-1.024,0-1.414l1.414-1.414c0.391-0.391,1.024-0.391,1.414,0\tL22,27.758l10.879-10.879c0.391-0.391,1.024-0.391,1.414,0l1.414,1.414c0.391,0.391,0.391,1.024,0,1.414l-13,13\tC22.317,33.098,21.683,33.098,21.293,32.707z"></path></svg>\n        </span>\n    '),
-                    gn(
+                    saveCache(
                       {
                         comments: commentsDataBuf,
                         commentsChat: JSON.stringify(
@@ -9949,9 +9951,12 @@
                       document.title
                     ))),
                   commentsDataBuf.length > 0 &&
-                    (o.comments = commentsDataBuf.length);
-                const l = o.comments + o.commentsChat + o.commentsTrVideo;
-                dn('NUMBER_COMMENTS', l),
+                    (countsAct.comments = commentsDataBuf.length);
+                const l =
+                  countsAct.comments +
+                  countsAct.commentsChat +
+                  countsAct.commentsTrVideo;
+                postTextMessage('NUMBER_COMMENTS', l),
                   c && (c.textContent = `${commentsDataBuf.length}`),
                   m && (m.textContent = `(${l})`),
                   (n.disabled = !1);
@@ -10417,7 +10422,7 @@
                     ((c.textContent = chatDataBuf.size.toString()),
                     (r.innerHTML =
                       '\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"\n            width="48" height="48"\n            viewBox="0 0 48 48"\n            style=" fill:#000000;"><linearGradient id="I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1" x1="9.858" x2="38.142" y1="9.858" y2="38.142" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#21ad64"></stop><stop offset="1" stop-color="#088242"></stop></linearGradient><path fill="url(#I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1)" d="M44,24c0,11.045-8.955,20-20,20S4,35.045,4,24S12.955,4,24,4S44,12.955,44,24z"></path><path d="M32.172,16.172L22,26.344l-5.172-5.172c-0.781-0.781-2.047-0.781-2.828,0l-1.414,1.414\tc-0.781,0.781-0.781,2.047,0,2.828l8,8c0.781,0.781,2.047,0.781,2.828,0l13-13c0.781-0.781,0.781-2.047,0-2.828L35,16.172\tC34.219,15.391,32.953,15.391,32.172,16.172z" opacity=".05"></path><path d="M20.939,33.061l-8-8c-0.586-0.586-0.586-1.536,0-2.121l1.414-1.414c0.586-0.586,1.536-0.586,2.121,0\tL22,27.051l10.525-10.525c0.586-0.586,1.536-0.586,2.121,0l1.414,1.414c0.586,0.586,0.586,1.536,0,2.121l-13,13\tC22.475,33.646,21.525,33.646,20.939,33.061z" opacity=".07"></path><path fill="#fff" d="M21.293,32.707l-8-8c-0.391-0.391-0.391-1.024,0-1.414l1.414-1.414c0.391-0.391,1.024-0.391,1.414,0\tL22,27.758l10.879-10.879c0.391-0.391,1.024-0.391,1.414,0l1.414,1.414c0.391,0.391,0.391,1.024,0,1.414l-13,13\tC22.317,33.098,21.683,33.098,21.293,32.707z"></path></svg>\n        </span>\n    '),
-                    gn(
+                    saveCache(
                       {
                         comments: commentsDataBuf,
                         commentsChat: JSON.stringify(
@@ -10431,9 +10436,12 @@
                   chatDataBuf &&
                     chatDataBuf.size > 0 &&
                     (h.parentNode || h.parentElement) &&
-                    (o.commentsChat = chatDataBuf.size);
-                const l = o.comments + o.commentsChat + o.commentsTrVideo;
-                dn('NUMBER_COMMENTS', l),
+                    (countsAct.commentsChat = chatDataBuf.size);
+                const l =
+                  countsAct.comments +
+                  countsAct.commentsChat +
+                  countsAct.commentsTrVideo;
+                postTextMessage('NUMBER_COMMENTS', l),
                   m && (m.textContent = `(${l})`),
                   (n.disabled = !1);
               });
@@ -10477,7 +10485,7 @@
 
                     if (cueGroupLength > 0) {
                       Kt(cueGroupLength, commentsElement);
-                      gn(
+                      saveCache(
                         {
                           comments: commentsDataBuf,
                           commentsChat: JSON.stringify(
@@ -10516,12 +10524,14 @@
                     hasCueGroups(transcriptData) &&
                     (h.parentNode || h.parentElement)
                   ) {
-                    o.commentsTrVideo = cueGroups.length;
+                    countsAct.commentsTrVideo = cueGroups.length;
                   }
 
                   const totalComments =
-                    o.comments + o.commentsChat + o.commentsTrVideo;
-                  dn('NUMBER_COMMENTS', totalComments);
+                    countsAct.comments +
+                    countsAct.commentsChat +
+                    countsAct.commentsTrVideo;
+                  postTextMessage('NUMBER_COMMENTS', totalComments);
 
                   if (m) {
                     m.textContent = `(${totalComments})`;
@@ -10820,13 +10830,13 @@
                       'ycs_extended_search_title'
                     ),
                     d = document.getElementById('ycs_extended_search_main');
-                  let u = c,
+                  let u = fuseOptionsBase,
                     h = [
                       'commentRenderer.authorText.simpleText',
                       'commentRenderer.contentText.fullText',
                     ];
                   L.checked &&
-                    ((u = JSON.parse(JSON.stringify(c))),
+                    ((u = JSON.parse(JSON.stringify(fuseOptionsBase))),
                     (u.useExtendedSearch = !0),
                     l.checked &&
                       (h = ['commentRenderer.authorText.simpleText']),
@@ -11300,7 +11310,7 @@
                   }
                   const f = document.getElementById('ycs-search-total-result');
                   f && (f.innerText = `(Comments) Found: ${p.length}`),
-                    (r.comments = p.length);
+                    (countsReport.comments = p.length);
                   const v = document.getElementById('ycs_wrap_comments');
                   v &&
                     v.addEventListener('click', (e) => {
@@ -11532,13 +11542,13 @@
                         'ycs_extended_search_title'
                       ),
                       u = document.getElementById('ycs_extended_search_main');
-                    let h = c,
+                    let h = fuseOptionsBase,
                       m = [
                         'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.authorName.simpleText',
                         'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.message.fullText',
                       ];
                     L.checked &&
-                      ((h = JSON.parse(JSON.stringify(c))),
+                      ((h = JSON.parse(JSON.stringify(fuseOptionsBase))),
                       (h.useExtendedSearch = !0),
                       d.checked &&
                         (m = [
@@ -11887,7 +11897,7 @@
                       'ycs-search-total-result'
                     );
                     v && (v.innerText = `(Chat replay) Found: ${f.length}`),
-                      (r.commentsChat = f.length);
+                      (countsReport.commentsChat = f.length);
                     const y = document.getElementById('ycs_wrap_comments_chat');
                     null == y ||
                       y.addEventListener('click', (e) => {
@@ -11934,13 +11944,13 @@
                         'ycs_extended_search_title'
                       ),
                       u = document.getElementById('ycs_extended_search_main');
-                    let h = c,
+                    let h = fuseOptionsBase,
                       m = [
                         'transcriptCueGroupRenderer.cues.transcriptCueRenderer.cue.simpleText',
                         'transcriptCueGroupRenderer.formattedStartOffset.simpleText',
                       ];
                     L.checked &&
-                      ((h = JSON.parse(JSON.stringify(c))),
+                      ((h = JSON.parse(JSON.stringify(fuseOptionsBase))),
                       (h.useExtendedSearch = !0),
                       d.checked &&
                         (m = [
@@ -12064,7 +12074,7 @@
                       'ycs-search-total-result'
                     );
                     v && (v.innerText = `(Tr. video) Found: ${f.length}`),
-                      (r.commentsTrVideo = f.length);
+                      (countsReport.commentsTrVideo = f.length);
                     const y = document.getElementById(
                       'ycs_wrap_comments_trvideo'
                     );
@@ -12132,7 +12142,10 @@
                       )),
                     o)
                   ) {
-                    const e = r.comments + r.commentsChat + r.commentsTrVideo;
+                    const e =
+                      countsReport.comments +
+                      countsReport.commentsChat +
+                      countsReport.commentsTrVideo;
                     (null == t ? void 0 : t.timestamp)
                       ? (o.innerText = `Time stamps, found: ${e}`)
                       : (null == t ? void 0 : t.author)
@@ -12210,7 +12223,7 @@
                 // Ht(u, 'ycs_btn_active');
                 const e = document.getElementById('ycs_search_select');
                 if (e) {
-                  const searchOptions = getSearchOptions(u);
+                  const searchOptions = getSearchOptions(btnPool);
                   var t;
                   switch (
                     null == e
@@ -12334,7 +12347,7 @@
                           '\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"\n            width="48" height="48"\n            viewBox="0 0 48 48"\n            style=" fill:#000000;"><linearGradient id="I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1" x1="9.858" x2="38.142" y1="9.858" y2="38.142" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#21ad64"></stop><stop offset="1" stop-color="#088242"></stop></linearGradient><path fill="url(#I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1)" d="M44,24c0,11.045-8.955,20-20,20S4,35.045,4,24S12.955,4,24,4S44,12.955,44,24z"></path><path d="M32.172,16.172L22,26.344l-5.172-5.172c-0.781-0.781-2.047-0.781-2.828,0l-1.414,1.414\tc-0.781,0.781-0.781,2.047,0,2.828l8,8c0.781,0.781,2.047,0.781,2.828,0l13-13c0.781-0.781,0.781-2.047,0-2.828L35,16.172\tC34.219,15.391,32.953,15.391,32.172,16.172z" opacity=".05"></path><path d="M20.939,33.061l-8-8c-0.586-0.586-0.586-1.536,0-2.121l1.414-1.414c0.586-0.586,1.536-0.586,2.121,0\tL22,27.051l10.525-10.525c0.586-0.586,1.536-0.586,2.121,0l1.414,1.414c0.586,0.586,0.586,1.536,0,2.121l-13,13\tC22.475,33.646,21.525,33.646,20.939,33.061z" opacity=".07"></path><path fill="#fff" d="M21.293,32.707l-8-8c-0.391-0.391-0.391-1.024,0-1.414l1.414-1.414c0.391-0.391,1.024-0.391,1.414,0\tL22,27.758l10.879-10.879c0.391-0.391,1.024-0.391,1.414,0l1.414,1.414c0.391,0.391,0.391,1.024,0,1.414l-13,13\tC22.317,33.098,21.683,33.098,21.293,32.707z"></path></svg>\n        </span>\n    '),
                         commentsDataBuf.length > 0 &&
                           (h.parentNode || h.parentElement) &&
-                          (o.comments = commentsDataBuf.length);
+                          (countsAct.comments = commentsDataBuf.length);
                       const r = document.getElementById('ycs_cmnts');
                       if (
                         (r && (r.textContent = `${commentsDataBuf.length}`),
@@ -12350,7 +12363,7 @@
                         (chatDataBuf &&
                           chatDataBuf.size > 0 &&
                           (h.parentNode || h.parentElement) &&
-                          (o.commentsChat = chatDataBuf.size),
+                          (countsAct.commentsChat = chatDataBuf.size),
                         qt(() => {
                           var e, t, n, o, r, a, s, c;
                           return (
@@ -12415,10 +12428,14 @@
                         );
                       }) &&
                         (h.parentNode || h.parentElement) &&
-                        (o.commentsTrVideo =
+                        (countsAct.commentsTrVideo =
                           transcriptDataBuf.actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length);
-                      const c = o.comments + o.commentsChat + o.commentsTrVideo;
-                      dn('NUMBER_COMMENTS', c), m && (m.textContent = `(${c})`);
+                      const c =
+                        countsAct.comments +
+                        countsAct.commentsChat +
+                        countsAct.commentsTrVideo;
+                      postTextMessage('NUMBER_COMMENTS', c),
+                        m && (m.textContent = `(${c})`);
                       document
                         .getElementById('ycs-count-load')
                         .insertAdjacentHTML(
