@@ -1,6 +1,8 @@
 /* global htmlEntities */
 
 (() => {
+  const IS_DEBUG = /ycs_debug/.test(window.location.search);
+
   function e(e) {
     return e && e.__esModule ? e.default : e;
   }
@@ -72,6 +74,50 @@
       number: num,
       multiply,
     };
+  }
+
+  /**
+   * Get search filter options via checking button DOM class
+   * @param {object} pool
+   * @returns {object} {
+   *   timestamp: boolean,
+   *   author: boolean,
+   *   heart: boolean,
+   *   verified: boolean,
+   *   links: boolean,
+   *   likes: boolean,
+   *   replied: boolean,
+   *   members: boolean,
+   *   donated: boolean,
+   *   random: boolean
+   * }
+   */
+  function getSearchOptions(pool) {
+    const map = {
+      elPTimeStamps: 'timestamp',
+      elPAuthor: 'author',
+      elPHeart: 'heart',
+      elPVerified: 'verified',
+      elPLinks: 'links',
+      elPLikes: 'likes',
+      elPReplied: 'replied',
+      elPMembers: 'members',
+      elPDonated: 'donated',
+      elPRandom: 'random',
+      elFirstComments: 'sortFirst',
+    };
+    const options = {};
+    let hit = false;
+    for (const key in pool) {
+      if (pool[key].classList.contains('ycs_btn_active')) {
+        options[map[key]] = true;
+        hit = true;
+      }
+    }
+    if (!hit) {
+      return undefined;
+    }
+    return options;
   }
 
   var t =
@@ -6555,17 +6601,20 @@
       Math.floor(Math.random() * (t - e + 1) + e)
     );
   }
-  function Ht(e, t) {
+  function removeClassName(elementMap, className) {
     try {
       if (
-        ((n = e) && 0 === Object.keys(n).length && n.constructor === Object) ||
-        'string' != typeof t
-      )
+        !elementMap ||
+        Object.keys(elementMap).length === 0 ||
+        typeof className !== 'string'
+      ) {
         return;
-      const o = Object.values(e);
-      for (const e of o) e.classList.remove(t);
-    } catch (e) {}
-    var n;
+      }
+      const elements = Object.values(elementMap);
+      for (const element of elements) {
+        element.classList.remove(className);
+      }
+    } catch (error) {}
   }
   function Gt(e, t, n) {
     try {
@@ -7085,9 +7134,9 @@
       return;
     }
   }
-  async function rn(e) {
+  async function loadChatReplay(signal) {
     try {
-      const n = await on(e),
+      const n = await on(signal),
         o = (function (e, t) {
           if (t)
             try {
@@ -7153,7 +7202,7 @@
             `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key=${nn()}`,
             {
               ...o,
-              signal: e,
+              signal,
               cache: 'no-store',
             }
           ),
@@ -7169,7 +7218,7 @@
       return;
     }
   }
-  async function loadTranscript(e) {
+  async function loadTranscript(signal) {
     const getTimedTextUrl = async () => {
       const videoId = Jt(window.location.href);
       const response = await fetch(
@@ -7178,7 +7227,7 @@
           method: 'GET',
           mode: 'no-cors',
           credentials: 'include',
-          signal: e,
+          signal,
           cache: 'no-store',
         }
       );
@@ -7206,7 +7255,7 @@
         method: 'GET',
         mode: 'no-cors',
         credentials: 'include',
-        signal: e,
+        signal,
         cache: 'no-store',
       });
       const xmlText = await response.text();
@@ -7665,10 +7714,9 @@
                   let image;
                   if ((image = run.attachment.image)) {
                     const { url, width, height, margin } = image;
+                    const alt = run.text || '';
                     const style = `margin-left: ${margin.left}px; margin-right: ${margin.right}px;`;
-                    renderFullText += `<img src="${url}" alt="${
-                      run.text || ''
-                    }" width="${width}" height="${height}" style="${style}" class="ycs-attachment" />`;
+                    renderFullText += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment" />`;
                   } else {
                     renderFullText += run.text || '';
                   }
@@ -8489,7 +8537,7 @@
       return;
     }
   }
-  function dn(e, t) {
+  function postTextMessage(e, t) {
     try {
       ('string' != typeof t && 'number' != typeof t) ||
         'string' != typeof e ||
@@ -8913,7 +8961,7 @@
       }
     } catch (e) {}
   }
-  function gn(e, t, n) {
+  function saveCache(e, t, n) {
     try {
       window.postMessage(
         {
@@ -9177,6 +9225,8 @@
                 ? void 0
                 : U.fullText) ||
               ''
+            }${
+              IS_DEBUG ? ` [${[e.item._index, e.item._score]}]` : ''
             }</div>\n                        </div>\n                    </div>\n                `,
           });
         } catch (e) {
@@ -9626,6 +9676,352 @@
       })()}\n                </div>\n            </div>\n\n            <div id="ycs-search-result" class="ycs-clear"></div>\n\n            <div id="ycs_modal_window" class="ycs_modal">\n                <div class="ycs_modal-content">\n                    <button id="ycs_btn_close_modal" class="ycs_btn_close ycs_noselect">✖</button>\n                    <div class="ycs_modal_body">\n                        <h2>Instructions</h2>\n                        <ol>\n                            <li>Open video on YouTube</li>\n                            <li>Find the YCS extension under the current video and click the button "Load all" or choose to load the categories\n                            </li>\n                            <li>Write the search query, press Enter or click the button Search</li>\n                        </ol>\n                        <hr />\n                        <h2>FAQ</h2>\n                        <ol>\n                            <li>\n                                <p><strong>How to like, reply to a comment?</strong><br />In the search results, click on the date (like, "2\n                                    months ago") of the comment and will open a new window with an active comment or reply under the video,\n                                    where you can do any action.</p>\n                            </li>\n                            <li>\n                                <p><strong>How do I find all timestamped comments and replies on a video?</strong><br />Click on the "Timestamps" button under the search bar.</p>\n                            </li>\n                            <li>\n                                <p><strong>How can I find addressed to user's comments, replies?</strong><br />Write&nbsp;<code>@</code>&nbsp;in\n                                    the input field.</p>\n                            </li>\n                            <li>\n                                <p><strong>How can I view the contents of the video transcript at a specific minute?</strong><br />You can write\n                                    a search query for Trp. Video, in the&nbsp;<code>mm:ss</code>&nbsp;format. For\n                                    example:<br /><code>:</code>&nbsp;- all the text of the video transcript.<br /><code>15:</code>&nbsp;- all\n                                    the text in the 15th minute.</p>\n                            </li>\n                            <li>\n                                <p><strong>How can I view the comment for a found reply?</strong><br />Click on\n                                    the&nbsp;<strong>▼</strong>&nbsp;button.</p>\n                            </li>\n                            <li>\n                                <p><strong>How can I see the all replies to the found comment?</strong><br />In the header of the found comment,\n                                    you can find the reply icon and the count, to see the replies click on\n                                    the&nbsp;<strong>+</strong>&nbsp;button.</p>\n                            </li>\n                            <li>\n                                <p><strong>How to use search in YouTube shorts?</strong><br />\n                                    Open a YouTube video short. Click badge <strong>YCS</strong> (right of the address bar) and click on the button <strong>Open YT short</strong>.</p>\n                            </li>\n                        </ol>\n\n                        <div>\n                            <p>You can use the search engine (YCS), while loading comments, chat, transcript video.</p>\n                            &nbsp;&nbsp;\n                        </div>\n\n                    </div>\n                </div>\n            </div>\n\n        </div>\n    `),
       null == t || t.appendChild(n);
   }
+  function buildSearchUI(element) {
+    element.innerHTML = `
+      <div>
+        <div>
+          <div class="ycs-searchbox">
+            <input
+              title="Write the search query, press Enter or click the button Search."
+              class="ycs-search__input ycs_noselect"
+              type="text"
+              id="ycs-input-search"
+              placeholder="Search"
+            />
+          </div>
+          <select
+            title="Select a search category."
+            name="ycs_search_select"
+            id="ycs_search_select"
+            class="ycs-btn-search ycs-title ycs-search-select ycs_noselect"
+          >
+            <option value="comments">Comments</option>
+            <option value="chat">Chat replay</option>
+            <option value="video">Trpt. video</option>
+            <option selected value="all">All</option>
+          </select>
+          <button
+            id="ycs_btn_search"
+            class="ycs-btn-search ycs-title ycs_noselect"
+            type="button"
+          >
+            Search
+          </button>
+
+          <div class="ycs-ext-search_block">
+            <p id="ycs-search-total-result" class="ycs-title"></p>
+            <div class="ycs-ext-search_option">
+              <label
+                for="ycs_extended_search"
+                class="ycs_noselect ycs-title"
+                title="Enables the use of unix-like search commands"
+              >
+                <input
+                  type="checkbox"
+                  name="ycs_extended_search"
+                  id="ycs_extended_search"
+                />
+                <span class="ycs-ext-search_title">Extended search</span>
+              </label>
+              <div class="ycs-ext-search-opts">
+                <fieldset>
+                  <label
+                    for="ycs_extended_search_title"
+                    class="ycs_noselect ycs-title"
+                    title="Extended search by title"
+                  >
+                    <input
+                      type="radio"
+                      id="ycs_extended_search_title"
+                      name="ycs_ext_search_opts"
+                      value="title"
+                      disabled
+                    />
+                    <span class="ycs-ext-search_title">Title</span>
+                  </label>
+
+                  <label
+                    for="ycs_extended_search_main"
+                    class="ycs_noselect ycs-title"
+                    title="Extended search by main text"
+                  >
+                    <input
+                      type="radio"
+                      id="ycs_extended_search_main"
+                      name="ycs_ext_search_opts"
+                      value="main"
+                      disabled
+                      checked
+                    />
+                    <span class="ycs-ext-search_title">Main</span>
+                  </label>
+                </fieldset>
+              </div>
+              <a
+                href="https://github.com/sonigy/YCS#extended-search"
+                class="ycs-title ycs-ext-search_link"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="How to use"
+                >?</a
+              >
+            </div>
+          </div>
+
+          <button id="ycs_btn_open_modal" class="ycs_noselect" title="FAQ">?</button>
+        </div>
+        <div class="ycs-search-result-infobar">
+          <div class="ycs-btn-panel ycs_noselect">
+            <button
+              id="ycs_btn_timestamps"
+              data-sort="newest"
+              data-sort-chat="newest"
+              class="ycs-btn-search ycs-title"
+              name="timestamps"
+              type="button"
+              title="Show comments, replies, chat with time stamps (Newest)"
+            >
+              Time stamps
+
+              <span class="ycs-icons">
+                <svg
+                  width="16px"
+                  height="16px"
+                  viewBox="0 0 16 16"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="currentColor"
+                  class="bi bi-sort-down"
+                >
+                  <path
+                    d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"
+                  />
+                </svg>
+              </span>
+            </button>
+            <button
+              id="ycs_btn_author"
+              data-sort="newest"
+              data-sort-chat="newest"
+              class="ycs-btn-search ycs-title"
+              name="author"
+              type="button"
+              title="Show comments, replies, chat from the author (Newest)"
+            >
+              Author
+
+              <span class="ycs-icons">
+                <svg
+                  width="16px"
+                  height="16px"
+                  viewBox="0 0 16 16"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="currentColor"
+                  class="bi bi-sort-down"
+                >
+                  <path
+                    d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"
+                  />
+                </svg>
+              </span>
+            </button>
+            <button
+              id="ycs_btn_heart"
+              data-sort="newest"
+              class="ycs-btn-search ycs-title"
+              name="heart"
+              type="button"
+              title="Show comments and replies that the author likes (Newest)"
+            >
+              <span class="ycs-creator-heart_icon">❤</span>
+
+              <span class="ycs-icons">
+                <svg
+                  width="16px"
+                  height="16px"
+                  viewBox="0 0 16 16"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="currentColor"
+                  class="bi bi-sort-down"
+                >
+                  <path
+                    d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"
+                  />
+                </svg>
+              </span>
+            </button>
+            <button
+              id="ycs_btn_verified"
+              data-sort="newest"
+              data-sort-chat="newest"
+              class="ycs-btn-search ycs-title"
+              name="verified"
+              type="button"
+              title="Show comments, replies and chat from a verified authors (Newest)"
+            >
+              <span class="ycs-creator-verified_icon">✔</span>
+
+              <span class="ycs-icons">
+                <svg
+                  width="16px"
+                  height="16px"
+                  viewBox="0 0 16 16"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="currentColor"
+                  class="bi bi-sort-down"
+                >
+                  <path
+                    d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"
+                  />
+                </svg>
+              </span>
+            </button>
+            <button
+              id="ycs_btn_links"
+              data-sort="newest"
+              data-sort-chat="newest"
+              data-sort-trp="newest"
+              class="ycs-btn-search ycs-title"
+              name="links"
+              type="button"
+              title="Shows links in comments, replies, chat, video transcript (Newest)"
+            >
+              Links
+
+              <span class="ycs-icons">
+                <svg
+                  width="16px"
+                  height="16px"
+                  viewBox="0 0 16 16"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="currentColor"
+                  class="bi bi-sort-down"
+                >
+                  <path
+                    d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"
+                  />
+                </svg>
+              </span>
+            </button>
+            <button
+              id="ycs_btn_likes"
+              class="ycs-btn-search ycs-title"
+              name="likes"
+              type="button"
+              title="Show comments, replies by number of likes (sort largest to smallest)"
+            >
+              Likes
+            </button>
+            <button
+              id="ycs_btn_replied_comments"
+              class="ycs-btn-search ycs-title"
+              name="replied"
+              type="button"
+              title="Show comments by number of replies (sort largest to smallest)"
+            >
+              Replied
+            </button>
+            <button
+              id="ycs_btn_members"
+              data-sort="newest"
+              data-sort-chat="newest"
+              class="ycs-btn-search ycs-title"
+              name="members"
+              type="button"
+              title="Show comments, replies, chat from channel members (Newest)"
+            >
+              Members
+
+              <span class="ycs-icons">
+                <svg
+                  width="16px"
+                  height="16px"
+                  viewBox="0 0 16 16"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="currentColor"
+                  class="bi bi-sort-down"
+                >
+                  <path
+                    d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"
+                  />
+                </svg>
+              </span>
+            </button>
+            <button
+              id="ycs_btn_donated"
+              data-sort-chat="newest"
+              class="ycs-btn-search ycs-title"
+              name="donated"
+              type="button"
+              title="Show chat comments from users who have donated (Newest)"
+            >
+              Donated
+
+              <span class="ycs-icons">
+                <svg
+                  width="16px"
+                  height="16px"
+                  viewBox="0 0 16 16"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="currentColor"
+                  class="bi bi-sort-down"
+                >
+                  <path
+                    d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"
+                  />
+                </svg>
+              </span>
+            </button>
+            <button
+              id="ycs_btn_sort_first"
+              data-sort="newest"
+              data-sort-chat="newest"
+              data-sort-trp="newest"
+              class="ycs-btn-search ycs-title"
+              name="sortFirst"
+              type="button"
+              title="Show all comments, chat, video transcript sorted by date (Newest)"
+            >
+              All
+
+              <span class="ycs-icons">
+                <svg
+                  width="16px"
+                  height="16px"
+                  viewBox="0 0 16 16"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="currentColor"
+                  class="bi bi-sort-down"
+                >
+                  <path
+                    d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"
+                  />
+                </svg>
+              </span>
+            </button>
+            <button
+              id="ycs_btn_random"
+              class="ycs-btn-search ycs-title"
+              name="random"
+              type="button"
+              title="Show a random comment"
+            >
+              Random
+            </button>
+            <button
+              id="ycs_btn_clear"
+              class="ycs-btn-search ycs-title ycs-search-clear"
+              name="clear"
+              type="button"
+              title="Clear search"
+            >
+              X
+            </button>
+          </div>
+        </div>
+      </div>
+
+    `;
+  }
   !(function () {
     const t = setInterval(() => {
       Yt() &&
@@ -9636,12 +10032,14 @@
           function o() {
             if (!Yt()) return;
             n && window.removeEventListener('message', n);
-            const o = {
+            // counters to be used for action button display
+            const countsAct = {
                 comments: 0,
                 commentsChat: 0,
                 commentsTrVideo: 0,
               },
-              r = {
+              // counters to be used for search results
+              countsReport = {
                 comments: 0,
                 commentsChat: 0,
                 commentsTrVideo: 0,
@@ -9650,7 +10048,7 @@
               commentsDataBuf = [],
               chatDataBuf = new Map();
             t = new AbortController();
-            const c = {
+            const fuseOptionsBase = {
               isCaseSensitive: !1,
               findAllMatches: !1,
               includeMatches: !1,
@@ -9663,7 +10061,7 @@
               distance: 1e5,
             };
             if (
-              (dn('NUMBER_COMMENTS', ''),
+              (postTextMessage('NUMBER_COMMENTS', ''),
               sn('.ycs-app'),
               document.querySelector('#meta.style-scope.ytd-watch-flexy'))
             )
@@ -9673,12 +10071,9 @@
               _n('#meta.style-scope');
             }
             const l = document.getElementById('ycs-search');
-            var d;
-            l &&
-              (d = l) &&
-              (d.innerHTML =
-                '\n        <div>\n            <div>\n                <div class="ycs-searchbox">\n                    <input title="Write the search query, press Enter or click the button Search."\n                        class="ycs-search__input ycs_noselect" type="text" id="ycs-input-search" placeholder="Search">\n                </div>\n                <select title="Select a search category." name="ycs_search_select"\n                    id="ycs_search_select" class="ycs-btn-search ycs-title ycs-search-select ycs_noselect">\n                    <option value="comments">Comments</option>\n                    <option value="chat">Chat replay</option>\n                    <option value="video">Trpt. video</option>\n                    <option selected value="all">All</option>\n                </select>\n                <button id="ycs_btn_search" class="ycs-btn-search ycs-title ycs_noselect" type="button">\n                    Search\n                </button>\n\n                <div class="ycs-ext-search_block">\n                    <p id="ycs-search-total-result" class="ycs-title"></p>\n                    <div class="ycs-ext-search_option">\n                        <label for="ycs_extended_search" class="ycs_noselect ycs-title" title="Enables the use of unix-like search commands">\n                            <input type="checkbox" name="ycs_extended_search" id="ycs_extended_search">\n                            <span class="ycs-ext-search_title">Extended search</span>\n                        </label>\n                        <div class="ycs-ext-search-opts">\n                            <fieldset>\n                \n                                <label for="ycs_extended_search_title" class="ycs_noselect ycs-title" title="Extended search by title">\n                                    <input type="radio" id="ycs_extended_search_title" name="ycs_ext_search_opts" value="title" disabled>\n                                    <span class="ycs-ext-search_title">Title</span>\n                                </label>\n                    \n                                <label for="ycs_extended_search_main" class="ycs_noselect ycs-title" title="Extended search by main text">\n                                    <input type="radio" id="ycs_extended_search_main" name="ycs_ext_search_opts" value="main" disabled checked>\n                                    <span class="ycs-ext-search_title">Main</span>\n                                </label>\n                    \n                            </fieldset>\n                        </div>\n                        <a href="https://github.com/sonigy/YCS#extended-search" class="ycs-title ycs-ext-search_link" target="_blank" rel="noopener noreferrer" title="How to use">?</a>\n                    </div>\n                </div>\n                \n                <button id="ycs_btn_open_modal" class="ycs_noselect" title="FAQ">?</button>\n            </div>\n            <div class="ycs-search-result-infobar">\n                \n                <div class="ycs-btn-panel ycs_noselect">\n                    <button id="ycs_btn_timestamps"\n                        data-sort="newest"\n                        data-sort-chat="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="timestamps" type="button"\n                        title="Show comments, replies, chat with time stamps (Newest)">\n                        Time stamps\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_author"\n                        data-sort="newest"\n                        data-sort-chat="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="author" type="button"\n                        title="Show comments, replies, chat from the author (Newest)">\n                        Author\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_heart"\n                        data-sort="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="heart" type="button"\n                        title="Show comments and replies that the author likes (Newest)">\n                        <span class="ycs-creator-heart_icon">❤</span>\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_verified"\n                        data-sort="newest"\n                        data-sort-chat="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="verified" type="button"\n                        title="Show comments, replies and chat from a verified authors (Newest)">\n                        <span class="ycs-creator-verified_icon">✔</span>\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_links"\n                        data-sort="newest"\n                        data-sort-chat="newest"\n                        data-sort-trp="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="links" type="button"\n                        title="Shows links in comments, replies, chat, video transcript (Newest)">\n                        Links\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_likes"\n                        class="ycs-btn-search ycs-title"\n                        name="likes" type="button"\n                        title="Show comments, replies by number of likes (sort largest to smallest)">\n                        Likes\n                    </button>\n                    <button id="ycs_btn_replied_comments"\n                        class="ycs-btn-search ycs-title"\n                        name="replied" type="button"\n                        title="Show comments by number of replies (sort largest to smallest)">\n                        Replied\n                    </button>\n                    <button id="ycs_btn_members"\n                        data-sort="newest"\n                        data-sort-chat="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="members" type="button"\n                        title="Show comments, replies, chat from channel members (Newest)">\n                        Members\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_donated"\n                        data-sort-chat="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="donated" type="button"\n                        title="Show chat comments from users who have donated (Newest)">\n                        Donated\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_sort_first"\n                        data-sort="newest"\n                        data-sort-chat="newest"\n                        data-sort-trp="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="sortFirst" type="button"\n                        title="Show all comments, chat, video transcript sorted by date (Newest)">\n                        All\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_random"\n                        class="ycs-btn-search ycs-title"\n                        name="random" type="button"\n                        title="Show a random comment">\n                        Random\n                    </button>\n                    <button id="ycs_btn_clear"\n                        class="ycs-btn-search ycs-title ycs-search-clear"\n                        name="clear" type="button"\n                        title="Clear search">\n                        X\n                    </button>\n                </div>\n            </div>\n        </div>\n    ');
-            const u = (() => ({
+            buildSearchUI(l);
+
+            const btnPool = (() => ({
               elPTimeStamps: document.getElementById('ycs_btn_timestamps'),
               elPAuthor: document.getElementById('ycs_btn_author'),
               elPHeart: document.getElementById('ycs_btn_heart'),
@@ -9692,218 +10087,207 @@
               elPRandom: document.getElementById('ycs_btn_random'),
               elFirstComments: document.getElementById('ycs_btn_sort_first'),
             }))();
-            ((e) => {
-              if (e) {
+            ((pool) => {
+              if (pool) {
                 var t, n, o, i, a, s, c, l, d, h, m, p;
                 const f = () => {
-                  (r.comments = 0),
-                    (r.commentsChat = 0),
-                    (r.commentsTrVideo = 0);
+                  (countsReport.comments = 0),
+                    (countsReport.commentsChat = 0),
+                    (countsReport.commentsTrVideo = 0);
                 };
-                null == e ||
-                  null === (t = e.elPTimeStamps) ||
+                null == pool ||
+                  null === (t = pool.elPTimeStamps) ||
                   void 0 === t ||
                   t.addEventListener('click', (e) => {
                     try {
                       var t;
                       const n = e.currentTarget;
-                      Ht(u, 'ycs_btn_active'),
+                      removeClassName(pool, 'ycs_btn_active'),
                         f(),
                         null === (t = n) ||
                           void 0 === t ||
                           t.classList.add('ycs_btn_active'),
-                        handleAllSearch('#ycs-search-result', {
-                          timestamp: !0,
-                        });
+                        dispatchSearch({ timestamp: !0 });
                     } catch (e) {}
                   }),
-                  null == e ||
-                    null === (n = e.elPAuthor) ||
+                  null == pool ||
+                    null === (n = pool.elPAuthor) ||
                     void 0 === n ||
                     n.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          handleAllSearch('#ycs-search-result', {
-                            author: !0,
-                          });
+                          dispatchSearch({ author: !0 });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (o = e.elPHeart) ||
+                  null == pool ||
+                    null === (o = pool.elPHeart) ||
                     void 0 === o ||
                     o.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          handleAllSearch('#ycs-search-result', {
-                            heart: !0,
-                          });
+                          dispatchSearch({ heart: !0 });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (i = e.elPVerified) ||
+                  null == pool ||
+                    null === (i = pool.elPVerified) ||
                     void 0 === i ||
                     i.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          handleAllSearch('#ycs-search-result', {
-                            verified: !0,
-                          });
+                          dispatchSearch({ verified: !0 });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (a = e.elPLinks) ||
+                  null == pool ||
+                    null === (a = pool.elPLinks) ||
                     void 0 === a ||
                     a.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          handleAllSearch('#ycs-search-result', {
-                            links: !0,
-                          });
+                          dispatchSearch({ links: !0 });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (s = e.elPLikes) ||
+                  null == pool ||
+                    null === (s = pool.elPLikes) ||
                     void 0 === s ||
                     s.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          handleAllSearch('#ycs-search-result', {
-                            likes: !0,
-                          });
+                          dispatchSearch({ likes: !0 });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (c = e.elPReplied) ||
+                  null == pool ||
+                    null === (c = pool.elPReplied) ||
                     void 0 === c ||
                     c.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          handleAllSearch('#ycs-search-result', {
-                            replied: !0,
-                          });
+                          dispatchSearch({ replied: !0 });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (l = e.elPMembers) ||
+                  null == pool ||
+                    null === (l = pool.elPMembers) ||
                     void 0 === l ||
                     l.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          handleAllSearch('#ycs-search-result', {
-                            members: !0,
-                          });
+                          dispatchSearch({ members: !0 });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (d = e.elPDonated) ||
+                  null == pool ||
+                    null === (d = pool.elPDonated) ||
                     void 0 === d ||
                     d.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          handleAllSearch('#ycs-search-result', {
-                            donated: !0,
-                          });
+                          dispatchSearch({ donated: !0 });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (h = e.elPClear) ||
+                  null == pool ||
+                    null === (h = pool.elPClear) ||
                     void 0 === h ||
                     h.addEventListener('click', (e) => {
                       try {
-                        Ht(u, 'ycs_btn_active'), f();
-                        const e = document.getElementById('ycs-search-result'),
-                          t = document.getElementById(
-                            'ycs-search-total-result'
-                          );
-                        e &&
-                          ((e.innerText = ''),
-                          (t.innerText = 'Search cleared'));
+                        removeClassName(pool, 'ycs_btn_active'), f();
+
+                        const eInputSearch =
+                          document.getElementById('ycs-input-search');
+                        // if search input is not empty, trigger search again for results without button filter
+                        if (eInputSearch.value && eInputSearch.value.trim()) {
+                          requestAnimationFrame(() => {
+                            document.getElementById('ycs_btn_search').click();
+                          });
+                        } else {
+                          const e =
+                              document.getElementById('ycs-search-result'),
+                            t = document.getElementById(
+                              'ycs-search-total-result'
+                            );
+                          e &&
+                            ((e.innerText = ''),
+                            (t.innerText = 'Search cleared'));
+                        }
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (m = e.elPRandom) ||
+                  null == pool ||
+                    null === (m = pool.elPRandom) ||
                     void 0 === m ||
                     m.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          handleAllSearch('#ycs-search-result', {
-                            random: !0,
-                          });
+                          dispatchSearch({ random: !0 });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (p = e.elFirstComments) ||
+                  null == pool ||
+                    null === (p = pool.elFirstComments) ||
                     void 0 === p ||
                     p.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
-                          handleAllSearch('#ycs-search-result', {
-                            sortFirst: !0,
-                          });
+                          dispatchSearch({ sortFirst: !0 });
                       } catch (e) {}
                     });
               }
-            })(u);
+            })(btnPool);
             const h = document.getElementsByClassName('ycs-app')[0],
               m = document.getElementById('ycs-count-load'),
               p = document.getElementById('ycs-load-cmnts');
@@ -9924,7 +10308,7 @@
                   commentsDataBuf.length > 0 &&
                     ((r.innerHTML =
                       '\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"\n            width="48" height="48"\n            viewBox="0 0 48 48"\n            style=" fill:#000000;"><linearGradient id="I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1" x1="9.858" x2="38.142" y1="9.858" y2="38.142" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#21ad64"></stop><stop offset="1" stop-color="#088242"></stop></linearGradient><path fill="url(#I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1)" d="M44,24c0,11.045-8.955,20-20,20S4,35.045,4,24S12.955,4,24,4S44,12.955,44,24z"></path><path d="M32.172,16.172L22,26.344l-5.172-5.172c-0.781-0.781-2.047-0.781-2.828,0l-1.414,1.414\tc-0.781,0.781-0.781,2.047,0,2.828l8,8c0.781,0.781,2.047,0.781,2.828,0l13-13c0.781-0.781,0.781-2.047,0-2.828L35,16.172\tC34.219,15.391,32.953,15.391,32.172,16.172z" opacity=".05"></path><path d="M20.939,33.061l-8-8c-0.586-0.586-0.586-1.536,0-2.121l1.414-1.414c0.586-0.586,1.536-0.586,2.121,0\tL22,27.051l10.525-10.525c0.586-0.586,1.536-0.586,2.121,0l1.414,1.414c0.586,0.586,0.586,1.536,0,2.121l-13,13\tC22.475,33.646,21.525,33.646,20.939,33.061z" opacity=".07"></path><path fill="#fff" d="M21.293,32.707l-8-8c-0.391-0.391-0.391-1.024,0-1.414l1.414-1.414c0.391-0.391,1.024-0.391,1.414,0\tL22,27.758l10.879-10.879c0.391-0.391,1.024-0.391,1.414,0l1.414,1.414c0.391,0.391,0.391,1.024,0,1.414l-13,13\tC22.317,33.098,21.683,33.098,21.293,32.707z"></path></svg>\n        </span>\n    '),
-                    gn(
+                    saveCache(
                       {
                         comments: commentsDataBuf,
                         commentsChat: JSON.stringify(
@@ -9936,9 +10320,12 @@
                       document.title
                     ))),
                   commentsDataBuf.length > 0 &&
-                    (o.comments = commentsDataBuf.length);
-                const l = o.comments + o.commentsChat + o.commentsTrVideo;
-                dn('NUMBER_COMMENTS', l),
+                    (countsAct.comments = commentsDataBuf.length);
+                const l =
+                  countsAct.comments +
+                  countsAct.commentsChat +
+                  countsAct.commentsTrVideo;
+                postTextMessage('NUMBER_COMMENTS', l),
                   c && (c.textContent = `${commentsDataBuf.length}`),
                   m && (m.textContent = `(${l})`),
                   (n.disabled = !1);
@@ -9957,7 +10344,71 @@
                   ((c.textContent = '0'),
                   (r.innerHTML =
                     '\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="48" height="48" viewBox="0 0 48 48">\n                <path fill="#ff6f02" d="M31 7.002l13 1.686L33.296 19 31 7.002zM17 41L4 39.314 14.704 29 17 41z"></path>\n                <path fill="#ff6f00"\n                    d="M8 24c0-8.837 7.163-16 16-16 1.024 0 2.021.106 2.992.29l.693-3.865C26.525 4.112 25.262 4.005 24 4.005c-11.053 0-20 8.947-20 20 0 4.844 1.686 9.474 4.844 13.051l3.037-2.629C9.468 31.625 8 27.987 8 24zM39.473 11.267l-3.143 2.537C38.622 16.572 40 20.125 40 24c0 8.837-7.163 16-16 16-1.029 0-2.033-.106-3.008-.292l-.676 3.771c1.262.21 2.525.317 3.684.317 11.053 0 20-8.947 20-20C44 19.375 42.421 14.848 39.473 11.267z">\n                </path>\n            </svg>\n        </span>\n    '),
-                  await (async function (e, t, n) {
+                  await (async function (signal, t, n) {
+                    function processChatRun(run, { item }) {
+                      let plainText = '';
+                      let htmlText = '';
+                      try {
+                        let text = run?.text || '';
+
+                        if (
+                          parseInt(
+                            run?.navigationEndpoint?.watchEndpoint
+                              ?.startTimeSeconds
+                          ) >= 0
+                        ) {
+                          const videoId =
+                            run?.navigationEndpoint?.watchEndpoint?.videoId;
+                          const startTime =
+                            run?.navigationEndpoint?.watchEndpoint
+                              ?.startTimeSeconds;
+
+                          htmlText += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${videoId}&t=${startTime}s" data-offsetvideo="${startTime}">${text}</a>`;
+
+                          if (
+                            qt(
+                              () =>
+                                item.replayChatItemAction.actions[0]
+                                  .addChatItemAction.item
+                                  .liveChatTextMessageRenderer
+                            )
+                          ) {
+                            item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
+                              'timeline';
+                          }
+                        } else if (run?.navigationEndpoint) {
+                          const baseUrl =
+                            run?.navigationEndpoint?.browseEndpoint
+                              ?.canonicalBaseUrl;
+                          const url = run?.navigationEndpoint?.urlEndpoint?.url;
+                          const webUrl =
+                            run?.navigationEndpoint?.commandMetadata
+                              ?.webCommandMetadata?.url;
+
+                          const link = baseUrl || url || webUrl || text;
+                          htmlText += `<a class="ycs-cpointer ycs-comment-link" href="${link}" target="_blank">${text}</a>`;
+                        } else if (run?.emoji) {
+                          const url = qt(() => {
+                            const thumbnails = run.emoji.image.thumbnails;
+                            // retrieve best resolution url
+                            return thumbnails[thumbnails.length - 1].url;
+                          });
+                          const alt = run.emoji.shortcuts?.[0] || '';
+                          const style = `margin-left: 2px; margin-right: 2px;`;
+                          htmlText += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment" />`;
+                        } else {
+                          htmlText += text || '';
+                        }
+
+                        plainText +=
+                          run.text || run.emoji?.shortcuts?.[0] || '';
+                      } catch (e) {
+                        htmlText += run?.text || '';
+                      }
+
+                      return { plainText, htmlText };
+                    }
+
                     try {
                       const N = (e) => {
                           try {
@@ -9990,10 +10441,10 @@
                             return e;
                           }
                         },
-                        $ = await on(e);
+                        $ = await on(signal);
                       if (!$) return;
                       const P = n || new Map(),
-                        j = await rn(e);
+                        j = await loadChatReplay(signal);
                       if (j)
                         try {
                           var o;
@@ -10101,7 +10552,7 @@
                                       .liveChatTextMessageRenderer.timestampUsec
                                 );
                                 if (w && !P.has(parseInt(w, 10))) {
-                                  const e =
+                                  const runs =
                                     qt(
                                       () =>
                                         o.replayChatItemAction.actions[0]
@@ -10109,137 +10560,30 @@
                                           .liveChatTextMessageRenderer.message
                                           .runs
                                     ) || [];
-                                  let n = '',
-                                    b = '';
-                                  qt(
-                                    () =>
-                                      o.replayChatItemAction.actions[0]
-                                        .addChatItemAction.item
-                                        .liveChatTextMessageRenderer
-                                        .purchaseAmountText.simpleText
-                                  ) &&
-                                    ((b += `<span class="ycs-chat_donation ycs-chat_donation__title">Donated: </span><span class="ycs-chat_donation ycs-chat_donation__bg">${o.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText}</span><br><br>`),
-                                    (n += `${o.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText} `));
-                                  for (const t of e)
-                                    try {
-                                      var r,
-                                        i,
-                                        a,
-                                        s,
-                                        c,
-                                        l,
-                                        d,
-                                        u,
-                                        h,
-                                        m,
-                                        p,
-                                        f,
-                                        v,
-                                        y,
-                                        g;
-                                      (n +=
-                                        (null == t ? void 0 : t.text) || ''),
-                                        parseInt(
-                                          null == t ||
-                                            null ===
-                                              (r = t.navigationEndpoint) ||
-                                            void 0 === r ||
-                                            null === (i = r.watchEndpoint) ||
-                                            void 0 === i
-                                            ? void 0
-                                            : i.startTimeSeconds
-                                        ) >= 0
-                                          ? ((b += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${
-                                              null == t ||
-                                              null ===
-                                                (m = t.navigationEndpoint) ||
-                                              void 0 === m ||
-                                              null === (p = m.watchEndpoint) ||
-                                              void 0 === p
-                                                ? void 0
-                                                : p.videoId
-                                            }&t=${
-                                              null == t ||
-                                              null ===
-                                                (f = t.navigationEndpoint) ||
-                                              void 0 === f ||
-                                              null === (v = f.watchEndpoint) ||
-                                              void 0 === v
-                                                ? void 0
-                                                : v.startTimeSeconds
-                                            }s" data-offsetvideo="${
-                                              null == t ||
-                                              null ===
-                                                (y = t.navigationEndpoint) ||
-                                              void 0 === y ||
-                                              null === (g = y.watchEndpoint) ||
-                                              void 0 === g
-                                                ? void 0
-                                                : g.startTimeSeconds
-                                            }">${
-                                              (null == t ? void 0 : t.text) ||
-                                              ''
-                                            }</a>`),
-                                            qt(
-                                              () =>
-                                                o.replayChatItemAction
-                                                  .actions[0].addChatItemAction
-                                                  .item
-                                                  .liveChatTextMessageRenderer
-                                            ) &&
-                                              (o.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
-                                                'timeline'))
-                                          : (
-                                              null == t
-                                                ? void 0
-                                                : t.navigationEndpoint
-                                            )
-                                          ? (b += `<a class="ycs-cpointer ycs-comment-link" href="${
-                                              (null == t ||
-                                              null ===
-                                                (a = t.navigationEndpoint) ||
-                                              void 0 === a ||
-                                              null === (s = a.browseEndpoint) ||
-                                              void 0 === s
-                                                ? void 0
-                                                : s.canonicalBaseUrl) ||
-                                              (null == t ||
-                                              null ===
-                                                (c = t.navigationEndpoint) ||
-                                              void 0 === c ||
-                                              null === (l = c.urlEndpoint) ||
-                                              void 0 === l
-                                                ? void 0
-                                                : l.url) ||
-                                              (null == t ||
-                                              null ===
-                                                (d = t.navigationEndpoint) ||
-                                              void 0 === d ||
-                                              null ===
-                                                (u = d.commandMetadata) ||
-                                              void 0 === u ||
-                                              null ===
-                                                (h = u.webCommandMetadata) ||
-                                              void 0 === h
-                                                ? void 0
-                                                : h.url) ||
-                                              (null == t ? void 0 : t.text) ||
-                                              '#'
-                                            }" target="_blank">${
-                                              (null == t ? void 0 : t.text) ||
-                                              ''
-                                            }</a>`)
-                                          : (b +=
-                                              (null == t ? void 0 : t.text) ||
-                                              '');
-                                    } catch (e) {
-                                      b += (null == t ? void 0 : t.text) || '';
-                                    }
-                                  n &&
+                                  let fullText = '';
+                                  let renderFullText = '';
+
+                                  if (
+                                    o.replayChatItemAction.actions[0]
+                                      .addChatItemAction.item
+                                      .liveChatTextMessageRenderer
+                                      .purchaseAmountText.simpleText
+                                  ) {
+                                    renderFullText += `<span class="ycs-chat_donation ycs-chat_donation__title">Donated: </span><span class="ycs-chat_donation ycs-chat_donation__bg">${o.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText}</span><br><br>`;
+                                    fullText += `${o.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText} `;
+                                  }
+
+                                  for (const run of runs) {
+                                    const { plainText, htmlText } =
+                                      processChatRun(run, { item: o });
+                                    fullText += plainText;
+                                    renderFullText += htmlText;
+                                  }
+                                  fullText &&
                                     ((o.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText =
-                                      n),
+                                      fullText),
                                     (o.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText =
-                                      b || n)),
+                                      renderFullText || fullText)),
                                     qt(
                                       () =>
                                         o.replayChatItemAction.actions[0]
@@ -10269,7 +10613,7 @@
                                 `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?key=${nn()}`,
                                 {
                                   ...r,
-                                  signal: e,
+                                  signal,
                                   cache: 'no-store',
                                 }
                               );
@@ -10385,7 +10729,7 @@
                                           .timestampUsec
                                     );
                                     if (n && !P.has(parseInt(n, 10))) {
-                                      const o =
+                                      const runs =
                                         qt(
                                           () =>
                                             e.replayChatItemAction.actions[0]
@@ -10393,8 +10737,9 @@
                                               .liveChatTextMessageRenderer
                                               .message.runs
                                         ) || [];
-                                      let r = '',
-                                        i = '';
+                                      let fullText = '';
+                                      let renderFullText = '';
+
                                       qt(
                                         () =>
                                           e.replayChatItemAction.actions[0]
@@ -10402,148 +10747,20 @@
                                             .liveChatTextMessageRenderer
                                             .purchaseAmountText.simpleText
                                       ) &&
-                                        ((i += `<span class="ycs-chat_donation ycs-chat_donation__title">Donated: </span><span class="ycs-chat_donation ycs-chat_donation__bg">${e.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText}</span><br><br>`),
-                                        (r += `${e.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText} `));
-                                      for (const t of o)
-                                        try {
-                                          var x,
-                                            _,
-                                            C,
-                                            E,
-                                            T,
-                                            I,
-                                            k,
-                                            R,
-                                            M,
-                                            A,
-                                            S,
-                                            L,
-                                            B,
-                                            O,
-                                            z;
-                                          (r +=
-                                            (null == t ? void 0 : t.text) ||
-                                            ''),
-                                            parseInt(
-                                              null == t ||
-                                                null ===
-                                                  (x = t.navigationEndpoint) ||
-                                                void 0 === x ||
-                                                null ===
-                                                  (_ = x.watchEndpoint) ||
-                                                void 0 === _
-                                                ? void 0
-                                                : _.startTimeSeconds
-                                            ) >= 0
-                                              ? ((i += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${
-                                                  null == t ||
-                                                  null ===
-                                                    (A =
-                                                      t.navigationEndpoint) ||
-                                                  void 0 === A ||
-                                                  null ===
-                                                    (S = A.watchEndpoint) ||
-                                                  void 0 === S
-                                                    ? void 0
-                                                    : S.videoId
-                                                }&t=${
-                                                  null == t ||
-                                                  null ===
-                                                    (L =
-                                                      t.navigationEndpoint) ||
-                                                  void 0 === L ||
-                                                  null ===
-                                                    (B = L.watchEndpoint) ||
-                                                  void 0 === B
-                                                    ? void 0
-                                                    : B.startTimeSeconds
-                                                }s" data-offsetvideo="${
-                                                  null == t ||
-                                                  null ===
-                                                    (O =
-                                                      t.navigationEndpoint) ||
-                                                  void 0 === O ||
-                                                  null ===
-                                                    (z = O.watchEndpoint) ||
-                                                  void 0 === z
-                                                    ? void 0
-                                                    : z.startTimeSeconds
-                                                }">${
-                                                  (null == t
-                                                    ? void 0
-                                                    : t.text) || ''
-                                                }</a>`),
-                                                qt(
-                                                  () =>
-                                                    e.replayChatItemAction
-                                                      .actions[0]
-                                                      .addChatItemAction.item
-                                                      .liveChatTextMessageRenderer
-                                                ) &&
-                                                  (e.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
-                                                    'timeline'))
-                                              : (
-                                                  null == t
-                                                    ? void 0
-                                                    : t.navigationEndpoint
-                                                )
-                                              ? (i += `<a class="ycs-cpointer ycs-comment-link" href="${
-                                                  (null == t ||
-                                                  null ===
-                                                    (C =
-                                                      t.navigationEndpoint) ||
-                                                  void 0 === C ||
-                                                  null ===
-                                                    (E = C.browseEndpoint) ||
-                                                  void 0 === E
-                                                    ? void 0
-                                                    : E.canonicalBaseUrl) ||
-                                                  (null == t ||
-                                                  null ===
-                                                    (T =
-                                                      t.navigationEndpoint) ||
-                                                  void 0 === T ||
-                                                  null ===
-                                                    (I = T.urlEndpoint) ||
-                                                  void 0 === I
-                                                    ? void 0
-                                                    : I.url) ||
-                                                  (null == t ||
-                                                  null ===
-                                                    (k =
-                                                      t.navigationEndpoint) ||
-                                                  void 0 === k ||
-                                                  null ===
-                                                    (R = k.commandMetadata) ||
-                                                  void 0 === R ||
-                                                  null ===
-                                                    (M =
-                                                      R.webCommandMetadata) ||
-                                                  void 0 === M
-                                                    ? void 0
-                                                    : M.url) ||
-                                                  (null == t
-                                                    ? void 0
-                                                    : t.text) ||
-                                                  '#'
-                                                }" target="_blank">${
-                                                  (null == t
-                                                    ? void 0
-                                                    : t.text) || ''
-                                                }</a>`)
-                                              : (i +=
-                                                  (null == t
-                                                    ? void 0
-                                                    : t.text) || '');
-                                        } catch (e) {
-                                          i +=
-                                            (null == t ? void 0 : t.text) || '';
-                                        }
-                                      r &&
+                                        ((renderFullText += `<span class="ycs-chat_donation ycs-chat_donation__title">Donated: </span><span class="ycs-chat_donation ycs-chat_donation__bg">${e.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText}</span><br><br>`),
+                                        (fullText += `${e.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText} `));
+
+                                      for (const run of runs) {
+                                        const { plainText, htmlText } =
+                                          processChatRun(run, { item: e });
+                                        fullText += plainText;
+                                        renderFullText += htmlText;
+                                      }
+                                      fullText &&
                                         ((e.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText =
-                                          r),
+                                          fullText),
                                         (e.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText =
-                                          i || r)),
+                                          renderFullText || fullText)),
                                         qt(
                                           () =>
                                             e.replayChatItemAction.actions[0]
@@ -10574,7 +10791,7 @@
                     ((c.textContent = chatDataBuf.size.toString()),
                     (r.innerHTML =
                       '\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"\n            width="48" height="48"\n            viewBox="0 0 48 48"\n            style=" fill:#000000;"><linearGradient id="I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1" x1="9.858" x2="38.142" y1="9.858" y2="38.142" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#21ad64"></stop><stop offset="1" stop-color="#088242"></stop></linearGradient><path fill="url(#I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1)" d="M44,24c0,11.045-8.955,20-20,20S4,35.045,4,24S12.955,4,24,4S44,12.955,44,24z"></path><path d="M32.172,16.172L22,26.344l-5.172-5.172c-0.781-0.781-2.047-0.781-2.828,0l-1.414,1.414\tc-0.781,0.781-0.781,2.047,0,2.828l8,8c0.781,0.781,2.047,0.781,2.828,0l13-13c0.781-0.781,0.781-2.047,0-2.828L35,16.172\tC34.219,15.391,32.953,15.391,32.172,16.172z" opacity=".05"></path><path d="M20.939,33.061l-8-8c-0.586-0.586-0.586-1.536,0-2.121l1.414-1.414c0.586-0.586,1.536-0.586,2.121,0\tL22,27.051l10.525-10.525c0.586-0.586,1.536-0.586,2.121,0l1.414,1.414c0.586,0.586,0.586,1.536,0,2.121l-13,13\tC22.475,33.646,21.525,33.646,20.939,33.061z" opacity=".07"></path><path fill="#fff" d="M21.293,32.707l-8-8c-0.391-0.391-0.391-1.024,0-1.414l1.414-1.414c0.391-0.391,1.024-0.391,1.414,0\tL22,27.758l10.879-10.879c0.391-0.391,1.024-0.391,1.414,0l1.414,1.414c0.391,0.391,0.391,1.024,0,1.414l-13,13\tC22.317,33.098,21.683,33.098,21.293,32.707z"></path></svg>\n        </span>\n    '),
-                    gn(
+                    saveCache(
                       {
                         comments: commentsDataBuf,
                         commentsChat: JSON.stringify(
@@ -10588,9 +10805,12 @@
                   chatDataBuf &&
                     chatDataBuf.size > 0 &&
                     (h.parentNode || h.parentElement) &&
-                    (o.commentsChat = chatDataBuf.size);
-                const l = o.comments + o.commentsChat + o.commentsTrVideo;
-                dn('NUMBER_COMMENTS', l),
+                    (countsAct.commentsChat = chatDataBuf.size);
+                const l =
+                  countsAct.comments +
+                  countsAct.commentsChat +
+                  countsAct.commentsTrVideo;
+                postTextMessage('NUMBER_COMMENTS', l),
                   m && (m.textContent = `(${l})`),
                   (n.disabled = !1);
               });
@@ -10634,7 +10854,7 @@
 
                     if (cueGroupLength > 0) {
                       Kt(cueGroupLength, commentsElement);
-                      gn(
+                      saveCache(
                         {
                           comments: commentsDataBuf,
                           commentsChat: JSON.stringify(
@@ -10673,12 +10893,14 @@
                     hasCueGroups(transcriptData) &&
                     (h.parentNode || h.parentElement)
                   ) {
-                    o.commentsTrVideo = cueGroups.length;
+                    countsAct.commentsTrVideo = cueGroups.length;
                   }
 
                   const totalComments =
-                    o.comments + o.commentsChat + o.commentsTrVideo;
-                  dn('NUMBER_COMMENTS', totalComments);
+                    countsAct.comments +
+                    countsAct.commentsChat +
+                    countsAct.commentsTrVideo;
+                  postTextMessage('NUMBER_COMMENTS', totalComments);
 
                   if (m) {
                     m.textContent = `(${totalComments})`;
@@ -10963,329 +11185,1006 @@
                 }
               });
             const handleCommentsSearch = (t, n) => {
-                try {
-                  if (
-                    0 === commentsDataBuf.length ||
-                    (null == n ? void 0 : n.donated)
-                  )
-                    return;
-                  const o = document.getElementById('ycs-input-search'),
-                    i = null == o ? void 0 : o.value,
-                    s = document.querySelector(t);
-                  s && (s.textContent = '');
-                  const l = document.getElementById(
+              try {
+                if (
+                  0 === commentsDataBuf.length ||
+                  (null == n ? void 0 : n.donated)
+                )
+                  return;
+                const o = document.getElementById('ycs-input-search'),
+                  i = null == o ? void 0 : o.value,
+                  s = document.querySelector(t);
+                s && (s.textContent = '');
+                const l = document.getElementById('ycs_extended_search_title'),
+                  d = document.getElementById('ycs_extended_search_main');
+                let u = fuseOptionsBase,
+                  h = [
+                    'commentRenderer.authorText.simpleText',
+                    'commentRenderer.contentText.fullText',
+                  ];
+                L.checked &&
+                  ((u = JSON.parse(JSON.stringify(fuseOptionsBase))),
+                  (u.useExtendedSearch = !0),
+                  l.checked && (h = ['commentRenderer.authorText.simpleText']),
+                  d.checked && (h = ['commentRenderer.contentText.fullText']));
+                const m = {
+                  ...u,
+                  keys: h,
+                };
+                const searchText = i.trim();
+                const commentsCount = commentsDataBuf.length;
+                const indexedBuf = commentsDataBuf.map((d, index) => ({
+                  ...d,
+                  _index: commentsCount - index - 1,
+                }));
+                const textSearchFuseResults = searchText
+                  ? new (e(I))(indexedBuf, m).search(searchText).map((d) => ({
+                      ...d,
+                      item: {
+                        ...d.item,
+                        _score: d.score,
+                      },
+                    }))
+                  : null;
+                const textSearchResults =
+                  textSearchFuseResults !== null
+                    ? textSearchFuseResults.map(({ item }) => item)
+                    : indexedBuf;
+                let p = [];
+                if (null == n ? void 0 : n.likes) {
+                  const e = (function (e) {
+                    if (0 === e.length) return [];
+                    try {
+                      const i = [],
+                        a = [];
+                      for (const [s, c] of e.entries()) {
+                        var t, n, o;
+                        let e =
+                          (null == c ||
+                          null === (t = c.commentRenderer) ||
+                          void 0 === t ||
+                          null === (n = t.voteCount) ||
+                          void 0 === n
+                            ? void 0
+                            : n.simpleText) ||
+                          (null == c ||
+                          null === (o = c.commentRenderer) ||
+                          void 0 === o
+                            ? void 0
+                            : o.likeCount);
+                        if (
+                          ('string' != typeof (r = e) &&
+                            'number' != typeof r) ||
+                          isNaN(r) ||
+                          isNaN(parseFloat(r))
+                        ) {
+                          if ('string' == typeof e || 'number' == typeof e) {
+                            const t = 1e3 * parseFloat(e);
+                            t == t
+                              ? (e = t)
+                              : 'string' == typeof e &&
+                                a.push({
+                                  item: c,
+                                  refIndex: s,
+                                });
+                          }
+                        } else e = parseInt(e);
+                        'number' == typeof e &&
+                          e == e &&
+                          ((c.commentRenderer.likesForSort = e),
+                          i.push({
+                            item: c,
+                            refIndex: s,
+                          }));
+                      }
+                      if (
+                        (i.length > 0 &&
+                          i.sort(
+                            (e, t) =>
+                              t.item.commentRenderer.likesForSort -
+                              e.item.commentRenderer.likesForSort
+                          ),
+                        a.length > 0)
+                      ) {
+                        a.sort((e, t) =>
+                          e.item.commentRenderer.voteCount.simpleText >
+                          t.item.commentRenderer.voteCount.simpleText
+                            ? 1
+                            : e.item.commentRenderer.voteCount.simpleText <
+                              t.item.commentRenderer.voteCount.simpleText
+                            ? -1
+                            : 0
+                        );
+                        for (const e of a) i.unshift(e);
+                      }
+                      return i;
+                    } catch (e) {
+                      return [];
+                    }
+                    var r;
+                  })(textSearchResults);
+                  (p = e), wn(t, p, !0, i);
+                } else if (null == n ? void 0 : n.links) {
+                  const n = (function (t) {
+                    if (0 === t.length) return [];
+                    try {
+                      const n = [];
+                      for (const [o, r] of t.entries())
+                        try {
+                          e(mt)().test(
+                            r.commentRenderer.contentText.fullText
+                          ) &&
+                            n.push({
+                              item: r,
+                              refIndex: r._index,
+                            });
+                        } catch (e) {
+                          continue;
+                        }
+                      return n;
+                    } catch (e) {
+                      return [];
+                    }
+                  })(textSearchResults);
+                  if (((p = n), p.length > 0)) {
+                    null == p || p.sort((e, t) => e.refIndex - t.refIndex);
+                    const e = document.getElementById('ycs_btn_links'),
+                      n = e.dataset.sort;
+                    'newest' === n
+                      ? (wn(t, p, !0, i),
+                        (e.dataset.sort = 'oldest'),
+                        (e.innerHTML =
+                          'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                        (e.title =
+                          'Shows links in comments, replies, chat, video transcript (Newest)'))
+                      : 'oldest' === n
+                      ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
+                        (e.dataset.sort = 'newest'),
+                        (e.innerHTML =
+                          'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                        (e.title =
+                          'Shows links in comments, replies, chat, video transcript (Oldest)'))
+                      : (wn(t, p, !0, i),
+                        (e.innerHTML =
+                          'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                  }
+                } else if (null == n ? void 0 : n.members) {
+                  const e = (function (e) {
+                    if (0 === e.length) return [];
+                    try {
+                      const r = [];
+                      for (const [i, a] of e.entries()) {
+                        var t, n, o;
+                        (null == a ||
+                        null === (t = a.commentRenderer) ||
+                        void 0 === t ||
+                        null === (n = t.sponsorCommentBadge) ||
+                        void 0 === n ||
+                        null === (o = n.sponsorCommentBadgeRenderer) ||
+                        void 0 === o
+                          ? void 0
+                          : o.tooltip) &&
+                          r.push({
+                            item: a,
+                            refIndex: a._index,
+                          });
+                      }
+                      return r;
+                    } catch (e) {
+                      return [];
+                    }
+                  })(textSearchResults);
+                  if (((p = e), p.length > 0)) {
+                    null == p || p.sort((e, t) => e.refIndex - t.refIndex);
+                    const e = document.getElementById('ycs_btn_members'),
+                      n = e.dataset.sort;
+                    'newest' === n
+                      ? (wn(t, p, !0, i),
+                        (e.dataset.sort = 'oldest'),
+                        (e.innerHTML =
+                          'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                        (e.title =
+                          'Show comments, replies, chat from channel members (Newest)'))
+                      : 'oldest' === n
+                      ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
+                        (e.dataset.sort = 'newest'),
+                        (e.innerHTML =
+                          'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                        (e.title =
+                          'Show comments, replies, chat from channel members (Oldest)'))
+                      : (wn(t, p, !0, i),
+                        (e.innerHTML =
+                          'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                  }
+                } else if (null == n ? void 0 : n.replied) {
+                  const e = (function (e) {
+                    if (0 === e.length) return [];
+                    try {
+                      const n = [];
+                      for (const [o, r] of e.entries()) {
+                        var t;
+                        let e =
+                          null == r ||
+                          null === (t = r.commentRenderer) ||
+                          void 0 === t
+                            ? void 0
+                            : t.replyCount;
+                        (e = parseInt(e)),
+                          e &&
+                            ((r.commentRenderer.repliedForSort = e),
+                            n.push({
+                              item: r,
+                              refIndex: r._index,
+                            }));
+                      }
+                      return n.length > 0
+                        ? (n.sort(
+                            (e, t) =>
+                              t.item.commentRenderer.repliedForSort -
+                              e.item.commentRenderer.repliedForSort
+                          ),
+                          n)
+                        : [];
+                    } catch (e) {
+                      return [];
+                    }
+                  })(textSearchResults);
+                  (p = e), wn(t, p, !0, i);
+                } else if (null == n ? void 0 : n.author) {
+                  const e = (function (e) {
+                    if (0 === e.length) return [];
+                    try {
+                      var t;
+                      const n = [];
+                      for (const [o, r] of e.entries())
+                        (null == r ||
+                        null === (t = r.commentRenderer) ||
+                        void 0 === t
+                          ? void 0
+                          : t.authorIsChannelOwner) &&
+                          n.push({
+                            item: r,
+                            refIndex: r._index,
+                          });
+                      return n;
+                    } catch (e) {
+                      return [];
+                    }
+                  })(textSearchResults);
+                  if (((p = e), p.length > 0)) {
+                    null == p || p.sort((e, t) => e.refIndex - t.refIndex);
+                    const e = document.getElementById('ycs_btn_author'),
+                      n = e.dataset.sort;
+                    'newest' === n
+                      ? (wn(t, p, !0, i),
+                        (e.dataset.sort = 'oldest'),
+                        (e.innerHTML =
+                          'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                        (e.title =
+                          'Show comments, replies, chat from the author (Newest)'))
+                      : 'oldest' === n
+                      ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
+                        (e.dataset.sort = 'newest'),
+                        (e.innerHTML =
+                          'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                        (e.title =
+                          'Show comments, replies, chat from the author (Oldest)'))
+                      : (wn(t, p, !0, i),
+                        (e.innerHTML =
+                          'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                  }
+                } else if (null == n ? void 0 : n.heart) {
+                  const e = (function (e) {
+                    if (0 === e.length) return [];
+                    try {
+                      var t;
+                      const n = [];
+                      for (const [o, r] of e.entries())
+                        (null == r ||
+                        null === (t = r.commentRenderer) ||
+                        void 0 === t
+                          ? void 0
+                          : t.creatorHeart) &&
+                          n.push({
+                            item: r,
+                            refIndex: r._index,
+                          });
+                      return n;
+                    } catch (e) {
+                      return [];
+                    }
+                  })(textSearchResults);
+                  if (((p = e), p.length > 0)) {
+                    null == p || p.sort((e, t) => e.refIndex - t.refIndex);
+                    const e = document.getElementById('ycs_btn_heart'),
+                      n = e.dataset.sort;
+                    'newest' === n
+                      ? (wn(t, p, !0, i),
+                        (e.dataset.sort = 'oldest'),
+                        (e.innerHTML =
+                          '<span class="ycs-creator-heart_icon">❤</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                        (e.title =
+                          'Show comments and replies that the author likes (Newest)'))
+                      : 'oldest' === n
+                      ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
+                        (e.dataset.sort = 'newest'),
+                        (e.innerHTML =
+                          '<span class="ycs-creator-heart_icon">❤</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                        (e.title =
+                          'Show comments and replies that the author likes (Oldest)'))
+                      : (wn(t, p, !0, i),
+                        (e.innerHTML =
+                          '<span class="ycs-creator-heart_icon">❤</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                  }
+                } else if (null == n ? void 0 : n.verified) {
+                  const e = (function (e) {
+                    if (0 === e.length) return [];
+                    try {
+                      const t = [];
+                      for (const [n, o] of e.entries())
+                        o.commentRenderer.verifiedAuthor &&
+                          t.push({
+                            item: o,
+                            refIndex: o._index,
+                          });
+                      return t;
+                    } catch (e) {
+                      return [];
+                    }
+                  })(textSearchResults);
+                  if (((p = e), p.length > 0)) {
+                    null == p || p.sort((e, t) => e.refIndex - t.refIndex);
+                    const e = document.getElementById('ycs_btn_verified'),
+                      n = e.dataset.sort;
+                    'newest' === n
+                      ? (wn(t, p, !0, i),
+                        (e.dataset.sort = 'oldest'),
+                        (e.innerHTML =
+                          '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                        (e.title =
+                          'Show comments,  replies and chat from a verified authors (Newest)'))
+                      : 'oldest' === n
+                      ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
+                        (e.dataset.sort = 'newest'),
+                        (e.innerHTML =
+                          '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                        (e.title =
+                          'Show comments,  replies and chat from a verified authors (Oldest)'))
+                      : (wn(t, p, !0, i),
+                        (e.innerHTML =
+                          '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                  }
+                } else if (null == n ? void 0 : n.random) {
+                  const e = (function (e) {
+                    if (0 === e.length) return [];
+                    try {
+                      const t = new Map();
+                      for (const [n, o] of e.entries())
+                        'C' === (null == o ? void 0 : o.typeComment) &&
+                          (t.has(
+                            qt(
+                              () =>
+                                o.commentRenderer.authorEndpoint.browseEndpoint
+                                  .canonicalBaseUrl
+                            )
+                          )
+                            ? t
+                                .get(
+                                  o.commentRenderer.authorEndpoint
+                                    .browseEndpoint.canonicalBaseUrl
+                                )
+                                .add(n)
+                            : qt(
+                                () =>
+                                  o.commentRenderer.authorEndpoint
+                                    .browseEndpoint.canonicalBaseUrl
+                              ) &&
+                              t.set(
+                                o.commentRenderer.authorEndpoint.browseEndpoint
+                                  .canonicalBaseUrl,
+                                new Set().add(n)
+                              ));
+                      if (!(t.size > 0)) return [];
+                      {
+                        const n = Vt(0, t.size - 1);
+                        let o = 0;
+                        for (const [, r] of t.entries()) {
+                          if (o === n) {
+                            const t = Vt(0, r.size - 1);
+                            let n = 0;
+                            for (const [, o] of r.entries()) {
+                              if (n === t)
+                                return [
+                                  {
+                                    item: e[o],
+                                    refIndex: o,
+                                  },
+                                ];
+                              n++;
+                            }
+                            break;
+                          }
+                          o++;
+                        }
+                      }
+                      return [];
+                    } catch (e) {
+                      return [];
+                    }
+                  })(textSearchResults);
+                  (p = e), wn(t, p, !0, i);
+                } else if (null == n ? void 0 : n.timestamp) {
+                  p = (function (e) {
+                    if (0 === e.length) return [];
+                    try {
+                      const t = [];
+                      for (const [n, o] of e.entries())
+                        o.commentRenderer?.isTimeLine === 'timeline' &&
+                          t.push({
+                            item: o,
+                            refIndex: o._index,
+                          });
+                      return t;
+                    } catch (e) {
+                      return [];
+                    }
+                  })(textSearchResults);
+
+                  if (p.length > 0) {
+                    null == p || p.sort((e, t) => e.refIndex - t.refIndex);
+                    const e = document.getElementById('ycs_btn_timestamps'),
+                      n = e.dataset.sort;
+                    'newest' === n
+                      ? (wn(t, p, !0, i),
+                        (e.dataset.sort = 'oldest'),
+                        (e.innerHTML =
+                          'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                        (e.title =
+                          'Show comments, replies, chat with time stamps (Newest)'))
+                      : 'oldest' === n
+                      ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
+                        (e.dataset.sort = 'newest'),
+                        (e.innerHTML =
+                          'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                        (e.title =
+                          'Show comments, replies, chat with time stamps (Oldest)'))
+                      : (wn(t, p, !0, i),
+                        (e.innerHTML =
+                          'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                  }
+                } else if (null == n ? void 0 : n.sortFirst) {
+                  const e = (function (e) {
+                    try {
+                      if (e && 0 === e.length) return;
+                      const t = [];
+                      for (const [n, o] of e.entries())
+                        try {
+                          'C' === (null == o ? void 0 : o.typeComment) &&
+                            t.push({
+                              item: o,
+                              refIndex: o._index,
+                            });
+                        } catch (e) {
+                          continue;
+                        }
+                      if (t.length > 0) return t;
+                    } catch (e) {}
+                  })(textSearchResults);
+                  if (((p = e), p.length > 0)) {
+                    null == p || p.sort((e, t) => e.refIndex - t.refIndex);
+                    const e = document.getElementById('ycs_btn_sort_first'),
+                      n = e.dataset.sort;
+                    'newest' === n
+                      ? (wn(t, p, !0, i),
+                        (e.dataset.sort = 'oldest'),
+                        (e.innerHTML =
+                          'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                        (e.title =
+                          'Show all comments, chat, video transcript sorted by date (Newest)'))
+                      : 'oldest' === n
+                      ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
+                        (e.dataset.sort = 'newest'),
+                        (e.innerHTML =
+                          'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                        (e.title =
+                          'Show all comments, chat, video transcript sorted by date (Oldest)'))
+                      : (wn(t, p, !0, i),
+                        (e.innerHTML =
+                          'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                  }
+                } else {
+                  (p = textSearchFuseResults), wn(t, p, !0, i);
+                }
+                const f = document.getElementById('ycs-search-total-result');
+                f && (f.innerText = `(Comments) Found: ${p.length}`),
+                  (countsReport.comments = p.length);
+                const v = document.getElementById('ycs_wrap_comments');
+                v &&
+                  v.addEventListener('click', (e) => {
+                    try {
+                      var t, n, o, r, s, c;
+                      if (
+                        null === (t = e.target) ||
+                        void 0 === t ||
+                        null === (n = t.classList) ||
+                        void 0 === n
+                          ? void 0
+                          : n.contains('ycs-open-comment')
+                      ) {
+                        const t = parseInt(e.target.getAttribute('id'), 10),
+                          n = e.target.closest('.ycs-render-comment');
+                        if (n && t && !document.getElementById('ycs-com-' + t))
+                          try {
+                            var l, d, u, h;
+                            const o = {
+                                item: commentsDataBuf[t].originComment,
+                                refIndex: t,
+                              },
+                              r = document.createElement('div');
+                            let s;
+                            if (
+                              ((r.id = 'ycs-com-' + t.toString()),
+                              (r.className = r.id),
+                              n.insertAdjacentElement('beforebegin', r),
+                              wn('#' + r.id, [o], !0, i),
+                              n.classList.add('ycs-oc-ml'),
+                              (null === (l = commentsDataBuf[t]) ||
+                              void 0 === l ||
+                              null === (d = l.commentRenderer) ||
+                              void 0 === d ||
+                              null === (u = d.contentText) ||
+                              void 0 === u ||
+                              null === (h = u.runs) ||
+                              void 0 === h
+                                ? void 0
+                                : h.length) > 0)
+                            )
+                              for (const e of commentsDataBuf[t].commentRenderer
+                                .contentText.runs)
+                                try {
+                                  var m, p;
+                                  if (
+                                    null === (m = e.navigationEndpoint) ||
+                                    void 0 === m ||
+                                    null === (p = m.browseEndpoint) ||
+                                    void 0 === p
+                                      ? void 0
+                                      : p.canonicalBaseUrl
+                                  ) {
+                                    var f, v;
+                                    s =
+                                      null === (f = e.navigationEndpoint) ||
+                                      void 0 === f ||
+                                      null === (v = f.browseEndpoint) ||
+                                      void 0 === v
+                                        ? void 0
+                                        : v.canonicalBaseUrl;
+                                    break;
+                                  }
+                                } catch (e) {
+                                  continue;
+                                }
+                            const c = [];
+                            if (s)
+                              for (const e of commentsDataBuf)
+                                try {
+                                  var y, g, w;
+                                  'R' === e.typeComment &&
+                                    e.originComment ===
+                                      commentsDataBuf[t].originComment &&
+                                    (null === (y = e.commentRenderer) ||
+                                    void 0 === y ||
+                                    null === (g = y.authorEndpoint) ||
+                                    void 0 === g ||
+                                    null === (w = g.browseEndpoint) ||
+                                    void 0 === w
+                                      ? void 0
+                                      : w.canonicalBaseUrl) === s &&
+                                    c.push({
+                                      item: e,
+                                      refIndex: t,
+                                    });
+                                } catch (e) {
+                                  continue;
+                                }
+                            if (c.length > 0) {
+                              const e = document.createElement('div');
+                              (e.id = 'ycs-com-rauth-' + t.toString()),
+                                (e.className = `ycs-com-${t} ycs-oc-ml`),
+                                n.insertAdjacentElement('beforebegin', e),
+                                wn('#' + e.id, c, !1, i);
+                            }
+                            (e.target.innerHTML = '▲'),
+                              (e.target.title =
+                                'Close the comment to the reply here.');
+                          } catch (e) {}
+                        else
+                          n &&
+                            t &&
+                            document.getElementById('ycs-com-' + t) &&
+                            (sn('.ycs-com-' + t),
+                            n.classList.remove('ycs-oc-ml'),
+                            (e.target.innerHTML = '▼'),
+                            (e.target.title =
+                              'Open the comment to the reply here.'));
+                      } else if (
+                        null === (o = e.target) ||
+                        void 0 === o ||
+                        null === (r = o.classList) ||
+                        void 0 === r
+                          ? void 0
+                          : r.contains('ycs-gotochat-video')
+                      ) {
+                        e.preventDefault();
+                        const t = document.getElementsByTagName('video')[0];
+                        if (t) {
+                          const n = e.target.dataset.offsetvideo;
+                          n && (t.currentTime = parseInt(n));
+                        }
+                      } else if (
+                        null === (s = e.target) ||
+                        void 0 === s ||
+                        null === (c = s.classList) ||
+                        void 0 === c
+                          ? void 0
+                          : c.contains('ycs-open-reply')
+                      ) {
+                        const t = e.target.dataset.idcom,
+                          n = e.target.closest('.ycs-render-comment');
+                        if (
+                          null == n
+                            ? void 0
+                            : n.querySelector(`.ycs-com-replies-${t}`)
+                        ) {
+                          const o = n.querySelector(`.ycs-com-replies-${t}`);
+                          return (
+                            null == o || o.remove(),
+                            (e.target.innerHTML = '+'),
+                            void (e.target.title =
+                              'Open replies to the comment')
+                          );
+                        }
+                        const o = [];
+                        if (t) {
+                          let e;
+                          for (const [n, o] of commentsDataBuf.entries())
+                            try {
+                              var b;
+                              if (
+                                (null === (b = o.commentRenderer) ||
+                                void 0 === b
+                                  ? void 0
+                                  : b.commentId) === t
+                              ) {
+                                e = n;
+                                break;
+                              }
+                            } catch (e) {
+                              continue;
+                            }
+                          if (Number.isInteger(e) && e >= 0)
+                            for (const n of commentsDataBuf)
+                              try {
+                                commentsDataBuf[e] === n.originComment &&
+                                  o.push({
+                                    item: n,
+                                    refIndex: t,
+                                  });
+                              } catch (e) {
+                                continue;
+                              }
+                        }
+                        if (o.length > 0) {
+                          const n = e.target.closest('.ycs-render-comment'),
+                            r = document.createElement('div');
+                          (r.id = 'ycs-com-replies-' + t),
+                            (r.className = `ycs-com-replies-${t} ycs-oc-ml ycs-com-replies ycs-com-rp`),
+                            null == n ||
+                              n.insertAdjacentElement('beforeend', r),
+                            wn(r, o, !1, i),
+                            (e.target.innerHTML = String.fromCharCode(8722)),
+                            (e.target.title = 'Close replies to the comment');
+                        }
+                      }
+                    } catch (e) {}
+                  });
+              } catch (e) {}
+            };
+            const handleChatSearch = (t, n) => {
+              function rebuildChatData(chatItems) {
+                const chatData = new Map();
+                chatItems.forEach((chatItem) => {
+                  const key = qt(() =>
+                    Number(
+                      chatItem.replayChatItemAction.actions[0].addChatItemAction
+                        .item.liveChatTextMessageRenderer.timestampUsec
+                    )
+                  );
+                  chatData.set(key, chatItem);
+                });
+                return chatData;
+              }
+
+              try {
+                if (
+                  (null == n ? void 0 : n.likes) ||
+                  (null == n ? void 0 : n.replied) ||
+                  (null == n ? void 0 : n.random) ||
+                  (null == n ? void 0 : n.heart)
+                )
+                  return;
+                if (chatDataBuf && chatDataBuf.size > 0) {
+                  const o = document.querySelector(t),
+                    i = document.getElementById('ycs-input-search'),
+                    // chat data is a Map keyed with microsecond timestamp
+                    chatItemsBuf = [...chatDataBuf.values()];
+                  let l = '';
+                  i && (l = i.value), o && (o.textContent = '');
+                  const d = document.getElementById(
                       'ycs_extended_search_title'
                     ),
-                    d = document.getElementById('ycs_extended_search_main');
-                  let u = c,
-                    h = [
-                      'commentRenderer.authorText.simpleText',
-                      'commentRenderer.contentText.fullText',
+                    u = document.getElementById('ycs_extended_search_main');
+                  let h = fuseOptionsBase,
+                    m = [
+                      'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.authorName.simpleText',
+                      'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.message.fullText',
                     ];
                   L.checked &&
-                    ((u = JSON.parse(JSON.stringify(c))),
-                    (u.useExtendedSearch = !0),
-                    l.checked &&
-                      (h = ['commentRenderer.authorText.simpleText']),
+                    ((h = JSON.parse(JSON.stringify(fuseOptionsBase))),
+                    (h.useExtendedSearch = !0),
                     d.checked &&
-                      (h = ['commentRenderer.contentText.fullText']));
-                  const m = {
-                    ...u,
-                    keys: h,
+                      (m = [
+                        'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.authorName.simpleText',
+                      ]),
+                    u.checked &&
+                      (m = [
+                        'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.message.fullText',
+                      ]));
+                  const p = {
+                    ...h,
+                    keys: m,
                   };
-                  const searchText = i.trim();
+                  const searchText = l.trim();
                   const textSearchFuseResults = searchText
-                    ? new (e(I))(commentsDataBuf, m).search(searchText)
+                    ? new (e(I))(chatItemsBuf, p).search(searchText)
                     : null;
                   const textSearchResults =
                     textSearchFuseResults !== null
                       ? textSearchFuseResults.map(({ item }) => item)
-                      : commentsDataBuf;
-                  let p = [];
-                  if (null == n ? void 0 : n.likes) {
+                      : chatItemsBuf;
+                  let f = [];
+                  if (null == n ? void 0 : n.author) {
                     const e = (function (e) {
                       if (0 === e.length) return [];
                       try {
-                        const i = [],
-                          a = [];
-                        for (const [s, c] of e.entries()) {
-                          var t, n, o;
-                          let e =
-                            (null == c ||
-                            null === (t = c.commentRenderer) ||
-                            void 0 === t ||
-                            null === (n = t.voteCount) ||
-                            void 0 === n
-                              ? void 0
-                              : n.simpleText) ||
-                            (null == c ||
-                            null === (o = c.commentRenderer) ||
-                            void 0 === o
-                              ? void 0
-                              : o.likeCount);
-                          if (
-                            ('string' != typeof (r = e) &&
-                              'number' != typeof r) ||
-                            isNaN(r) ||
-                            isNaN(parseFloat(r))
-                          ) {
-                            if ('string' == typeof e || 'number' == typeof e) {
-                              const t = 1e3 * parseFloat(e);
-                              t == t
-                                ? (e = t)
-                                : 'string' == typeof e &&
-                                  a.push({
-                                    item: c,
-                                    refIndex: s,
-                                  });
-                            }
-                          } else e = parseInt(e);
-                          'number' == typeof e &&
-                            e == e &&
-                            ((c.commentRenderer.likesForSort = e),
-                            i.push({
-                              item: c,
-                              refIndex: s,
-                            }));
-                        }
-                        if (
-                          (i.length > 0 &&
-                            i.sort(
-                              (e, t) =>
-                                t.item.commentRenderer.likesForSort -
-                                e.item.commentRenderer.likesForSort
-                            ),
-                          a.length > 0)
-                        ) {
-                          a.sort((e, t) =>
-                            e.item.commentRenderer.voteCount.simpleText >
-                            t.item.commentRenderer.voteCount.simpleText
-                              ? 1
-                              : e.item.commentRenderer.voteCount.simpleText <
-                                t.item.commentRenderer.voteCount.simpleText
-                              ? -1
-                              : 0
+                        const t = [],
+                          n = qt(
+                            () =>
+                              Ut.getInitYtData[2].playerResponse.videoDetails
+                                .channelId
                           );
-                          for (const e of a) i.unshift(e);
-                        }
-                        return i;
-                      } catch (e) {
-                        return [];
-                      }
-                      var r;
-                    })(textSearchResults);
-                    (p = e), wn(t, p, !0, i);
-                  } else if (null == n ? void 0 : n.links) {
-                    const n = (function (t) {
-                      if (0 === t.length) return [];
-                      try {
-                        const n = [];
-                        for (const [o, r] of t.entries())
-                          try {
-                            e(mt)().test(
-                              r.commentRenderer.contentText.fullText
-                            ) &&
-                              n.push({
-                                item: r,
-                                refIndex: o,
-                              });
-                          } catch (e) {
-                            continue;
-                          }
-                        return n;
+                        if (n)
+                          for (const [o, r] of e.entries())
+                            try {
+                              qt(
+                                () =>
+                                  r.replayChatItemAction.actions[0]
+                                    .addChatItemAction.item
+                                    .liveChatTextMessageRenderer
+                                    .authorExternalChannelId
+                              ) === n &&
+                                t.push({
+                                  item: r,
+                                  refIndex: o,
+                                });
+                            } catch (e) {
+                              continue;
+                            }
+                        return t;
                       } catch (e) {
                         return [];
                       }
                     })(textSearchResults);
-                    if (((p = n), p.length > 0)) {
-                      null == p || p.sort((e, t) => e.refIndex - t.refIndex);
-                      const e = document.getElementById('ycs_btn_links'),
-                        n = e.dataset.sort;
-                      'newest' === n
-                        ? (wn(t, p, !0, i),
-                          (e.dataset.sort = 'oldest'),
-                          (e.innerHTML =
-                            'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Shows links in comments, replies, chat, video transcript (Newest)'))
-                        : 'oldest' === n
-                        ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
-                          (e.dataset.sort = 'newest'),
-                          (e.innerHTML =
-                            'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Shows links in comments, replies, chat, video transcript (Oldest)'))
-                        : (wn(t, p, !0, i),
-                          (e.innerHTML =
-                            'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
-                    }
-                  } else if (null == n ? void 0 : n.members) {
-                    const e = (function (e) {
-                      if (0 === e.length) return [];
-                      try {
-                        const r = [];
-                        for (const [i, a] of e.entries()) {
-                          var t, n, o;
-                          (null == a ||
-                          null === (t = a.commentRenderer) ||
-                          void 0 === t ||
-                          null === (n = t.sponsorCommentBadge) ||
-                          void 0 === n ||
-                          null === (o = n.sponsorCommentBadgeRenderer) ||
-                          void 0 === o
-                            ? void 0
-                            : o.tooltip) &&
-                            r.push({
-                              item: a,
-                              refIndex: i,
-                            });
-                        }
-                        return r;
-                      } catch (e) {
-                        return [];
-                      }
-                    })(textSearchResults);
-                    if (((p = e), p.length > 0)) {
-                      null == p || p.sort((e, t) => e.refIndex - t.refIndex);
-                      const e = document.getElementById('ycs_btn_members'),
-                        n = e.dataset.sort;
-                      'newest' === n
-                        ? (wn(t, p, !0, i),
-                          (e.dataset.sort = 'oldest'),
-                          (e.innerHTML =
-                            'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show comments, replies, chat from channel members (Newest)'))
-                        : 'oldest' === n
-                        ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
-                          (e.dataset.sort = 'newest'),
-                          (e.innerHTML =
-                            'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show comments, replies, chat from channel members (Oldest)'))
-                        : (wn(t, p, !0, i),
-                          (e.innerHTML =
-                            'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
-                    }
-                  } else if (null == n ? void 0 : n.replied) {
-                    const e = (function (e) {
-                      if (0 === e.length) return [];
-                      try {
-                        const n = [];
-                        for (const [o, r] of e.entries()) {
-                          var t;
-                          let e =
-                            null == r ||
-                            null === (t = r.commentRenderer) ||
-                            void 0 === t
-                              ? void 0
-                              : t.replyCount;
-                          (e = parseInt(e)),
-                            e &&
-                              ((r.commentRenderer.repliedForSort = e),
-                              n.push({
-                                item: r,
-                                refIndex: o,
-                              }));
-                        }
-                        return n.length > 0
-                          ? (n.sort(
-                              (e, t) =>
-                                t.item.commentRenderer.repliedForSort -
-                                e.item.commentRenderer.repliedForSort
-                            ),
-                            n)
-                          : [];
-                      } catch (e) {
-                        return [];
-                      }
-                    })(textSearchResults);
-                    (p = e), wn(t, p, !0, i);
-                  } else if (null == n ? void 0 : n.author) {
-                    const e = (function (e) {
-                      if (0 === e.length) return [];
-                      try {
-                        var t;
-                        const n = [];
-                        for (const [o, r] of e.entries())
-                          (null == r ||
-                          null === (t = r.commentRenderer) ||
-                          void 0 === t
-                            ? void 0
-                            : t.authorIsChannelOwner) &&
-                            n.push({
-                              item: r,
-                              refIndex: o,
-                            });
-                        return n;
-                      } catch (e) {
-                        return [];
-                      }
-                    })(textSearchResults);
-                    if (((p = e), p.length > 0)) {
-                      null == p || p.sort((e, t) => e.refIndex - t.refIndex);
+                    if (((f = e), (null == f ? void 0 : f.length) > 0)) {
+                      null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_author'),
-                        n = e.dataset.sort;
+                        n = e.dataset.sortChat;
                       'newest' === n
-                        ? (wn(t, p, !0, i),
-                          (e.dataset.sort = 'oldest'),
+                        ? (bn(t, f, l),
+                          (e.dataset.sortChat = 'oldest'),
                           (e.innerHTML =
                             'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
                           (e.title =
                             'Show comments, replies, chat from the author (Newest)'))
                         : 'oldest' === n
-                        ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
-                          (e.dataset.sort = 'newest'),
+                        ? (bn(t, null == f ? void 0 : f.reverse(), l),
+                          (e.dataset.sortChat = 'newest'),
                           (e.innerHTML =
                             'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
                           (e.title =
                             'Show comments, replies, chat from the author (Oldest)'))
-                        : (wn(t, p, !0, i),
-                          (e.innerHTML =
-                            'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                        : bn(t, f, l);
                     }
-                  } else if (null == n ? void 0 : n.heart) {
+                  } else if (null == n ? void 0 : n.donated) {
                     const e = (function (e) {
                       if (0 === e.length) return [];
                       try {
-                        var t;
-                        const n = [];
-                        for (const [o, r] of e.entries())
-                          (null == r ||
-                          null === (t = r.commentRenderer) ||
-                          void 0 === t
-                            ? void 0
-                            : t.creatorHeart) &&
-                            n.push({
-                              item: r,
-                              refIndex: o,
+                        const t = [];
+                        for (const n of e)
+                          qt(
+                            () =>
+                              n.replayChatItemAction.actions[0]
+                                .addChatItemAction.item
+                                .liveChatTextMessageRenderer.purchaseAmountText
+                                .simpleText
+                          ) &&
+                            t.push({
+                              item: n,
+                              refIndex: qt(
+                                () =>
+                                  Number(
+                                    n.replayChatItemAction.actions[0]
+                                      .addChatItemAction.item
+                                      .liveChatTextMessageRenderer.timestampUsec
+                                  ) ?? 0
+                              ),
                             });
+                        return t;
+                      } catch (e) {
+                        return [];
+                      }
+                    })(textSearchResults);
+                    if (((f = e), (null == f ? void 0 : f.length) > 0)) {
+                      null == f || f.sort((e, t) => e.refIndex - t.refIndex);
+                      const e = document.getElementById('ycs_btn_donated'),
+                        n = e.dataset.sortChat;
+                      'newest' === n
+                        ? (bn(t, f, l),
+                          (e.dataset.sortChat = 'oldest'),
+                          (e.innerHTML =
+                            'Donated \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show chat comments from users who have donated (Newest)'))
+                        : 'oldest' === n
+                        ? (bn(t, null == f ? void 0 : f.reverse(), l),
+                          (e.dataset.sortChat = 'newest'),
+                          (e.innerHTML =
+                            'Donated \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show chat comments from users who have donated (Oldest)'))
+                        : (bn(t, f, l),
+                          (e.innerHTML =
+                            'Donated \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                    }
+                  } else if (null == n ? void 0 : n.members) {
+                    const e = (function (e) {
+                      if (0 === e.length) return [];
+                      try {
+                        const n = [];
+                        for (const o of e) {
+                          const e = qt(
+                            () =>
+                              o.replayChatItemAction.actions[0]
+                                .addChatItemAction.item
+                                .liveChatTextMessageRenderer.authorBadges
+                          );
+                          let r;
+                          var t;
+                          if ((null == e ? void 0 : e.length) > 0)
+                            for (const n of e)
+                              if (
+                                null == n ||
+                                null === (t = n.liveChatAuthorBadgeRenderer) ||
+                                void 0 === t
+                                  ? void 0
+                                  : t.customThumbnail
+                              ) {
+                                r = n;
+                                break;
+                              }
+                          r &&
+                            n.push({
+                              item: o,
+                              refIndex: qt(
+                                () =>
+                                  Number(
+                                    o.replayChatItemAction.actions[0]
+                                      .addChatItemAction.item
+                                      .liveChatTextMessageRenderer.timestampUsec
+                                  ) ?? 0
+                              ),
+                            });
+                        }
                         return n;
                       } catch (e) {
                         return [];
                       }
                     })(textSearchResults);
-                    if (((p = e), p.length > 0)) {
-                      null == p || p.sort((e, t) => e.refIndex - t.refIndex);
-                      const e = document.getElementById('ycs_btn_heart'),
-                        n = e.dataset.sort;
+                    if (((f = e), (null == f ? void 0 : f.length) > 0)) {
+                      null == f || f.sort((e, t) => e.refIndex - t.refIndex);
+                      const e = document.getElementById('ycs_btn_members'),
+                        n = e.dataset.sortChat;
                       'newest' === n
-                        ? (wn(t, p, !0, i),
-                          (e.dataset.sort = 'oldest'),
+                        ? (bn(t, f, l),
+                          (e.dataset.sortChat = 'oldest'),
                           (e.innerHTML =
-                            '<span class="ycs-creator-heart_icon">❤</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
                           (e.title =
-                            'Show comments and replies that the author likes (Newest)'))
+                            'Show comments, replies, chat from channel members (Newest)'))
                         : 'oldest' === n
-                        ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
-                          (e.dataset.sort = 'newest'),
+                        ? (bn(t, null == f ? void 0 : f.reverse(), l),
+                          (e.dataset.sortChat = 'newest'),
                           (e.innerHTML =
-                            '<span class="ycs-creator-heart_icon">❤</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
                           (e.title =
-                            'Show comments and replies that the author likes (Oldest)'))
-                        : (wn(t, p, !0, i),
+                            'Show comments, replies, chat from channel members (Oldest)'))
+                        : bn(t, f, l);
+                    }
+                  } else if (null == n ? void 0 : n.timestamp) {
+                    p.keys = [
+                      'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine',
+                    ];
+                    if (
+                      ((f = new (e(I))(textSearchResults, p).search(
+                        'timeline'
+                      )),
+                      (null == f ? void 0 : f.length) > 0)
+                    ) {
+                      null == f || f.sort((e, t) => e.refIndex - t.refIndex);
+                      const e = document.getElementById('ycs_btn_timestamps'),
+                        n = e.dataset.sortChat;
+                      'newest' === n
+                        ? (bn(t, f, l),
+                          (e.dataset.sortChat = 'oldest'),
                           (e.innerHTML =
-                            '<span class="ycs-creator-heart_icon">❤</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                            'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show comments, replies, chat with time stamps (Newest)'))
+                        : 'oldest' === n
+                        ? (bn(t, null == f ? void 0 : f.reverse(), l),
+                          (e.dataset.sortChat = 'newest'),
+                          (e.innerHTML =
+                            'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show comments, replies, chat with time stamps (Oldest)'))
+                        : bn(t, f, l);
+                    }
+                  } else if (null == n ? void 0 : n.sortFirst) {
+                    const e = (function (e) {
+                      try {
+                        if (0 === e.size) return;
+                        const t = [];
+                        for (const [n, o] of e.entries())
+                          try {
+                            t.push({
+                              item: o,
+                              refIndex: n,
+                            });
+                          } catch (e) {
+                            continue;
+                          }
+                        if ((null == t ? void 0 : t.length) > 0) return t;
+                      } catch (e) {}
+                    })(rebuildChatData(textSearchResults));
+                    if (((f = e), (null == f ? void 0 : f.length) > 0)) {
+                      null == f || f.sort((e, t) => e.refIndex - t.refIndex);
+                      const e = document.getElementById('ycs_btn_sort_first'),
+                        n = e.dataset.sortChat;
+                      'newest' === n
+                        ? (bn(t, f, l),
+                          (e.dataset.sortChat = 'oldest'),
+                          (e.innerHTML =
+                            'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show all comments, chat, video transcript sorted by date (Newest)'))
+                        : 'oldest' === n
+                        ? (bn(t, null == f ? void 0 : f.reverse(), l),
+                          (e.dataset.sortChat = 'newest'),
+                          (e.innerHTML =
+                            'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show all comments, chat, video transcript sorted by date (Oldest)'))
+                        : bn(t, f, l);
                     }
                   } else if (null == n ? void 0 : n.verified) {
                     const e = (function (e) {
@@ -11293,7 +12192,12 @@
                       try {
                         const t = [];
                         for (const [n, o] of e.entries())
-                          o.commentRenderer.verifiedAuthor &&
+                          qt(
+                            () =>
+                              o.replayChatItemAction.actions[0]
+                                .addChatItemAction.item
+                                .liveChatTextMessageRenderer.verifiedAuthor
+                          ) &&
                             t.push({
                               item: o,
                               refIndex: n,
@@ -11302,1046 +12206,381 @@
                       } catch (e) {
                         return [];
                       }
-                    })(textSearchResults);
-                    if (((p = e), p.length > 0)) {
-                      null == p || p.sort((e, t) => e.refIndex - t.refIndex);
+                    })(rebuildChatData(textSearchResults));
+                    if (((f = e), (null == f ? void 0 : f.length) > 0)) {
+                      null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_verified'),
-                        n = e.dataset.sort;
+                        n = e.dataset.sortChat;
                       'newest' === n
-                        ? (wn(t, p, !0, i),
-                          (e.dataset.sort = 'oldest'),
+                        ? (bn(t, f, l),
+                          (e.dataset.sortChat = 'oldest'),
                           (e.innerHTML =
                             '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
                           (e.title =
                             'Show comments,  replies and chat from a verified authors (Newest)'))
                         : 'oldest' === n
-                        ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
-                          (e.dataset.sort = 'newest'),
+                        ? (bn(t, null == f ? void 0 : f.reverse(), l),
+                          (e.dataset.sortChat = 'newest'),
                           (e.innerHTML =
                             '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
                           (e.title =
                             'Show comments,  replies and chat from a verified authors (Oldest)'))
-                        : (wn(t, p, !0, i),
-                          (e.innerHTML =
-                            '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                        : bn(t, f, l);
                     }
-                  } else if (null == n ? void 0 : n.random) {
-                    const e = (function (e) {
-                      if (0 === e.length) return [];
+                  } else if (null == n ? void 0 : n.links) {
+                    const n = (function (t) {
+                      if (0 === t.length) return [];
                       try {
-                        const t = new Map();
-                        for (const [n, o] of e.entries())
-                          'C' === (null == o ? void 0 : o.typeComment) &&
-                            (t.has(
-                              qt(
-                                () =>
-                                  o.commentRenderer.authorEndpoint
-                                    .browseEndpoint.canonicalBaseUrl
-                              )
+                        const n = [];
+                        for (const [o, r] of t.entries())
+                          qt(() =>
+                            e(mt)().test(
+                              r.replayChatItemAction.actions[0]
+                                .addChatItemAction.item
+                                .liveChatTextMessageRenderer.message.fullText
                             )
-                              ? t
-                                  .get(
-                                    o.commentRenderer.authorEndpoint
-                                      .browseEndpoint.canonicalBaseUrl
-                                  )
-                                  .add(n)
-                              : qt(
-                                  () =>
-                                    o.commentRenderer.authorEndpoint
-                                      .browseEndpoint.canonicalBaseUrl
-                                ) &&
-                                t.set(
-                                  o.commentRenderer.authorEndpoint
-                                    .browseEndpoint.canonicalBaseUrl,
-                                  new Set().add(n)
-                                ));
-                        if (!(t.size > 0)) return [];
-                        {
-                          const n = Vt(0, t.size - 1);
-                          let o = 0;
-                          for (const [, r] of t.entries()) {
-                            if (o === n) {
-                              const t = Vt(0, r.size - 1);
-                              let n = 0;
-                              for (const [, o] of r.entries()) {
-                                if (n === t)
-                                  return [
-                                    {
-                                      item: e[o],
-                                      refIndex: o,
-                                    },
-                                  ];
-                                n++;
-                              }
-                              break;
-                            }
-                            o++;
-                          }
-                        }
-                        return [];
+                          ) &&
+                            n.push({
+                              item: r,
+                              refIndex: o,
+                            });
+                        return n;
                       } catch (e) {
                         return [];
                       }
-                    })(textSearchResults);
-                    (p = e), wn(t, p, !0, i);
-                  } else if (null == n ? void 0 : n.timestamp) {
-                    m.keys = ['commentRenderer.isTimeLine'];
-                    if (
-                      ((p = new (e(I))(textSearchResults, m).search(
-                        'timeline'
-                      )),
-                      p.length > 0)
-                    ) {
-                      null == p || p.sort((e, t) => e.refIndex - t.refIndex);
-                      const e = document.getElementById('ycs_btn_timestamps'),
-                        n = e.dataset.sort;
+                    })(rebuildChatData(textSearchResults));
+                    if (((f = n), (null == f ? void 0 : f.length) > 0)) {
+                      null == f || f.sort((e, t) => e.refIndex - t.refIndex);
+                      const e = document.getElementById('ycs_btn_links'),
+                        n = e.dataset.sortChat;
                       'newest' === n
-                        ? (wn(t, p, !0, i),
-                          (e.dataset.sort = 'oldest'),
+                        ? (bn(t, f, l),
+                          (e.dataset.sortChat = 'oldest'),
                           (e.innerHTML =
-                            'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
                           (e.title =
-                            'Show comments, replies, chat with time stamps (Newest)'))
+                            'Shows links in comments, replies, chat, video transcript (Newest)'))
                         : 'oldest' === n
-                        ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
-                          (e.dataset.sort = 'newest'),
+                        ? (bn(t, null == f ? void 0 : f.reverse(), l),
+                          (e.dataset.sortChat = 'newest'),
                           (e.innerHTML =
-                            'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
                           (e.title =
-                            'Show comments, replies, chat with time stamps (Oldest)'))
-                        : (wn(t, p, !0, i),
-                          (e.innerHTML =
-                            'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
-                    }
-                  } else if (null == n ? void 0 : n.sortFirst) {
-                    const e = (function (e) {
-                      try {
-                        if (e && 0 === e.length) return;
-                        const t = [];
-                        for (const [n, o] of e.entries())
-                          try {
-                            'C' === (null == o ? void 0 : o.typeComment) &&
-                              t.push({
-                                item: o,
-                                refIndex: n,
-                              });
-                          } catch (e) {
-                            continue;
-                          }
-                        if (t.length > 0) return t;
-                      } catch (e) {}
-                    })(textSearchResults);
-                    if (((p = e), p.length > 0)) {
-                      const e = document.getElementById('ycs_btn_sort_first'),
-                        n = e.dataset.sort;
-                      'newest' === n
-                        ? (wn(t, p, !0, i),
-                          (e.dataset.sort = 'oldest'),
-                          (e.innerHTML =
-                            'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show all comments, chat, video transcript sorted by date (Newest)'))
-                        : 'oldest' === n
-                        ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
-                          (e.dataset.sort = 'newest'),
-                          (e.innerHTML =
-                            'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show all comments, chat, video transcript sorted by date (Oldest)'))
-                        : (wn(t, p, !0, i),
-                          (e.innerHTML =
-                            'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                            'Shows links in comments, replies, chat, video transcript (Oldest)'))
+                        : bn(t, f, l);
                     }
                   } else {
-                    (p = textSearchFuseResults), wn(t, p, !0, i);
+                    (f = textSearchFuseResults), bn(t, f, l);
                   }
-                  const f = document.getElementById('ycs-search-total-result');
-                  f && (f.innerText = `(Comments) Found: ${p.length}`),
-                    (r.comments = p.length);
-                  const v = document.getElementById('ycs_wrap_comments');
-                  v &&
-                    v.addEventListener('click', (e) => {
+                  const v = document.getElementById('ycs-search-total-result');
+                  v && (v.innerText = `(Chat replay) Found: ${f.length}`),
+                    (countsReport.commentsChat = f.length);
+                  const y = document.getElementById('ycs_wrap_comments_chat');
+                  null == y ||
+                    y.addEventListener('click', (e) => {
                       try {
-                        var t, n, o, r, s, c;
+                        var t, n;
                         if (
                           null === (t = e.target) ||
                           void 0 === t ||
                           null === (n = t.classList) ||
                           void 0 === n
                             ? void 0
-                            : n.contains('ycs-open-comment')
+                            : n.contains('ycs-gotochat-video')
                         ) {
-                          const t = parseInt(e.target.getAttribute('id'), 10),
-                            n = e.target.closest('.ycs-render-comment');
-                          if (
-                            n &&
-                            t &&
-                            !document.getElementById('ycs-com-' + t)
-                          )
-                            try {
-                              var l, d, u, h;
-                              const o = {
-                                  item: commentsDataBuf[t].originComment,
-                                  refIndex: t,
-                                },
-                                r = document.createElement('div');
-                              let s;
-                              if (
-                                ((r.id = 'ycs-com-' + t.toString()),
-                                (r.className = r.id),
-                                n.insertAdjacentElement('beforebegin', r),
-                                wn('#' + r.id, [o], !0, i),
-                                n.classList.add('ycs-oc-ml'),
-                                (null === (l = commentsDataBuf[t]) ||
-                                void 0 === l ||
-                                null === (d = l.commentRenderer) ||
-                                void 0 === d ||
-                                null === (u = d.contentText) ||
-                                void 0 === u ||
-                                null === (h = u.runs) ||
-                                void 0 === h
-                                  ? void 0
-                                  : h.length) > 0)
-                              )
-                                for (const e of commentsDataBuf[t]
-                                  .commentRenderer.contentText.runs)
-                                  try {
-                                    var m, p;
-                                    if (
-                                      null === (m = e.navigationEndpoint) ||
-                                      void 0 === m ||
-                                      null === (p = m.browseEndpoint) ||
-                                      void 0 === p
-                                        ? void 0
-                                        : p.canonicalBaseUrl
-                                    ) {
-                                      var f, v;
-                                      s =
-                                        null === (f = e.navigationEndpoint) ||
-                                        void 0 === f ||
-                                        null === (v = f.browseEndpoint) ||
-                                        void 0 === v
-                                          ? void 0
-                                          : v.canonicalBaseUrl;
-                                      break;
-                                    }
-                                  } catch (e) {
-                                    continue;
-                                  }
-                              const c = [];
-                              if (s)
-                                for (const e of commentsDataBuf)
-                                  try {
-                                    var y, g, w;
-                                    'R' === e.typeComment &&
-                                      e.originComment ===
-                                        commentsDataBuf[t].originComment &&
-                                      (null === (y = e.commentRenderer) ||
-                                      void 0 === y ||
-                                      null === (g = y.authorEndpoint) ||
-                                      void 0 === g ||
-                                      null === (w = g.browseEndpoint) ||
-                                      void 0 === w
-                                        ? void 0
-                                        : w.canonicalBaseUrl) === s &&
-                                      c.push({
-                                        item: e,
-                                        refIndex: t,
-                                      });
-                                  } catch (e) {
-                                    continue;
-                                  }
-                              if (c.length > 0) {
-                                const e = document.createElement('div');
-                                (e.id = 'ycs-com-rauth-' + t.toString()),
-                                  (e.className = `ycs-com-${t} ycs-oc-ml`),
-                                  n.insertAdjacentElement('beforebegin', e),
-                                  wn('#' + e.id, c, !1, i);
-                              }
-                              (e.target.innerHTML = '▲'),
-                                (e.target.title =
-                                  'Close the comment to the reply here.');
-                            } catch (e) {}
-                          else
-                            n &&
-                              t &&
-                              document.getElementById('ycs-com-' + t) &&
-                              (sn('.ycs-com-' + t),
-                              n.classList.remove('ycs-oc-ml'),
-                              (e.target.innerHTML = '▼'),
-                              (e.target.title =
-                                'Open the comment to the reply here.'));
-                        } else if (
-                          null === (o = e.target) ||
-                          void 0 === o ||
-                          null === (r = o.classList) ||
-                          void 0 === r
-                            ? void 0
-                            : r.contains('ycs-gotochat-video')
-                        ) {
-                          e.preventDefault();
                           const t = document.getElementsByTagName('video')[0];
-                          if (t) {
+                          if ((e.preventDefault(), t)) {
                             const n = e.target.dataset.offsetvideo;
-                            n && (t.currentTime = parseInt(n));
-                          }
-                        } else if (
-                          null === (s = e.target) ||
-                          void 0 === s ||
-                          null === (c = s.classList) ||
-                          void 0 === c
-                            ? void 0
-                            : c.contains('ycs-open-reply')
-                        ) {
-                          const t = e.target.dataset.idcom,
-                            n = e.target.closest('.ycs-render-comment');
-                          if (
-                            null == n
-                              ? void 0
-                              : n.querySelector(`.ycs-com-replies-${t}`)
-                          ) {
-                            const o = n.querySelector(`.ycs-com-replies-${t}`);
-                            return (
-                              null == o || o.remove(),
-                              (e.target.innerHTML = '+'),
-                              void (e.target.title =
-                                'Open replies to the comment')
-                            );
-                          }
-                          const o = [];
-                          if (t) {
-                            let e;
-                            for (const [n, o] of commentsDataBuf.entries())
-                              try {
-                                var b;
-                                if (
-                                  (null === (b = o.commentRenderer) ||
-                                  void 0 === b
-                                    ? void 0
-                                    : b.commentId) === t
-                                ) {
-                                  e = n;
-                                  break;
-                                }
-                              } catch (e) {
-                                continue;
-                              }
-                            if (Number.isInteger(e) && e >= 0)
-                              for (const n of commentsDataBuf)
-                                try {
-                                  commentsDataBuf[e] === n.originComment &&
-                                    o.push({
-                                      item: n,
-                                      refIndex: t,
-                                    });
-                                } catch (e) {
-                                  continue;
-                                }
-                          }
-                          if (o.length > 0) {
-                            const n = e.target.closest('.ycs-render-comment'),
-                              r = document.createElement('div');
-                            (r.id = 'ycs-com-replies-' + t),
-                              (r.className = `ycs-com-replies-${t} ycs-oc-ml ycs-com-replies ycs-com-rp`),
-                              null == n ||
-                                n.insertAdjacentElement('beforeend', r),
-                              wn(r, o, !1, i),
-                              (e.target.innerHTML = String.fromCharCode(8722)),
-                              (e.target.title = 'Close replies to the comment');
+                            n && (t.currentTime = parseInt(n) / 1e3);
                           }
                         }
-                      } catch (e) {}
+                      } catch (e) {
+                        return;
+                      }
                     });
-                } catch (e) {}
-              },
-              handleChatSearch = (t, n) => {
-                try {
-                  if (
-                    (null == n ? void 0 : n.likes) ||
-                    (null == n ? void 0 : n.replied) ||
-                    (null == n ? void 0 : n.random) ||
-                    (null == n ? void 0 : n.heart)
-                  )
-                    return;
-                  if (chatDataBuf && chatDataBuf.size > 0) {
-                    const o = document.querySelector(t),
-                      i = document.getElementById('ycs-input-search'),
-                      a = [...chatDataBuf.values()];
-                    let l = '';
-                    i && (l = i.value), o && (o.textContent = '');
-                    const d = document.getElementById(
-                        'ycs_extended_search_title'
-                      ),
-                      u = document.getElementById('ycs_extended_search_main');
-                    let h = c,
-                      m = [
-                        'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.authorName.simpleText',
-                        'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.message.fullText',
-                      ];
-                    L.checked &&
-                      ((h = JSON.parse(JSON.stringify(c))),
-                      (h.useExtendedSearch = !0),
-                      d.checked &&
-                        (m = [
-                          'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.authorName.simpleText',
-                        ]),
-                      u.checked &&
-                        (m = [
-                          'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.message.fullText',
-                        ]));
-                    const p = {
-                      ...h,
-                      keys: m,
-                    };
-                    let f = [];
-                    if (null == n ? void 0 : n.author) {
-                      const e = (function (e) {
-                        if (0 === e.length) return [];
-                        try {
-                          const t = [],
-                            n = qt(
-                              () =>
-                                Ut.getInitYtData[2].playerResponse.videoDetails
-                                  .channelId
-                            );
-                          if (n)
-                            for (const [o, r] of e.entries())
-                              try {
-                                qt(
-                                  () =>
-                                    r.replayChatItemAction.actions[0]
-                                      .addChatItemAction.item
-                                      .liveChatTextMessageRenderer
-                                      .authorExternalChannelId
-                                ) === n &&
-                                  t.push({
-                                    item: r,
-                                    refIndex: o,
-                                  });
-                              } catch (e) {
-                                continue;
-                              }
-                          return t;
-                        } catch (e) {
-                          return [];
-                        }
-                      })(a);
-                      if (((f = e), (null == f ? void 0 : f.length) > 0)) {
-                        null == f || f.sort((e, t) => e.refIndex - t.refIndex);
-                        const e = document.getElementById('ycs_btn_author'),
-                          n = e.dataset.sortChat;
-                        'newest' === n
-                          ? (bn(t, f, l),
-                            (e.dataset.sortChat = 'oldest'),
-                            (e.innerHTML =
-                              'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                            (e.title =
-                              'Show comments, replies, chat from the author (Newest)'))
-                          : 'oldest' === n
-                          ? (bn(t, null == f ? void 0 : f.reverse(), l),
-                            (e.dataset.sortChat = 'newest'),
-                            (e.innerHTML =
-                              'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                            (e.title =
-                              'Show comments, replies, chat from the author (Oldest)'))
-                          : bn(t, f, l);
-                      }
-                    } else if (null == n ? void 0 : n.donated) {
-                      const e = (function (e) {
-                        if (0 === e.length) return [];
-                        try {
-                          const t = [];
-                          for (const n of e)
-                            qt(
-                              () =>
-                                n.replayChatItemAction.actions[0]
-                                  .addChatItemAction.item
-                                  .liveChatTextMessageRenderer
-                                  .purchaseAmountText.simpleText
-                            ) &&
-                              t.push({
-                                item: n,
-                              });
-                          return t;
-                        } catch (e) {
-                          return [];
-                        }
-                      })(a);
-                      if (((f = e), (null == f ? void 0 : f.length) > 0)) {
-                        null == f || f.sort((e, t) => e.refIndex - t.refIndex);
-                        const e = document.getElementById('ycs_btn_donated'),
-                          n = e.dataset.sortChat;
-                        'newest' === n
-                          ? (bn(t, f, l),
-                            (e.dataset.sortChat = 'oldest'),
-                            (e.innerHTML =
-                              'Donated \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                            (e.title =
-                              'Show chat comments from users who have donated (Newest)'))
-                          : 'oldest' === n
-                          ? (bn(t, null == f ? void 0 : f.reverse(), l),
-                            (e.dataset.sortChat = 'newest'),
-                            (e.innerHTML =
-                              'Donated \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                            (e.title =
-                              'Show chat comments from users who have donated (Oldest)'))
-                          : (bn(t, f, l),
-                            (e.innerHTML =
-                              'Donated \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
-                      }
-                    } else if (null == n ? void 0 : n.members) {
-                      const e = (function (e) {
-                        if (0 === e.length) return [];
-                        try {
-                          const n = [];
-                          for (const o of e) {
-                            const e = qt(
-                              () =>
-                                o.replayChatItemAction.actions[0]
-                                  .addChatItemAction.item
-                                  .liveChatTextMessageRenderer.authorBadges
-                            );
-                            let r;
-                            var t;
-                            if ((null == e ? void 0 : e.length) > 0)
-                              for (const n of e)
-                                if (
-                                  null == n ||
-                                  null ===
-                                    (t = n.liveChatAuthorBadgeRenderer) ||
-                                  void 0 === t
-                                    ? void 0
-                                    : t.customThumbnail
-                                ) {
-                                  r = n;
-                                  break;
-                                }
-                            r &&
-                              n.push({
-                                item: o,
-                              });
-                          }
-                          return n;
-                        } catch (e) {
-                          return [];
-                        }
-                      })(a);
-                      if (((f = e), (null == f ? void 0 : f.length) > 0)) {
-                        null == f || f.sort((e, t) => e.refIndex - t.refIndex);
-                        const e = document.getElementById('ycs_btn_members'),
-                          n = e.dataset.sortChat;
-                        'newest' === n
-                          ? (bn(t, f, l),
-                            (e.dataset.sortChat = 'oldest'),
-                            (e.innerHTML =
-                              'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                            (e.title =
-                              'Show comments, replies, chat from channel members (Newest)'))
-                          : 'oldest' === n
-                          ? (bn(t, null == f ? void 0 : f.reverse(), l),
-                            (e.dataset.sortChat = 'newest'),
-                            (e.innerHTML =
-                              'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                            (e.title =
-                              'Show comments, replies, chat from channel members (Oldest)'))
-                          : bn(t, f, l);
-                      }
-                    } else if (null == n ? void 0 : n.timestamp) {
-                      p.keys = [
-                        'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine',
-                      ];
-                      if (
-                        ((f = new (e(I))(a, p).search('timeline')),
-                        (null == f ? void 0 : f.length) > 0)
-                      ) {
-                        null == f || f.sort((e, t) => e.refIndex - t.refIndex);
-                        const e = document.getElementById('ycs_btn_timestamps'),
-                          n = e.dataset.sortChat;
-                        'newest' === n
-                          ? (bn(t, f, l),
-                            (e.dataset.sortChat = 'oldest'),
-                            (e.innerHTML =
-                              'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                            (e.title =
-                              'Show comments, replies, chat with time stamps (Newest)'))
-                          : 'oldest' === n
-                          ? (bn(t, null == f ? void 0 : f.reverse(), l),
-                            (e.dataset.sortChat = 'newest'),
-                            (e.innerHTML =
-                              'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                            (e.title =
-                              'Show comments, replies, chat with time stamps (Oldest)'))
-                          : bn(t, f, l);
-                      }
-                    } else if (null == n ? void 0 : n.sortFirst) {
-                      const e = (function (e) {
-                        try {
-                          if (0 === e.size) return;
-                          const t = [];
-                          for (const [n, o] of e.entries())
-                            try {
-                              t.push({
-                                item: o,
-                                refIndex: n,
-                              });
-                            } catch (e) {
-                              continue;
-                            }
-                          if ((null == t ? void 0 : t.length) > 0) return t;
-                        } catch (e) {}
-                      })(chatDataBuf);
-                      if (((f = e), (null == f ? void 0 : f.length) > 0)) {
-                        null == f || f.sort((e, t) => e.refIndex - t.refIndex);
-                        const e = document.getElementById('ycs_btn_sort_first'),
-                          n = e.dataset.sortChat;
-                        'newest' === n
-                          ? (bn(t, f, l),
-                            (e.dataset.sortChat = 'oldest'),
-                            (e.innerHTML =
-                              'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                            (e.title =
-                              'Show all comments, chat, video transcript sorted by date (Newest)'))
-                          : 'oldest' === n
-                          ? (bn(t, null == f ? void 0 : f.reverse(), l),
-                            (e.dataset.sortChat = 'newest'),
-                            (e.innerHTML =
-                              'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                            (e.title =
-                              'Show all comments, chat, video transcript sorted by date (Oldest)'))
-                          : bn(t, f, l);
-                      }
-                    } else if (null == n ? void 0 : n.verified) {
-                      const e = (function (e) {
-                        if (0 === e.length) return [];
-                        try {
-                          const t = [];
-                          for (const [n, o] of e.entries())
-                            qt(
-                              () =>
-                                o.replayChatItemAction.actions[0]
-                                  .addChatItemAction.item
-                                  .liveChatTextMessageRenderer.verifiedAuthor
-                            ) &&
-                              t.push({
-                                item: o,
-                                refIndex: n,
-                              });
-                          return t;
-                        } catch (e) {
-                          return [];
-                        }
-                      })(chatDataBuf);
-                      if (((f = e), (null == f ? void 0 : f.length) > 0)) {
-                        null == f || f.sort((e, t) => e.refIndex - t.refIndex);
-                        const e = document.getElementById('ycs_btn_verified'),
-                          n = e.dataset.sortChat;
-                        'newest' === n
-                          ? (bn(t, f, l),
-                            (e.dataset.sortChat = 'oldest'),
-                            (e.innerHTML =
-                              '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                            (e.title =
-                              'Show comments,  replies and chat from a verified authors (Newest)'))
-                          : 'oldest' === n
-                          ? (bn(t, null == f ? void 0 : f.reverse(), l),
-                            (e.dataset.sortChat = 'newest'),
-                            (e.innerHTML =
-                              '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                            (e.title =
-                              'Show comments,  replies and chat from a verified authors (Oldest)'))
-                          : bn(t, f, l);
-                      }
-                    } else if (null == n ? void 0 : n.links) {
+                }
+              } catch (e) {}
+            };
+            const handleTranscriptSearch = (t, n) => {
+              try {
+                if (
+                  transcriptDataBuf &&
+                  transcriptDataBuf.actions[0].updateEngagementPanelAction
+                    .content.transcriptRenderer.body.transcriptBodyRenderer
+                    .cueGroups.length > 0
+                ) {
+                  const o = document.querySelector(t),
+                    a = document.getElementById('ycs-input-search'),
+                    cueGroupsBuf =
+                      transcriptDataBuf.actions[0].updateEngagementPanelAction
+                        .content.transcriptRenderer.body.transcriptBodyRenderer
+                        .cueGroups;
+                  let l = '';
+                  a && (l = a.value), o && (o.textContent = '');
+                  const d = document.getElementById(
+                      'ycs_extended_search_title'
+                    ),
+                    u = document.getElementById('ycs_extended_search_main');
+                  let h = fuseOptionsBase,
+                    m = [
+                      'transcriptCueGroupRenderer.cues.transcriptCueRenderer.cue.simpleText',
+                      'transcriptCueGroupRenderer.formattedStartOffset.simpleText',
+                    ];
+                  L.checked &&
+                    ((h = JSON.parse(JSON.stringify(fuseOptionsBase))),
+                    (h.useExtendedSearch = !0),
+                    d.checked &&
+                      (m = [
+                        'transcriptCueGroupRenderer.formattedStartOffset.simpleText',
+                      ]),
+                    u.checked &&
+                      (m = [
+                        'transcriptCueGroupRenderer.cues.transcriptCueRenderer.cue.simpleText',
+                      ]));
+                  const p = {
+                    ...h,
+                    keys: m,
+                  };
+                  const searchText = l.trim();
+                  const textSearchFuseResults = searchText
+                    ? new (e(I))(cueGroupsBuf, p).search(searchText)
+                    : null;
+                  const textSearchResults =
+                    textSearchFuseResults !== null
+                      ? textSearchFuseResults.map(({ item }) => item)
+                      : cueGroupsBuf;
+                  let f = [];
+                  if (n)
+                    if (null == n ? void 0 : n.links) {
                       const n = (function (t) {
                         if (0 === t.length) return [];
                         try {
                           const n = [];
-                          for (const [o, r] of t.entries())
-                            qt(() =>
+                          for (const o of t)
+                            try {
                               e(mt)().test(
-                                r.replayChatItemAction.actions[0]
-                                  .addChatItemAction.item
-                                  .liveChatTextMessageRenderer.message.fullText
-                              )
-                            ) &&
-                              n.push({
-                                item: r,
-                                refIndex: o,
-                              });
+                                o.transcriptCueGroupRenderer.cues[0]
+                                  .transcriptCueRenderer.cue.simpleText
+                              ) &&
+                                n.push({
+                                  item: o,
+                                  refIndex:
+                                    o.transcriptCueGroupRenderer.cues[0]
+                                      .transcriptCueRenderer.startOffsetMs,
+                                });
+                            } catch (e) {
+                              continue;
+                            }
                           return n;
                         } catch (e) {
                           return [];
                         }
-                      })(chatDataBuf);
+                      })(textSearchResults);
                       if (((f = n), (null == f ? void 0 : f.length) > 0)) {
                         null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                         const e = document.getElementById('ycs_btn_links'),
-                          n = e.dataset.sortChat;
+                          n = e.dataset.sortTrp;
                         'newest' === n
-                          ? (bn(t, f, l),
-                            (e.dataset.sortChat = 'oldest'),
+                          ? (xn(t, f, l),
+                            (e.dataset.sortTrp = 'oldest'),
                             (e.innerHTML =
                               'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
                             (e.title =
                               'Shows links in comments, replies, chat, video transcript (Newest)'))
                           : 'oldest' === n
-                          ? (bn(t, null == f ? void 0 : f.reverse(), l),
-                            (e.dataset.sortChat = 'newest'),
+                          ? (xn(t, null == f ? void 0 : f.reverse(), l),
+                            (e.dataset.sortTrp = 'newest'),
                             (e.innerHTML =
                               'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
                             (e.title =
                               'Shows links in comments, replies, chat, video transcript (Oldest)'))
-                          : bn(t, f, l);
+                          : xn(t, f, l);
                       }
                     } else {
-                      (f = new (e(I))(a, p).search(l.trim())), bn(t, f, l);
-                    }
-                    const v = document.getElementById(
-                      'ycs-search-total-result'
-                    );
-                    v && (v.innerText = `(Chat replay) Found: ${f.length}`),
-                      (r.commentsChat = f.length);
-                    const y = document.getElementById('ycs_wrap_comments_chat');
-                    null == y ||
-                      y.addEventListener('click', (e) => {
-                        try {
-                          var t, n;
-                          if (
-                            null === (t = e.target) ||
-                            void 0 === t ||
-                            null === (n = t.classList) ||
-                            void 0 === n
-                              ? void 0
-                              : n.contains('ycs-gotochat-video')
-                          ) {
-                            const t = document.getElementsByTagName('video')[0];
-                            if ((e.preventDefault(), t)) {
-                              const n = e.target.dataset.offsetvideo;
-                              n && (t.currentTime = parseInt(n) / 1e3);
-                            }
-                          }
-                        } catch (e) {
-                          return;
-                        }
-                      });
-                  }
-                } catch (e) {}
-              },
-              handleTranscriptSearch = (t, n) => {
-                try {
-                  if (
-                    transcriptDataBuf &&
-                    transcriptDataBuf.actions[0].updateEngagementPanelAction
-                      .content.transcriptRenderer.body.transcriptBodyRenderer
-                      .cueGroups.length > 0
-                  ) {
-                    const o = document.querySelector(t),
-                      a = document.getElementById('ycs-input-search'),
-                      s =
-                        transcriptDataBuf.actions[0].updateEngagementPanelAction
-                          .content.transcriptRenderer.body
-                          .transcriptBodyRenderer.cueGroups;
-                    let l = '';
-                    a && (l = a.value), o && (o.textContent = '');
-                    const d = document.getElementById(
-                        'ycs_extended_search_title'
-                      ),
-                      u = document.getElementById('ycs_extended_search_main');
-                    let h = c,
-                      m = [
-                        'transcriptCueGroupRenderer.cues.transcriptCueRenderer.cue.simpleText',
-                        'transcriptCueGroupRenderer.formattedStartOffset.simpleText',
-                      ];
-                    L.checked &&
-                      ((h = JSON.parse(JSON.stringify(c))),
-                      (h.useExtendedSearch = !0),
-                      d.checked &&
-                        (m = [
-                          'transcriptCueGroupRenderer.formattedStartOffset.simpleText',
-                        ]),
-                      u.checked &&
-                        (m = [
-                          'transcriptCueGroupRenderer.cues.transcriptCueRenderer.cue.simpleText',
-                        ]));
-                    const p = {
-                      ...h,
-                      keys: m,
-                    };
-                    let f = [];
-                    if (n)
-                      if (null == n ? void 0 : n.links) {
-                        const n = (function (t) {
-                          if (0 === t.length) return [];
+                      if (!(null == n ? void 0 : n.sortFirst)) return;
+                      {
+                        const e = (function (e) {
+                          if (0 === e.length) return [];
                           try {
-                            const n = [];
-                            for (const o of t)
+                            const t = [];
+                            for (const n of e)
                               try {
-                                e(mt)().test(
-                                  o.transcriptCueGroupRenderer.cues[0]
-                                    .transcriptCueRenderer.cue.simpleText
-                                ) &&
-                                  n.push({
-                                    item: o,
-                                    refIndex:
-                                      o.transcriptCueGroupRenderer.cues[0]
-                                        .transcriptCueRenderer.startOffsetMs,
-                                  });
+                                t.push({
+                                  item: n,
+                                  refIndex:
+                                    n.transcriptCueGroupRenderer.cues[0]
+                                      .transcriptCueRenderer.startOffsetMs,
+                                });
                               } catch (e) {
                                 continue;
                               }
-                            return n;
+                            return t;
                           } catch (e) {
                             return [];
                           }
-                        })(s);
-                        if (((f = n), (null == f ? void 0 : f.length) > 0)) {
+                        })(textSearchResults);
+                        if (((f = e), (null == f ? void 0 : f.length) > 0)) {
                           null == f ||
                             f.sort((e, t) => e.refIndex - t.refIndex);
-                          const e = document.getElementById('ycs_btn_links'),
+                          const e =
+                              document.getElementById('ycs_btn_sort_first'),
                             n = e.dataset.sortTrp;
                           'newest' === n
                             ? (xn(t, f, l),
                               (e.dataset.sortTrp = 'oldest'),
                               (e.innerHTML =
-                                'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                                'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
                               (e.title =
-                                'Shows links in comments, replies, chat, video transcript (Newest)'))
+                                'Show all comments, chat, video transcript sorted by date (Newest)'))
                             : 'oldest' === n
                             ? (xn(t, null == f ? void 0 : f.reverse(), l),
                               (e.dataset.sortTrp = 'newest'),
                               (e.innerHTML =
-                                'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                                'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
                               (e.title =
-                                'Shows links in comments, replies, chat, video transcript (Oldest)'))
+                                'Show all comments, chat, video transcript sorted by date (Oldest)'))
                             : xn(t, f, l);
                         }
-                      } else {
-                        if (!(null == n ? void 0 : n.sortFirst)) return;
-                        {
-                          const e = (function (e) {
-                            if (0 === e.length) return [];
-                            try {
-                              const t = [];
-                              for (const n of e)
-                                try {
-                                  t.push({
-                                    item: n,
-                                    refIndex:
-                                      n.transcriptCueGroupRenderer.cues[0]
-                                        .transcriptCueRenderer.startOffsetMs,
-                                  });
-                                } catch (e) {
-                                  continue;
-                                }
-                              return t;
-                            } catch (e) {
-                              return [];
-                            }
-                          })(s);
-                          if (((f = e), (null == f ? void 0 : f.length) > 0)) {
-                            null == f ||
-                              f.sort((e, t) => e.refIndex - t.refIndex);
-                            const e =
-                                document.getElementById('ycs_btn_sort_first'),
-                              n = e.dataset.sortTrp;
-                            'newest' === n
-                              ? (xn(t, f, l),
-                                (e.dataset.sortTrp = 'oldest'),
-                                (e.innerHTML =
-                                  'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                                (e.title =
-                                  'Show all comments, chat, video transcript sorted by date (Newest)'))
-                              : 'oldest' === n
-                              ? (xn(t, null == f ? void 0 : f.reverse(), l),
-                                (e.dataset.sortTrp = 'newest'),
-                                (e.innerHTML =
-                                  'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                                (e.title =
-                                  'Show all comments, chat, video transcript sorted by date (Oldest)'))
-                              : xn(t, f, l);
-                          }
-                        }
                       }
-                    else {
-                      (f = new (e(I))(s, p).search(l.trim())), xn(t, f, l);
                     }
-                    const v = document.getElementById(
-                      'ycs-search-total-result'
-                    );
-                    v && (v.innerText = `(Tr. video) Found: ${f.length}`),
-                      (r.commentsTrVideo = f.length);
-                    const y = document.getElementById(
-                      'ycs_wrap_comments_trvideo'
-                    );
-                    null == y ||
-                      y.addEventListener('click', (e) => {
-                        try {
-                          var t, n;
-                          if (
-                            null === (t = e.target) ||
-                            void 0 === t ||
-                            null === (n = t.classList) ||
-                            void 0 === n
-                              ? void 0
-                              : n.contains('ycs-goto-video')
-                          ) {
-                            e.preventDefault();
-                            const t = document.getElementsByTagName('video')[0];
-                            if (t) {
-                              const n = e.target.dataset.offsetvideo;
-                              n && (t.currentTime = parseInt(n) / 1e3);
-                            }
+                  else {
+                    (f = textSearchFuseResults), xn(t, f, l);
+                  }
+                  const v = document.getElementById('ycs-search-total-result');
+                  v && (v.innerText = `(Tr. video) Found: ${f.length}`),
+                    (countsReport.commentsTrVideo = f.length);
+                  const y = document.getElementById(
+                    'ycs_wrap_comments_trvideo'
+                  );
+                  null == y ||
+                    y.addEventListener('click', (e) => {
+                      try {
+                        var t, n;
+                        if (
+                          null === (t = e.target) ||
+                          void 0 === t ||
+                          null === (n = t.classList) ||
+                          void 0 === n
+                            ? void 0
+                            : n.contains('ycs-goto-video')
+                        ) {
+                          e.preventDefault();
+                          const t = document.getElementsByTagName('video')[0];
+                          if (t) {
+                            const n = e.target.dataset.offsetvideo;
+                            n && (t.currentTime = parseInt(n) / 1e3);
                           }
-                        } catch (e) {
-                          return;
                         }
-                      });
-                  }
-                } catch (e) {}
-              },
-              handleAllSearch = (e, t) => {
-                const n = document.querySelector(e),
-                  o = document.getElementById('ycs-search-total-result');
-                o && (null == o || o.classList.add('ycs-hidden')),
-                  n && (n.textContent = '');
-                const c = document.createElement('div');
-                c.id = 'ycs_allsearch__wrap_comments';
-                const l = document.createElement('div');
-                l.id = 'ycs_allsearch__wrap_comments_chat';
-                const d = document.createElement('div');
-                d.id = 'ycs_allsearch__wrap_comments_trvideo';
-                try {
-                  if (
-                    (commentsDataBuf.length > 0 &&
-                      (null == n || n.appendChild(c),
-                      handleCommentsSearch('#ycs_allsearch__wrap_comments', t)),
-                    chatDataBuf &&
-                      chatDataBuf.size > 0 &&
-                      (null == n || n.appendChild(l),
-                      handleChatSearch(
-                        '#ycs_allsearch__wrap_comments_chat',
-                        t
-                      )),
-                    transcriptDataBuf &&
-                      qt(
-                        () =>
-                          transcriptDataBuf.actions[0]
-                            .updateEngagementPanelAction.content
-                            .transcriptRenderer.body.transcriptBodyRenderer
-                            .cueGroups.length
-                      ) > 0 &&
-                      (null == n || n.appendChild(d),
-                      handleTranscriptSearch(
-                        '#ycs_allsearch__wrap_comments_trvideo',
-                        t
-                      )),
-                    o)
-                  ) {
-                    const e = r.comments + r.commentsChat + r.commentsTrVideo;
-                    (null == t ? void 0 : t.timestamp)
-                      ? (o.innerText = `Time stamps, found: ${e}`)
-                      : (null == t ? void 0 : t.author)
-                      ? (o.innerText = `Author, found: ${e}`)
-                      : (null == t ? void 0 : t.heart)
-                      ? (o.innerText = `Heart, found: ${e}`)
-                      : (null == t ? void 0 : t.verified)
-                      ? (o.innerText = `Verified authors, found: ${e}`)
-                      : (null == t ? void 0 : t.links)
-                      ? (o.innerText = `Links, found: ${e}`)
-                      : (null == t ? void 0 : t.likes)
-                      ? (o.innerText = `Likes, found: ${e}`)
-                      : (null == t ? void 0 : t.replied)
-                      ? (o.innerText = `Replied, found: ${e}`)
-                      : (null == t ? void 0 : t.members)
-                      ? (o.innerText = `Members, found: ${e}`)
-                      : (null == t ? void 0 : t.donated)
-                      ? (o.innerText = `Donated, found: ${e}`)
-                      : (null == t ? void 0 : t.random)
-                      ? (o.innerText = `Random, found: ${e}`)
-                      : (null == t ? void 0 : t.sortFirst)
-                      ? (o.innerText = `All comments, found: ${e}`)
-                      : (o.innerText = `(All) Found: ${e}`),
-                      null == o || o.classList.remove('ycs-hidden');
-                  }
-                } catch (e) {}
-              };
-
-            /**
-             * Get search filter options via checking button DOM class
-             * @param {object} pool
-             * @returns {object} {
-             *   timestamp: boolean,
-             *   author: boolean,
-             *   heart: boolean,
-             *   verified: boolean,
-             *   links: boolean,
-             *   likes: boolean,
-             *   replied: boolean,
-             *   members: boolean,
-             *   donated: boolean,
-             *   random: boolean
-             * }
-             */
-            function getSearchOptions(pool) {
-              const map = {
-                elPTimeStamps: 'timestamp',
-                elPAuthor: 'author',
-                elPHeart: 'heart',
-                elPVerified: 'verified',
-                elPLinks: 'links',
-                elPLikes: 'likes',
-                elPReplied: 'replied',
-                elPMembers: 'members',
-                elPDonated: 'donated',
-                elPRandom: 'random',
-                elFirstComments: 'sortFirst',
-              };
-              const options = {};
-              let hit = false;
-              for (const key in pool) {
-                if (pool[key].classList.contains('ycs_btn_active')) {
-                  options[map[key]] = true;
-                  hit = true;
+                      } catch (e) {
+                        return;
+                      }
+                    });
                 }
+              } catch (e) {}
+            };
+            const handleAllSearch = (e, t) => {
+              const n = document.querySelector(e),
+                o = document.getElementById('ycs-search-total-result');
+              o && (null == o || o.classList.add('ycs-hidden')),
+                n && (n.textContent = '');
+              const c = document.createElement('div');
+              c.id = 'ycs_allsearch__wrap_comments';
+              const l = document.createElement('div');
+              l.id = 'ycs_allsearch__wrap_comments_chat';
+              const d = document.createElement('div');
+              d.id = 'ycs_allsearch__wrap_comments_trvideo';
+              try {
+                if (
+                  (commentsDataBuf.length > 0 &&
+                    (null == n || n.appendChild(c),
+                    handleCommentsSearch('#ycs_allsearch__wrap_comments', t)),
+                  chatDataBuf &&
+                    chatDataBuf.size > 0 &&
+                    (null == n || n.appendChild(l),
+                    handleChatSearch('#ycs_allsearch__wrap_comments_chat', t)),
+                  transcriptDataBuf &&
+                    qt(
+                      () =>
+                        transcriptDataBuf.actions[0].updateEngagementPanelAction
+                          .content.transcriptRenderer.body
+                          .transcriptBodyRenderer.cueGroups.length
+                    ) > 0 &&
+                    (null == n || n.appendChild(d),
+                    handleTranscriptSearch(
+                      '#ycs_allsearch__wrap_comments_trvideo',
+                      t
+                    )),
+                  o)
+                ) {
+                  const e =
+                    countsReport.comments +
+                    countsReport.commentsChat +
+                    countsReport.commentsTrVideo;
+                  (null == t ? void 0 : t.timestamp)
+                    ? (o.innerText = `Time stamps, found: ${e}`)
+                    : (null == t ? void 0 : t.author)
+                    ? (o.innerText = `Author, found: ${e}`)
+                    : (null == t ? void 0 : t.heart)
+                    ? (o.innerText = `Heart, found: ${e}`)
+                    : (null == t ? void 0 : t.verified)
+                    ? (o.innerText = `Verified authors, found: ${e}`)
+                    : (null == t ? void 0 : t.links)
+                    ? (o.innerText = `Links, found: ${e}`)
+                    : (null == t ? void 0 : t.likes)
+                    ? (o.innerText = `Likes, found: ${e}`)
+                    : (null == t ? void 0 : t.replied)
+                    ? (o.innerText = `Replied, found: ${e}`)
+                    : (null == t ? void 0 : t.members)
+                    ? (o.innerText = `Members, found: ${e}`)
+                    : (null == t ? void 0 : t.donated)
+                    ? (o.innerText = `Donated, found: ${e}`)
+                    : (null == t ? void 0 : t.random)
+                    ? (o.innerText = `Random, found: ${e}`)
+                    : (null == t ? void 0 : t.sortFirst)
+                    ? (o.innerText = `All comments, found: ${e}`)
+                    : (o.innerText = `(All) Found: ${e}`),
+                    null == o || o.classList.remove('ycs-hidden');
+                }
+              } catch (e) {}
+            };
+
+            function dispatchSearch(
+              searchOptions,
+              { typeSelector = '#ycs_search_select', type: optType } = {}
+            ) {
+              let type = optType;
+              if (typeSelector) {
+                const eSearchSelect =
+                  document.getElementById('ycs_search_select');
+                type = eSearchSelect?.value;
               }
-              if (!hit) {
-                return undefined;
+
+              switch (type) {
+                case 'comments':
+                  handleCommentsSearch('#ycs-search-result', searchOptions);
+                  break;
+                case 'chat':
+                  handleChatSearch('#ycs-search-result', searchOptions);
+                  break;
+                case 'video':
+                  handleTranscriptSearch('#ycs-search-result', searchOptions);
+                  break;
+                case 'all':
+                  handleAllSearch('#ycs-search-result', searchOptions);
+                  break;
+                default:
+                  handleAllSearch('#ycs-search-result', searchOptions);
+                  break;
               }
-              return options;
             }
+
             w &&
               w.addEventListener('click', () => {
-                // Ht() function cleans up the active states of buttons
-                // Ht(u, 'ycs_btn_active');
-                const e = document.getElementById('ycs_search_select');
-                if (e) {
-                  const searchOptions = getSearchOptions(u);
-                  var t;
-                  switch (
-                    null == e
-                      ? void 0
-                      : e.options[
-                          null == e || null === (t = e.options) || void 0 === t
-                            ? void 0
-                            : t.selectedIndex
-                        ].value
-                  ) {
-                    case 'comments':
-                      handleCommentsSearch('#ycs-search-result', searchOptions);
-                      break;
-                    case 'chat':
-                      handleChatSearch('#ycs-search-result', searchOptions);
-                      break;
-                    case 'video':
-                      handleTranscriptSearch(
-                        '#ycs-search-result',
-                        searchOptions
-                      );
-                      break;
-                    case 'all':
-                      handleAllSearch('#ycs-search-result', searchOptions);
-                  }
-                }
+                // removeClassName() function cleans up the active states of buttons
+                // removeClassName(btnPool, 'ycs_btn_active');
+
+                const searchOptions = getSearchOptions(btnPool);
+                dispatchSearch(searchOptions);
               }),
               window.postMessage(
                 {
@@ -12439,7 +12678,7 @@
                           '\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"\n            width="48" height="48"\n            viewBox="0 0 48 48"\n            style=" fill:#000000;"><linearGradient id="I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1" x1="9.858" x2="38.142" y1="9.858" y2="38.142" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#21ad64"></stop><stop offset="1" stop-color="#088242"></stop></linearGradient><path fill="url(#I9GV0SozQFknxHSR6DCx5a_70yRC8npwT3d_gr1)" d="M44,24c0,11.045-8.955,20-20,20S4,35.045,4,24S12.955,4,24,4S44,12.955,44,24z"></path><path d="M32.172,16.172L22,26.344l-5.172-5.172c-0.781-0.781-2.047-0.781-2.828,0l-1.414,1.414\tc-0.781,0.781-0.781,2.047,0,2.828l8,8c0.781,0.781,2.047,0.781,2.828,0l13-13c0.781-0.781,0.781-2.047,0-2.828L35,16.172\tC34.219,15.391,32.953,15.391,32.172,16.172z" opacity=".05"></path><path d="M20.939,33.061l-8-8c-0.586-0.586-0.586-1.536,0-2.121l1.414-1.414c0.586-0.586,1.536-0.586,2.121,0\tL22,27.051l10.525-10.525c0.586-0.586,1.536-0.586,2.121,0l1.414,1.414c0.586,0.586,0.586,1.536,0,2.121l-13,13\tC22.475,33.646,21.525,33.646,20.939,33.061z" opacity=".07"></path><path fill="#fff" d="M21.293,32.707l-8-8c-0.391-0.391-0.391-1.024,0-1.414l1.414-1.414c0.391-0.391,1.024-0.391,1.414,0\tL22,27.758l10.879-10.879c0.391-0.391,1.024-0.391,1.414,0l1.414,1.414c0.391,0.391,0.391,1.024,0,1.414l-13,13\tC22.317,33.098,21.683,33.098,21.293,32.707z"></path></svg>\n        </span>\n    '),
                         commentsDataBuf.length > 0 &&
                           (h.parentNode || h.parentElement) &&
-                          (o.comments = commentsDataBuf.length);
+                          (countsAct.comments = commentsDataBuf.length);
                       const r = document.getElementById('ycs_cmnts');
                       if (
                         (r && (r.textContent = `${commentsDataBuf.length}`),
@@ -12455,7 +12694,7 @@
                         (chatDataBuf &&
                           chatDataBuf.size > 0 &&
                           (h.parentNode || h.parentElement) &&
-                          (o.commentsChat = chatDataBuf.size),
+                          (countsAct.commentsChat = chatDataBuf.size),
                         qt(() => {
                           var e, t, n, o, r, a, s, c;
                           return (
@@ -12520,10 +12759,14 @@
                         );
                       }) &&
                         (h.parentNode || h.parentElement) &&
-                        (o.commentsTrVideo =
+                        (countsAct.commentsTrVideo =
                           transcriptDataBuf.actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length);
-                      const c = o.comments + o.commentsChat + o.commentsTrVideo;
-                      dn('NUMBER_COMMENTS', c), m && (m.textContent = `(${c})`);
+                      const c =
+                        countsAct.comments +
+                        countsAct.commentsChat +
+                        countsAct.commentsTrVideo;
+                      postTextMessage('NUMBER_COMMENTS', c),
+                        m && (m.textContent = `(${c})`);
                       document
                         .getElementById('ycs-count-load')
                         .insertAdjacentHTML(
