@@ -6555,17 +6555,20 @@
       Math.floor(Math.random() * (t - e + 1) + e)
     );
   }
-  function Ht(e, t) {
+  function removeClassName(elementMap, className) {
     try {
       if (
-        ((n = e) && 0 === Object.keys(n).length && n.constructor === Object) ||
-        'string' != typeof t
-      )
+        !elementMap ||
+        Object.keys(elementMap).length === 0 ||
+        typeof className !== 'string'
+      ) {
         return;
-      const o = Object.values(e);
-      for (const e of o) e.classList.remove(t);
-    } catch (e) {}
-    var n;
+      }
+      const elements = Object.values(elementMap);
+      for (const element of elements) {
+        element.classList.remove(className);
+      }
+    } catch (error) {}
   }
   function Gt(e, t, n) {
     try {
@@ -9677,7 +9680,7 @@
               (d = l) &&
               (d.innerHTML =
                 '\n        <div>\n            <div>\n                <div class="ycs-searchbox">\n                    <input title="Write the search query, press Enter or click the button Search."\n                        class="ycs-search__input ycs_noselect" type="text" id="ycs-input-search" placeholder="Search">\n                </div>\n                <select title="Select a search category." name="ycs_search_select"\n                    id="ycs_search_select" class="ycs-btn-search ycs-title ycs-search-select ycs_noselect">\n                    <option value="comments">Comments</option>\n                    <option value="chat">Chat replay</option>\n                    <option value="video">Trpt. video</option>\n                    <option selected value="all">All</option>\n                </select>\n                <button id="ycs_btn_search" class="ycs-btn-search ycs-title ycs_noselect" type="button">\n                    Search\n                </button>\n\n                <div class="ycs-ext-search_block">\n                    <p id="ycs-search-total-result" class="ycs-title"></p>\n                    <div class="ycs-ext-search_option">\n                        <label for="ycs_extended_search" class="ycs_noselect ycs-title" title="Enables the use of unix-like search commands">\n                            <input type="checkbox" name="ycs_extended_search" id="ycs_extended_search">\n                            <span class="ycs-ext-search_title">Extended search</span>\n                        </label>\n                        <div class="ycs-ext-search-opts">\n                            <fieldset>\n                \n                                <label for="ycs_extended_search_title" class="ycs_noselect ycs-title" title="Extended search by title">\n                                    <input type="radio" id="ycs_extended_search_title" name="ycs_ext_search_opts" value="title" disabled>\n                                    <span class="ycs-ext-search_title">Title</span>\n                                </label>\n                    \n                                <label for="ycs_extended_search_main" class="ycs_noselect ycs-title" title="Extended search by main text">\n                                    <input type="radio" id="ycs_extended_search_main" name="ycs_ext_search_opts" value="main" disabled checked>\n                                    <span class="ycs-ext-search_title">Main</span>\n                                </label>\n                    \n                            </fieldset>\n                        </div>\n                        <a href="https://github.com/sonigy/YCS#extended-search" class="ycs-title ycs-ext-search_link" target="_blank" rel="noopener noreferrer" title="How to use">?</a>\n                    </div>\n                </div>\n                \n                <button id="ycs_btn_open_modal" class="ycs_noselect" title="FAQ">?</button>\n            </div>\n            <div class="ycs-search-result-infobar">\n                \n                <div class="ycs-btn-panel ycs_noselect">\n                    <button id="ycs_btn_timestamps"\n                        data-sort="newest"\n                        data-sort-chat="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="timestamps" type="button"\n                        title="Show comments, replies, chat with time stamps (Newest)">\n                        Time stamps\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_author"\n                        data-sort="newest"\n                        data-sort-chat="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="author" type="button"\n                        title="Show comments, replies, chat from the author (Newest)">\n                        Author\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_heart"\n                        data-sort="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="heart" type="button"\n                        title="Show comments and replies that the author likes (Newest)">\n                        <span class="ycs-creator-heart_icon">❤</span>\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_verified"\n                        data-sort="newest"\n                        data-sort-chat="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="verified" type="button"\n                        title="Show comments, replies and chat from a verified authors (Newest)">\n                        <span class="ycs-creator-verified_icon">✔</span>\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_links"\n                        data-sort="newest"\n                        data-sort-chat="newest"\n                        data-sort-trp="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="links" type="button"\n                        title="Shows links in comments, replies, chat, video transcript (Newest)">\n                        Links\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_likes"\n                        class="ycs-btn-search ycs-title"\n                        name="likes" type="button"\n                        title="Show comments, replies by number of likes (sort largest to smallest)">\n                        Likes\n                    </button>\n                    <button id="ycs_btn_replied_comments"\n                        class="ycs-btn-search ycs-title"\n                        name="replied" type="button"\n                        title="Show comments by number of replies (sort largest to smallest)">\n                        Replied\n                    </button>\n                    <button id="ycs_btn_members"\n                        data-sort="newest"\n                        data-sort-chat="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="members" type="button"\n                        title="Show comments, replies, chat from channel members (Newest)">\n                        Members\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_donated"\n                        data-sort-chat="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="donated" type="button"\n                        title="Show chat comments from users who have donated (Newest)">\n                        Donated\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_sort_first"\n                        data-sort="newest"\n                        data-sort-chat="newest"\n                        data-sort-trp="newest"\n                        class="ycs-btn-search ycs-title"\n                        name="sortFirst" type="button"\n                        title="Show all comments, chat, video transcript sorted by date (Newest)">\n                        All\n                        \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    \n                    </button>\n                    <button id="ycs_btn_random"\n                        class="ycs-btn-search ycs-title"\n                        name="random" type="button"\n                        title="Show a random comment">\n                        Random\n                    </button>\n                    <button id="ycs_btn_clear"\n                        class="ycs-btn-search ycs-title ycs-search-clear"\n                        name="clear" type="button"\n                        title="Clear search">\n                        X\n                    </button>\n                </div>\n            </div>\n        </div>\n    ');
-            const u = (() => ({
+            const btnPool = (() => ({
               elPTimeStamps: document.getElementById('ycs_btn_timestamps'),
               elPAuthor: document.getElementById('ycs_btn_author'),
               elPHeart: document.getElementById('ycs_btn_heart'),
@@ -9691,22 +9694,22 @@
               elPRandom: document.getElementById('ycs_btn_random'),
               elFirstComments: document.getElementById('ycs_btn_sort_first'),
             }))();
-            ((e) => {
-              if (e) {
+            ((pool) => {
+              if (pool) {
                 var t, n, o, i, a, s, c, l, d, h, m, p;
                 const f = () => {
                   (r.comments = 0),
                     (r.commentsChat = 0),
                     (r.commentsTrVideo = 0);
                 };
-                null == e ||
-                  null === (t = e.elPTimeStamps) ||
+                null == pool ||
+                  null === (t = pool.elPTimeStamps) ||
                   void 0 === t ||
                   t.addEventListener('click', (e) => {
                     try {
                       var t;
                       const n = e.currentTarget;
-                      Ht(u, 'ycs_btn_active'),
+                      removeClassName(pool, 'ycs_btn_active'),
                         f(),
                         null === (t = n) ||
                           void 0 === t ||
@@ -9716,14 +9719,14 @@
                         });
                     } catch (e) {}
                   }),
-                  null == e ||
-                    null === (n = e.elPAuthor) ||
+                  null == pool ||
+                    null === (n = pool.elPAuthor) ||
                     void 0 === n ||
                     n.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
@@ -9733,14 +9736,14 @@
                           });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (o = e.elPHeart) ||
+                  null == pool ||
+                    null === (o = pool.elPHeart) ||
                     void 0 === o ||
                     o.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
@@ -9750,14 +9753,14 @@
                           });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (i = e.elPVerified) ||
+                  null == pool ||
+                    null === (i = pool.elPVerified) ||
                     void 0 === i ||
                     i.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
@@ -9767,14 +9770,14 @@
                           });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (a = e.elPLinks) ||
+                  null == pool ||
+                    null === (a = pool.elPLinks) ||
                     void 0 === a ||
                     a.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
@@ -9784,14 +9787,14 @@
                           });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (s = e.elPLikes) ||
+                  null == pool ||
+                    null === (s = pool.elPLikes) ||
                     void 0 === s ||
                     s.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
@@ -9801,14 +9804,14 @@
                           });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (c = e.elPReplied) ||
+                  null == pool ||
+                    null === (c = pool.elPReplied) ||
                     void 0 === c ||
                     c.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
@@ -9818,14 +9821,14 @@
                           });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (l = e.elPMembers) ||
+                  null == pool ||
+                    null === (l = pool.elPMembers) ||
                     void 0 === l ||
                     l.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
@@ -9835,14 +9838,14 @@
                           });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (d = e.elPDonated) ||
+                  null == pool ||
+                    null === (d = pool.elPDonated) ||
                     void 0 === d ||
                     d.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
@@ -9852,29 +9855,40 @@
                           });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (h = e.elPClear) ||
+                  null == pool ||
+                    null === (h = pool.elPClear) ||
                     void 0 === h ||
                     h.addEventListener('click', (e) => {
                       try {
-                        Ht(u, 'ycs_btn_active'), f();
-                        const e = document.getElementById('ycs-search-result'),
-                          t = document.getElementById(
-                            'ycs-search-total-result'
-                          );
-                        e &&
-                          ((e.innerText = ''),
-                          (t.innerText = 'Search cleared'));
+                        removeClassName(pool, 'ycs_btn_active'), f();
+
+                        const eInputSearch =
+                          document.getElementById('ycs-input-search');
+                        // if search input is not empty, trigger search again for results without button filter
+                        if (eInputSearch.value && eInputSearch.value.trim()) {
+                          requestAnimationFrame(() => {
+                            document.getElementById('ycs_btn_search').click();
+                          });
+                        } else {
+                          const e =
+                              document.getElementById('ycs-search-result'),
+                            t = document.getElementById(
+                              'ycs-search-total-result'
+                            );
+                          e &&
+                            ((e.innerText = ''),
+                            (t.innerText = 'Search cleared'));
+                        }
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (m = e.elPRandom) ||
+                  null == pool ||
+                    null === (m = pool.elPRandom) ||
                     void 0 === m ||
                     m.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
@@ -9884,14 +9898,14 @@
                           });
                       } catch (e) {}
                     }),
-                  null == e ||
-                    null === (p = e.elFirstComments) ||
+                  null == pool ||
+                    null === (p = pool.elFirstComments) ||
                     void 0 === p ||
                     p.addEventListener('click', (e) => {
                       try {
                         var t;
                         const n = e.currentTarget;
-                        Ht(u, 'ycs_btn_active'),
+                        removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
                             void 0 === t ||
@@ -9902,7 +9916,7 @@
                       } catch (e) {}
                     });
               }
-            })(u);
+            })(btnPool);
             const h = document.getElementsByClassName('ycs-app')[0],
               m = document.getElementById('ycs-count-load'),
               p = document.getElementById('ycs-load-cmnts');
