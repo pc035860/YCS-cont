@@ -6559,7 +6559,7 @@
         'AbortError' !== (null == t ? void 0 : t.name) &&
         (null !== t || n.status >= 400 ? !(e > 100) : void 0),
     }),
-    Ut =
+    ycsOptions =
       ((function (
         e,
         t,
@@ -6800,7 +6800,7 @@
           cache: 'no-store',
         }),
         E = await C.json();
-      return (Ut.getInitYtData = E), E;
+      return (ycsOptions.getInitYtData = E), E;
     } catch (e) {
       return;
     }
@@ -8909,57 +8909,72 @@
       };
     }
   }
-  function yn(t, n) {
+  function markElements(selector, searchText) {
     try {
-      if (!n || !t || !(null == Ut ? void 0 : Ut.highlightText)) return;
-      if (document.getElementById('ycs_extended_search').checked) return;
-      const i = (e) => {
-        try {
-          if ('string' != typeof e) return;
-          let t = '';
-          return (
-            e.length <= 2
-              ? (t = e)
-              : e.length >= 3 && e.length <= 5
-              ? (t = e.slice(0, -1))
-              : e.length >= 6 && e.length <= 8
-              ? (t = e.slice(0, -3))
-              : e.length >= 9 && (t = e.slice(0, -4)),
-            t
-          );
-        } catch (t) {
-          return e;
-        }
-      };
-      if (1 === n.split(' ').length) n = i(n) || n;
-      else if (n.split(' ').length > 1) {
-        let e = '';
-        for (const t of n.split(' ')) e += i(t) + ' ';
-        n = null == e ? void 0 : e.trim();
+      if (
+        !searchText ||
+        !selector ||
+        !(null == ycsOptions ? void 0 : ycsOptions.highlightText)
+      ) {
+        return;
       }
-      const a = {
+      if (document.getElementById('ycs_extended_search').checked) {
+        return;
+      }
+
+      if (!ycsOptions.highlightExact) {
+        const magic = (e) => {
+          try {
+            if ('string' != typeof e) return;
+            let t = '';
+            return (
+              e.length <= 2
+                ? (t = e)
+                : e.length >= 3 && e.length <= 5
+                ? (t = e.slice(0, -1))
+                : e.length >= 6 && e.length <= 8
+                ? (t = e.slice(0, -3))
+                : e.length >= 9 && (t = e.slice(0, -4)),
+              t
+            );
+          } catch (t) {
+            return e;
+          }
+        };
+
+        if (searchText.split(' ').length === 1) {
+          searchText = magic(searchText) || searchText;
+        } else if (searchText.split(' ').length > 1) {
+          let modifiedSearchText = '';
+          for (const word of searchText.split(' ')) {
+            modifiedSearchText += magic(word) + ' ';
+          }
+          searchText = modifiedSearchText.trim();
+        }
+      }
+
+      const markOptions = {
         element: 'span',
         className: 'ycs-mark-words',
+        separateWordSearch: !ycsOptions.highlightExact,
       };
-      if ('string' != typeof t) {
-        var o, r;
-        const i = new (e(k))(
-            null === (o = t) || void 0 === o
-              ? void 0
-              : o.querySelectorAll('.ycs-head__title')
-          ),
-          s = new (e(k))(
-            null === (r = t) || void 0 === r
-              ? void 0
-              : r.querySelectorAll('.ycs-comment__main-text')
-          );
-        i.mark(n, a), s.mark(n, a);
+
+      if (typeof selector !== 'string') {
+        const titleElements = new (e(k))(
+          selector?.querySelectorAll('.ycs-head__title')
+        );
+        const textElements = new (e(k))(
+          selector?.querySelectorAll('.ycs-comment__main-text')
+        );
+        titleElements.mark(searchText, markOptions);
+        textElements.mark(searchText, markOptions);
       } else {
-        const o = new (e(k))(`${t} .ycs-head__title`),
-          r = new (e(k))(`${t} .ycs-comment__main-text`);
-        o.mark(n, a), r.mark(n, a);
+        const titleElements = new (e(k))(`${selector} .ycs-head__title`);
+        const textElements = new (e(k))(`${selector} .ycs-comment__main-text`);
+        titleElements.mark(searchText, markOptions);
+        textElements.mark(searchText, markOptions);
       }
-    } catch (e) {}
+    } catch (error) {}
   }
   function saveCache(e, t, n) {
     try {
@@ -9256,7 +9271,7 @@
                   const r = document.getElementsByClassName(n)[0];
                   for (const e of t)
                     r.insertAdjacentHTML('beforeend', e.html), G++;
-                  if ((o && yn(`.${n}`, o), l.length - G <= 0)) {
+                  if ((o && markElements(`.${n}`, o), l.length - G <= 0)) {
                     const e = document.getElementById('ycs_search_show_more');
                     e && e.remove();
                   } else {
@@ -9276,7 +9291,7 @@
         G = 0;
         for (const e of l) c.insertAdjacentHTML('beforeend', e.html);
       }
-      o && yn(e, o);
+      o && markElements(e, o);
     }
     var D, V;
   }
@@ -9477,7 +9492,7 @@
                   const i = document.getElementsByClassName(o)[0];
                   for (const e of t)
                     i.insertAdjacentHTML('beforeend', e.html), u++;
-                  if ((n && yn(`.${o}`, n), r.length - u <= 0)) {
+                  if ((n && markElements(`.${o}`, n), r.length - u <= 0)) {
                     const e = document.getElementById(
                       'ycs_search_chat_show_more'
                     );
@@ -9495,7 +9510,7 @@
               });
           }
         }
-        n && yn(e, n);
+        n && markElements(e, n);
       } catch (e) {
         u = 0;
         for (const e of r) o.insertAdjacentHTML('beforeend', e.html);
@@ -9617,7 +9632,7 @@
                   }
 
                   if (searchText) {
-                    yn(`.${uniqueClass}`, searchText);
+                    markElements(`.${uniqueClass}`, searchText);
                   }
 
                   if (renderedComments.length - startIndex <= 0) {
@@ -9650,7 +9665,7 @@
         }
 
         if (searchText) {
-          yn(elementSelector, searchText);
+          markElements(elementSelector, searchText);
         }
       } catch (error) {
         startIndex = 0;
@@ -11960,8 +11975,8 @@
                         const t = [],
                           n = qt(
                             () =>
-                              Ut.getInitYtData[2].playerResponse.videoDetails
-                                .channelId
+                              ycsOptions.getInitYtData[2].playerResponse
+                                .videoDetails.channelId
                           );
                         if (n)
                           for (const [o, r] of e.entries())
@@ -12606,7 +12621,12 @@
                       },
                       o = (e) => {
                         try {
-                          Ut.highlightText = e;
+                          ycsOptions.highlightText = e;
+                        } catch (e) {}
+                      },
+                      handleHighlightExact = (value) => {
+                        try {
+                          ycsOptions.highlightExact = value;
                         } catch (e) {}
                       },
                       r = (e) => {
@@ -12636,6 +12656,9 @@
                             break;
                           case 'highlightText':
                             o(t[e]);
+                            break;
+                          case 'highlightExact':
+                            handleHighlightExact(t[e]);
                             break;
                           case 'cache':
                             r(t[e]);
