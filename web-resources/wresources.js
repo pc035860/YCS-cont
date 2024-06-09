@@ -9209,7 +9209,7 @@
                 void 0 === O
                   ? void 0
                   : O.commentId),
-              'string' == typeof D || 'number' == typeof D
+              'string' == typeof D || ('number' == typeof D && 0 !== D)
                 ? `\n                <div class="ycs-wrap-like">\n                    <span class="ycs-icons__speech">\n                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="14px" height="14px">\n                            <linearGradient x1="12.686" x2="35.58" y1="4.592" y2="41.841"\n                                gradientUnits="userSpaceOnUse">\n                                <stop offset="0" stop-color="#21ad64" />\n                                <stop offset="1" stop-color="#088242" />\n                            </linearGradient>\n                            <path\n                                d="M42,8H6c-1.105,0-2,0.895-2,2v26c0,1.105,0.895,2,2,2h8v7.998\tc0,0.891,1.077,1.337,1.707,0.707L24.412,38H42c1.105,0,2-0.895,2-2V10C44,8.895,43.105,8,42,8z" />\n                        </svg>\n                    </span>\n                    <span class="ycs-like-count">${D}</span>\n                    <button class="ycs-open-reply" data-idcom="${V}" title="Open replies to the comment">+</button>\n                </div>\n            `
                 : '')
             }\n                                    ${
