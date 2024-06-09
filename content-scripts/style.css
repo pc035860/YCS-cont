@@ -89,7 +89,7 @@ html[dark] .ycs_btn_load-stop {
   border: 1px solid #303030;
   color: #fff;
 }
-#ycs_btn_search {
+#ycs_btn_search, #ycs_btn_clear_search {
   border-left: 0;
   padding: 7px;
 }
@@ -449,8 +449,12 @@ html[dark] .ycs-show_more_block:hover {
 }
 #ycs-input-search,
 #ycs_btn_search,
+#ycs_btn_clear_search,
 #ycs_search_select {
   height: 32px;
+}
+#ycs_btn_clear_search {
+  margin-left: 1px;
 }
 .ycs-chat_donation {
   display: inline-block;

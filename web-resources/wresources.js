@@ -6616,6 +6616,17 @@
       }
     } catch (error) {}
   }
+  function toggleVisibility(selector, on) {
+    const elm = document.querySelector(selector);
+    if (elm) {
+      if (typeof on === 'boolean') {
+        elm.classList.toggle('ycs-hidden', !on);
+      } else {
+        const v = elm.classList.contains('ycs-hidden');
+        elm.classList.toggle('ycs-hidden', !v);
+      }
+    }
+  }
   function Gt(e, t, n) {
     try {
       const o = (function (e) {
@@ -9718,6 +9729,12 @@
             type="button"
           >
             Search
+          </button><button
+            id="ycs_btn_clear_search"
+            class="ycs-btn-search ycs-title ycs_noselect ycs-hidden"
+            type="button"
+          >
+            X
           </button>
 
           <div class="ycs-ext-search_block">
@@ -10021,7 +10038,7 @@
             </button>
             <button
               id="ycs_btn_clear"
-              class="ycs-btn-search ycs-title ycs-search-clear"
+              class="ycs-btn-search ycs-title ycs-search-clear ycs-hidden"
               name="clear"
               type="button"
               title="Clear search"
@@ -10114,6 +10131,7 @@
                     try {
                       var t;
                       const n = e.currentTarget;
+                      toggleVisibility('#ycs_btn_clear', true);
                       removeClassName(pool, 'ycs_btn_active'),
                         f(),
                         null === (t = n) ||
@@ -10129,6 +10147,7 @@
                       try {
                         var t;
                         const n = e.currentTarget;
+                        toggleVisibility('#ycs_btn_clear', true);
                         removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
@@ -10144,6 +10163,7 @@
                       try {
                         var t;
                         const n = e.currentTarget;
+                        toggleVisibility('#ycs_btn_clear', true);
                         removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
@@ -10159,6 +10179,7 @@
                       try {
                         var t;
                         const n = e.currentTarget;
+                        toggleVisibility('#ycs_btn_clear', true);
                         removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
@@ -10174,6 +10195,7 @@
                       try {
                         var t;
                         const n = e.currentTarget;
+                        toggleVisibility('#ycs_btn_clear', true);
                         removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
@@ -10189,6 +10211,7 @@
                       try {
                         var t;
                         const n = e.currentTarget;
+                        toggleVisibility('#ycs_btn_clear', true);
                         removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
@@ -10204,6 +10227,7 @@
                       try {
                         var t;
                         const n = e.currentTarget;
+                        toggleVisibility('#ycs_btn_clear', true);
                         removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
@@ -10219,6 +10243,7 @@
                       try {
                         var t;
                         const n = e.currentTarget;
+                        toggleVisibility('#ycs_btn_clear', true);
                         removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
@@ -10234,6 +10259,7 @@
                       try {
                         var t;
                         const n = e.currentTarget;
+                        toggleVisibility('#ycs_btn_clear', true);
                         removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
@@ -10247,6 +10273,7 @@
                     void 0 === h ||
                     h.addEventListener('click', (e) => {
                       try {
+                        toggleVisibility('#ycs_btn_clear', false);
                         removeClassName(pool, 'ycs_btn_active'), f();
 
                         const eInputSearch =
@@ -10275,6 +10302,7 @@
                       try {
                         var t;
                         const n = e.currentTarget;
+                        toggleVisibility('#ycs_btn_clear', true);
                         removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
@@ -10290,6 +10318,7 @@
                       try {
                         var t;
                         const n = e.currentTarget;
+                        toggleVisibility('#ycs_btn_clear', true);
                         removeClassName(pool, 'ycs_btn_active'),
                           f(),
                           null === (t = n) ||
@@ -10945,13 +10974,22 @@
                 } catch (e) {}
               });
             const w = document.getElementById('ycs_btn_search'),
-              b = document.getElementById('ycs-input-search');
-            b &&
-              (b.onkeyup = (e) => {
-                ('Enter' !== e.key && 'Enter' !== e.code) ||
-                  null == w ||
-                  w.click();
-              });
+              b = document.getElementById('ycs-input-search'),
+              eClearSearchBtn = document.getElementById('ycs_btn_clear_search');
+            if (b) {
+              b.onkeyup = (e) => {
+                if (e.key === 'Enter' || e.code === 'Enter') {
+                  if (w) {
+                    w.click();
+                  }
+                } else if (e.key === 'Escape' || e.code === 'Escape') {
+                  if (w) {
+                    b.value = '';
+                    w.click();
+                  }
+                }
+              };
+            }
             const x = document.getElementById('ycs_open_all_comments_window');
             null == x ||
               x.addEventListener('click', () => {
@@ -11705,7 +11743,7 @@
                           'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
                   }
                 } else {
-                  (p = textSearchFuseResults), wn(t, p, !0, i);
+                  (p = textSearchFuseResults ?? []), wn(t, p, !0, i);
                 }
                 const f = document.getElementById('ycs-search-total-result');
                 f && (f.innerText = `(Comments) Found: ${p.length}`),
@@ -12282,7 +12320,7 @@
                         : bn(t, f, l);
                     }
                   } else {
-                    (f = textSearchFuseResults), bn(t, f, l);
+                    (f = textSearchFuseResults ?? []), bn(t, f, l);
                   }
                   const v = document.getElementById('ycs-search-total-result');
                   v && (v.innerText = `(Chat replay) Found: ${f.length}`),
@@ -12456,7 +12494,7 @@
                       }
                     }
                   else {
-                    (f = textSearchFuseResults), xn(t, f, l);
+                    (f = textSearchFuseResults ?? []), xn(t, f, l);
                   }
                   const v = document.getElementById('ycs-search-total-result');
                   v && (v.innerText = `(Tr. video) Found: ${f.length}`),
@@ -12567,6 +12605,10 @@
                 type = eSearchSelect?.value;
               }
 
+              const eSearchInput = document.getElementById('ycs-input-search');
+              const value = eSearchInput.value.trim();
+              toggleVisibility('#ycs_btn_clear_search', !!value);
+
               switch (type) {
                 case 'comments':
                   handleCommentsSearch('#ycs-search-result', searchOptions);
@@ -12585,6 +12627,16 @@
                   break;
               }
             }
+
+            eClearSearchBtn &&
+              eClearSearchBtn.addEventListener('click', () => {
+                if (w) {
+                  const eSearchInput =
+                    document.getElementById('ycs-input-search');
+                  eSearchInput.value = '';
+                  w.click();
+                }
+              });
 
             w &&
               w.addEventListener('click', () => {
