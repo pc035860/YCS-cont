@@ -1,8 +1,0 @@
-{
-   "ycs_description": {
-      "message": "콘텐츠, 작성자, 시간별로 YouTube에서 현재 동영상에 대한 댓글, 답글, 채팅 다시보기, 동영상 대본 검색"
-   },
-   "ycs_name": {
-      "message": "YouTube에서 댓글 검색"
-   }
-}
