@@ -10076,6 +10076,28 @@
             let transcriptDataBuf,
               commentsDataBuf = [],
               chatDataBuf = new Map();
+
+            // block the filter button from update its order state
+            let filterSortLock = false;
+            let filterSortLockTimeout = null;
+            const lockFilterSort = (ms) => {
+              clearTimeout(filterSortLockTimeout);
+              filterSortLock = true;
+              filterSortLockTimeout = setTimeout(() => {
+                filterSortLock = false;
+              }, ms);
+            };
+            const getLockedFilterSortOrder = (sortOrder) => {
+              if (filterSortLock) {
+                // reverse sort order state if we want to preserve the sort order
+                if (sortOrder === 'newest') {
+                  return 'oldest';
+                }
+                return 'newest';
+              }
+              return sortOrder;
+            };
+
             t = new AbortController();
             const fuseOptionsBase = {
               isCaseSensitive: !1,
@@ -11379,7 +11401,7 @@
                   if (((p = n), p.length > 0)) {
                     null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_links'),
-                      n = e.dataset.sort;
+                      n = getLockedFilterSortOrder(e.dataset.sort);
                     'newest' === n
                       ? (wn(t, p, !0, i),
                         (e.dataset.sort = 'oldest'),
@@ -11427,7 +11449,7 @@
                   if (((p = e), p.length > 0)) {
                     null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_members'),
-                      n = e.dataset.sort;
+                      n = getLockedFilterSortOrder(e.dataset.sort);
                     'newest' === n
                       ? (wn(t, p, !0, i),
                         (e.dataset.sort = 'oldest'),
@@ -11504,7 +11526,7 @@
                   if (((p = e), p.length > 0)) {
                     null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_author'),
-                      n = e.dataset.sort;
+                      n = getLockedFilterSortOrder(e.dataset.sort);
                     'newest' === n
                       ? (wn(t, p, !0, i),
                         (e.dataset.sort = 'oldest'),
@@ -11547,7 +11569,7 @@
                   if (((p = e), p.length > 0)) {
                     null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_heart'),
-                      n = e.dataset.sort;
+                      n = getLockedFilterSortOrder(e.dataset.sort);
                     'newest' === n
                       ? (wn(t, p, !0, i),
                         (e.dataset.sort = 'oldest'),
@@ -11585,7 +11607,7 @@
                   if (((p = e), p.length > 0)) {
                     null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_verified'),
-                      n = e.dataset.sort;
+                      n = getLockedFilterSortOrder(e.dataset.sort);
                     'newest' === n
                       ? (wn(t, p, !0, i),
                         (e.dataset.sort = 'oldest'),
@@ -11683,7 +11705,7 @@
                   if (p.length > 0) {
                     null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_timestamps'),
-                      n = e.dataset.sort;
+                      n = getLockedFilterSortOrder(e.dataset.sort);
                     'newest' === n
                       ? (wn(t, p, !0, i),
                         (e.dataset.sort = 'oldest'),
@@ -11723,7 +11745,7 @@
                   if (((p = e), p.length > 0)) {
                     null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_sort_first'),
-                      n = e.dataset.sort;
+                      n = getLockedFilterSortOrder(e.dataset.sort);
                     'newest' === n
                       ? (wn(t, p, !0, i),
                         (e.dataset.sort = 'oldest'),
@@ -12038,7 +12060,7 @@
                     if (((f = e), (null == f ? void 0 : f.length) > 0)) {
                       null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_author'),
-                        n = e.dataset.sortChat;
+                        n = getLockedFilterSortOrder(e.dataset.sortChat);
                       'newest' === n
                         ? (bn(t, f, l),
                           (e.dataset.sortChat = 'oldest'),
@@ -12087,7 +12109,7 @@
                     if (((f = e), (null == f ? void 0 : f.length) > 0)) {
                       null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_donated'),
-                        n = e.dataset.sortChat;
+                        n = getLockedFilterSortOrder(e.dataset.sortChat);
                       'newest' === n
                         ? (bn(t, f, l),
                           (e.dataset.sortChat = 'oldest'),
@@ -12153,7 +12175,7 @@
                     if (((f = e), (null == f ? void 0 : f.length) > 0)) {
                       null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_members'),
-                        n = e.dataset.sortChat;
+                        n = getLockedFilterSortOrder(e.dataset.sortChat);
                       'newest' === n
                         ? (bn(t, f, l),
                           (e.dataset.sortChat = 'oldest'),
@@ -12182,7 +12204,7 @@
                     ) {
                       null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_timestamps'),
-                        n = e.dataset.sortChat;
+                        n = getLockedFilterSortOrder(e.dataset.sortChat);
                       'newest' === n
                         ? (bn(t, f, l),
                           (e.dataset.sortChat = 'oldest'),
@@ -12219,7 +12241,7 @@
                     if (((f = e), (null == f ? void 0 : f.length) > 0)) {
                       null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_sort_first'),
-                        n = e.dataset.sortChat;
+                        n = getLockedFilterSortOrder(e.dataset.sortChat);
                       'newest' === n
                         ? (bn(t, f, l),
                           (e.dataset.sortChat = 'oldest'),
@@ -12260,7 +12282,7 @@
                     if (((f = e), (null == f ? void 0 : f.length) > 0)) {
                       null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_verified'),
-                        n = e.dataset.sortChat;
+                        n = getLockedFilterSortOrder(e.dataset.sortChat);
                       'newest' === n
                         ? (bn(t, f, l),
                           (e.dataset.sortChat = 'oldest'),
@@ -12302,7 +12324,7 @@
                     if (((f = n), (null == f ? void 0 : f.length) > 0)) {
                       null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                       const e = document.getElementById('ycs_btn_links'),
-                        n = e.dataset.sortChat;
+                        n = getLockedFilterSortOrder(e.dataset.sortChat);
                       'newest' === n
                         ? (bn(t, f, l),
                           (e.dataset.sortChat = 'oldest'),
@@ -12429,7 +12451,7 @@
                       if (((f = n), (null == f ? void 0 : f.length) > 0)) {
                         null == f || f.sort((e, t) => e.refIndex - t.refIndex);
                         const e = document.getElementById('ycs_btn_links'),
-                          n = e.dataset.sortTrp;
+                          n = getLockedFilterSortOrder(e.dataset.sortTrp);
                         'newest' === n
                           ? (xn(t, f, l),
                             (e.dataset.sortTrp = 'oldest'),
@@ -12474,7 +12496,7 @@
                             f.sort((e, t) => e.refIndex - t.refIndex);
                           const e =
                               document.getElementById('ycs_btn_sort_first'),
-                            n = e.dataset.sortTrp;
+                            n = getLockedFilterSortOrder(e.dataset.sortTrp);
                           'newest' === n
                             ? (xn(t, f, l),
                               (e.dataset.sortTrp = 'oldest'),
@@ -12642,6 +12664,9 @@
               w.addEventListener('click', () => {
                 // removeClassName() function cleans up the active states of buttons
                 // removeClassName(btnPool, 'ycs_btn_active');
+
+                // lock filter button sort state for 1 sec
+                lockFilterSort(1000);
 
                 const searchOptions = getSearchOptions(btnPool);
                 dispatchSearch(searchOptions);
