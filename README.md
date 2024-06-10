@@ -15,12 +15,12 @@ This version tries to migrate the latest API data back to the old version, allow
 
 ### With .crx
 
-- Download the .crx file from the release page.
+- Download the .crx file from the [release page](https://github.com/pc035860/YCS-cont/releases).
 - Open the .crx file with Chrome.
 
 ### Download zip
 
-- Download the zip file from the release page and unzip it.
+- Download the zip file from the [release page](https://github.com/pc035860/YCS-cont/releases) and unzip it.
 - Navigate to the chrome://extensions/ page and enable developer mode.
 - Click "Load unpacked" and select the unzipped folder.
 
@@ -32,5 +32,5 @@ This version tries to migrate the latest API data back to the old version, allow
 
 ### With .xpi (Firefox)
 
-- Download the .xpi file from the release page.
+- Download the .xpi file from the [release page](https://github.com/pc035860/YCS-cont/releases).
 - Open the .xpi file with Firefox.
