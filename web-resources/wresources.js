@@ -11322,7 +11322,7 @@
                 const commentsCount = commentsDataBuf.length;
                 const indexedBuf = commentsDataBuf.map((d, index) => ({
                   ...d,
-                  _index: commentsCount - index - 1,
+                  _index: index,
                 }));
                 const textSearchFuseResults = searchText
                   ? new (e(I))(indexedBuf, m).search(searchText).map((d) => ({
