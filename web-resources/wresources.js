@@ -6678,10 +6678,10 @@
     }
     return n;
   }
-  function Jt(e) {
+  function getVideoId(url) {
     try {
-      if ('string' != typeof e) return;
-      return new URL(e).searchParams.get('v');
+      if ('string' != typeof url) return;
+      return new URL(url).searchParams.get('v');
     } catch (e) {
       return;
     }
@@ -7231,7 +7231,7 @@
   }
   async function loadTranscript(signal) {
     const getTimedTextUrl = async () => {
-      const videoId = Jt(window.location.href);
+      const videoId = getVideoId(window.location.href);
       const response = await fetch(
         `https://www.youtube.com/watch?v=${videoId}`,
         {
@@ -7423,7 +7423,7 @@
                               ? void 0
                               : h.client,
                         },
-                        videoId: Jt(t),
+                        videoId: getVideoId(t),
                       }),
                       method: 'POST',
                       mode: 'cors',
@@ -7707,6 +7707,7 @@
       s = new (e(Ke))({
         concurrency: 4,
       });
+    const currentVideoId = getVideoId(window.location.href);
     async function processComments(continuationItems, t) {
       if (!continuationItems) return;
       for (const item of continuationItems) {
@@ -7743,9 +7744,17 @@
                       run.navigationEndpoint.watchEndpoint.startTimeSeconds
                     }s" data-offsetvideo="${
                       run.navigationEndpoint.watchEndpoint.startTimeSeconds
+                    }" data-video-id="${
+                      run.navigationEndpoint.watchEndpoint.videoId
                     }">${run.text || ''}</a>`;
-                    item.commentThreadRenderer.comment.commentRenderer.isTimeLine =
-                      'timeline';
+
+                    if (
+                      currentVideoId ===
+                      run.navigationEndpoint.watchEndpoint.videoId
+                    ) {
+                      item.commentThreadRenderer.comment.commentRenderer.isTimeLine =
+                        'timeline';
+                    }
                   } else {
                     if (run.navigationEndpoint.browseEndpoint) {
                       renderFullText += `<a class="ycs-cpointer ycs-comment-link" href="${
@@ -7839,6 +7848,18 @@
                                 .startTimeSeconds
                             ) >= 0
                           ) {
+                            let targetStr = '';
+
+                            if (
+                              currentVideoId ===
+                              run.navigationEndpoint.watchEndpoint.videoId
+                            ) {
+                              subItem.commentRenderer.isTimeLine = 'timeline';
+                            } else {
+                              targetStr =
+                                ' target="_blank" rel="noopener noreferrer" ';
+                            }
+
                             renderFullText += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${
                               run.navigationEndpoint.watchEndpoint.videoId
                             }&t=${
@@ -7847,8 +7868,9 @@
                             }s" data-offsetvideo="${
                               run.navigationEndpoint.watchEndpoint
                                 .startTimeSeconds
-                            }">${run.text || ''}</a>`;
-                            subItem.commentRenderer.isTimeLine = 'timeline';
+                            }" data-video-id="${
+                              run.navigationEndpoint.watchEndpoint.videoId
+                            }"${targetStr}>${run.text || ''}</a>`;
                           } else {
                             if (run.navigationEndpoint.browseEndpoint) {
                               renderFullText += `<a class="ycs-cpointer ycs-comment-link" href="${
@@ -7957,6 +7979,18 @@
                                   .startTimeSeconds
                               ) >= 0
                             ) {
+                              let targetStr = '';
+
+                              if (
+                                currentVideoId ===
+                                run.navigationEndpoint.watchEndpoint.videoId
+                              ) {
+                                subItem.commentRenderer.isTimeLine = 'timeline';
+                              } else {
+                                targetStr =
+                                  ' target="_blank" rel="noopener noreferrer" ';
+                              }
+
                               renderFullText += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${
                                 run.navigationEndpoint.watchEndpoint.videoId
                               }&t=${
@@ -7965,8 +7999,9 @@
                               }s" data-offsetvideo="${
                                 run.navigationEndpoint.watchEndpoint
                                   .startTimeSeconds
-                              }">${run.text || ''}</a>`;
-                              subItem.commentRenderer.isTimeLine = 'timeline';
+                              }" data-video-id="${
+                                run.navigationEndpoint.watchEndpoint.videoId
+                              }"${targetStr}>${run.text || ''}</a>`;
                             } else {
                               if (run.navigationEndpoint.browseEndpoint) {
                                 renderFullText += `<a class="ycs-cpointer ycs-comment-link" href="${
@@ -8991,7 +9026,7 @@
           type: 'YCS_CACHE_STORAGE_SET',
           body: {
             url: t,
-            videoId: Jt(Xt(t)),
+            videoId: getVideoId(Xt(t)),
             date: new Date().getTime(),
             titleVideo: n,
             comments: e.comments,
@@ -11770,6 +11805,7 @@
                 const f = document.getElementById('ycs-search-total-result');
                 f && (f.innerText = `(Comments) Found: ${p.length}`),
                   (countsReport.comments = p.length);
+                const currentVideoId = getVideoId(window.location.href);
                 const v = document.getElementById('ycs_wrap_comments');
                 v &&
                   v.addEventListener('click', (e) => {
@@ -11887,11 +11923,13 @@
                           ? void 0
                           : r.contains('ycs-gotochat-video')
                       ) {
-                        e.preventDefault();
-                        const t = document.getElementsByTagName('video')[0];
-                        if (t) {
-                          const n = e.target.dataset.offsetvideo;
-                          n && (t.currentTime = parseInt(n));
+                        if (o.dataset.videoId === currentVideoId) {
+                          e.preventDefault();
+                          const t = document.getElementsByTagName('video')[0];
+                          if (t) {
+                            const n = e.target.dataset.offsetvideo;
+                            n && (t.currentTime = parseInt(n));
+                          }
                         }
                       } else if (
                         null === (s = e.target) ||
@@ -12712,7 +12750,7 @@
                                 {
                                   type: 'YCS_CACHE_STORAGE_GET',
                                   body: {
-                                    videoId: Jt(Xt(e)),
+                                    videoId: getVideoId(Xt(e)),
                                   },
                                 },
                                 window.location.origin
