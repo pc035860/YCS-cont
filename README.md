@@ -13,10 +13,15 @@ This version tries to migrate the latest API data back to the old version, allow
 
 ## Install
 
-### With .crx
+### With .crx (Chrome, Edge, Brave, Vivaldi etc)
 
 - Download the .crx file from the [release page](https://github.com/pc035860/YCS-cont/releases).
-- Open the .crx file with Chrome.
+- Open the .crx file with your Chromium-based browser (Chrome, Edge, Brave, Vivaldi etc).
+  
+### With .xpi (Firefox)
+
+- Download the .xpi file from the [release page](https://github.com/pc035860/YCS-cont/releases).
+- Open the .xpi file with Firefox.
 
 ### Download zip
 
@@ -30,7 +35,3 @@ This version tries to migrate the latest API data back to the old version, allow
 - Navigate to the chrome://extensions/ page and enable developer mode.
 - Click "Load unpacked" and select the repository folder.
 
-### With .xpi (Firefox)
-
-- Download the .xpi file from the [release page](https://github.com/pc035860/YCS-cont/releases).
-- Open the .xpi file with Firefox.
