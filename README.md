@@ -22,6 +22,9 @@ This version tries to migrate the latest API data back to the old version, allow
 
 - Download the .xpi file from the [release page](https://github.com/pc035860/YCS-cont/releases).
 - Open the .xpi file with Firefox.
+- To enable automatic loading on YouTube, right-click on the extension icon and choose `Always Allow on www.youtube.com`.
+  <img src="https://github.com/pc035860/YCS-cont/assets/811518/bc8d1009-81bb-4064-8198-d4d62ab78f53" width="420">
+
 
 ### Download zip
 
