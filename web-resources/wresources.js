@@ -11427,7 +11427,7 @@
                               : 'string' == typeof e &&
                                 a.push({
                                   item: c,
-                                  refIndex: s,
+                                  refIndex: c._index,
                                 });
                           }
                         } else e = parseInt(e);
@@ -11436,7 +11436,7 @@
                           ((c.commentRenderer.likesForSort = e),
                           i.push({
                             item: c,
-                            refIndex: s,
+                            refIndex: c._index,
                           }));
                       }
                       if (
