@@ -6610,11 +6610,18 @@
       ) {
         return;
       }
+      let removed = [];
       const elements = Object.values(elementMap);
       for (const element of elements) {
-        element.classList.remove(className);
+        if (element.classList.contains(className)) {
+          element.classList.remove(className);
+          removed.push(element);
+        }
       }
-    } catch (error) {}
+      return removed;
+    } catch (error) {
+      return [];
+    }
   }
   function toggleVisibility(selector, on) {
     const elm = document.querySelector(selector);
@@ -9838,8 +9845,9 @@
           <div class="ycs-btn-panel ycs_noselect">
             <button
               id="ycs_btn_timestamps"
-              data-sort="newest"
-              data-sort-chat="newest"
+              data-sort="oldest"
+              data-sort-chat="oldest"
+              data-sort-all="oldest"
               class="ycs-btn-search ycs-title"
               name="timestamps"
               type="button"
@@ -9864,8 +9872,9 @@
             </button>
             <button
               id="ycs_btn_author"
-              data-sort="newest"
-              data-sort-chat="newest"
+              data-sort="oldest"
+              data-sort-chat="oldest"
+              data-sort-all="oldest"
               class="ycs-btn-search ycs-title"
               name="author"
               type="button"
@@ -9890,7 +9899,8 @@
             </button>
             <button
               id="ycs_btn_heart"
-              data-sort="newest"
+              data-sort="oldest"
+              data-sort-all="oldest"
               class="ycs-btn-search ycs-title"
               name="heart"
               type="button"
@@ -9915,8 +9925,9 @@
             </button>
             <button
               id="ycs_btn_verified"
-              data-sort="newest"
-              data-sort-chat="newest"
+              data-sort="oldest"
+              data-sort-chat="oldest"
+              data-sort-all="oldest"
               class="ycs-btn-search ycs-title"
               name="verified"
               type="button"
@@ -9941,9 +9952,10 @@
             </button>
             <button
               id="ycs_btn_links"
-              data-sort="newest"
-              data-sort-chat="newest"
-              data-sort-trp="newest"
+              data-sort="oldest"
+              data-sort-chat="oldest"
+              data-sort-trp="oldest"
+              data-sort-all="oldest"
               class="ycs-btn-search ycs-title"
               name="links"
               type="button"
@@ -9986,8 +9998,9 @@
             </button>
             <button
               id="ycs_btn_members"
-              data-sort="newest"
-              data-sort-chat="newest"
+              data-sort="oldest"
+              data-sort-chat="oldest"
+              data-sort-all="oldest"
               class="ycs-btn-search ycs-title"
               name="members"
               type="button"
@@ -10012,7 +10025,8 @@
             </button>
             <button
               id="ycs_btn_donated"
-              data-sort-chat="newest"
+              data-sort-chat="oldest"
+              data-sort-all="oldest"
               class="ycs-btn-search ycs-title"
               name="donated"
               type="button"
@@ -10037,9 +10051,10 @@
             </button>
             <button
               id="ycs_btn_sort_first"
-              data-sort="newest"
-              data-sort-chat="newest"
-              data-sort-trp="newest"
+              data-sort="oldest"
+              data-sort-chat="oldest"
+              data-sort-trp="oldest"
+              data-sort-all="oldest"
               class="ycs-btn-search ycs-title"
               name="sortFirst"
               type="button"
@@ -10189,8 +10204,13 @@
                       var t;
                       const n = e.currentTarget;
                       toggleVisibility('#ycs_btn_clear', true);
-                      removeClassName(pool, 'ycs_btn_active'),
-                        f(),
+                      const removed = removeClassName(pool, 'ycs_btn_active');
+                      if (!removed.includes(n)) {
+                        lockFilterSort(100);
+                      }
+                      removed.length = 0;
+
+                      f(),
                         null === (t = n) ||
                           void 0 === t ||
                           t.classList.add('ycs_btn_active'),
@@ -10205,8 +10225,12 @@
                         var t;
                         const n = e.currentTarget;
                         toggleVisibility('#ycs_btn_clear', true);
-                        removeClassName(pool, 'ycs_btn_active'),
-                          f(),
+                        const removed = removeClassName(pool, 'ycs_btn_active');
+                        if (!removed.includes(n)) {
+                          lockFilterSort(100);
+                        }
+                        removed.length = 0;
+                        f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
@@ -10221,8 +10245,12 @@
                         var t;
                         const n = e.currentTarget;
                         toggleVisibility('#ycs_btn_clear', true);
-                        removeClassName(pool, 'ycs_btn_active'),
-                          f(),
+                        const removed = removeClassName(pool, 'ycs_btn_active');
+                        if (!removed.includes(n)) {
+                          lockFilterSort(100);
+                        }
+                        removed.length = 0;
+                        f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
@@ -10237,8 +10265,12 @@
                         var t;
                         const n = e.currentTarget;
                         toggleVisibility('#ycs_btn_clear', true);
-                        removeClassName(pool, 'ycs_btn_active'),
-                          f(),
+                        const removed = removeClassName(pool, 'ycs_btn_active');
+                        if (!removed.includes(n)) {
+                          lockFilterSort(100);
+                        }
+                        removed.length = 0;
+                        f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
@@ -10253,8 +10285,12 @@
                         var t;
                         const n = e.currentTarget;
                         toggleVisibility('#ycs_btn_clear', true);
-                        removeClassName(pool, 'ycs_btn_active'),
-                          f(),
+                        const removed = removeClassName(pool, 'ycs_btn_active');
+                        if (!removed.includes(n)) {
+                          lockFilterSort(100);
+                        }
+                        removed.length = 0;
+                        f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
@@ -10301,8 +10337,12 @@
                         var t;
                         const n = e.currentTarget;
                         toggleVisibility('#ycs_btn_clear', true);
-                        removeClassName(pool, 'ycs_btn_active'),
-                          f(),
+                        const removed = removeClassName(pool, 'ycs_btn_active');
+                        if (!removed.includes(n)) {
+                          lockFilterSort(100);
+                        }
+                        removed.length = 0;
+                        f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
@@ -10317,8 +10357,12 @@
                         var t;
                         const n = e.currentTarget;
                         toggleVisibility('#ycs_btn_clear', true);
-                        removeClassName(pool, 'ycs_btn_active'),
-                          f(),
+                        const removed = removeClassName(pool, 'ycs_btn_active');
+                        if (!removed.includes(n)) {
+                          lockFilterSort(100);
+                        }
+                        removed.length = 0;
+                        f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
@@ -10376,8 +10420,12 @@
                         var t;
                         const n = e.currentTarget;
                         toggleVisibility('#ycs_btn_clear', true);
-                        removeClassName(pool, 'ycs_btn_active'),
-                          f(),
+                        const removed = removeClassName(pool, 'ycs_btn_active');
+                        if (!removed.includes(n)) {
+                          lockFilterSort(100);
+                        }
+                        removed.length = 0;
+                        f(),
                           null === (t = n) ||
                             void 0 === t ||
                             t.classList.add('ycs_btn_active'),
@@ -11291,7 +11339,14 @@
                   return;
                 }
               });
-            const handleCommentsSearch = (t, n) => {
+            const handleCommentsSearch = (t, _n) => {
+              const n = _n
+                ? {
+                    ..._n,
+                    sortKey: _n.sortKey ?? 'sort',
+                  }
+                : undefined;
+
               try {
                 if (
                   0 === commentsDataBuf.length ||
@@ -11436,24 +11491,27 @@
                   if (((p = n), p.length > 0)) {
                     null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_links'),
-                      n = getLockedFilterSortOrder(e.dataset.sort);
-                    'newest' === n
+                      order = getLockedFilterSortOrder(e.dataset[n.sortKey]);
+                    'newest' === order
                       ? (wn(t, p, !0, i),
-                        (e.dataset.sort = 'oldest'),
-                        (e.innerHTML =
-                          'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                        (e.title =
-                          'Shows links in comments, replies, chat, video transcript (Newest)'))
-                      : 'oldest' === n
+                        !n.skipButtonUIUpdate &&
+                          ((e.dataset[n.sortKey] = 'oldest'),
+                          (e.innerHTML =
+                            'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Shows links in comments, replies, chat, video transcript (Newest)')))
+                      : 'oldest' === order
                       ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
-                        (e.dataset.sort = 'newest'),
-                        (e.innerHTML =
-                          'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                        (e.title =
-                          'Shows links in comments, replies, chat, video transcript (Oldest)'))
+                        !n.skipButtonUIUpdate &&
+                          ((e.dataset[n.sortKey] = 'newest'),
+                          (e.innerHTML =
+                            'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Shows links in comments, replies, chat, video transcript (Oldest)')))
                       : (wn(t, p, !0, i),
-                        (e.innerHTML =
-                          'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                        !n.skipButtonUIUpdate &&
+                          (e.innerHTML =
+                            'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
                   }
                 } else if (null == n ? void 0 : n.members) {
                   const e = (function (e) {
@@ -11484,24 +11542,27 @@
                   if (((p = e), p.length > 0)) {
                     null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_members'),
-                      n = getLockedFilterSortOrder(e.dataset.sort);
-                    'newest' === n
+                      order = getLockedFilterSortOrder(e.dataset[n.sortKey]);
+                    'newest' === order
                       ? (wn(t, p, !0, i),
-                        (e.dataset.sort = 'oldest'),
-                        (e.innerHTML =
-                          'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                        (e.title =
-                          'Show comments, replies, chat from channel members (Newest)'))
-                      : 'oldest' === n
+                        !n.skipButtonUIUpdate &&
+                          ((e.dataset[n.sortKey] = 'oldest'),
+                          (e.innerHTML =
+                            'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show comments, replies, chat from channel members (Newest)')))
+                      : 'oldest' === order
                       ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
-                        (e.dataset.sort = 'newest'),
-                        (e.innerHTML =
-                          'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                        (e.title =
-                          'Show comments, replies, chat from channel members (Oldest)'))
+                        !n.skipButtonUIUpdate &&
+                          ((e.dataset[n.sortKey] = 'newest'),
+                          (e.innerHTML =
+                            'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show comments, replies, chat from channel members (Oldest)')))
                       : (wn(t, p, !0, i),
-                        (e.innerHTML =
-                          'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                        !n.skipButtonUIUpdate &&
+                          (e.innerHTML =
+                            'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
                   }
                 } else if (null == n ? void 0 : n.replied) {
                   const e = (function (e) {
@@ -11561,24 +11622,27 @@
                   if (((p = e), p.length > 0)) {
                     null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_author'),
-                      n = getLockedFilterSortOrder(e.dataset.sort);
-                    'newest' === n
+                      order = getLockedFilterSortOrder(e.dataset[n.sortKey]);
+                    'newest' === order
                       ? (wn(t, p, !0, i),
-                        (e.dataset.sort = 'oldest'),
-                        (e.innerHTML =
-                          'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                        (e.title =
-                          'Show comments, replies, chat from the author (Newest)'))
-                      : 'oldest' === n
+                        !n.skipButtonUIUpdate &&
+                          ((e.dataset[n.sortKey] = 'oldest'),
+                          (e.innerHTML =
+                            'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show comments, replies, chat from the author (Newest)')))
+                      : 'oldest' === order
                       ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
-                        (e.dataset.sort = 'newest'),
-                        (e.innerHTML =
-                          'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                        (e.title =
-                          'Show comments, replies, chat from the author (Oldest)'))
+                        !n.skipButtonUIUpdate &&
+                          ((e.dataset[n.sortKey] = 'newest'),
+                          (e.innerHTML =
+                            'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show comments, replies, chat from the author (Oldest)')))
                       : (wn(t, p, !0, i),
-                        (e.innerHTML =
-                          'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                        !n.skipButtonUIUpdate &&
+                          (e.innerHTML =
+                            'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
                   }
                 } else if (null == n ? void 0 : n.heart) {
                   const e = (function (e) {
@@ -11604,24 +11668,27 @@
                   if (((p = e), p.length > 0)) {
                     null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_heart'),
-                      n = getLockedFilterSortOrder(e.dataset.sort);
-                    'newest' === n
+                      order = getLockedFilterSortOrder(e.dataset[n.sortKey]);
+                    'newest' === order
                       ? (wn(t, p, !0, i),
-                        (e.dataset.sort = 'oldest'),
-                        (e.innerHTML =
-                          '<span class="ycs-creator-heart_icon">❤</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                        (e.title =
-                          'Show comments and replies that the author likes (Newest)'))
-                      : 'oldest' === n
+                        !n.skipButtonUIUpdate &&
+                          ((e.dataset[n.sortKey] = 'oldest'),
+                          (e.innerHTML =
+                            '<span class="ycs-creator-heart_icon">❤</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show comments and replies that the author likes (Newest)')))
+                      : 'oldest' === order
                       ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
-                        (e.dataset.sort = 'newest'),
-                        (e.innerHTML =
-                          '<span class="ycs-creator-heart_icon">❤</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                        (e.title =
-                          'Show comments and replies that the author likes (Oldest)'))
+                        !n.skipButtonUIUpdate &&
+                          ((e.dataset[n.sortKey] = 'newest'),
+                          (e.innerHTML =
+                            '<span class="ycs-creator-heart_icon">❤</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show comments and replies that the author likes (Oldest)')))
                       : (wn(t, p, !0, i),
-                        (e.innerHTML =
-                          '<span class="ycs-creator-heart_icon">❤</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                        !n.skipButtonUIUpdate &&
+                          (e.innerHTML =
+                            '<span class="ycs-creator-heart_icon">❤</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
                   }
                 } else if (null == n ? void 0 : n.verified) {
                   const e = (function (e) {
@@ -11642,24 +11709,27 @@
                   if (((p = e), p.length > 0)) {
                     null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_verified'),
-                      n = getLockedFilterSortOrder(e.dataset.sort);
-                    'newest' === n
+                      order = getLockedFilterSortOrder(e.dataset[n.sortKey]);
+                    'newest' === order
                       ? (wn(t, p, !0, i),
-                        (e.dataset.sort = 'oldest'),
-                        (e.innerHTML =
-                          '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                        (e.title =
-                          'Show comments,  replies and chat from a verified authors (Newest)'))
-                      : 'oldest' === n
+                        !n.skipButtonUIUpdate &&
+                          ((e.dataset[n.sortKey] = 'oldest'),
+                          (e.innerHTML =
+                            '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show comments,  replies and chat from a verified authors (Newest)')))
+                      : 'oldest' === order
                       ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
-                        (e.dataset.sort = 'newest'),
-                        (e.innerHTML =
-                          '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                        (e.title =
-                          'Show comments,  replies and chat from a verified authors (Oldest)'))
+                        !n.skipButtonUIUpdate &&
+                          ((e.dataset[n.sortKey] = 'newest'),
+                          (e.innerHTML =
+                            '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show comments,  replies and chat from a verified authors (Oldest)')))
                       : (wn(t, p, !0, i),
-                        (e.innerHTML =
-                          '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                        !n.skipButtonUIUpdate &&
+                          (e.innerHTML =
+                            '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
                   }
                 } else if (null == n ? void 0 : n.random) {
                   const e = (function (e) {
@@ -11740,24 +11810,27 @@
                   if (p.length > 0) {
                     null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_timestamps'),
-                      n = getLockedFilterSortOrder(e.dataset.sort);
-                    'newest' === n
+                      order = getLockedFilterSortOrder(e.dataset[n.sortKey]);
+                    'newest' === order
                       ? (wn(t, p, !0, i),
-                        (e.dataset.sort = 'oldest'),
-                        (e.innerHTML =
-                          'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                        (e.title =
-                          'Show comments, replies, chat with time stamps (Newest)'))
-                      : 'oldest' === n
+                        !n.skipButtonUIUpdate &&
+                          ((e.dataset[n.sortKey] = 'oldest'),
+                          (e.innerHTML =
+                            'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show comments, replies, chat with time stamps (Newest)')))
+                      : 'oldest' === order
                       ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
-                        (e.dataset.sort = 'newest'),
-                        (e.innerHTML =
-                          'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                        (e.title =
-                          'Show comments, replies, chat with time stamps (Oldest)'))
+                        !n.skipButtonUIUpdate &&
+                          ((e.dataset[n.sortKey] = 'newest'),
+                          (e.innerHTML =
+                            'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show comments, replies, chat with time stamps (Oldest)')))
                       : (wn(t, p, !0, i),
-                        (e.innerHTML =
-                          'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                        !n.skipButtonUIUpdate &&
+                          (e.innerHTML =
+                            'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
                   }
                 } else if (null == n ? void 0 : n.sortFirst) {
                   const e = (function (e) {
@@ -11780,24 +11853,27 @@
                   if (((p = e), p.length > 0)) {
                     null == p || p.sort((e, t) => e.refIndex - t.refIndex);
                     const e = document.getElementById('ycs_btn_sort_first'),
-                      n = getLockedFilterSortOrder(e.dataset.sort);
-                    'newest' === n
+                      order = getLockedFilterSortOrder(e.dataset[n.sortKey]);
+                    'newest' === order
                       ? (wn(t, p, !0, i),
-                        (e.dataset.sort = 'oldest'),
-                        (e.innerHTML =
-                          'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                        (e.title =
-                          'Show all comments, chat, video transcript sorted by date (Newest)'))
-                      : 'oldest' === n
+                        !n.skipButtonUIUpdate &&
+                          ((e.dataset[n.sortKey] = 'oldest'),
+                          (e.innerHTML =
+                            'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show all comments, chat, video transcript sorted by date (Newest)')))
+                      : 'oldest' === order
                       ? (wn(t, null == p ? void 0 : p.reverse(), !0, i),
-                        (e.dataset.sort = 'newest'),
-                        (e.innerHTML =
-                          'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                        (e.title =
-                          'Show all comments, chat, video transcript sorted by date (Oldest)'))
+                        !n.skipButtonUIUpdate &&
+                          ((e.dataset[n.sortKey] = 'newest'),
+                          (e.innerHTML =
+                            'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                          (e.title =
+                            'Show all comments, chat, video transcript sorted by date (Oldest)')))
                       : (wn(t, p, !0, i),
-                        (e.innerHTML =
-                          'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                        !n.skipButtonUIUpdate &&
+                          (e.innerHTML =
+                            'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
                   }
                 } else {
                   (p = textSearchFuseResults ?? []), wn(t, p, !0, i);
@@ -12000,7 +12076,14 @@
                   });
               } catch (e) {}
             };
-            const handleChatSearch = (t, n) => {
+            const handleChatSearch = (t, _n) => {
+              const n = _n
+                ? {
+                    ..._n,
+                    sortKey: _n.sortKey ?? 'sortChat',
+                  }
+                : undefined;
+
               function rebuildChatData(chatItems) {
                 const chatData = new Map();
                 chatItems.forEach((chatItem) => {
@@ -12096,24 +12179,42 @@
                       }
                     })(textSearchResults);
                     if (((f = e), (null == f ? void 0 : f.length) > 0)) {
-                      null == f || f.sort((e, t) => e.refIndex - t.refIndex);
+                      null == f || f.sort((a, b) => b.refIndex - a.refIndex);
                       const e = document.getElementById('ycs_btn_author'),
-                        n = getLockedFilterSortOrder(e.dataset.sortChat);
-                      'newest' === n
-                        ? (bn(t, f, l),
-                          (e.dataset.sortChat = 'oldest'),
-                          (e.innerHTML =
-                            'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show comments, replies, chat from the author (Newest)'))
-                        : 'oldest' === n
-                        ? (bn(t, null == f ? void 0 : f.reverse(), l),
-                          (e.dataset.sortChat = 'newest'),
-                          (e.innerHTML =
-                            'Author \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show comments, replies, chat from the author (Oldest)'))
-                        : bn(t, f, l);
+                        order = getLockedFilterSortOrder(e.dataset[n.sortKey]);
+                      if ('newest' === order) {
+                        bn(t, f, l);
+                        if (!n.skipButtonUIUpdate) {
+                          e.dataset[n.sortKey] = 'oldest';
+                          e.innerHTML = `
+                            Author 
+                            <span class="ycs-icons">
+                                <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">
+                                    <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>
+                                </svg>
+                            </span>
+                          `;
+                        }
+                        e.title =
+                          'Show comments, replies, chat from the author (Newest)';
+                      } else if ('oldest' === order) {
+                        bn(t, null == f ? void 0 : f.reverse(), l);
+                        if (!n.skipButtonUIUpdate) {
+                          e.dataset[n.sortKey] = 'newest';
+                          e.innerHTML = `
+                            Author 
+                            <span class="ycs-icons">
+                                <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">
+                                    <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>
+                                </svg>
+                            </span>
+                          `;
+                          e.title =
+                            'Show comments, replies, chat from the author (Oldest)';
+                        }
+                      } else {
+                        bn(t, f, l);
+                      }
                     }
                   } else if (null == n ? void 0 : n.donated) {
                     const e = (function (e) {
@@ -12145,26 +12246,29 @@
                       }
                     })(textSearchResults);
                     if (((f = e), (null == f ? void 0 : f.length) > 0)) {
-                      null == f || f.sort((e, t) => e.refIndex - t.refIndex);
+                      null == f || f.sort((a, b) => b.refIndex - a.refIndex);
                       const e = document.getElementById('ycs_btn_donated'),
-                        n = getLockedFilterSortOrder(e.dataset.sortChat);
-                      'newest' === n
+                        order = getLockedFilterSortOrder(e.dataset[n.sortKey]);
+                      'newest' === order
                         ? (bn(t, f, l),
-                          (e.dataset.sortChat = 'oldest'),
-                          (e.innerHTML =
-                            'Donated \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show chat comments from users who have donated (Newest)'))
-                        : 'oldest' === n
+                          !n.skipButtonUIUpdate &&
+                            ((e.dataset[n.sortKey] = 'oldest'),
+                            (e.innerHTML =
+                              'Donated \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            (e.title =
+                              'Show chat comments from users who have donated (Newest)')))
+                        : 'oldest' === order
                         ? (bn(t, null == f ? void 0 : f.reverse(), l),
-                          (e.dataset.sortChat = 'newest'),
-                          (e.innerHTML =
-                            'Donated \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show chat comments from users who have donated (Oldest)'))
+                          !n.skipButtonUIUpdate &&
+                            ((e.dataset[n.sortKey] = 'newest'),
+                            (e.innerHTML =
+                              'Donated \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            (e.title =
+                              'Show chat comments from users who have donated (Oldest)')))
                         : (bn(t, f, l),
-                          (e.innerHTML =
-                            'Donated \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
+                          !n.skipButtonUIUpdate &&
+                            (e.innerHTML =
+                              'Donated \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '));
                     }
                   } else if (null == n ? void 0 : n.members) {
                     const e = (function (e) {
@@ -12211,23 +12315,25 @@
                       }
                     })(textSearchResults);
                     if (((f = e), (null == f ? void 0 : f.length) > 0)) {
-                      null == f || f.sort((e, t) => e.refIndex - t.refIndex);
+                      null == f || f.sort((a, b) => b.refIndex - a.refIndex);
                       const e = document.getElementById('ycs_btn_members'),
-                        n = getLockedFilterSortOrder(e.dataset.sortChat);
-                      'newest' === n
+                        order = getLockedFilterSortOrder(e.dataset[n.sortKey]);
+                      'newest' === order
                         ? (bn(t, f, l),
-                          (e.dataset.sortChat = 'oldest'),
-                          (e.innerHTML =
-                            'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show comments, replies, chat from channel members (Newest)'))
-                        : 'oldest' === n
+                          !n.skipButtonUIUpdate &&
+                            ((e.dataset[n.sortKey] = 'oldest'),
+                            (e.innerHTML =
+                              'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            (e.title =
+                              'Show comments, replies, chat from channel members (Newest)')))
+                        : 'oldest' === order
                         ? (bn(t, null == f ? void 0 : f.reverse(), l),
-                          (e.dataset.sortChat = 'newest'),
-                          (e.innerHTML =
-                            'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show comments, replies, chat from channel members (Oldest)'))
+                          !n.skipButtonUIUpdate &&
+                            ((e.dataset[n.sortKey] = 'newest'),
+                            (e.innerHTML =
+                              'Members \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            (e.title =
+                              'Show comments, replies, chat from channel members (Oldest)')))
                         : bn(t, f, l);
                     }
                   } else if (null == n ? void 0 : n.timestamp) {
@@ -12240,23 +12346,25 @@
                       )),
                       (null == f ? void 0 : f.length) > 0)
                     ) {
-                      null == f || f.sort((e, t) => e.refIndex - t.refIndex);
+                      null == f || f.sort((a, b) => b.refIndex - a.refIndex);
                       const e = document.getElementById('ycs_btn_timestamps'),
-                        n = getLockedFilterSortOrder(e.dataset.sortChat);
-                      'newest' === n
+                        order = getLockedFilterSortOrder(e.dataset[n.sortKey]);
+                      'newest' === order
                         ? (bn(t, f, l),
-                          (e.dataset.sortChat = 'oldest'),
-                          (e.innerHTML =
-                            'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show comments, replies, chat with time stamps (Newest)'))
-                        : 'oldest' === n
+                          !n.skipButtonUIUpdate &&
+                            ((e.dataset[n.sortKey] = 'oldest'),
+                            (e.innerHTML =
+                              'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            (e.title =
+                              'Show comments, replies, chat with time stamps (Newest)')))
+                        : 'oldest' === order
                         ? (bn(t, null == f ? void 0 : f.reverse(), l),
-                          (e.dataset.sortChat = 'newest'),
-                          (e.innerHTML =
-                            'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show comments, replies, chat with time stamps (Oldest)'))
+                          !n.skipButtonUIUpdate &&
+                            ((e.dataset[n.sortKey] = 'newest'),
+                            (e.innerHTML =
+                              'Time stamps \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            (e.title =
+                              'Show comments, replies, chat with time stamps (Oldest)')))
                         : bn(t, f, l);
                     }
                   } else if (null == n ? void 0 : n.sortFirst) {
@@ -12277,23 +12385,25 @@
                       } catch (e) {}
                     })(rebuildChatData(textSearchResults));
                     if (((f = e), (null == f ? void 0 : f.length) > 0)) {
-                      null == f || f.sort((e, t) => e.refIndex - t.refIndex);
+                      null == f || f.sort((a, b) => b.refIndex - a.refIndex);
                       const e = document.getElementById('ycs_btn_sort_first'),
-                        n = getLockedFilterSortOrder(e.dataset.sortChat);
-                      'newest' === n
+                        order = getLockedFilterSortOrder(e.dataset[n.sortKey]);
+                      'newest' === order
                         ? (bn(t, f, l),
-                          (e.dataset.sortChat = 'oldest'),
-                          (e.innerHTML =
-                            'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show all comments, chat, video transcript sorted by date (Newest)'))
-                        : 'oldest' === n
+                          !n.skipButtonUIUpdate &&
+                            ((e.dataset[n.sortKey] = 'oldest'),
+                            (e.innerHTML =
+                              'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            (e.title =
+                              'Show all comments, chat, video transcript sorted by date (Newest)')))
+                        : 'oldest' === order
                         ? (bn(t, null == f ? void 0 : f.reverse(), l),
-                          (e.dataset.sortChat = 'newest'),
-                          (e.innerHTML =
-                            'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show all comments, chat, video transcript sorted by date (Oldest)'))
+                          !n.skipButtonUIUpdate &&
+                            ((e.dataset[n.sortKey] = 'newest'),
+                            (e.innerHTML =
+                              'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            (e.title =
+                              'Show all comments, chat, video transcript sorted by date (Oldest)')))
                         : bn(t, f, l);
                     }
                   } else if (null == n ? void 0 : n.verified) {
@@ -12318,23 +12428,25 @@
                       }
                     })(rebuildChatData(textSearchResults));
                     if (((f = e), (null == f ? void 0 : f.length) > 0)) {
-                      null == f || f.sort((e, t) => e.refIndex - t.refIndex);
+                      null == f || f.sort((a, b) => b.refIndex - a.refIndex);
                       const e = document.getElementById('ycs_btn_verified'),
-                        n = getLockedFilterSortOrder(e.dataset.sortChat);
-                      'newest' === n
+                        order = getLockedFilterSortOrder(e.dataset[n.sortKey]);
+                      'newest' === order
                         ? (bn(t, f, l),
-                          (e.dataset.sortChat = 'oldest'),
-                          (e.innerHTML =
-                            '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show comments,  replies and chat from a verified authors (Newest)'))
-                        : 'oldest' === n
+                          !n.skipButtonUIUpdate &&
+                            ((e.dataset[n.sortKey] = 'oldest'),
+                            (e.innerHTML =
+                              '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            (e.title =
+                              'Show comments,  replies and chat from a verified authors (Newest)')))
+                        : 'oldest' === order
                         ? (bn(t, null == f ? void 0 : f.reverse(), l),
-                          (e.dataset.sortChat = 'newest'),
-                          (e.innerHTML =
-                            '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Show comments,  replies and chat from a verified authors (Oldest)'))
+                          !n.skipButtonUIUpdate &&
+                            ((e.dataset[n.sortKey] = 'newest'),
+                            (e.innerHTML =
+                              '<span class="ycs-creator-verified_icon">✔</span> \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            (e.title =
+                              'Show comments,  replies and chat from a verified authors (Oldest)')))
                         : bn(t, f, l);
                     }
                   } else if (null == n ? void 0 : n.links) {
@@ -12360,23 +12472,25 @@
                       }
                     })(rebuildChatData(textSearchResults));
                     if (((f = n), (null == f ? void 0 : f.length) > 0)) {
-                      null == f || f.sort((e, t) => e.refIndex - t.refIndex);
+                      null == f || f.sort((a, b) => b.refIndex - a.refIndex);
                       const e = document.getElementById('ycs_btn_links'),
-                        n = getLockedFilterSortOrder(e.dataset.sortChat);
-                      'newest' === n
+                        order = getLockedFilterSortOrder(e.dataset[n.sortKey]);
+                      'newest' === order
                         ? (bn(t, f, l),
-                          (e.dataset.sortChat = 'oldest'),
-                          (e.innerHTML =
-                            'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Shows links in comments, replies, chat, video transcript (Newest)'))
-                        : 'oldest' === n
+                          !n.skipButtonUIUpdate &&
+                            ((e.dataset[n.sortKey] = 'oldest'),
+                            (e.innerHTML =
+                              'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            (e.title =
+                              'Shows links in comments, replies, chat, video transcript (Newest)')))
+                        : 'oldest' === order
                         ? (bn(t, null == f ? void 0 : f.reverse(), l),
-                          (e.dataset.sortChat = 'newest'),
-                          (e.innerHTML =
-                            'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                          (e.title =
-                            'Shows links in comments, replies, chat, video transcript (Oldest)'))
+                          !n.skipButtonUIUpdate &&
+                            ((e.dataset[n.sortKey] = 'newest'),
+                            (e.innerHTML =
+                              'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                            (e.title =
+                              'Shows links in comments, replies, chat, video transcript (Oldest)')))
                         : bn(t, f, l);
                     }
                   } else {
@@ -12411,7 +12525,14 @@
                 }
               } catch (e) {}
             };
-            const handleTranscriptSearch = (t, n) => {
+            const handleTranscriptSearch = (t, _n) => {
+              const n = _n
+                ? {
+                    ..._n,
+                    sortKey: _n.sortKey ?? 'sortTrp',
+                  }
+                : undefined;
+
               try {
                 if (
                   transcriptDataBuf &&
@@ -12487,23 +12608,27 @@
                         }
                       })(textSearchResults);
                       if (((f = n), (null == f ? void 0 : f.length) > 0)) {
-                        null == f || f.sort((e, t) => e.refIndex - t.refIndex);
+                        null == f || f.sort((a, b) => b.refIndex - a.refIndex);
                         const e = document.getElementById('ycs_btn_links'),
-                          n = getLockedFilterSortOrder(e.dataset.sortTrp);
-                        'newest' === n
+                          order = getLockedFilterSortOrder(
+                            e.dataset[n.sortKey]
+                          );
+                        'newest' === order
                           ? (xn(t, f, l),
-                            (e.dataset.sortTrp = 'oldest'),
-                            (e.innerHTML =
-                              'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                            (e.title =
-                              'Shows links in comments, replies, chat, video transcript (Newest)'))
-                          : 'oldest' === n
+                            !n.skipButtonUIUpdate &&
+                              ((e.dataset[n.sortKey] = 'oldest'),
+                              (e.innerHTML =
+                                'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                              (e.title =
+                                'Shows links in comments, replies, chat, video transcript (Newest)')))
+                          : 'oldest' === order
                           ? (xn(t, null == f ? void 0 : f.reverse(), l),
-                            (e.dataset.sortTrp = 'newest'),
-                            (e.innerHTML =
-                              'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                            (e.title =
-                              'Shows links in comments, replies, chat, video transcript (Oldest)'))
+                            !n.skipButtonUIUpdate &&
+                              ((e.dataset[n.sortKey] = 'newest'),
+                              (e.innerHTML =
+                                'Links \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                              (e.title =
+                                'Shows links in comments, replies, chat, video transcript (Oldest)')))
                           : xn(t, f, l);
                       }
                     } else {
@@ -12531,24 +12656,28 @@
                         })(textSearchResults);
                         if (((f = e), (null == f ? void 0 : f.length) > 0)) {
                           null == f ||
-                            f.sort((e, t) => e.refIndex - t.refIndex);
+                            f.sort((a, b) => b.refIndex - a.refIndex);
                           const e =
                               document.getElementById('ycs_btn_sort_first'),
-                            n = getLockedFilterSortOrder(e.dataset.sortTrp);
-                          'newest' === n
+                            order = getLockedFilterSortOrder(
+                              e.dataset[n.sortKey]
+                            );
+                          'newest' === order
                             ? (xn(t, f, l),
-                              (e.dataset.sortTrp = 'oldest'),
-                              (e.innerHTML =
-                                'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                              (e.title =
-                                'Show all comments, chat, video transcript sorted by date (Newest)'))
-                            : 'oldest' === n
+                              !n.skipButtonUIUpdate &&
+                                ((e.dataset[n.sortKey] = 'oldest'),
+                                (e.innerHTML =
+                                  'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-down">\n                <path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293V2.5zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                                (e.title =
+                                  'Show all comments, chat, video transcript sorted by date (Newest)')))
+                            : 'oldest' === order
                             ? (xn(t, null == f ? void 0 : f.reverse(), l),
-                              (e.dataset.sortTrp = 'newest'),
-                              (e.innerHTML =
-                                'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
-                              (e.title =
-                                'Show all comments, chat, video transcript sorted by date (Oldest)'))
+                              !n.skipButtonUIUpdate &&
+                                ((e.dataset[n.sortKey] = 'newest'),
+                                (e.innerHTML =
+                                  'All \n        <span class="ycs-icons">\n            <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-sort-up">\n                <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.498.498 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707V12.5zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>\n            </svg>\n        </span>\n    '),
+                                (e.title =
+                                  'Show all comments, chat, video transcript sorted by date (Oldest)')))
                             : xn(t, f, l);
                         }
                       }
@@ -12588,68 +12717,123 @@
                 }
               } catch (e) {}
             };
-            const handleAllSearch = (e, t) => {
-              const n = document.querySelector(e),
-                o = document.getElementById('ycs-search-total-result');
-              o && (null == o || o.classList.add('ycs-hidden')),
-                n && (n.textContent = '');
+            const handleAllSearch = (targetSelector, searchOptions) => {
+              const n = document.querySelector(targetSelector);
+              const o = document.getElementById('ycs-search-total-result');
+
+              if (o) {
+                o.classList.add('ycs-hidden');
+              }
+
+              if (n) {
+                n.textContent = '';
+              }
+
               const c = document.createElement('div');
               c.id = 'ycs_allsearch__wrap_comments';
+
               const l = document.createElement('div');
               l.id = 'ycs_allsearch__wrap_comments_chat';
+
               const d = document.createElement('div');
               d.id = 'ycs_allsearch__wrap_comments_trvideo';
+
               try {
+                // only one of the search functions should update the UI when searching with type "all"
+                let skipButtonUIUpdate = false;
+
+                if (commentsDataBuf.length > 0) {
+                  if (n) {
+                    n.appendChild(c);
+                  }
+                  handleCommentsSearch(
+                    '#ycs_allsearch__wrap_comments',
+                    searchOptions
+                      ? {
+                          ...searchOptions,
+                          skipButtonUIUpdate,
+                          sortKey: 'sortAll',
+                        }
+                      : undefined
+                  );
+                  skipButtonUIUpdate = true;
+                }
+
+                if (chatDataBuf && chatDataBuf.size > 0) {
+                  if (n) {
+                    n.appendChild(l);
+                  }
+                  handleChatSearch(
+                    '#ycs_allsearch__wrap_comments_chat',
+                    searchOptions
+                      ? {
+                          ...searchOptions,
+                          skipButtonUIUpdate,
+                          sortKey: 'sortAll',
+                        }
+                      : undefined
+                  );
+                  skipButtonUIUpdate = true;
+                }
+
                 if (
-                  (commentsDataBuf.length > 0 &&
-                    (null == n || n.appendChild(c),
-                    handleCommentsSearch('#ycs_allsearch__wrap_comments', t)),
-                  chatDataBuf &&
-                    chatDataBuf.size > 0 &&
-                    (null == n || n.appendChild(l),
-                    handleChatSearch('#ycs_allsearch__wrap_comments_chat', t)),
                   transcriptDataBuf &&
-                    qt(
-                      () =>
-                        transcriptDataBuf.actions[0].updateEngagementPanelAction
-                          .content.transcriptRenderer.body
-                          .transcriptBodyRenderer.cueGroups.length
-                    ) > 0 &&
-                    (null == n || n.appendChild(d),
-                    handleTranscriptSearch(
-                      '#ycs_allsearch__wrap_comments_trvideo',
-                      t
-                    )),
-                  o)
+                  qt(
+                    () =>
+                      transcriptDataBuf.actions[0].updateEngagementPanelAction
+                        .content.transcriptRenderer.body.transcriptBodyRenderer
+                        .cueGroups.length
+                  ) > 0
                 ) {
+                  if (n) {
+                    n.appendChild(d);
+                  }
+                  handleTranscriptSearch(
+                    '#ycs_allsearch__wrap_comments_trvideo',
+                    searchOptions
+                      ? {
+                          ...searchOptions,
+                          skipButtonUIUpdate,
+                          sortKey: 'sortAll',
+                        }
+                      : undefined
+                  );
+                  skipButtonUIUpdate = true;
+                }
+
+                if (o) {
                   const e =
                     countsReport.comments +
                     countsReport.commentsChat +
                     countsReport.commentsTrVideo;
-                  (null == t ? void 0 : t.timestamp)
-                    ? (o.innerText = `Time stamps, found: ${e}`)
-                    : (null == t ? void 0 : t.author)
-                    ? (o.innerText = `Author, found: ${e}`)
-                    : (null == t ? void 0 : t.heart)
-                    ? (o.innerText = `Heart, found: ${e}`)
-                    : (null == t ? void 0 : t.verified)
-                    ? (o.innerText = `Verified authors, found: ${e}`)
-                    : (null == t ? void 0 : t.links)
-                    ? (o.innerText = `Links, found: ${e}`)
-                    : (null == t ? void 0 : t.likes)
-                    ? (o.innerText = `Likes, found: ${e}`)
-                    : (null == t ? void 0 : t.replied)
-                    ? (o.innerText = `Replied, found: ${e}`)
-                    : (null == t ? void 0 : t.members)
-                    ? (o.innerText = `Members, found: ${e}`)
-                    : (null == t ? void 0 : t.donated)
-                    ? (o.innerText = `Donated, found: ${e}`)
-                    : (null == t ? void 0 : t.random)
-                    ? (o.innerText = `Random, found: ${e}`)
-                    : (null == t ? void 0 : t.sortFirst)
-                    ? (o.innerText = `All comments, found: ${e}`)
-                    : (o.innerText = `(All) Found: ${e}`),
-                    null == o || o.classList.remove('ycs-hidden');
+
+                  if (searchOptions && searchOptions.timestamp) {
+                    o.innerText = `Time stamps, found: ${e}`;
+                  } else if (searchOptions && searchOptions.author) {
+                    o.innerText = `Author, found: ${e}`;
+                  } else if (searchOptions && searchOptions.heart) {
+                    o.innerText = `Heart, found: ${e}`;
+                  } else if (searchOptions && searchOptions.verified) {
+                    o.innerText = `Verified authors, found: ${e}`;
+                  } else if (searchOptions && searchOptions.links) {
+                    o.innerText = `Links, found: ${e}`;
+                  } else if (searchOptions && searchOptions.likes) {
+                    o.innerText = `Likes, found: ${e}`;
+                  } else if (searchOptions && searchOptions.replied) {
+                    o.innerText = `Replied, found: ${e}`;
+                  } else if (searchOptions && searchOptions.members) {
+                    o.innerText = `Members, found: ${e}`;
+                  } else if (searchOptions && searchOptions.donated) {
+                    o.innerText = `Donated, found: ${e}`;
+                  } else if (searchOptions && searchOptions.random) {
+                    o.innerText = `Random, found: ${e}`;
+                  } else if (searchOptions && searchOptions.sortFirst) {
+                    o.innerText = `All comments, found: ${e}`;
+                  } else {
+                    o.innerText = `(All) Found: ${e}`;
+                  }
+
+                  o.classList.remove('ycs-hidden');
                 }
               } catch (e) {}
             };
@@ -12704,7 +12888,7 @@
                 // removeClassName(btnPool, 'ycs_btn_active');
 
                 // lock filter button sort state for 1 sec
-                lockFilterSort(1000);
+                lockFilterSort(100);
 
                 const searchOptions = getSearchOptions(btnPool);
                 dispatchSearch(searchOptions);
