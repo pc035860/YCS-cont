@@ -10,7 +10,6 @@
       "default_popup": "browser-action/baction.html",
       "default_title": "YouTube Comment Search"
    },
-   "author": "Eugene Gubar",
    "background": {
       "service_worker": "background.js"
    },
@@ -30,14 +29,12 @@
       "32": "assets/images/icons/logo-ycs-32.png",
       "48": "assets/images/icons/logo-ycs-48.png"
    },
-   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkjXfnvqRZGzjjjDZQ/UIfbPK7vTCW3EOT2bhFNk7csMVS1X2kFEO3Dg2uFpcyDnHzgpInsykI0MnvN9Yyv6qAR2+mg8TshgMNnlaXMRJR3ocuIfrEgHPRkpiBEbXC7Sk7MORIvLE8eJ3WHXdm8ikUVhC8MxuHmuYNdw4OgNQL1r2k2C9B5JTRbyowCWMwqJLs+ihtRLQ8KdyfZPE+B47LCPM/C1BTEXRScTRZxBKzybDXUES8goGuZR31vjGQfXOHSzFeAxeKNRZt712XYl2krYIUb1FCDMRsxLYVa9cge9J+36d2KUQrk0za29Gqg7nLnLu5nlEUPWNs6rOkssJ2wIDAQAB",
    "manifest_version": 3,
    "minimum_chrome_version": "88",
    "name": "__MSG_ycs_name__",
    "options_page": "options/options.html",
    "permissions": [ "storage", "scripting" ],
-   "short_name": "YCS",
-   "update_url": "https://clients2.google.com/service/update2/crx",
+   "short_name": "YCS (Cont.)",
    "version": "1.2.5",
    "web_accessible_resources": [ {
       "matches": [ "*://*.youtube.com/*" ],
