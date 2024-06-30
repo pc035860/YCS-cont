@@ -10,7 +10,6 @@
       "default_popup": "browser-action/baction.html",
       "default_title": "YouTube Comment Search"
    },
-   "author": "Eugene Gubar",
    "background": {
       "scripts": [
          "background.js"
@@ -37,8 +36,8 @@
    "name": "__MSG_ycs_name__",
    "options_page": "options/options.html",
    "permissions": [ "storage", "scripting" ],
-   "short_name": "YCS",
-   "version": "1.2.5",
+   "short_name": "YCS (Cont.)",
+   "version": "1.3.0",
    "web_accessible_resources": [ {
       "matches": [ "*://*.youtube.com/*" ],
       "resources": [ "web-resources/*.js" ]
