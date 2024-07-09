@@ -14,7 +14,7 @@ This version tries to migrate the latest API data back to the old version, allow
 ## Install From Stores
 
 - Chrome Web Store: https://chromewebstore.google.com/detail/ycs-youtube-comment-searc/mfobjniokjbcldieppimekoibpocahed
-- Firefox Add-ons: https://addons.mozilla.org/en-US/firefox/addon/ycs-continued/
+- Firefox Add-ons: https://addons.mozilla.org/firefox/addon/ycs-continued/
 
 ## Manual Install
 
