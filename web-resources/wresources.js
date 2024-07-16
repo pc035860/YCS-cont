@@ -12971,24 +12971,29 @@
                     ) {
                       try {
                         if (e.data.body.comments.length > 0) {
+                          const originCommentById = e.data.body.comments.reduce(
+                            (acc, c) => {
+                              if (c.typeComment === 'C') {
+                                acc[c.commentRenderer.commentId] = c;
+                              }
+                              return acc;
+                            },
+                            {}
+                          );
                           for (const t of e.data.body.comments)
-                            if ('R' === t.typeComment)
-                              for (const n of e.data.body.comments)
-                                if (
-                                  'C' === n.typeComment &&
-                                  n.commentRenderer.commentId ===
-                                    t.originComment.commentRenderer.commentId
-                                ) {
-                                  t.originComment = n;
-                                  break;
-                                }
+                            if ('R' === t.typeComment) {
+                              const originComment =
+                                originCommentById[
+                                  t.originComment.commentRenderer.commentId
+                                ];
+                              if (originComment) {
+                                t.originComment = originComment;
+                              }
+                            }
                           commentsDataBuf = e.data.body.comments;
                         }
                       } catch (e) {}
-                      (chatDataBuf = new Map(
-                        JSON.parse(e.data.body.commentsChat)
-                      )),
-                        (transcriptDataBuf = e.data.body.commentsTrVideo);
+                      transcriptDataBuf = e.data.body.commentsTrVideo;
                       const t = e.data.body.date,
                         n = document.getElementById('ycs_status_cmnt');
                       commentsDataBuf.length > 0 &&
@@ -12998,6 +13003,9 @@
                         commentsDataBuf.length > 0 &&
                           (h.parentNode || h.parentElement) &&
                           (countsAct.comments = commentsDataBuf.length);
+                      chatDataBuf = new Map(
+                        JSON.parse(e.data.body.commentsChat)
+                      );
                       const r = document.getElementById('ycs_cmnts');
                       if (
                         (r && (r.textContent = `${commentsDataBuf.length}`),
