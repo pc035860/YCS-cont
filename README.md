@@ -11,9 +11,14 @@ YouTube significantly changed their API for rendering the comments section on Ma
 This version tries to migrate the latest API data back to the old version, allowing the YCS extension to work as expected. However, it's unclear whether there will be updates to this version of the extension if YouTube decides to change their API usage again.
 
 
-## Install
+## Install From Stores
 
-### With .crx (Chrome, Edge, Brave, Vivaldi etc)
+- Chrome Web Store: https://chromewebstore.google.com/detail/ycs-youtube-comment-searc/mfobjniokjbcldieppimekoibpocahed
+- Firefox Add-ons: https://addons.mozilla.org/firefox/addon/ycs-continued/
+
+## Manual Install
+
+### With .crx (Vivaldi, Opera etc)
 
 - Download the .crx file from the [release page](https://github.com/pc035860/YCS-cont/releases).
 - Open the .crx file with your Chromium-based browser (Chrome, Edge, Brave, Vivaldi etc).
