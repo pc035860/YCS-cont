@@ -56,7 +56,6 @@ null == i &&
       t(e.exports, 'getSheetReplies', () => b),
       t(e.exports, 'getSheetTrVideoDetails', () => w),
       t(e.exports, 'getSheetTrVideo', () => x);
-    i('hkaxq'), i('bRhBe');
     (() => {
       const e = {};
     })();
