@@ -7010,117 +7010,29 @@
   }
   function nn() {
     try {
-      var e,
-        t,
-        n,
-        o,
-        r,
-        i,
-        a,
-        s,
-        c,
-        l,
-        d,
-        u,
-        h,
-        m,
-        p,
-        f,
-        v,
-        y,
-        g,
-        w,
-        b,
-        x,
-        _,
-        C,
-        E,
-        T,
-        I,
-        k,
-        R,
-        M;
-      return (
-        (null ===
-          (t =
-            null === (e = window) || void 0 === e ? void 0 : e.ytcfg.data_) ||
-        void 0 === t
-          ? void 0
-          : t.INNERTUBE_API_KEY) ||
-        (null === (n = window) ||
-        void 0 === n ||
-        null === (o = n.ytcfg) ||
-        void 0 === o ||
-        null === (r = o.data_) ||
-        void 0 === r ||
-        null === (i = r.WEB_PLAYER_CONTEXT_CONFIGS) ||
-        void 0 === i ||
-        null === (a = i.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_WATCH) ||
-        void 0 === a
-          ? void 0
-          : a.innertubeApiKey) ||
-        (null === (s = window) ||
-        void 0 === s ||
-        null === (c = s.ytcfg) ||
-        void 0 === c ||
-        null === (l = c.data_) ||
-        void 0 === l ||
-        null === (d = l.WEB_PLAYER_CONTEXT_CONFIGS) ||
-        void 0 === d ||
-        null === (u = d.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_CHANNEL_TRAILER) ||
-        void 0 === u
-          ? void 0
-          : u.innertubeApiKey) ||
-        (null === (h = window) ||
-        void 0 === h ||
-        null === (m = h.ytcfg) ||
-        void 0 === m ||
-        null === (p = m.data_) ||
-        void 0 === p ||
-        null === (f = p.WEB_PLAYER_CONTEXT_CONFIGS) ||
-        void 0 === f ||
-        null ===
-          (v = f.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_PLAYLIST_OVERVIEW) ||
-        void 0 === v
-          ? void 0
-          : v.innertubeApiKey) ||
-        (null === (y = window) ||
-        void 0 === y ||
-        null === (g = y.ytcfg) ||
-        void 0 === g ||
-        null === (w = g.data_) ||
-        void 0 === w ||
-        null === (b = w.WEB_PLAYER_CONTEXT_CONFIGS) ||
-        void 0 === b ||
-        null ===
-          (x =
-            b.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_VERTICAL_LANDING_PAGE_PROMO) ||
-        void 0 === x
-          ? void 0
-          : x.innertubeApiKey) ||
-        (null === (_ = window) ||
-        void 0 === _ ||
-        null === (C = _.ytcfg) ||
-        void 0 === C ||
-        null === (E = C.data_) ||
-        void 0 === E ||
-        null === (T = E.WEB_PLAYER_CONTEXT_CONFIGS) ||
-        void 0 === T ||
-        null ===
-          (I = T.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_SPONSORSHIPS_OFFER) ||
-        void 0 === I
-          ? void 0
-          : I.innertubeApiKey) ||
-        (null === (k = window) ||
-        void 0 === k ||
-        null === (R = k.ytplayer) ||
-        void 0 === R ||
-        null === (M = R.web_player_context_config) ||
-        void 0 === M
-          ? void 0
-          : M.innertubeApiKey)
-      );
-    } catch (e) {
+      const ytcfgData = window?.ytcfg?.data_;
+      const innertubeApiKey =
+        ytcfgData?.INNERTUBE_API_KEY ||
+        ytcfgData?.WEB_PLAYER_CONTEXT_CONFIGS
+          ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_WATCH?.innertubeApiKey ||
+        ytcfgData?.WEB_PLAYER_CONTEXT_CONFIGS
+          ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_CHANNEL_TRAILER
+          ?.innertubeApiKey ||
+        ytcfgData?.WEB_PLAYER_CONTEXT_CONFIGS
+          ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_PLAYLIST_OVERVIEW
+          ?.innertubeApiKey ||
+        ytcfgData?.WEB_PLAYER_CONTEXT_CONFIGS
+          ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_VERTICAL_LANDING_PAGE_PROMO
+          ?.innertubeApiKey ||
+        ytcfgData?.WEB_PLAYER_CONTEXT_CONFIGS
+          ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_SPONSORSHIPS_OFFER
+          ?.innertubeApiKey ||
+        window?.ytplayer?.web_player_context_config?.innertubeApiKey ||
+        // Compatible with PocketTube modifying ytcfg structure
+        window?.ytcfg?.INNERTUBE_API_KEY;
+
+      return innertubeApiKey;
+    } catch (error) {
       return;
     }
   }
