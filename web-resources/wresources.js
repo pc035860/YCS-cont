@@ -6665,7 +6665,22 @@
       return;
     }
   }
-  function Wt(e, t) {
+  /**
+   * Recursively searches for a specific property in an object and returns an array of paths to that property
+   * @param {Object} e - The object to search
+   * @param {string} t - The name of the property to find
+   * @returns {Array} An array containing the paths to the found properties
+   *
+   * @example
+   * const obj = {
+   *   a: { b: { c: 1 } },
+   *   d: { c: 2 },
+   *   e: { f: { c: 3 } }
+   * };
+   * findPropertyPaths(obj, 'c');
+   * // Returns: [{ 'a.b.c': 1 }, { 'd.c': 2 }, { 'e.f.c': 3 }]
+   */
+  function findPropertyPaths(e, t) {
     const n = [];
     try {
       (function e(o, r) {
@@ -6699,7 +6714,7 @@
   function Kt(e, t) {
     t && (t.textContent = e.toString());
   }
-  function Xt(e) {
+  function normalizeVideoUrl(e) {
     try {
       if ('string' != typeof e) return;
       const t = new URL(e),
@@ -6713,9 +6728,9 @@
       return;
     }
   }
-  async function Qt(e, t) {
+  async function fetchInitialYouTubeData(url, signal) {
     try {
-      if (!e) return;
+      if (!url) return;
 
       const ytcfgData = await getPageCfgData(window, null);
 
@@ -6737,8 +6752,8 @@
               'sec-fetch-dest': 'empty',
               'sec-fetch-mode': 'cors',
               'sec-fetch-site': 'same-origin',
-              'x-spf-previous': Xt(window.location.href),
-              'x-spf-referer': Xt(window.location.href),
+              'x-spf-previous': normalizeVideoUrl(window.location.href),
+              'x-spf-referer': normalizeVideoUrl(window.location.href),
               'x-youtube-identity-token': ytcfgData?.ID_TOKEN,
               'x-youtube-client-name':
                 ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
@@ -6753,7 +6768,7 @@
               'x-youtube-utc-offset': Math.abs(new Date().getTimezoneOffset()),
               'x-youtube-variants-checksum': ytcfgData?.VARIANTS_CHECKSUM,
             },
-            referrer: Xt(window.location.href),
+            referrer: normalizeVideoUrl(window.location.href),
             referrerPolicy: 'origin-when-cross-origin',
             body: `session_token=${ytcfgData?.XSRF_TOKEN}`,
             method: 'POST',
@@ -6767,9 +6782,9 @@
       delete requestParams.headers['content-type'];
       delete requestParams.body;
 
-      const response = await fetch(`${Xt(e)}&pbj=1`, {
+      const response = await fetch(`${normalizeVideoUrl(url)}&pbj=1`, {
         ...requestParams,
-        signal: t,
+        signal,
         cache: 'no-store',
       });
 
@@ -6780,10 +6795,14 @@
       return;
     }
   }
-  async function Zt(global, t, n) {
-    if (t)
+  async function getChatReplayContinuationRequestOptions(
+    globalContext,
+    continuationData,
+    playerOffsetMs
+  ) {
+    if (continuationData)
       try {
-        const ytcfgData = await getPageCfgData(global, null);
+        const ytcfgData = await getPageCfgData(globalContext, null);
         return JSON.parse(
           JSON.stringify({
             headers: {
@@ -6804,9 +6823,9 @@
               context: {
                 client: ytcfgData?.INNERTUBE_CONTEXT?.client,
               },
-              continuation: t.continuation,
+              continuation: continuationData.continuation,
               currentPlayerState: {
-                playerOffsetMs: n.toString(),
+                playerOffsetMs: playerOffsetMs.toString(),
               },
             }),
             method: 'POST',
@@ -6818,9 +6837,12 @@
         return;
       }
   }
-  async function en(global, params) {
+  async function getCommentsContinuationRequestOptionsSub(
+    globalContext,
+    continuationData
+  ) {
     try {
-      const ytcfgData = await getPageCfgData(global, null);
+      const ytcfgData = await getPageCfgData(globalContext, null);
       return JSON.parse(
         JSON.stringify({
           headers: {
@@ -6842,9 +6864,9 @@
               client: ytcfgData?.INNERTUBE_CONTEXT?.client,
             },
             clickTracking: {
-              clickTrackingParams: params.clickTrackingParams,
+              clickTrackingParams: continuationData.clickTrackingParams,
             },
-            continuation: params.continue,
+            continuation: continuationData.continue,
           }),
           method: 'POST',
           mode: 'cors',
@@ -6855,10 +6877,13 @@
       return;
     }
   }
-  async function tn(global, signal, params) {
+  async function getCommentsContinuationRequestOptions(
+    globalContext,
+    signal,
+    continuationData
+  ) {
     try {
-      const ytcfgData = await getPageCfgData(global, signal);
-
+      const ytcfgData = await getPageCfgData(globalContext, signal);
       return JSON.parse(
         JSON.stringify({
           headers: {
@@ -6880,9 +6905,9 @@
               client: ytcfgData?.INNERTUBE_CONTEXT?.client,
             },
             clickTracking: {
-              clickTrackingParams: params.clickTracking,
+              clickTrackingParams: continuationData.clickTracking,
             },
-            continuation: params.continue,
+            continuation: continuationData.continue,
           }),
           method: 'POST',
           mode: 'cors',
@@ -6921,28 +6946,31 @@
       return;
     }
   }
-  async function on(e) {
+  async function getReloadContinuationData(signal) {
     try {
-      const t = await Qt(window.location.href, e);
-      if (t) {
+      const initialData = await fetchInitialYouTubeData(
+        window.location.href,
+        signal
+      );
+      if (initialData) {
         if (
           qt(
             () =>
-              t[3].response.contents.twoColumnWatchNextResults.conversationBar
-                .liveChatRenderer.header.liveChatHeaderRenderer.viewSelector
-                .sortFilterSubMenuRenderer.subMenuItems[1].continuation
-                .reloadContinuationData
+              initialData[3].response.contents.twoColumnWatchNextResults
+                .conversationBar.liveChatRenderer.header.liveChatHeaderRenderer
+                .viewSelector.sortFilterSubMenuRenderer.subMenuItems[1]
+                .continuation.reloadContinuationData
           )
         )
           return qt(
             () =>
-              t[3].response.contents.twoColumnWatchNextResults.conversationBar
-                .liveChatRenderer.header.liveChatHeaderRenderer.viewSelector
-                .sortFilterSubMenuRenderer.subMenuItems[1].continuation
-                .reloadContinuationData
+              initialData[3].response.contents.twoColumnWatchNextResults
+                .conversationBar.liveChatRenderer.header.liveChatHeaderRenderer
+                .viewSelector.sortFilterSubMenuRenderer.subMenuItems[1]
+                .continuation.reloadContinuationData
           );
-        const e = Wt(t, 'reloadContinuationData');
-        if (e.length > 0) return Object.values(e[e.length - 1])[0];
+        const paths = findPropertyPaths(initialData, 'reloadContinuationData');
+        if (paths.length > 0) return Object.values(paths[paths.length - 1])[0];
       }
       return;
     } catch (e) {
@@ -6951,11 +6979,11 @@
   }
   async function loadChatReplay(signal) {
     try {
-      const n = await on(signal),
-        o = await (async function (e, t) {
-          if (t) {
+      const n = await getReloadContinuationData(signal),
+        o = await (async function (globalContext, continuationData) {
+          if (continuationData) {
             try {
-              const pageCfgData = await getPageCfgData(e, null);
+              const pageCfgData = await getPageCfgData(globalContext, null);
               return JSON.parse(
                 JSON.stringify({
                   headers: {
@@ -6976,7 +7004,7 @@
                     context: {
                       client: pageCfgData?.INNERTUBE_CONTEXT?.client,
                     },
-                    continuation: t.continuation,
+                    continuation: continuationData.continuation,
                   }),
                   method: 'POST',
                   mode: 'cors',
@@ -7174,8 +7202,8 @@
     return data;
   }
   const pageCfgDataPool = {};
-  async function getPageCfgData(global, signal, optUrl) {
-    let data = global.ytcfg?.data_ ?? null;
+  async function getPageCfgData(globalContext, signal, optUrl) {
+    let data = globalContext.ytcfg?.data_ ?? null;
 
     if (data) {
       return Promise.resolve(data);
@@ -7203,12 +7231,12 @@
     const r = async () => {
         try {
           const getFetchOptions = async (
-            global,
+            globalContext,
             url,
             signal,
             bodyTransformFn = (body) => body
           ) => {
-            const ytcfgData = await getPageCfgData(global, signal, url);
+            const ytcfgData = await getPageCfgData(globalContext, signal, url);
             return JSON.parse(
               JSON.stringify({
                 headers: {
@@ -7261,7 +7289,7 @@
               } catch (e) {
                 return;
               }
-            })(window, Xt(window.location.href), n),
+            })(window, normalizeVideoUrl(window.location.href), n),
             t = objectScan(
               [
                 '**.contents.twoColumnWatchNextResults.results.results.contents[?].itemSectionRenderer.contents[?].continuationItemRenderer.continuationEndpoint.continuationCommand.token',
@@ -7272,13 +7300,21 @@
                 abort: !0,
               }
             )(e),
-            o = await (async function (e, t, n) {
+            o = await (async function (
+              globalContext,
+              continuationData,
+              signal
+            ) {
               try {
-                if (typeof t !== 'object') return;
+                if (typeof continuationData !== 'object') return;
 
-                const ytcfgData = await getPageCfgData(e, n, t.url);
+                const ytcfgData = await getPageCfgData(
+                  globalContext,
+                  signal,
+                  continuationData.url
+                );
 
-                const m = JSON.parse(
+                const requestOptions = JSON.parse(
                     JSON.stringify({
                       headers: {
                         accept: '*/*',
@@ -7293,7 +7329,7 @@
                         'x-youtube-client-version':
                           ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION,
                       },
-                      referrer: t.url,
+                      referrer: continuationData.url,
                       referrerPolicy: 'strict-origin-when-cross-origin',
                       body: JSON.stringify({
                         context: {
@@ -7302,29 +7338,29 @@
                         clickTracking: {
                           clickTrackingParams: '',
                         },
-                        continuation: t.continue,
+                        continuation: continuationData.continue,
                       }),
                       method: 'POST',
                       mode: 'cors',
                       credentials: 'include',
                     })
                   ),
-                  p = await fetch(
+                  response = await fetch(
                     `https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`,
                     {
-                      ...m,
-                      signal: n,
+                      ...requestOptions,
+                      signal,
                       cache: 'no-store',
                     }
                   );
-                return await p.json();
-              } catch (e) {
+                return await response.json();
+              } catch (error) {
                 return;
               }
             })(
               window,
               {
-                url: Xt(window.location.href),
+                url: normalizeVideoUrl(window.location.href),
                 continue: t,
               },
               n
@@ -7606,7 +7642,8 @@
                   continue: token,
                   clickTracking: cTrParams,
                 };
-                const requestOptions = await tn(window, n, data);
+                const requestOptions =
+                  await getCommentsContinuationRequestOptions(window, n, data);
                 const response = await Ft(
                   `https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`,
                   {
@@ -7736,7 +7773,12 @@
                     continue: token,
                     clickTracking: clickTrackingParams,
                   };
-                  const requestOptions = await tn(window, n, data);
+                  const requestOptions =
+                    await getCommentsContinuationRequestOptions(
+                      window,
+                      n,
+                      data
+                    );
                   const response = await Ft(
                     `https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`,
                     {
@@ -8247,11 +8289,11 @@
         let i;
         if (
           ((i = t.clickTrackingParams
-            ? await en(window, {
+            ? await getCommentsContinuationRequestOptionsSub(window, {
                 continue: t.continue,
                 clickTrackingParams: t.clickTrackingParams,
               })
-            : await en(window, {
+            : await getCommentsContinuationRequestOptionsSub(window, {
                 continue: qt(() =>
                   objectScan(
                     [
@@ -8304,36 +8346,24 @@
       // temporarily store last response
       let contData;
       for (; (null == i ? void 0 : i.length) > 0; ) {
-        var l, d, u;
         const updatesById = getFrameworkUpdatesById(contData || o);
         i = migrateContinuationItems(i, updatesById);
         await processComments(i, t);
-        const e = i[i.length - 1];
+        const item = i[i.length - 1];
         if (
-          null == e ||
-          null === (l = e.continuationItemRenderer) ||
-          void 0 === l ||
-          null === (d = l.continuationEndpoint) ||
-          void 0 === d ||
-          null === (u = d.continuationCommand) ||
-          void 0 === u
-            ? void 0
-            : u.token
+          item?.continuationItemRenderer?.continuationEndpoint
+            ?.continuationCommand?.token
         ) {
-          var h, m, p;
-          const t = {
-              continue:
-                null == e ||
-                null === (h = e.continuationItemRenderer) ||
-                void 0 === h ||
-                null === (m = h.continuationEndpoint) ||
-                void 0 === m ||
-                null === (p = m.continuationCommand) ||
-                void 0 === p
-                  ? void 0
-                  : p.token,
-            },
-            o = await en(window, t),
+          const continuationToken =
+            item?.continuationItemRenderer?.continuationEndpoint
+              ?.continuationCommand?.token;
+          const continuationData = {
+            continue: continuationToken,
+          };
+          const o = await getCommentsContinuationRequestOptionsSub(
+              window,
+              continuationData
+            ),
             r = await Ft(
               `https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`,
               {
@@ -8823,7 +8853,7 @@
           type: 'YCS_CACHE_STORAGE_SET',
           body: {
             url: t,
-            videoId: getVideoId(Xt(t)),
+            videoId: getVideoId(normalizeVideoUrl(t)),
             date: new Date().getTime(),
             titleVideo: n,
             comments: e.comments,
@@ -10377,7 +10407,7 @@
                             return e;
                           }
                         },
-                        $ = await on(signal);
+                        $ = await getReloadContinuationData(signal);
                       if (!$) return;
                       const P = n || new Map(),
                         j = await loadChatReplay(signal);
@@ -10461,7 +10491,9 @@
                                         o.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint.showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer);
                                   else {
                                     const e = qt(() =>
-                                      Object.keys(Wt(o, 'timestampUsec')[0])[0]
+                                      Object.keys(
+                                        findPropertyPaths(o, 'timestampUsec')[0]
+                                      )[0]
                                         .split('.')
                                         .slice(0, -1)
                                         .join('.')
@@ -10541,7 +10573,12 @@
                           let n = 0,
                             o = !0;
                           for (; o; ) {
-                            const r = await Zt(window, $, n);
+                            const r =
+                              await getChatReplayContinuationRequestOptions(
+                                window,
+                                $,
+                                n
+                              );
                             if (!r) return (o = !1), P;
                             {
                               var w, b;
@@ -10566,7 +10603,10 @@
                                 a && a.length > 0)
                               ) {
                                 const [, e] = Object.entries(
-                                  Wt(a[a.length - 1], 'videoOffsetTimeMsec')[0]
+                                  findPropertyPaths(
+                                    a[a.length - 1],
+                                    'videoOffsetTimeMsec'
+                                  )[0]
                                 )[0];
                                 if (n === e) {
                                   o = !1;
@@ -10633,7 +10673,10 @@
                                       else {
                                         const t = qt(() =>
                                           Object.keys(
-                                            Wt(e, 'timestampUsec')[0]
+                                            findPropertyPaths(
+                                              e,
+                                              'timestampUsec'
+                                            )[0]
                                           )[0]
                                             .split('.')
                                             .slice(0, -1)
@@ -10906,7 +10949,7 @@
                                 'word-wrap: break-word; white-space: pre-wrap;'),
                               n.insertAdjacentText(
                                 'afterbegin',
-                                `\nYCS - YouTube Comment Search\n\nComments\nFile created by ${new Date().toString()}\nVideo URL: ${Xt(
+                                `\nYCS - YouTube Comment Search\n\nComments\nFile created by ${new Date().toString()}\nVideo URL: ${normalizeVideoUrl(
                                   window.location.href
                                 )}\nTitle: ${document.title}\nTotal: ${
                                   e.count
@@ -10932,7 +10975,7 @@
                   try {
                     const e = mn(commentsDataBuf);
                     hn(
-                      `\nYCS - YouTube Comment Search\n\nComments\nFile created by ${new Date().toString()}\nVideo URL: ${Xt(
+                      `\nYCS - YouTube Comment Search\n\nComments\nFile created by ${new Date().toString()}\nVideo URL: ${normalizeVideoUrl(
                         window.location.href
                       )}\nTitle: ${document.title}\nTotal: ${e.count}\n${
                         e.html
@@ -10967,7 +11010,7 @@
                                 'word-wrap: break-word; white-space: pre-wrap;'),
                               n.insertAdjacentText(
                                 'afterbegin',
-                                `\nYCS - YouTube Comment Search\n\nComments chat\nFile created by ${new Date().toString()}\nVideo URL: ${Xt(
+                                `\nYCS - YouTube Comment Search\n\nComments chat\nFile created by ${new Date().toString()}\nVideo URL: ${normalizeVideoUrl(
                                   window.location.href
                                 )}\nTitle: ${document.title}\nTotal: ${
                                   e.count
@@ -10993,7 +11036,7 @@
                   try {
                     const e = pn([...chatDataBuf.values()]);
                     hn(
-                      `\nYCS - YouTube Comment Search\n\nComments chat\nFile created by ${new Date().toString()}\nVideo URL: ${Xt(
+                      `\nYCS - YouTube Comment Search\n\nComments chat\nFile created by ${new Date().toString()}\nVideo URL: ${normalizeVideoUrl(
                         window.location.href
                       )}\nTitle: ${document.title}\nTotal: ${e.count}\n${
                         e.html
@@ -11055,7 +11098,7 @@
                                 'word-wrap: break-word; white-space: pre-wrap;'),
                               n.insertAdjacentText(
                                 'afterbegin',
-                                `\nYCS - YouTube Comment Search\n\nTranscript video\nFile created by ${new Date().toString()}\nVideo URL: ${Xt(
+                                `\nYCS - YouTube Comment Search\n\nTranscript video\nFile created by ${new Date().toString()}\nVideo URL: ${normalizeVideoUrl(
                                   window.location.href
                                 )}\nTitle: ${document.title}\nTotal: ${
                                   e.count
@@ -11116,7 +11159,7 @@
                         .cueGroups
                     );
                     hn(
-                      `\nYCS - YouTube Comment Search\n\nTranscript video\nFile created by ${new Date().toString()}\nVideo URL: ${Xt(
+                      `\nYCS - YouTube Comment Search\n\nTranscript video\nFile created by ${new Date().toString()}\nVideo URL: ${normalizeVideoUrl(
                         window.location.href
                       )}\nTitle: ${document.title}\nTotal: ${e.count}\n${
                         e.html
@@ -12724,7 +12767,7 @@
                                 {
                                   type: 'YCS_CACHE_STORAGE_GET',
                                   body: {
-                                    videoId: getVideoId(Xt(e)),
+                                    videoId: getVideoId(normalizeVideoUrl(e)),
                                   },
                                 },
                                 window.location.origin
@@ -13008,12 +13051,12 @@
             }
           }
           function r() {
-            let e = Xt(window.location.href);
+            let e = normalizeVideoUrl(window.location.href);
             setInterval(() => {
               Yt() &&
                 document.querySelector('#meta.style-scope.ytd-watch-flexy') &&
-                e !== Xt(window.location.href) &&
-                ((e = Xt(window.location.href)), t.abort(), o());
+                e !== normalizeVideoUrl(window.location.href) &&
+                ((e = normalizeVideoUrl(window.location.href)), t.abort(), o());
             }, 1e3);
           }
           r();
