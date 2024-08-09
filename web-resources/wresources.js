@@ -6674,7 +6674,22 @@
       return;
     }
   }
-  function Wt(e, t) {
+  /**
+   * Recursively searches for a specific property in an object and returns an array of paths to that property
+   * @param {Object} e - The object to search
+   * @param {string} t - The name of the property to find
+   * @returns {Array} An array containing the paths to the found properties
+   *
+   * @example
+   * const obj = {
+   *   a: { b: { c: 1 } },
+   *   d: { c: 2 },
+   *   e: { f: { c: 3 } }
+   * };
+   * findPropertyPaths(obj, 'c');
+   * // Returns: [{ 'a.b.c': 1 }, { 'd.c': 2 }, { 'e.f.c': 3 }]
+   */
+  function findPropertyPaths(e, t) {
     const n = [];
     try {
       (function e(o, r) {
@@ -6708,7 +6723,7 @@
   function Kt(e, t) {
     t && (t.textContent = e.toString());
   }
-  function Xt(e) {
+  function normalizeVideoUrl(e) {
     try {
       if ('string' != typeof e) return;
       const t = new URL(e),
@@ -6722,11 +6737,13 @@
       return;
     }
   }
-  async function Qt(e, t) {
+  async function fetchInitialYouTubeData(url, signal) {
     try {
-      if (!e) return;
-      const _ = ((n = window),
-      JSON.parse(
+      if (!url) return;
+
+      const ytcfgData = await getPageCfgData(window, null);
+
+      const defaultParams = JSON.parse(
         JSON.stringify({
           ctoken: null,
           continuation: null,
@@ -6736,154 +6753,88 @@
             headers: {
               accept: '*/*',
               'accept-language':
-                (null === (o = n.ytcfg) ||
-                void 0 === o ||
-                null === (r = o.data_) ||
-                void 0 === r ||
-                null === (i = r.GOOGLE_FEEDBACK_PRODUCT_DATA) ||
-                void 0 === i
-                  ? void 0
-                  : i.accept_language) || 'en-US,en;q=0.9',
+                ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language ||
+                'en-US,en;q=0.9',
               'cache-control': 'no-cache',
               'content-type': 'application/x-www-form-urlencoded',
               pragma: 'no-cache',
               'sec-fetch-dest': 'empty',
               'sec-fetch-mode': 'cors',
               'sec-fetch-site': 'same-origin',
-              'x-spf-previous': Xt(n.location.href),
-              'x-spf-referer': Xt(n.location.href),
-              'x-youtube-identity-token':
-                null === (a = n.ytcfg) ||
-                void 0 === a ||
-                null === (s = a.data_) ||
-                void 0 === s
-                  ? void 0
-                  : s.ID_TOKEN,
+              'x-spf-previous': normalizeVideoUrl(window.location.href),
+              'x-spf-referer': normalizeVideoUrl(window.location.href),
+              'x-youtube-identity-token': ytcfgData?.ID_TOKEN,
               'x-youtube-client-name':
-                (null === (c = n.ytcfg) ||
-                void 0 === c ||
-                null === (l = c.data_) ||
-                void 0 === l
-                  ? void 0
-                  : l.INNERTUBE_CONTEXT_CLIENT_NAME) || '1',
+                ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
               'x-youtube-client-version':
-                null === (d = n.ytcfg) ||
-                void 0 === d ||
-                null === (u = d.data_) ||
-                void 0 === u
-                  ? void 0
-                  : u.INNERTUBE_CONTEXT_CLIENT_VERSION,
+                ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION,
               'x-youtube-device':
-                (null === (h = n.ytcfg) ||
-                void 0 === h ||
-                null === (m = h.data_) ||
-                void 0 === m
-                  ? void 0
-                  : m.DEVICE) || 'cbr=Chrome&cplatform=DESKTOP',
-              'x-youtube-page-cl':
-                null === (p = n.ytcfg) ||
-                void 0 === p ||
-                null === (f = p.data_) ||
-                void 0 === f
-                  ? void 0
-                  : f.PAGE_CL,
-              'x-youtube-page-label':
-                null === (v = n.ytcfg) ||
-                void 0 === v ||
-                null === (y = v.data_) ||
-                void 0 === y
-                  ? void 0
-                  : y.PAGE_BUILD_LABEL,
+                ytcfgData?.DEVICE || 'cbr=Chrome&cplatform=DESKTOP',
+              'x-youtube-page-cl': ytcfgData?.PAGE_CL,
+              'x-youtube-page-label': ytcfgData?.PAGE_BUILD_LABEL,
               'x-youtube-time-zone':
                 Intl.DateTimeFormat().resolvedOptions().timeZone,
               'x-youtube-utc-offset': Math.abs(new Date().getTimezoneOffset()),
-              'x-youtube-variants-checksum':
-                null === (g = n.ytcfg) ||
-                void 0 === g ||
-                null === (w = g.data_) ||
-                void 0 === w
-                  ? void 0
-                  : w.VARIANTS_CHECKSUM,
+              'x-youtube-variants-checksum': ytcfgData?.VARIANTS_CHECKSUM,
             },
-            referrer: Xt(n.location.href),
+            referrer: normalizeVideoUrl(window.location.href),
             referrerPolicy: 'origin-when-cross-origin',
-            body: `session_token=${
-              null === (b = n.ytcfg) ||
-              void 0 === b ||
-              null === (x = b.data_) ||
-              void 0 === x
-                ? void 0
-                : x.XSRF_TOKEN
-            }`,
+            body: `session_token=${ytcfgData?.XSRF_TOKEN}`,
             method: 'POST',
             mode: 'cors',
           },
         })
-      )).params;
-      (_.method = 'GET'), delete _.headers['content-type'], delete _.body;
-      const C = await fetch(`${Xt(e)}&pbj=1`, {
-          ..._,
-          signal: t,
-          cache: 'no-store',
-        }),
-        E = await C.json();
-      return (ycsOptions.getInitYtData = E), E;
-    } catch (e) {
+      );
+
+      const requestParams = defaultParams.params;
+      requestParams.method = 'GET';
+      delete requestParams.headers['content-type'];
+      delete requestParams.body;
+
+      const response = await fetch(`${normalizeVideoUrl(url)}&pbj=1`, {
+        ...requestParams,
+        signal,
+        cache: 'no-store',
+      });
+
+      const data = await response.json();
+      ycsOptions.getInitYtData = data;
+      return data;
+    } catch (error) {
       return;
     }
-    var n, o, r, i, a, s, c, l, d, u, h, m, p, f, v, y, g, w, b, x;
   }
-  function Zt(e, t, n) {
-    if (t)
+  async function getChatReplayContinuationRequestOptions(
+    globalContext,
+    continuationData,
+    playerOffsetMs
+  ) {
+    if (continuationData)
       try {
-        var o, r, i, a, s, c, l, d, u, h;
+        const ytcfgData = await getPageCfgData(globalContext, null);
         return JSON.parse(
           JSON.stringify({
             headers: {
               accept: '*/*',
               'accept-language':
-                (null === (o = e.ytcfg) ||
-                void 0 === o ||
-                null === (r = o.data_) ||
-                void 0 === r ||
-                null === (i = r.GOOGLE_FEEDBACK_PRODUCT_DATA) ||
-                void 0 === i
-                  ? void 0
-                  : i.accept_language) || 'en-US,en;q=0.9',
+                ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language ||
+                'en-US,en;q=0.9',
               'content-type': 'application/json',
               pragma: 'no-cache',
               'cache-control': 'no-store',
               'x-youtube-client-name':
-                (null === (a = e.ytcfg) ||
-                void 0 === a ||
-                null === (s = a.data_) ||
-                void 0 === s
-                  ? void 0
-                  : s.INNERTUBE_CONTEXT_CLIENT_NAME) || '1',
+                ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
               'x-youtube-client-version':
-                null === (c = e.ytcfg) ||
-                void 0 === c ||
-                null === (l = c.data_) ||
-                void 0 === l
-                  ? void 0
-                  : l.INNERTUBE_CONTEXT_CLIENT_VERSION,
+                ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION,
             },
             referrerPolicy: 'strict-origin-when-cross-origin',
             body: JSON.stringify({
               context: {
-                client:
-                  null === (d = e.ytcfg) ||
-                  void 0 === d ||
-                  null === (u = d.data_) ||
-                  void 0 === u ||
-                  null === (h = u.INNERTUBE_CONTEXT) ||
-                  void 0 === h
-                    ? void 0
-                    : h.client,
+                client: ytcfgData?.INNERTUBE_CONTEXT?.client,
               },
-              continuation: t.continuation,
+              continuation: continuationData.continuation,
               currentPlayerState: {
-                playerOffsetMs: n.toString(),
+                playerOffsetMs: playerOffsetMs.toString(),
               },
             }),
             method: 'POST',
@@ -6895,57 +6846,36 @@
         return;
       }
   }
-  function en(e, t) {
+  async function getCommentsContinuationRequestOptionsSub(
+    globalContext,
+    continuationData
+  ) {
     try {
-      var n, o, r, i, a, s, c, l, d, u;
+      const ytcfgData = await getPageCfgData(globalContext, null);
       return JSON.parse(
         JSON.stringify({
           headers: {
             accept: '*/*',
             'accept-language':
-              (null === (n = e.ytcfg) ||
-              void 0 === n ||
-              null === (o = n.data_) ||
-              void 0 === o ||
-              null === (r = o.GOOGLE_FEEDBACK_PRODUCT_DATA) ||
-              void 0 === r
-                ? void 0
-                : r.accept_language) || 'en-US,en;q=0.9',
+              ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language ||
+              'en-US,en;q=0.9',
             'content-type': 'application/json',
             pragma: 'no-cache',
             'cache-control': 'no-store',
             'x-youtube-client-name':
-              (null === (i = e.ytcfg) ||
-              void 0 === i ||
-              null === (a = i.data_) ||
-              void 0 === a
-                ? void 0
-                : a.INNERTUBE_CONTEXT_CLIENT_NAME) || '1',
+              ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
             'x-youtube-client-version':
-              null === (s = e.ytcfg) ||
-              void 0 === s ||
-              null === (c = s.data_) ||
-              void 0 === c
-                ? void 0
-                : c.INNERTUBE_CONTEXT_CLIENT_VERSION,
+              ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION,
           },
           referrerPolicy: 'strict-origin-when-cross-origin',
           body: JSON.stringify({
             context: {
-              client:
-                null === (l = e.ytcfg) ||
-                void 0 === l ||
-                null === (d = l.data_) ||
-                void 0 === d ||
-                null === (u = d.INNERTUBE_CONTEXT) ||
-                void 0 === u
-                  ? void 0
-                  : u.client,
+              client: ytcfgData?.INNERTUBE_CONTEXT?.client,
             },
             clickTracking: {
-              clickTrackingParams: t.clickTrackingParams,
+              clickTrackingParams: continuationData.clickTrackingParams,
             },
-            continuation: t.continue,
+            continuation: continuationData.continue,
           }),
           method: 'POST',
           mode: 'cors',
@@ -6956,57 +6886,37 @@
       return;
     }
   }
-  function tn(e, t) {
+  async function getCommentsContinuationRequestOptions(
+    globalContext,
+    signal,
+    continuationData
+  ) {
     try {
-      var n, o, r, i, a, s, c, l, d, u;
+      const ytcfgData = await getPageCfgData(globalContext, signal);
       return JSON.parse(
         JSON.stringify({
           headers: {
             accept: '*/*',
             'accept-language':
-              (null === (n = e.ytcfg) ||
-              void 0 === n ||
-              null === (o = n.data_) ||
-              void 0 === o ||
-              null === (r = o.GOOGLE_FEEDBACK_PRODUCT_DATA) ||
-              void 0 === r
-                ? void 0
-                : r.accept_language) || 'en-US,en;q=0.9',
+              ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language ||
+              'en-US,en;q=0.9',
             'content-type': 'application/json',
             pragma: 'no-cache',
             'cache-control': 'no-store',
             'x-youtube-client-name':
-              (null === (i = e.ytcfg) ||
-              void 0 === i ||
-              null === (a = i.data_) ||
-              void 0 === a
-                ? void 0
-                : a.INNERTUBE_CONTEXT_CLIENT_NAME) || '1',
+              ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
             'x-youtube-client-version':
-              null === (s = e.ytcfg) ||
-              void 0 === s ||
-              null === (c = s.data_) ||
-              void 0 === c
-                ? void 0
-                : c.INNERTUBE_CONTEXT_CLIENT_VERSION,
+              ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION,
           },
           referrerPolicy: 'strict-origin-when-cross-origin',
           body: JSON.stringify({
             context: {
-              client:
-                null === (l = e.ytcfg) ||
-                void 0 === l ||
-                null === (d = l.data_) ||
-                void 0 === d ||
-                null === (u = d.INNERTUBE_CONTEXT) ||
-                void 0 === u
-                  ? void 0
-                  : u.client,
+              client: ytcfgData?.INNERTUBE_CONTEXT?.client,
             },
             clickTracking: {
-              clickTrackingParams: t.clickTracking,
+              clickTrackingParams: continuationData.clickTracking,
             },
-            continuation: t.continue,
+            continuation: continuationData.continue,
           }),
           method: 'POST',
           mode: 'cors',
@@ -7017,144 +6927,59 @@
       return;
     }
   }
-  function nn() {
+  function getInnertubeApiKey() {
     try {
-      var e,
-        t,
-        n,
-        o,
-        r,
-        i,
-        a,
-        s,
-        c,
-        l,
-        d,
-        u,
-        h,
-        m,
-        p,
-        f,
-        v,
-        y,
-        g,
-        w,
-        b,
-        x,
-        _,
-        C,
-        E,
-        T,
-        I,
-        k,
-        R,
-        M;
-      return (
-        (null ===
-          (t =
-            null === (e = window) || void 0 === e ? void 0 : e.ytcfg.data_) ||
-        void 0 === t
-          ? void 0
-          : t.INNERTUBE_API_KEY) ||
-        (null === (n = window) ||
-        void 0 === n ||
-        null === (o = n.ytcfg) ||
-        void 0 === o ||
-        null === (r = o.data_) ||
-        void 0 === r ||
-        null === (i = r.WEB_PLAYER_CONTEXT_CONFIGS) ||
-        void 0 === i ||
-        null === (a = i.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_WATCH) ||
-        void 0 === a
-          ? void 0
-          : a.innertubeApiKey) ||
-        (null === (s = window) ||
-        void 0 === s ||
-        null === (c = s.ytcfg) ||
-        void 0 === c ||
-        null === (l = c.data_) ||
-        void 0 === l ||
-        null === (d = l.WEB_PLAYER_CONTEXT_CONFIGS) ||
-        void 0 === d ||
-        null === (u = d.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_CHANNEL_TRAILER) ||
-        void 0 === u
-          ? void 0
-          : u.innertubeApiKey) ||
-        (null === (h = window) ||
-        void 0 === h ||
-        null === (m = h.ytcfg) ||
-        void 0 === m ||
-        null === (p = m.data_) ||
-        void 0 === p ||
-        null === (f = p.WEB_PLAYER_CONTEXT_CONFIGS) ||
-        void 0 === f ||
-        null ===
-          (v = f.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_PLAYLIST_OVERVIEW) ||
-        void 0 === v
-          ? void 0
-          : v.innertubeApiKey) ||
-        (null === (y = window) ||
-        void 0 === y ||
-        null === (g = y.ytcfg) ||
-        void 0 === g ||
-        null === (w = g.data_) ||
-        void 0 === w ||
-        null === (b = w.WEB_PLAYER_CONTEXT_CONFIGS) ||
-        void 0 === b ||
-        null ===
-          (x =
-            b.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_VERTICAL_LANDING_PAGE_PROMO) ||
-        void 0 === x
-          ? void 0
-          : x.innertubeApiKey) ||
-        (null === (_ = window) ||
-        void 0 === _ ||
-        null === (C = _.ytcfg) ||
-        void 0 === C ||
-        null === (E = C.data_) ||
-        void 0 === E ||
-        null === (T = E.WEB_PLAYER_CONTEXT_CONFIGS) ||
-        void 0 === T ||
-        null ===
-          (I = T.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_SPONSORSHIPS_OFFER) ||
-        void 0 === I
-          ? void 0
-          : I.innertubeApiKey) ||
-        (null === (k = window) ||
-        void 0 === k ||
-        null === (R = k.ytplayer) ||
-        void 0 === R ||
-        null === (M = R.web_player_context_config) ||
-        void 0 === M
-          ? void 0
-          : M.innertubeApiKey)
-      );
-    } catch (e) {
+      const ytcfgData = window?.ytcfg?.data_;
+      const innertubeApiKey =
+        ytcfgData?.INNERTUBE_API_KEY ||
+        ytcfgData?.WEB_PLAYER_CONTEXT_CONFIGS
+          ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_WATCH?.innertubeApiKey ||
+        ytcfgData?.WEB_PLAYER_CONTEXT_CONFIGS
+          ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_CHANNEL_TRAILER
+          ?.innertubeApiKey ||
+        ytcfgData?.WEB_PLAYER_CONTEXT_CONFIGS
+          ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_PLAYLIST_OVERVIEW
+          ?.innertubeApiKey ||
+        ytcfgData?.WEB_PLAYER_CONTEXT_CONFIGS
+          ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_VERTICAL_LANDING_PAGE_PROMO
+          ?.innertubeApiKey ||
+        ytcfgData?.WEB_PLAYER_CONTEXT_CONFIGS
+          ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_SPONSORSHIPS_OFFER
+          ?.innertubeApiKey ||
+        window?.ytplayer?.web_player_context_config?.innertubeApiKey ||
+        // Compatible with PocketTube modifying ytcfg structure
+        window?.ytcfg?.INNERTUBE_API_KEY;
+
+      return innertubeApiKey;
+    } catch (error) {
       return;
     }
   }
-  async function on(e) {
+  async function getReloadContinuationData(signal) {
     try {
-      const t = await Qt(window.location.href, e);
-      if (t) {
+      const initialData = await fetchInitialYouTubeData(
+        window.location.href,
+        signal
+      );
+      if (initialData) {
         if (
           qt(
             () =>
-              t[3].response.contents.twoColumnWatchNextResults.conversationBar
-                .liveChatRenderer.header.liveChatHeaderRenderer.viewSelector
-                .sortFilterSubMenuRenderer.subMenuItems[1].continuation
-                .reloadContinuationData
+              initialData[3].response.contents.twoColumnWatchNextResults
+                .conversationBar.liveChatRenderer.header.liveChatHeaderRenderer
+                .viewSelector.sortFilterSubMenuRenderer.subMenuItems[1]
+                .continuation.reloadContinuationData
           )
         )
           return qt(
             () =>
-              t[3].response.contents.twoColumnWatchNextResults.conversationBar
-                .liveChatRenderer.header.liveChatHeaderRenderer.viewSelector
-                .sortFilterSubMenuRenderer.subMenuItems[1].continuation
-                .reloadContinuationData
+              initialData[3].response.contents.twoColumnWatchNextResults
+                .conversationBar.liveChatRenderer.header.liveChatHeaderRenderer
+                .viewSelector.sortFilterSubMenuRenderer.subMenuItems[1]
+                .continuation.reloadContinuationData
           );
-        const e = Wt(t, 'reloadContinuationData');
-        if (e.length > 0) return Object.values(e[e.length - 1])[0];
+        const paths = findPropertyPaths(initialData, 'reloadContinuationData');
+        if (paths.length > 0) return Object.values(paths[paths.length - 1])[0];
       }
       return;
     } catch (e) {
@@ -7163,56 +6988,32 @@
   }
   async function loadChatReplay(signal) {
     try {
-      const n = await on(signal),
-        o = (function (e, t) {
-          if (t)
+      const n = await getReloadContinuationData(signal),
+        o = await (async function (globalContext, continuationData) {
+          if (continuationData) {
             try {
-              var n, o, r, i, a, s, c, l, d, u;
+              const pageCfgData = await getPageCfgData(globalContext, null);
               return JSON.parse(
                 JSON.stringify({
                   headers: {
                     accept: '*/*',
                     'accept-language':
-                      (null === (n = e.ytcfg) ||
-                      void 0 === n ||
-                      null === (o = n.data_) ||
-                      void 0 === o ||
-                      null === (r = o.GOOGLE_FEEDBACK_PRODUCT_DATA) ||
-                      void 0 === r
-                        ? void 0
-                        : r.accept_language) || 'en-US,en;q=0.9',
+                      pageCfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA
+                        ?.accept_language || 'en-US,en;q=0.9',
                     'content-type': 'application/json',
                     pragma: 'no-cache',
                     'cache-control': 'no-store',
                     'x-youtube-client-name':
-                      (null === (i = e.ytcfg) ||
-                      void 0 === i ||
-                      null === (a = i.data_) ||
-                      void 0 === a
-                        ? void 0
-                        : a.INNERTUBE_CONTEXT_CLIENT_NAME) || '1',
+                      pageCfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
                     'x-youtube-client-version':
-                      null === (s = e.ytcfg) ||
-                      void 0 === s ||
-                      null === (c = s.data_) ||
-                      void 0 === c
-                        ? void 0
-                        : c.INNERTUBE_CONTEXT_CLIENT_VERSION,
+                      pageCfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION,
                   },
                   referrerPolicy: 'strict-origin-when-cross-origin',
                   body: JSON.stringify({
                     context: {
-                      client:
-                        null === (l = e.ytcfg) ||
-                        void 0 === l ||
-                        null === (d = l.data_) ||
-                        void 0 === d ||
-                        null === (u = d.INNERTUBE_CONTEXT) ||
-                        void 0 === u
-                          ? void 0
-                          : u.client,
+                      client: pageCfgData?.INNERTUBE_CONTEXT?.client,
                     },
-                    continuation: t.continuation,
+                    continuation: continuationData.continuation,
                   }),
                   method: 'POST',
                   mode: 'cors',
@@ -7222,11 +7023,12 @@
             } catch (e) {
               return;
             }
+          }
         })(window, n);
       if (o) {
         var t;
         const n = await fetch(
-            `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key=${nn()}`,
+            `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key=${getInnertubeApiKey()}`,
             {
               ...o,
               signal,
@@ -7382,6 +7184,53 @@
       return;
     }
   }
+  async function _getPageCfgData(videoId, signal) {
+    let data;
+    const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      method: 'GET',
+      mode: 'no-cors',
+      credentials: 'include',
+      signal,
+      cache: 'default',
+    });
+    const html = await response.text();
+    const splittedHtml = html.split('window.ytplayer={};\nytcfg.set(');
+    if (splittedHtml.length <= 1) {
+      throw new Error('Fail to load video html');
+    }
+
+    try {
+      data = JSON.parse(
+        splittedHtml[1]
+          .split('); window.ytcfg.obfuscatedData_')[0]
+          .replace('\n', '')
+      );
+    } catch (e) {
+      // do nothing
+    }
+    return data;
+  }
+  const pageCfgDataPool = {};
+  async function getPageCfgData(globalContext, signal, optUrl) {
+    let data = globalContext.ytcfg?.data_ ?? null;
+
+    if (data) {
+      return Promise.resolve(data);
+    }
+
+    const url = optUrl ?? window.location.href;
+
+    const videoId = getVideoId(url);
+
+    if (pageCfgDataPool[videoId]) {
+      return pageCfgDataPool[videoId];
+    }
+
+    data = await _getPageCfgData(videoId, signal);
+    pageCfgDataPool[videoId] = data;
+
+    return data;
+  }
   function sn(e) {
     if ('string' != typeof e) return;
     const t = document.querySelectorAll(e);
@@ -7390,64 +7239,55 @@
   async function cn(t, n, o) {
     const r = async () => {
         try {
+          const getFetchOptions = async (
+            globalContext,
+            url,
+            signal,
+            bodyTransformFn = (body) => body
+          ) => {
+            const ytcfgData = await getPageCfgData(globalContext, signal, url);
+            return JSON.parse(
+              JSON.stringify({
+                headers: {
+                  accept: '*/*',
+                  'accept-language':
+                    ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language ||
+                    'en-US,en;q=0.9',
+                  'content-type': 'application/json',
+                  pragma: 'no-cache',
+                  'cache-control': 'no-store',
+                  'x-youtube-client-name':
+                    ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                  'x-youtube-client-version':
+                    ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION,
+                },
+                referrer: url,
+                referrerPolicy: 'strict-origin-when-cross-origin',
+                body: JSON.stringify(
+                  bodyTransformFn({
+                    context: {
+                      client: ytcfgData?.INNERTUBE_CONTEXT?.client,
+                    },
+                  })
+                ),
+                method: 'POST',
+                mode: 'cors',
+                credentials: 'include',
+              })
+            );
+          };
           const e = await (async function (e, t, n) {
               try {
                 var o, r, i, a, s, c, l, d, u, h;
                 if ('string' != typeof t) return;
-                const m = JSON.parse(
-                    JSON.stringify({
-                      headers: {
-                        accept: '*/*',
-                        'accept-language':
-                          (null === (o = e.ytcfg) ||
-                          void 0 === o ||
-                          null === (r = o.data_) ||
-                          void 0 === r ||
-                          null === (i = r.GOOGLE_FEEDBACK_PRODUCT_DATA) ||
-                          void 0 === i
-                            ? void 0
-                            : i.accept_language) || 'en-US,en;q=0.9',
-                        'content-type': 'application/json',
-                        pragma: 'no-cache',
-                        'cache-control': 'no-store',
-                        'x-youtube-client-name':
-                          (null === (a = e.ytcfg) ||
-                          void 0 === a ||
-                          null === (s = a.data_) ||
-                          void 0 === s
-                            ? void 0
-                            : s.INNERTUBE_CONTEXT_CLIENT_NAME) || '1',
-                        'x-youtube-client-version':
-                          null === (c = e.ytcfg) ||
-                          void 0 === c ||
-                          null === (l = c.data_) ||
-                          void 0 === l
-                            ? void 0
-                            : l.INNERTUBE_CONTEXT_CLIENT_VERSION,
-                      },
-                      referrer: t,
-                      referrerPolicy: 'strict-origin-when-cross-origin',
-                      body: JSON.stringify({
-                        context: {
-                          client:
-                            null === (d = e.ytcfg) ||
-                            void 0 === d ||
-                            null === (u = d.data_) ||
-                            void 0 === u ||
-                            null === (h = u.INNERTUBE_CONTEXT) ||
-                            void 0 === h
-                              ? void 0
-                              : h.client,
-                        },
-                        videoId: getVideoId(t),
-                      }),
-                      method: 'POST',
-                      mode: 'cors',
-                      credentials: 'include',
-                    })
-                  ),
+                const m = await getFetchOptions(e, t, n, (body) => {
+                    return {
+                      ...body,
+                      videoId: getVideoId(t),
+                    };
+                  }),
                   p = await fetch(
-                    `https://www.youtube.com/youtubei/v1/next?key=${nn()}`,
+                    `https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`,
                     {
                       ...m,
                       signal: n,
@@ -7458,7 +7298,7 @@
               } catch (e) {
                 return;
               }
-            })(window, Xt(window.location.href), n),
+            })(window, normalizeVideoUrl(window.location.href), n),
             t = objectScan(
               [
                 '**.contents.twoColumnWatchNextResults.results.results.contents[?].itemSectionRenderer.contents[?].continuationItemRenderer.continuationEndpoint.continuationCommand.token',
@@ -7469,81 +7309,67 @@
                 abort: !0,
               }
             )(e),
-            o = await (async function (e, t, n) {
+            o = await (async function (
+              globalContext,
+              continuationData,
+              signal
+            ) {
               try {
-                var o, r, i, a, s, c, l, d, u, h;
-                if ('object' != typeof t) return;
-                const m = JSON.parse(
+                if (typeof continuationData !== 'object') return;
+
+                const ytcfgData = await getPageCfgData(
+                  globalContext,
+                  signal,
+                  continuationData.url
+                );
+
+                const requestOptions = JSON.parse(
                     JSON.stringify({
                       headers: {
                         accept: '*/*',
                         'accept-language':
-                          (null === (o = e.ytcfg) ||
-                          void 0 === o ||
-                          null === (r = o.data_) ||
-                          void 0 === r ||
-                          null === (i = r.GOOGLE_FEEDBACK_PRODUCT_DATA) ||
-                          void 0 === i
-                            ? void 0
-                            : i.accept_language) || 'en-US,en;q=0.9',
+                          ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA
+                            ?.accept_language || 'en-US,en;q=0.9',
                         'content-type': 'application/json',
                         pragma: 'no-cache',
                         'cache-control': 'no-store',
                         'x-youtube-client-name':
-                          (null === (a = e.ytcfg) ||
-                          void 0 === a ||
-                          null === (s = a.data_) ||
-                          void 0 === s
-                            ? void 0
-                            : s.INNERTUBE_CONTEXT_CLIENT_NAME) || '1',
+                          ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
                         'x-youtube-client-version':
-                          null === (c = e.ytcfg) ||
-                          void 0 === c ||
-                          null === (l = c.data_) ||
-                          void 0 === l
-                            ? void 0
-                            : l.INNERTUBE_CONTEXT_CLIENT_VERSION,
+                          ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION,
                       },
-                      referrer: t.url,
+                      referrer: continuationData.url,
                       referrerPolicy: 'strict-origin-when-cross-origin',
                       body: JSON.stringify({
                         context: {
-                          client:
-                            null === (d = e.ytcfg) ||
-                            void 0 === d ||
-                            null === (u = d.data_) ||
-                            void 0 === u ||
-                            null === (h = u.INNERTUBE_CONTEXT) ||
-                            void 0 === h
-                              ? void 0
-                              : h.client,
+                          client: ytcfgData?.INNERTUBE_CONTEXT?.client,
                         },
                         clickTracking: {
                           clickTrackingParams: '',
                         },
-                        continuation: t.continue,
+                        continuation: continuationData.continue,
                       }),
                       method: 'POST',
                       mode: 'cors',
                       credentials: 'include',
                     })
                   ),
-                  p = await fetch(
-                    `https://www.youtube.com/youtubei/v1/next?key=${nn()}`,
+                  response = await fetch(
+                    `https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`,
                     {
-                      ...m,
-                      signal: n,
+                      ...requestOptions,
+                      signal,
                       cache: 'no-store',
                     }
                   );
-                return await p.json();
-              } catch (e) {
+                return await response.json();
+              } catch (error) {
                 return;
               }
             })(
               window,
               {
-                url: Xt(window.location.href),
+                url: normalizeVideoUrl(window.location.href),
                 continue: t,
               },
               n
@@ -7825,9 +7651,10 @@
                   continue: token,
                   clickTracking: cTrParams,
                 };
-                const requestOptions = tn(window, data);
+                const requestOptions =
+                  await getCommentsContinuationRequestOptions(window, n, data);
                 const response = await Ft(
-                  `https://www.youtube.com/youtubei/v1/next?key=${nn()}`,
+                  `https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`,
                   {
                     ...requestOptions,
                     signal: n,
@@ -7955,9 +7782,14 @@
                     continue: token,
                     clickTracking: clickTrackingParams,
                   };
-                  const requestOptions = tn(window, data);
+                  const requestOptions =
+                    await getCommentsContinuationRequestOptions(
+                      window,
+                      n,
+                      data
+                    );
                   const response = await Ft(
-                    `https://www.youtube.com/youtubei/v1/next?key=${nn()}`,
+                    `https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`,
                     {
                       ...requestOptions,
                       signal: n,
@@ -8466,11 +8298,11 @@
         let i;
         if (
           ((i = t.clickTrackingParams
-            ? en(window, {
+            ? await getCommentsContinuationRequestOptionsSub(window, {
                 continue: t.continue,
                 clickTrackingParams: t.clickTrackingParams,
               })
-            : en(window, {
+            : await getCommentsContinuationRequestOptionsSub(window, {
                 continue: qt(() =>
                   objectScan(
                     [
@@ -8498,7 +8330,7 @@
               })),
           i &&
             (e = await fetch(
-              `https://www.youtube.com/youtubei/v1/next?key=${nn()}`,
+              `https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`,
               {
                 ...i,
                 signal: n,
@@ -8523,38 +8355,26 @@
       // temporarily store last response
       let contData;
       for (; (null == i ? void 0 : i.length) > 0; ) {
-        var l, d, u;
         const updatesById = getFrameworkUpdatesById(contData || o);
         i = migrateContinuationItems(i, updatesById);
         await processComments(i, t);
-        const e = i[i.length - 1];
+        const item = i[i.length - 1];
         if (
-          null == e ||
-          null === (l = e.continuationItemRenderer) ||
-          void 0 === l ||
-          null === (d = l.continuationEndpoint) ||
-          void 0 === d ||
-          null === (u = d.continuationCommand) ||
-          void 0 === u
-            ? void 0
-            : u.token
+          item?.continuationItemRenderer?.continuationEndpoint
+            ?.continuationCommand?.token
         ) {
-          var h, m, p;
-          const t = {
-              continue:
-                null == e ||
-                null === (h = e.continuationItemRenderer) ||
-                void 0 === h ||
-                null === (m = h.continuationEndpoint) ||
-                void 0 === m ||
-                null === (p = m.continuationCommand) ||
-                void 0 === p
-                  ? void 0
-                  : p.token,
-            },
-            o = en(window, t),
+          const continuationToken =
+            item?.continuationItemRenderer?.continuationEndpoint
+              ?.continuationCommand?.token;
+          const continuationData = {
+            continue: continuationToken,
+          };
+          const o = await getCommentsContinuationRequestOptionsSub(
+              window,
+              continuationData
+            ),
             r = await Ft(
-              `https://www.youtube.com/youtubei/v1/next?key=${nn()}`,
+              `https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`,
               {
                 ...o,
                 signal: n,
@@ -9042,7 +8862,7 @@
           type: 'YCS_CACHE_STORAGE_SET',
           body: {
             url: t,
-            videoId: getVideoId(Xt(t)),
+            videoId: getVideoId(normalizeVideoUrl(t)),
             date: new Date().getTime(),
             titleVideo: n,
             comments: e.comments,
@@ -10596,7 +10416,7 @@
                             return e;
                           }
                         },
-                        $ = await on(signal);
+                        $ = await getReloadContinuationData(signal);
                       if (!$) return;
                       const P = n || new Map(),
                         j = await loadChatReplay(signal);
@@ -10680,7 +10500,9 @@
                                         o.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint.showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer);
                                   else {
                                     const e = qt(() =>
-                                      Object.keys(Wt(o, 'timestampUsec')[0])[0]
+                                      Object.keys(
+                                        findPropertyPaths(o, 'timestampUsec')[0]
+                                      )[0]
                                         .split('.')
                                         .slice(0, -1)
                                         .join('.')
@@ -10760,12 +10582,17 @@
                           let n = 0,
                             o = !0;
                           for (; o; ) {
-                            const r = Zt(window, $, n);
+                            const r =
+                              await getChatReplayContinuationRequestOptions(
+                                window,
+                                $,
+                                n
+                              );
                             if (!r) return (o = !1), P;
                             {
                               var w, b;
                               const i = await Ft(
-                                `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?key=${nn()}`,
+                                `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?key=${getInnertubeApiKey()}`,
                                 {
                                   ...r,
                                   signal,
@@ -10785,7 +10612,10 @@
                                 a && a.length > 0)
                               ) {
                                 const [, e] = Object.entries(
-                                  Wt(a[a.length - 1], 'videoOffsetTimeMsec')[0]
+                                  findPropertyPaths(
+                                    a[a.length - 1],
+                                    'videoOffsetTimeMsec'
+                                  )[0]
                                 )[0];
                                 if (n === e) {
                                   o = !1;
@@ -10852,7 +10682,10 @@
                                       else {
                                         const t = qt(() =>
                                           Object.keys(
-                                            Wt(e, 'timestampUsec')[0]
+                                            findPropertyPaths(
+                                              e,
+                                              'timestampUsec'
+                                            )[0]
                                           )[0]
                                             .split('.')
                                             .slice(0, -1)
@@ -11125,7 +10958,7 @@
                                 'word-wrap: break-word; white-space: pre-wrap;'),
                               n.insertAdjacentText(
                                 'afterbegin',
-                                `\nYCS - YouTube Comment Search\n\nComments\nFile created by ${new Date().toString()}\nVideo URL: ${Xt(
+                                `\nYCS - YouTube Comment Search\n\nComments\nFile created by ${new Date().toString()}\nVideo URL: ${normalizeVideoUrl(
                                   window.location.href
                                 )}\nTitle: ${document.title}\nTotal: ${
                                   e.count
@@ -11151,7 +10984,7 @@
                   try {
                     const e = mn(commentsDataBuf);
                     hn(
-                      `\nYCS - YouTube Comment Search\n\nComments\nFile created by ${new Date().toString()}\nVideo URL: ${Xt(
+                      `\nYCS - YouTube Comment Search\n\nComments\nFile created by ${new Date().toString()}\nVideo URL: ${normalizeVideoUrl(
                         window.location.href
                       )}\nTitle: ${document.title}\nTotal: ${e.count}\n${
                         e.html
@@ -11186,7 +11019,7 @@
                                 'word-wrap: break-word; white-space: pre-wrap;'),
                               n.insertAdjacentText(
                                 'afterbegin',
-                                `\nYCS - YouTube Comment Search\n\nComments chat\nFile created by ${new Date().toString()}\nVideo URL: ${Xt(
+                                `\nYCS - YouTube Comment Search\n\nComments chat\nFile created by ${new Date().toString()}\nVideo URL: ${normalizeVideoUrl(
                                   window.location.href
                                 )}\nTitle: ${document.title}\nTotal: ${
                                   e.count
@@ -11212,7 +11045,7 @@
                   try {
                     const e = pn([...chatDataBuf.values()]);
                     hn(
-                      `\nYCS - YouTube Comment Search\n\nComments chat\nFile created by ${new Date().toString()}\nVideo URL: ${Xt(
+                      `\nYCS - YouTube Comment Search\n\nComments chat\nFile created by ${new Date().toString()}\nVideo URL: ${normalizeVideoUrl(
                         window.location.href
                       )}\nTitle: ${document.title}\nTotal: ${e.count}\n${
                         e.html
@@ -11274,7 +11107,7 @@
                                 'word-wrap: break-word; white-space: pre-wrap;'),
                               n.insertAdjacentText(
                                 'afterbegin',
-                                `\nYCS - YouTube Comment Search\n\nTranscript video\nFile created by ${new Date().toString()}\nVideo URL: ${Xt(
+                                `\nYCS - YouTube Comment Search\n\nTranscript video\nFile created by ${new Date().toString()}\nVideo URL: ${normalizeVideoUrl(
                                   window.location.href
                                 )}\nTitle: ${document.title}\nTotal: ${
                                   e.count
@@ -11335,7 +11168,7 @@
                         .cueGroups
                     );
                     hn(
-                      `\nYCS - YouTube Comment Search\n\nTranscript video\nFile created by ${new Date().toString()}\nVideo URL: ${Xt(
+                      `\nYCS - YouTube Comment Search\n\nTranscript video\nFile created by ${new Date().toString()}\nVideo URL: ${normalizeVideoUrl(
                         window.location.href
                       )}\nTitle: ${document.title}\nTotal: ${e.count}\n${
                         e.html
@@ -12943,7 +12776,7 @@
                                 {
                                   type: 'YCS_CACHE_STORAGE_GET',
                                   body: {
-                                    videoId: getVideoId(Xt(e)),
+                                    videoId: getVideoId(normalizeVideoUrl(e)),
                                   },
                                 },
                                 window.location.origin
@@ -13227,12 +13060,12 @@
             }
           }
           function r() {
-            let e = Xt(window.location.href);
+            let e = normalizeVideoUrl(window.location.href);
             setInterval(() => {
               Yt() &&
                 document.querySelector('#meta.style-scope.ytd-watch-flexy') &&
-                e !== Xt(window.location.href) &&
-                ((e = Xt(window.location.href)), t.abort(), o());
+                e !== normalizeVideoUrl(window.location.href) &&
+                ((e = normalizeVideoUrl(window.location.href)), t.abort(), o());
             }, 1e3);
           }
           r();
