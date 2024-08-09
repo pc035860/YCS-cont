@@ -12,11 +12,13 @@
 
   // Trusted Types feature testing
   if (window.trustedTypes && trustedTypes.createPolicy) {
-    // provide a default policy for trusted types
-    trustedTypes.createPolicy('default', {
-      // createHTML() gets called when assigning .innerHTML
-      createHTML: (string) => string,
-    });
+    if (!trustedTypes.defaultPolicy) {
+      // provide a default policy for trusted types
+      trustedTypes.createPolicy('default', {
+        // createHTML() gets called when assigning .innerHTML
+        createHTML: (string) => string,
+      });
+    }
   }
 
   const FORMATTED_NUMBER_CONFIG_ENTRIES = Object.entries({
