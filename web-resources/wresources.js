@@ -6705,7 +6705,10 @@
     }
   }
   function Yt() {
-    return window.location.href.includes('/watch?');
+    return (
+      window.location.href.includes('/watch?') ||
+      window.location.href.includes('/live/')
+    );
   }
   function Kt(e, t) {
     t && (t.textContent = e.toString());
@@ -6713,11 +6716,19 @@
   function Xt(e) {
     try {
       if ('string' != typeof e) return;
-      const t = new URL(e),
-        n = t.searchParams.get('v');
+      const t = new URL(e);
+      let n = t.searchParams.get('v');
+
+      // Support for /live/ format
+      if (!n && t.pathname.startsWith('/live/')) {
+        n = t.pathname.split('/')[2];
+      }
+
       if (n) {
         const e = new URL(t.origin);
-        return (e.pathname = '/watch'), e.searchParams.set('v', n), e.href;
+        e.pathname = '/watch';
+        e.searchParams.set('v', n);
+        return e.href;
       }
       return;
     } catch (e) {
@@ -7249,7 +7260,7 @@
   }
   async function loadTranscript(signal) {
     const getTimedTextUrl = async () => {
-      const videoId = getVideoId(window.location.href);
+      const videoId = getVideoId(Xt(window.location.href));
       const response = await fetch(
         `https://www.youtube.com/watch?v=${videoId}`,
         {
@@ -7441,7 +7452,7 @@
                               ? void 0
                               : h.client,
                         },
-                        videoId: getVideoId(t),
+                        videoId: getVideoId(Xt(t)),
                       }),
                       method: 'POST',
                       mode: 'cors',
@@ -7725,7 +7736,7 @@
       s = new (e(Ke))({
         concurrency: 4,
       });
-    const currentVideoId = getVideoId(window.location.href);
+    const currentVideoId = getVideoId(Xt(window.location.href));
     async function processComments(continuationItems, t) {
       if (!continuationItems) return;
       for (const item of continuationItems) {
@@ -11892,7 +11903,7 @@
                 const f = document.getElementById('ycs-search-total-result');
                 f && (f.innerText = `(Comments) Found: ${p.length}`),
                   (countsReport.comments = p.length);
-                const currentVideoId = getVideoId(window.location.href);
+                const currentVideoId = getVideoId(Xt(window.location.href));
                 const v = document.getElementById('ycs_wrap_comments');
                 v &&
                   v.addEventListener('click', (e) => {
