@@ -722,7 +722,7 @@ html[dark] .ycs_modal_body code {
 }
 #ycs-load-all {
   display: block;
-  min-width: 64px;
+  min-width: 70px;
 }
 .ycs_btn_load-stop {
   background-color: #f9f9f9;
@@ -731,12 +731,14 @@ html[dark] .ycs_modal_body code {
   cursor: pointer;
   font-size: 12px;
   margin: 0;
-  min-width: 64px;
+  min-width: 70px;
   padding: 0;
   position: absolute;
 }
 html[dark='true'] .ycs_btn_load-stop,
-html[dark] .ycs_btn_load-stop {
+html[dark] .ycs_btn_load-stop,
+html[dark='true'] #ycs-load-all,
+html[dark] #ycs-load-all {
   border-top: 1px solid #181818;
 }
 .ycs-com-rp {
@@ -802,4 +804,23 @@ html[dark] .ycs-export-all-comments {
 html[dark='true'] .ycs-ext-search_link,
 html[dark] .ycs-ext-search_link {
   color: #fff;
+}
+
+.ycs-app-toggle {
+  display: none;
+}
+
+.ycs-app.ycs-collapsed {
+  height: 48px;
+}
+.ycs-app.ycs-collapsed .ycs-app-main {
+  display: none;
+}
+.ycs-app.ycs-collapsed .ycs-app-toggle {
+  display: block;
+}
+.ycs-app.ycs-collapsed .ycs-app-toggle .ycs-btn-toggle-app,
+.ycs-app .ycs_load_all {
+  position: relative;
+  top: -7px;
 }

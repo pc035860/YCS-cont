@@ -35,6 +35,7 @@ const defaultOptions = {
   highlightExact: false,
   cache: true,
   autoClear: 200,
+  hiddenByDefault: false,
 };
 window.onload = async () => {
   try {
@@ -47,6 +48,18 @@ window.onload = async () => {
     const saveAutoload = async (checkbox) => {
       try {
         await chrome.storage.local.set({ autoload: checkbox.checked });
+      } catch (error) {}
+    };
+
+    const setHiddenByDefault = (value) => {
+      if (typeof value === 'boolean') {
+        document.getElementById('y_opts_hidden_by_default').checked = value;
+      }
+    };
+
+    const saveHiddenByDefault = async (checkbox) => {
+      try {
+        await chrome.storage.local.set({ hiddenByDefault: checkbox.checked });
       } catch (error) {}
     };
 
@@ -146,6 +159,9 @@ window.onload = async () => {
           case 'autoload':
             setAutoload(updatedSettings[key]);
             break;
+          case 'hiddenByDefault':
+            setHiddenByDefault(updatedSettings[key]);
+            break;
           case 'highlightText':
             setHighlightText(updatedSettings[key]);
             break;
@@ -169,6 +185,9 @@ window.onload = async () => {
         switch (event.target.id) {
           case 'y_opts_autoload':
             saveAutoload(event.target);
+            break;
+          case 'y_opts_hidden_by_default':
+            saveHiddenByDefault(event.target);
             break;
           case 'y_opts_highlight':
             saveHighlightText(event.target);
