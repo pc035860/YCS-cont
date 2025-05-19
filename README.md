@@ -1,12 +1,12 @@
 # YCS-Continued
 
-Original extension repository: <https://github.com/sonigy/YCS>
+Original YCS (YouTube Comment Search) extension repository: <https://github.com/sonigy/YCS>
 
-According to [this issue](<https://github.com/sonigy/YCS/issues/56>), the extension's feature to load comments stopped working on March 28.
+According to [this issue](<https://github.com/sonigy/YCS/issues/56>), the original YCS extension's feature to load comments stopped working on March 28, 2024.
 
-Since the original extension isn't open-sourced and the author hasn't provided a resolution (as of June 1), I've created a temporary fix here.
+Since the original YCS extension wasn't open-sourced and the YCS author hadn't provided a resolution, in June 2024 I created this YCS-Continued extension as a temporary fix.
 
-YouTube significantly changed their API for rendering the comments section on March 28. This led to the failure of extensions that relied on unofficial APIs to fetch comments.
+YouTube significantly changed their API for rendering the comments section on March 28, 2024. This led to the failure of extensions that relied on unofficial APIs to fetch comments.
 
 This version tries to migrate the latest API data back to the old version, allowing the YCS extension to work as expected. However, it's unclear whether there will be updates to this version of the extension if YouTube decides to change their API usage again.
 

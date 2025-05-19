@@ -10,6 +10,17 @@
     return htmlEntities.encode(str);
   }
 
+  // Trusted Types feature testing
+  if (window.trustedTypes && trustedTypes.createPolicy) {
+    if (!trustedTypes.defaultPolicy) {
+      // provide a default policy for trusted types
+      trustedTypes.createPolicy('default', {
+        // createHTML() gets called when assigning .innerHTML
+        createHTML: (string) => string,
+      });
+    }
+  }
+
   const FORMATTED_NUMBER_CONFIG_ENTRIES = Object.entries({
     k: 1000,
     rb: 1000,
@@ -6694,7 +6705,10 @@
     }
   }
   function Yt() {
-    return window.location.href.includes('/watch?');
+    return (
+      window.location.href.includes('/watch?') ||
+      window.location.href.includes('/live/')
+    );
   }
   function Kt(e, t) {
     t && (t.textContent = e.toString());
@@ -6702,11 +6716,19 @@
   function Xt(e) {
     try {
       if ('string' != typeof e) return;
-      const t = new URL(e),
-        n = t.searchParams.get('v');
+      const t = new URL(e);
+      let n = t.searchParams.get('v');
+
+      // Support for /live/ format
+      if (!n && t.pathname.startsWith('/live/')) {
+        n = t.pathname.split('/')[2];
+      }
+
       if (n) {
         const e = new URL(t.origin);
-        return (e.pathname = '/watch'), e.searchParams.set('v', n), e.href;
+        e.pathname = '/watch';
+        e.searchParams.set('v', n);
+        return e.href;
       }
       return;
     } catch (e) {
@@ -7236,9 +7258,98 @@
       return;
     }
   }
+
+  /**
+   * Recursively finds all URLs within a given object or array and records their paths.
+   *
+   * @param {Object|Array<any>} obj - The object or array to search for URLs.
+   * @param {string} [currentPath=''] - The current path to the object being processed (used internally for recursion).
+   * @param {Array<{path: string, value: string}>} [results=[]] - An array to store the found URLs and their paths (used internally for recursion).
+   * @param {WeakSet<Object>} [visitedObjects=new WeakSet()] - A WeakSet to keep track of visited objects to prevent infinite loops (used internally for recursion).
+   * @returns {Array<{path: string, value: string}>} An array of objects, where each object contains the path and value of a found URL.
+   */
+  function findUrlsRecursively(
+    obj,
+    currentPath = '',
+    results = [],
+    visitedObjects = new WeakSet()
+  ) {
+    // Step 1: Handle base cases and non-object types.
+    if (typeof obj !== 'object' || obj === null) {
+      return results;
+    }
+
+    // Step 2: Prevent infinite recursion - check if the object has already been visited.
+    if (visitedObjects.has(obj)) {
+      return results;
+    }
+    visitedObjects.add(obj);
+
+    // Step 3: Process based on whether obj is an array or an object.
+    if (Array.isArray(obj)) {
+      // If it's an array, iterate over each element in the array.
+      obj.forEach((item, index) => {
+        // Create the full path to the current element, using [index] format.
+        const newPath = currentPath ? `${currentPath}[${index}]` : `[${index}]`; // MODIFIED LINE
+        // Recursively call for each element in the array, passing visitedObjects.
+        findUrlsRecursively(item, newPath, results, visitedObjects);
+      });
+    } else {
+      // If it's an object, iterate over each own property of the object.
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          const newPath = currentPath ? `${currentPath}.${key}` : key; // This logic remains correct
+          let value;
+
+          try {
+            value = obj[key];
+
+            if (key === 'url') {
+              if (typeof value === 'string') {
+                results.push({ path: newPath, value: value });
+              }
+              /*
+            // This block was commented out in the original code.
+            // If you need to recursively search within objects that are themselves values of a 'url' key,
+            // you might uncomment and adjust this.
+            else if (typeof value === 'object' && value !== null) {
+              findUrlsRecursively(value, newPath, results, visitedObjects);
+            }
+            */
+            } else if (typeof value === 'object' && value !== null) {
+              // If the value is another object or array, recurse into it.
+              findUrlsRecursively(value, newPath, results, visitedObjects);
+            }
+          } catch (error) {
+            // Log a warning if a property cannot be accessed.
+            console.warn(
+              `Skipping property ${newPath} due to access error: ${error.message}`
+            );
+          }
+        }
+      }
+    }
+    return results;
+  }
+
+  function getTranscriptPot() {
+    const urls = findUrlsRecursively(window)
+      .filter(({ value }) => value.includes('pot='))
+      .map(({ value }) => value);
+    if (urls.length === 0) {
+      return null;
+    }
+    try {
+      const buf = new URL(urls[0]).searchParams.get('pot');
+      return encodeURIComponent(buf);
+    } catch (e) {
+      return null;
+    }
+  }
+
   async function loadTranscript(signal) {
     const getTimedTextUrl = async () => {
-      const videoId = getVideoId(window.location.href);
+      const videoId = getVideoId(Xt(window.location.href));
       const response = await fetch(
         `https://www.youtube.com/watch?v=${videoId}`,
         {
@@ -7263,9 +7374,13 @@
       const englishTracks = generatedTracks.filter(
         ({ languageCode }) => languageCode === 'en'
       );
-      return englishTracks.length > 0
-        ? englishTracks[0].baseUrl
-        : generatedTracks[0].baseUrl;
+      const base =
+        englishTracks.length > 0
+          ? englishTracks[0].baseUrl
+          : generatedTracks[0].baseUrl;
+
+      const pot = getTranscriptPot();
+      return `${base}${pot ? `&potc=1&pot=${pot}&c=WEB` : ''}`;
     };
 
     const getRawTranscript = async (url) => {
@@ -7430,7 +7545,7 @@
                               ? void 0
                               : h.client,
                         },
-                        videoId: getVideoId(t),
+                        videoId: getVideoId(Xt(t)),
                       }),
                       method: 'POST',
                       mode: 'cors',
@@ -7714,7 +7829,7 @@
       s = new (e(Ke))({
         concurrency: 4,
       });
-    const currentVideoId = getVideoId(window.location.href);
+    const currentVideoId = getVideoId(Xt(window.location.href));
     async function processComments(continuationItems, t) {
       if (!continuationItems) return;
       for (const item of continuationItems) {
@@ -9725,12 +9840,12 @@
       }
     }
   }
-  function _n(e) {
+  function _n(e, { collapsed = false } = {}) {
     if ('string' != typeof e) return;
     const t = document.querySelector(e),
       n = document.createElement('div');
-    (n.className = 'ycs-app'),
-      (n.innerHTML = `\n        <div class="ycs-app-main">\n            <div class="ycs-head-search">\n                <p class="ycs-title ycs-left" id="ycs_title_information">\n                    YouTube Comment Search <span id="ycs-count-load"></span>\n                </p>\n                <div class="ycs_load_all ycs-right">\n                    <button id="ycs-load-all" class="ycs-btn-search ycs-title ycs_noselect" name="Load all comments" type="button"\n                        title="Load all available comments">\n                        Load all\n                    </button>\n                    <button id="ycs_load_stop" class="ycs_btn_load-stop ycs-title ycs_noselect" name="Stop load all comments" type="button"\n                        title="Stop load all available comments">\n                        stop\n                    </button>\n                </div>\n            </div>\n            <div class="ycs-title ycs-clear ycs-infobar">\n                <div id="ycs-desc__search">\n                    \n                    <div>\n                        <p class="ycs-infobar-field"><span id="ycs_status_cmnt">\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="48" height="48" viewBox="0 0 48 48">\n                <path fill="#ff6f02" d="M31 7.002l13 1.686L33.296 19 31 7.002zM17 41L4 39.314 14.704 29 17 41z"></path>\n                <path fill="#ff6f00"\n                    d="M8 24c0-8.837 7.163-16 16-16 1.024 0 2.021.106 2.992.29l.693-3.865C26.525 4.112 25.262 4.005 24 4.005c-11.053 0-20 8.947-20 20 0 4.844 1.686 9.474 4.844 13.051l3.037-2.629C9.468 31.625 8 27.987 8 24zM39.473 11.267l-3.143 2.537C38.622 16.572 40 20.125 40 24c0 8.837-7.163 16-16 16-1.029 0-2.033-.106-3.008-.292l-.676 3.771c1.262.21 2.525.317 3.684.317 11.053 0 20-8.947 20-20C44 19.375 42.421 14.848 39.473 11.267z">\n                </path>\n            </svg>\n        </span>\n    </span> Comments: </p>\n                        <div class="ycs-infobar__search">\n                            <span id="ycs_cmnts">0</span>\n\n                            <div class="ycs_infobar_btns ycs_noselect">\n                                <div class="ycs_load_wrap">\n                                    <button id="ycs-load-cmnts" class="ycs-btn-search ycs-title" name="Load comments" type="button"\n                                        title="Load comments">\n                                        load\n                                    </button>\n                                </div>\n                                <div class="ycs_open_wrap">\n                                    <button id="ycs_open_all_comments_window" class="ycs-btn-search ycs-title"\n                                        name="Open comments in the new popup window" title="Open comments in the new popup window">\n                                        open\n                                    </button>\n                                </div>\n                                <div class="ycs_save_wrap">\n                                    <button id="ycs_save_all_comments" class="ycs-btn-search ycs-title" name="Save comments to file"\n                                        title="Save comments to file">\n                                        save\n                                    </button>\n                                </div>\n                            </div>\n                        </div>\n                    </div>\n                    <span id="ycs_anchor_vmode" class="ycs-hidden"></span>\n                    <div>\n                        <p class="ycs-infobar-field"><span id="ycs_status_chat">\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="48" height="48" viewBox="0 0 48 48">\n                <path fill="#ff6f02" d="M31 7.002l13 1.686L33.296 19 31 7.002zM17 41L4 39.314 14.704 29 17 41z"></path>\n                <path fill="#ff6f00"\n                    d="M8 24c0-8.837 7.163-16 16-16 1.024 0 2.021.106 2.992.29l.693-3.865C26.525 4.112 25.262 4.005 24 4.005c-11.053 0-20 8.947-20 20 0 4.844 1.686 9.474 4.844 13.051l3.037-2.629C9.468 31.625 8 27.987 8 24zM39.473 11.267l-3.143 2.537C38.622 16.572 40 20.125 40 24c0 8.837-7.163 16-16 16-1.029 0-2.033-.106-3.008-.292l-.676 3.771c1.262.21 2.525.317 3.684.317 11.053 0 20-8.947 20-20C44 19.375 42.421 14.848 39.473 11.267z">\n                </path>\n            </svg>\n        </span>\n    </span> Chat replay: </p>\n                        <div class="ycs-infobar__search">\n                            <span id="ycs_cmnts_chat">0</span>\n\n                            <div class="ycs_infobar_btns ycs_noselect">\n                                <div class="ycs_load_wrap">\n                                    <button id="ycs-load-chat" class="ycs-btn-search ycs-title" name="Load chat replay" type="button"\n                                        title="Load chat replay">\n                                        load\n                                    </button>\n                                </div>\n                                <div class="ycs_open_wrap">\n                                    <button id="ycs_open_all_comments_chat_window" class="ycs-btn-search ycs-title"\n                                        name="Open chat comments in the new popup window"\n                                        title="Open chat comments in the new popup window">\n                                        open\n                                    </button>\n                                </div>\n                                <div class="ycs_save_wrap">\n                                    <button id="ycs_save_all_comments_chat" class="ycs-btn-search ycs-title"\n                                        name="Save chat comments to file" title="Save chat comments to file">\n                                        save\n                                    </button>\n                                </div>\n                            </div>\n                        </div>\n                    </div>\n                    <div>\n                        <p class="ycs-infobar-field"><span id="ycs_status_trvideo">\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="48" height="48" viewBox="0 0 48 48">\n                <path fill="#ff6f02" d="M31 7.002l13 1.686L33.296 19 31 7.002zM17 41L4 39.314 14.704 29 17 41z"></path>\n                <path fill="#ff6f00"\n                    d="M8 24c0-8.837 7.163-16 16-16 1.024 0 2.021.106 2.992.29l.693-3.865C26.525 4.112 25.262 4.005 24 4.005c-11.053 0-20 8.947-20 20 0 4.844 1.686 9.474 4.844 13.051l3.037-2.629C9.468 31.625 8 27.987 8 24zM39.473 11.267l-3.143 2.537C38.622 16.572 40 20.125 40 24c0 8.837-7.163 16-16 16-1.029 0-2.033-.106-3.008-.292l-.676 3.771c1.262.21 2.525.317 3.684.317 11.053 0 20-8.947 20-20C44 19.375 42.421 14.848 39.473 11.267z">\n                </path>\n            </svg>\n        </span>\n    </span> Transcript video: </p>\n                        <div class="ycs-infobar__search">\n                            <span id="ycs_cmnts_video">0</span>\n                            \n                            <div class="ycs_infobar_btns ycs_noselect">\n                                <div class="ycs_load_wrap">\n                                    <button id="ycs-load-transcript-video" class="ycs-btn-search ycs-title" name="Load transcript video"\n                                        type="button" title="Load transcript video">\n                                        load\n                                    </button>\n                                </div>\n                                <div class="ycs_open_wrap">\n                                    <button id="ycs_open_all_comments_trvideo_window" class="ycs-btn-search ycs-title"\n                                        name="Open transcript video in the new popup window"\n                                        title="Open transcript video in the new popup window">\n                                        open\n                                    </button>\n                                </div>\n                                <div class="ycs_save_wrap">\n                                    <button id="ycs_save_all_comments_trvideo" class="ycs-btn-search ycs-title"\n                                        name="Save transcript video to file" title="Save transcript video to file">\n                                        save\n                                    </button>\n                                </div>\n                            </div>\n                        </div>\n                    </div>\n                </div>\n\n            </div>\n            \n            <div id="ycs-search"></div>\n            <div><p class="ycs-title ycs_notify_box"><i></i></p></div>\n\n            <div class="ycs_extra_panel ycs-right">\n                <div>\n                    ${(() => {
+    (n.className = `ycs-app ${collapsed ? 'ycs-collapsed' : ''}`),
+      (n.innerHTML = `\n <div class="ycs-app-toggle"><p class="ycs-title ycs-left">YouTube Comment Search</p><div class="ycs-right"><button class="ycs-btn-toggle-app ycs-btn-search ycs_noselect" type="button">Show YCS</button></div></div>       <div class="ycs-app-main">\n            <div class="ycs-head-search">\n                <p class="ycs-title ycs-left" id="ycs_title_information">\n                    YouTube Comment Search <span id="ycs-count-load"></span>\n                </p>\n                <div class="ycs_load_all ycs-right">\n                    <button class="ycs-btn-toggle-app ycs-btn-search ycs_noselect" type="button">hide YCS</button><button id="ycs-load-all" class="ycs-btn-search ycs-title ycs_noselect" name="Load all comments" type="button"\n                        title="Load all available comments">\n                        Load all\n                    </button>\n                    <button id="ycs_load_stop" class="ycs_btn_load-stop ycs-title ycs_noselect" name="Stop load all comments" type="button"\n                        title="Stop load all available comments">\n                        stop\n                    </button>\n                </div>\n            </div>\n            <div class="ycs-title ycs-clear ycs-infobar">\n                <div id="ycs-desc__search">\n                    \n                    <div>\n                        <p class="ycs-infobar-field"><span id="ycs_status_cmnt">\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="48" height="48" viewBox="0 0 48 48">\n                <path fill="#ff6f02" d="M31 7.002l13 1.686L33.296 19 31 7.002zM17 41L4 39.314 14.704 29 17 41z"></path>\n                <path fill="#ff6f00"\n                    d="M8 24c0-8.837 7.163-16 16-16 1.024 0 2.021.106 2.992.29l.693-3.865C26.525 4.112 25.262 4.005 24 4.005c-11.053 0-20 8.947-20 20 0 4.844 1.686 9.474 4.844 13.051l3.037-2.629C9.468 31.625 8 27.987 8 24zM39.473 11.267l-3.143 2.537C38.622 16.572 40 20.125 40 24c0 8.837-7.163 16-16 16-1.029 0-2.033-.106-3.008-.292l-.676 3.771c1.262.21 2.525.317 3.684.317 11.053 0 20-8.947 20-20C44 19.375 42.421 14.848 39.473 11.267z">\n                </path>\n            </svg>\n        </span>\n    </span> Comments: </p>\n                        <div class="ycs-infobar__search">\n                            <span id="ycs_cmnts">0</span>\n\n                            <div class="ycs_infobar_btns ycs_noselect">\n                                <div class="ycs_load_wrap">\n                                    <button id="ycs-load-cmnts" class="ycs-btn-search ycs-title" name="Load comments" type="button"\n                                        title="Load comments">\n                                        load\n                                    </button>\n                                </div>\n                                <div class="ycs_open_wrap">\n                                    <button id="ycs_open_all_comments_window" class="ycs-btn-search ycs-title"\n                                        name="Open comments in the new popup window" title="Open comments in the new popup window">\n                                        open\n                                    </button>\n                                </div>\n                                <div class="ycs_save_wrap">\n                                    <button id="ycs_save_all_comments" class="ycs-btn-search ycs-title" name="Save comments to file"\n                                        title="Save comments to file">\n                                        save\n                                    </button>\n                                </div>\n                            </div>\n                        </div>\n                    </div>\n                    <span id="ycs_anchor_vmode" class="ycs-hidden"></span>\n                    <div>\n                        <p class="ycs-infobar-field"><span id="ycs_status_chat">\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="48" height="48" viewBox="0 0 48 48">\n                <path fill="#ff6f02" d="M31 7.002l13 1.686L33.296 19 31 7.002zM17 41L4 39.314 14.704 29 17 41z"></path>\n                <path fill="#ff6f00"\n                    d="M8 24c0-8.837 7.163-16 16-16 1.024 0 2.021.106 2.992.29l.693-3.865C26.525 4.112 25.262 4.005 24 4.005c-11.053 0-20 8.947-20 20 0 4.844 1.686 9.474 4.844 13.051l3.037-2.629C9.468 31.625 8 27.987 8 24zM39.473 11.267l-3.143 2.537C38.622 16.572 40 20.125 40 24c0 8.837-7.163 16-16 16-1.029 0-2.033-.106-3.008-.292l-.676 3.771c1.262.21 2.525.317 3.684.317 11.053 0 20-8.947 20-20C44 19.375 42.421 14.848 39.473 11.267z">\n                </path>\n            </svg>\n        </span>\n    </span> Chat replay: </p>\n                        <div class="ycs-infobar__search">\n                            <span id="ycs_cmnts_chat">0</span>\n\n                            <div class="ycs_infobar_btns ycs_noselect">\n                                <div class="ycs_load_wrap">\n                                    <button id="ycs-load-chat" class="ycs-btn-search ycs-title" name="Load chat replay" type="button"\n                                        title="Load chat replay">\n                                        load\n                                    </button>\n                                </div>\n                                <div class="ycs_open_wrap">\n                                    <button id="ycs_open_all_comments_chat_window" class="ycs-btn-search ycs-title"\n                                        name="Open chat comments in the new popup window"\n                                        title="Open chat comments in the new popup window">\n                                        open\n                                    </button>\n                                </div>\n                                <div class="ycs_save_wrap">\n                                    <button id="ycs_save_all_comments_chat" class="ycs-btn-search ycs-title"\n                                        name="Save chat comments to file" title="Save chat comments to file">\n                                        save\n                                    </button>\n                                </div>\n                            </div>\n                        </div>\n                    </div>\n                    <div>\n                        <p class="ycs-infobar-field"><span id="ycs_status_trvideo">\n        <span class="ycs-icons">\n            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="48" height="48" viewBox="0 0 48 48">\n                <path fill="#ff6f02" d="M31 7.002l13 1.686L33.296 19 31 7.002zM17 41L4 39.314 14.704 29 17 41z"></path>\n                <path fill="#ff6f00"\n                    d="M8 24c0-8.837 7.163-16 16-16 1.024 0 2.021.106 2.992.29l.693-3.865C26.525 4.112 25.262 4.005 24 4.005c-11.053 0-20 8.947-20 20 0 4.844 1.686 9.474 4.844 13.051l3.037-2.629C9.468 31.625 8 27.987 8 24zM39.473 11.267l-3.143 2.537C38.622 16.572 40 20.125 40 24c0 8.837-7.163 16-16 16-1.029 0-2.033-.106-3.008-.292l-.676 3.771c1.262.21 2.525.317 3.684.317 11.053 0 20-8.947 20-20C44 19.375 42.421 14.848 39.473 11.267z">\n                </path>\n            </svg>\n        </span>\n    </span> Transcript video: </p>\n                        <div class="ycs-infobar__search">\n                            <span id="ycs_cmnts_video">0</span>\n                            \n                            <div class="ycs_infobar_btns ycs_noselect">\n                                <div class="ycs_load_wrap">\n                                    <button id="ycs-load-transcript-video" class="ycs-btn-search ycs-title" name="Load transcript video"\n                                        type="button" title="Load transcript video">\n                                        load\n                                    </button>\n                                </div>\n                                <div class="ycs_open_wrap">\n                                    <button id="ycs_open_all_comments_trvideo_window" class="ycs-btn-search ycs-title"\n                                        name="Open transcript video in the new popup window"\n                                        title="Open transcript video in the new popup window">\n                                        open\n                                    </button>\n                                </div>\n                                <div class="ycs_save_wrap">\n                                    <button id="ycs_save_all_comments_trvideo" class="ycs-btn-search ycs-title"\n                                        name="Save transcript video to file" title="Save transcript video to file">\n                                        save\n                                    </button>\n                                </div>\n                            </div>\n                        </div>\n                    </div>\n                </div>\n\n            </div>\n            \n            <div id="ycs-search"></div>\n            <div><p class="ycs-title ycs_notify_box"><i></i></p></div>\n\n            <div class="ycs_extra_panel ycs-right">\n                <div>\n                    ${(() => {
         try {
           return vn().supported
             ? '<button id="ycs_view_mode" class="ycs-btn-search ycs-title ycs_noselect" name="View Mode" type="button" title="⌨ HOTKEY: [ Alt + ~ ] Viewer mode for more easier searches and video watching">V. Mode</button>'
@@ -10166,10 +10281,14 @@
               sn('.ycs-app'),
               document.querySelector('#meta.style-scope.ytd-watch-flexy'))
             )
-              _n('#meta.style-scope.ytd-watch-flexy');
+              _n('#meta.style-scope.ytd-watch-flexy', {
+                collapsed: false,
+              });
             else {
               if (!document.querySelector('#meta.style-scope')) return;
-              _n('#meta.style-scope');
+              _n('#meta.style-scope', {
+                collapsed: false,
+              });
             }
             const l = document.getElementById('ycs-search');
             buildSearchUI(l);
@@ -11061,6 +11180,18 @@
                 ?.content?.transcriptRenderer?.body?.transcriptBodyRenderer
                 ?.cueGroups?.length;
             }
+            const toggles =
+              document.getElementsByClassName('ycs-btn-toggle-app');
+            for (const toggle of toggles) {
+              toggle.addEventListener(
+                'click',
+                function () {
+                  const app = document.getElementsByClassName('ycs-app')[0];
+                  app.classList.toggle('ycs-collapsed');
+                },
+                false
+              );
+            }
             const y = document.getElementById('ycs-load-all');
             y &&
               y.addEventListener('click', function () {
@@ -11881,7 +12012,7 @@
                 const f = document.getElementById('ycs-search-total-result');
                 f && (f.innerText = `(Comments) Found: ${p.length}`),
                   (countsReport.comments = p.length);
-                const currentVideoId = getVideoId(window.location.href);
+                const currentVideoId = getVideoId(Xt(window.location.href));
                 const v = document.getElementById('ycs_wrap_comments');
                 v &&
                   v.addEventListener('click', (e) => {
@@ -12925,6 +13056,17 @@
                           ycsOptions.highlightExact = value;
                         } catch (e) {}
                       },
+                      handleHiddenByDefault = (value) => {
+                        try {
+                          ycsOptions.hiddenByDefault = value;
+
+                          const t =
+                            document.getElementsByClassName('ycs-app')[0];
+                          if (t) {
+                            t.classList.toggle('ycs-collapsed', value);
+                          }
+                        } catch (e) {}
+                      },
                       r = (e) => {
                         try {
                           if (!e) return;
@@ -12949,6 +13091,9 @@
                         switch (e) {
                           case 'autoload':
                             n(t[e], t);
+                            break;
+                          case 'hiddenByDefault':
+                            handleHiddenByDefault(t[e]);
                             break;
                           case 'highlightText':
                             o(t[e]);
