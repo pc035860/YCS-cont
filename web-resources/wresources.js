@@ -7258,6 +7258,95 @@
       return;
     }
   }
+
+  /**
+   * Recursively finds all URLs within a given object or array and records their paths.
+   *
+   * @param {Object|Array<any>} obj - The object or array to search for URLs.
+   * @param {string} [currentPath=''] - The current path to the object being processed (used internally for recursion).
+   * @param {Array<{path: string, value: string}>} [results=[]] - An array to store the found URLs and their paths (used internally for recursion).
+   * @param {WeakSet<Object>} [visitedObjects=new WeakSet()] - A WeakSet to keep track of visited objects to prevent infinite loops (used internally for recursion).
+   * @returns {Array<{path: string, value: string}>} An array of objects, where each object contains the path and value of a found URL.
+   */
+  function findUrlsRecursively(
+    obj,
+    currentPath = '',
+    results = [],
+    visitedObjects = new WeakSet()
+  ) {
+    // Step 1: Handle base cases and non-object types.
+    if (typeof obj !== 'object' || obj === null) {
+      return results;
+    }
+
+    // Step 2: Prevent infinite recursion - check if the object has already been visited.
+    if (visitedObjects.has(obj)) {
+      return results;
+    }
+    visitedObjects.add(obj);
+
+    // Step 3: Process based on whether obj is an array or an object.
+    if (Array.isArray(obj)) {
+      // If it's an array, iterate over each element in the array.
+      obj.forEach((item, index) => {
+        // Create the full path to the current element, using [index] format.
+        const newPath = currentPath ? `${currentPath}[${index}]` : `[${index}]`; // MODIFIED LINE
+        // Recursively call for each element in the array, passing visitedObjects.
+        findUrlsRecursively(item, newPath, results, visitedObjects);
+      });
+    } else {
+      // If it's an object, iterate over each own property of the object.
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          const newPath = currentPath ? `${currentPath}.${key}` : key; // This logic remains correct
+          let value;
+
+          try {
+            value = obj[key];
+
+            if (key === 'url') {
+              if (typeof value === 'string') {
+                results.push({ path: newPath, value: value });
+              }
+              /*
+            // This block was commented out in the original code.
+            // If you need to recursively search within objects that are themselves values of a 'url' key,
+            // you might uncomment and adjust this.
+            else if (typeof value === 'object' && value !== null) {
+              findUrlsRecursively(value, newPath, results, visitedObjects);
+            }
+            */
+            } else if (typeof value === 'object' && value !== null) {
+              // If the value is another object or array, recurse into it.
+              findUrlsRecursively(value, newPath, results, visitedObjects);
+            }
+          } catch (error) {
+            // Log a warning if a property cannot be accessed.
+            console.warn(
+              `Skipping property ${newPath} due to access error: ${error.message}`
+            );
+          }
+        }
+      }
+    }
+    return results;
+  }
+
+  function getTranscriptPot() {
+    const urls = findUrlsRecursively(window)
+      .filter(({ value }) => value.includes('pot='))
+      .map(({ value }) => value);
+    if (urls.length === 0) {
+      return null;
+    }
+    try {
+      const buf = new URL(urls[0]).searchParams.get('pot');
+      return encodeURIComponent(buf);
+    } catch (e) {
+      return null;
+    }
+  }
+
   async function loadTranscript(signal) {
     const getTimedTextUrl = async () => {
       const videoId = getVideoId(Xt(window.location.href));
@@ -7285,9 +7374,13 @@
       const englishTracks = generatedTracks.filter(
         ({ languageCode }) => languageCode === 'en'
       );
-      return englishTracks.length > 0
-        ? englishTracks[0].baseUrl
-        : generatedTracks[0].baseUrl;
+      const base =
+        englishTracks.length > 0
+          ? englishTracks[0].baseUrl
+          : generatedTracks[0].baseUrl;
+
+      const pot = getTranscriptPot();
+      return `${base}${pot ? `&potc=1&pot=${pot}&c=WEB` : ''}`;
     };
 
     const getRawTranscript = async (url) => {
