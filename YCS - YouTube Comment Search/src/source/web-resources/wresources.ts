@@ -111,6 +111,20 @@ import {
             const elSearch = document.getElementById('ycs-search');
             if (elSearch) {
                 renderSearch(elSearch);
+                // Toggle collapsed/expand of app
+                try {
+                    const toggles = document.getElementsByClassName('ycs-btn-toggle-app');
+                    for (const toggle of Array.from(toggles)) {
+                        (toggle as HTMLElement).addEventListener('click', () => {
+                            const app = document.getElementsByClassName('ycs-app')[0] as HTMLElement;
+                            if (app) {
+                                app.classList.toggle('ycs-collapsed');
+                            }
+                        }, false);
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
             }
 
             const getElmsBtnPanel = (): object => {
@@ -2128,7 +2142,7 @@ Total: ${c.count}\n${c.html}`;
             window.postMessage({ type: 'GET_OPTIONS' }, window.location.origin);
 
             handleMessageEvent = (e): void => {
-                console.log('EVENT MESSAGE e: ', e);
+                // console.log('EVENT MESSAGE e: ', e);
 
                 if (e.origin !== window.location.origin) return;
                 

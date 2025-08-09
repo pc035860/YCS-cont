@@ -341,6 +341,22 @@ html[dark] .ycs-goto-video {
     visibility: hidden;
 }
 
+/* Collapsed app state for top toggle */
+.ycs-app.ycs-collapsed .ycs-app-main {
+    display: none;
+}
+
+.ycs-app-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+}
+
+.ycs-btn-toggle-app {
+    margin-left: 8px;
+}
+
 .ycs-comment-block {
     padding-left: 56px;
     font-size   : 14px;

@@ -277,6 +277,517 @@ function getParams(w: any): GetParams {
     }));
 }
 
+/**
+ * Normalize Innertube continuation items from either reloadContinuationItemsCommand or appendContinuationItemsAction.
+ * Returns a flat array of items ready for downstream processing.
+ */
+// legacy fallback migration removed (now fully FW-driven)
+
+/**
+ * Normalize new-style commentViewModel into legacy-like { commentRenderer: { contentText: { runs } } }
+ */
+function normalizeCommentFromViewModel(item: any): any | undefined {
+    try {
+        const commentVM = wrapTryCatch(() => item.commentThreadRenderer.commentViewModel) || wrapTryCatch(() => item.commentViewModel);
+        if (!commentVM) return undefined;
+
+        // Try common paths first
+        const candidates = [] as any[];
+        const preferredPaths = [
+            // arrays of segments
+            '**.commentContentViewModel.content',
+            '**.attributedText.content',
+            '**.content.content',
+            '**.content',
+            // arrays of classic runs
+            '**.commentContentViewModel.content.runs',
+            '**.attributedText.runs',
+            '**.content.runs',
+            '**.content.content.runs',
+            '**.textContent.runs',
+            '**.body.runs',
+            '**.commentText.runs',
+            '**.contentText.runs',
+            '**.runs'
+        ];
+        for (const p of preferredPaths) {
+            const arrs = objectScan([p], { joined: true, rtn: 'value' })(commentVM) as any[];
+            for (const arr of arrs) {
+                if (Array.isArray(arr)) candidates.push(arr);
+            }
+            if (candidates.length > 0) break;
+        }
+
+        // If still not found, look for any array that resembles runs
+        if (candidates.length === 0) {
+            const anyArrays = objectScan(['**.*'], { rtn: 'value' })(commentVM) as any[];
+            for (const v of anyArrays) {
+                if (Array.isArray(v) && v.length > 0 && v.some((r: any) => typeof r === 'object' && (wrapTryCatch(() => r.text) || wrapTryCatch(() => r.emoji) || wrapTryCatch(() => r.attachment) || wrapTryCatch(() => r.navigationEndpoint)))) {
+                    candidates.push(v);
+                    break;
+                }
+            }
+        }
+
+        // Pick first array with run-like objects
+        const runsLike = (candidates.find(a => a && Array.isArray(a) && a.some((r: any) => typeof r === 'object')) || []) as any[];
+
+        // Convert various VM element shapes into legacy run shapes
+        const mapElementToRun = (elem: any): any | undefined => {
+            try {
+                if (!elem || typeof elem !== 'object') return undefined;
+                // Direct text
+                const text = wrapTryCatch(() => elem.text) || wrapTryCatch(() => elem.simpleText);
+                if (typeof text === 'string') {
+                    return { text, navigationEndpoint: wrapTryCatch(() => elem.navigationEndpoint) };
+                }
+                // textRun
+                const textRunContent = wrapTryCatch(() => elem.textRun.content) || wrapTryCatch(() => elem.textRun.text);
+                if (typeof textRunContent === 'string') {
+                    return { text: textRunContent, navigationEndpoint: wrapTryCatch(() => elem.textRun.navigationEndpoint) };
+                }
+                // runs-like nested
+                const nestedText = wrapTryCatch(() => elem.content) || wrapTryCatch(() => elem.string) || wrapTryCatch(() => elem.value);
+                if (typeof nestedText === 'string') {
+                    return { text: nestedText };
+                }
+                // emoji
+                const emoji = wrapTryCatch(() => elem.emoji) || wrapTryCatch(() => elem.emojiRun.emoji);
+                if (emoji) {
+                    return { emoji };
+                }
+                // attachment/image
+                const attachment = wrapTryCatch(() => elem.attachment) || wrapTryCatch(() => elem.image) || wrapTryCatch(() => elem.inlineObject);
+                if (attachment) {
+                    return { attachment };
+                }
+                return undefined;
+            } catch {
+                return undefined;
+            }
+        };
+
+        // Flatten nested segments (e.g., attributedText.content[] where children also contain embedded segments)
+        const collectRunsFromElements = (elements: any[]): any[] => {
+            const acc: any[] = [];
+            for (const elem of elements) {
+                const mapped = mapElementToRun(elem);
+                if (mapped) acc.push(mapped);
+                const nestedSegs = wrapTryCatch(() => elem.attributedText?.content) || wrapTryCatch(() => elem.content?.content) || wrapTryCatch(() => elem.content);
+                if (Array.isArray(nestedSegs) && nestedSegs.length > 0) {
+                    acc.push(...collectRunsFromElements(nestedSegs));
+                }
+            }
+            return acc;
+        };
+
+        let runs = collectRunsFromElements(runsLike).filter((x: any) => !!x);
+
+        // Fallback: build a single run from discovered text fields if runs missing
+        if (!runs || runs.length === 0) {
+            const parts: any[] = [];
+            const textValues = objectScan(['**.simpleText', '**.text', '**.content'], { joined: true, rtn: 'value' })(commentVM) as any[];
+            for (const t of textValues) {
+                if (typeof t === 'string' && t.trim().length > 0) {
+                    parts.push({ text: t });
+                }
+            }
+            if (parts.length > 0) runs = parts;
+        }
+
+        return { commentRenderer: { contentText: { runs: runs || [] } } };
+    } catch (e) {
+        console.error(e);
+        return undefined;
+    }
+}
+
+/**
+ * Build a map from frameworkUpdates.entityBatchUpdate.mutations keyed by entity key.
+ * Keys we care about: commentEntityPayload.key, commentSurfaceEntityPayload.key,
+ * engagementToolbarStateEntityPayload.key
+ */
+function getFrameworkUpdatesById(response: any): Record<string, any> {
+    try {
+        const mutations: any[] = wrapTryCatch(() => response.frameworkUpdates.entityBatchUpdate.mutations) || [];
+        if (!Array.isArray(mutations) || mutations.length === 0) return {};
+        const map: Record<string, any> = {};
+        for (const m of mutations) {
+            try {
+                const payload = wrapTryCatch(() => m.payload) || {};
+                // comment entity
+                const cmt = wrapTryCatch(() => payload.commentEntityPayload);
+                if (cmt) {
+                    // Prefer mapping by commentId like JS 版
+                    const commentId = wrapTryCatch(() => cmt.properties?.commentId);
+                    if (commentId) map[commentId] = cmt;
+                    // Also keep raw entity key as補充索引
+                    const cKey = wrapTryCatch(() => cmt.key);
+                    if (cKey) map[cKey] = cmt;
+                }
+                // comment surface (published time, chip etc.)
+                const surface = wrapTryCatch(() => payload.commentSurfaceEntityPayload);
+                if (surface && surface.key) {
+                    map[surface.key] = surface;
+                }
+                // toolbar state (heart state etc.)
+                const toolbar = wrapTryCatch(() => payload.engagementToolbarStateEntityPayload);
+                if (toolbar && toolbar.key) {
+                    map[toolbar.key] = toolbar;
+                }
+            } catch (e) {
+                console.error(e);
+                continue;
+            }
+        }
+        return map;
+    } catch (e) {
+        console.error(e);
+        return {};
+    }
+}
+
+/**
+ * Apply frameworkUpdates-derived flags (heart, verified, authorIsChannelOwner, sponsor) to a legacy-like comment object.
+ * vmSource can be either a thread item that contains commentViewModel, or a plain object exposing the same keys.
+ */
+function applyFrameworkUpdatesToComment(commentObj: any, vmSource: any, fwById: Record<string, any>): void {
+    try {
+        if (!commentObj || !fwById) return;
+        const vm = wrapTryCatch(() => vmSource?.commentThreadRenderer?.commentViewModel?.commentViewModel)
+            || wrapTryCatch(() => vmSource?.commentViewModel)
+            || vmSource; // allow directly passing VM
+
+        const commentId = wrapTryCatch(() => vm.commentId) || wrapTryCatch(() => commentObj?.commentRenderer?.commentId);
+        if (commentId) {
+            const update = fwById[commentId];
+            if (update) {
+                const isVerified = wrapTryCatch(() => update.author?.isVerified);
+                const isCreator = wrapTryCatch(() => update.author?.isCreator);
+                if (isVerified) {
+                    commentObj.commentRenderer = commentObj.commentRenderer || {};
+                    commentObj.commentRenderer.verifiedAuthor = true;
+                }
+                if (isCreator) {
+                    commentObj.commentRenderer = commentObj.commentRenderer || {};
+                    commentObj.commentRenderer.authorIsChannelOwner = true;
+                }
+                const sponsorBadgeUrl = wrapTryCatch(() => update.author?.sponsorBadgeUrl);
+                if (sponsorBadgeUrl) {
+                    commentObj.commentRenderer = commentObj.commentRenderer || {};
+                    commentObj.commentRenderer.sponsorCommentBadge = {
+                        sponsorCommentBadgeRenderer: {
+                            customBadge: { thumbnails: [{ url: sponsorBadgeUrl }] }
+                        }
+                    };
+                }
+            }
+        }
+
+        // toolbar heart
+        const toolbarKey = wrapTryCatch(() => vm.toolbarStateKey);
+        const toolbarUpdate = toolbarKey ? fwById[toolbarKey] : undefined;
+        if (toolbarUpdate && wrapTryCatch(() => toolbarUpdate.heartState) === 'TOOLBAR_HEART_STATE_HEARTED') {
+            commentObj.commentRenderer = commentObj.commentRenderer || {};
+            commentObj.commentRenderer.creatorHeart = { tooltip: 'hearted' } as any;
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+/**
+ * Convert frameworkUpdates commandRuns/attachmentRuns into legacy content runs
+ */
+function migrateRuns(baseText: string, rawRuns: any[]): any[] {
+    try {
+        let currentIndex = 0;
+        const result: any[] = [];
+        for (const r of rawRuns || []) {
+            const startIndex = wrapTryCatch(() => r.startIndex) as any;
+            const length = wrapTryCatch(() => r.length) as any;
+            if (typeof startIndex === 'number' && startIndex > currentIndex) {
+                result.push({ text: baseText.slice(currentIndex, startIndex) });
+            }
+            result.push(r);
+            if (typeof startIndex === 'number' && typeof length === 'number') {
+                currentIndex = startIndex + length;
+            }
+        }
+        if (typeof currentIndex === 'number' && currentIndex < (baseText?.length || 0)) {
+            result.push({ text: baseText.slice(currentIndex) });
+        }
+        return result;
+    } catch (e) {
+        console.error(e);
+        return [{ text: baseText || '' }];
+    }
+}
+
+function parseFormattedNumberToInt(value?: string): number {
+    try {
+        if (!value) return 0;
+        const n = Number(String(value).replace(/[^0-9]/g, ''));
+        return Number.isFinite(n) ? n : 0;
+    } catch {
+        return 0;
+    }
+}
+
+/**
+ * generateCommentObject: build legacy-like commentRenderer from framework updates
+ */
+function generateCommentObjectFromFW(params: { commentId: string; update: any; surfaceUpdate?: any; toolbarStateUpdate?: any }): any {
+    try {
+        const { commentId, update, surfaceUpdate, toolbarStateUpdate } = params;
+        if (!update) return undefined;
+
+        const propContent = wrapTryCatch(() => update.properties.content) || {};
+        const baseText: string = wrapTryCatch(() => propContent.content) || '';
+
+        // Build raw runs from commandRuns and attachmentRuns
+        const rawRuns: any[] = [];
+        try {
+            const commandRuns = wrapTryCatch(() => propContent.commandRuns) || [];
+            for (const commandRun of commandRuns) {
+                try {
+                    const watchEndpoint = wrapTryCatch(() => commandRun.onTap.innertubeCommand.watchEndpoint);
+                    const browseEndpoint = wrapTryCatch(() => commandRun.onTap.innertubeCommand.browseEndpoint);
+                    const webUrl = wrapTryCatch(() => commandRun.onTap.innertubeCommand.commandMetadata.webCommandMetadata.url);
+                    const startIndex = wrapTryCatch(() => commandRun.startIndex);
+                    const length = wrapTryCatch(() => commandRun.length);
+                    let text: string | undefined;
+                    if (typeof startIndex === 'number' && typeof length === 'number') {
+                        text = baseText.slice(startIndex, startIndex + length);
+                    }
+                    if (watchEndpoint) {
+                        rawRuns.push({
+                            text,
+                            startIndex,
+                            length,
+                            navigationEndpoint: {
+                                watchEndpoint: {
+                                    videoId: wrapTryCatch(() => watchEndpoint.videoId),
+                                    startTimeSeconds: wrapTryCatch(() => watchEndpoint.startTimeSeconds) || 0
+                                }
+                            }
+                        });
+                    } else if (browseEndpoint || webUrl) {
+                        const canonicalBaseUrl = webUrl ? `https://www.youtube.com${webUrl}` : undefined;
+                        rawRuns.push({
+                            text,
+                            startIndex,
+                            length,
+                            navigationEndpoint: {
+                                watchEndpoint: { startTimeSeconds: -1 },
+                                browseEndpoint: {
+                                    browseId: wrapTryCatch(() => browseEndpoint.browseId),
+                                    canonicalBaseUrl
+                                }
+                            }
+                        });
+                    }
+                } catch (e) { console.error(e); continue; }
+            }
+        } catch (e) { console.error(e); }
+
+        try {
+            const attachmentRuns = wrapTryCatch(() => propContent.attachmentRuns) || [];
+            for (const attachmentRun of attachmentRuns) {
+                try {
+                    const image = wrapTryCatch(() => attachmentRun.element.type.imageType.image);
+                    if (!image) continue;
+                    const startIndex = wrapTryCatch(() => attachmentRun.startIndex);
+                    const length = wrapTryCatch(() => attachmentRun.length);
+                    let text: string | undefined;
+                    if (typeof startIndex === 'number' && typeof length === 'number') {
+                        text = baseText.slice(startIndex, startIndex + length);
+                    }
+                    const imageSource = wrapTryCatch(() => image.sources[0]) || {};
+                    const imageMargin = wrapTryCatch(() => attachmentRun.element.properties.layoutProperties.margin) || {};
+                    rawRuns.push({
+                        text,
+                        startIndex,
+                        length,
+                        attachment: {
+                            image: {
+                                width: wrapTryCatch(() => imageSource.width),
+                                height: wrapTryCatch(() => imageSource.height),
+                                url: wrapTryCatch(() => imageSource.url),
+                                margin: {
+                                    left: wrapTryCatch(() => imageMargin.left.value) || 0,
+                                    right: wrapTryCatch(() => imageMargin.right.value) || 0
+                                }
+                            }
+                        }
+                    });
+                } catch (e) { console.error(e); continue; }
+            }
+        } catch (e) { console.error(e); }
+
+        rawRuns.sort((a: any, b: any) => (a?.startIndex || 0) - (b?.startIndex || 0));
+        const runs = migrateRuns(baseText, rawRuns);
+
+        const author = wrapTryCatch(() => update.author) || {};
+        const likeCountLiked = wrapTryCatch(() => update.toolbar.likeCountLiked);
+        let likeCount = 0;
+        try {
+            const parsed = parseFormattedNumberToInt(likeCountLiked);
+            // 在新版中 likeCountLiked 通常是 +1 的顯示數；保守處理，最低為 0
+            likeCount = Math.max(0, parsed - 1);
+        } catch {}
+        const replyCount = parseFormattedNumberToInt(wrapTryCatch(() => update.toolbar.replyCount) || '0');
+
+        const comment: any = {
+            commentRenderer: {
+                commentId,
+                likeCount,
+                replyCount,
+                authorText: { simpleText: wrapTryCatch(() => author.displayName) },
+                authorThumbnail: { thumbnails: [{ url: wrapTryCatch(() => author.avatarThumbnailUrl) }] },
+                authorEndpoint: wrapTryCatch(() => author.channelCommand.innertubeCommand),
+                contentText: { runs, fullText: baseText }
+            }
+        };
+
+        if (surfaceUpdate) {
+            const publishedTime = wrapTryCatch(() => surfaceUpdate.publishedTimeCommand?.innertubeCommand?.commandMetadata)
+                || wrapTryCatch(() => surfaceUpdate.pdgCommentChip?.pdgCommentChipRenderer?.chipText?.simpleText);
+            const publishedText = wrapTryCatch(() => update.properties?.publishedTime) || undefined;
+            if (publishedText) {
+                comment.commentRenderer.publishedTimeText = {
+                    runs: [{ text: publishedText, navigationEndpoint: wrapTryCatch(() => surfaceUpdate?.publishedTimeCommand?.innertubeCommand) }]
+                };
+            }
+        }
+
+        if (toolbarStateUpdate && wrapTryCatch(() => toolbarStateUpdate.heartState) === 'TOOLBAR_HEART_STATE_HEARTED') {
+            comment.commentRenderer.creatorHeart = { tooltip: wrapTryCatch(() => update.toolbar?.heartActiveTooltip) || 'hearted' } as any;
+        }
+
+        if (wrapTryCatch(() => author.sponsorBadgeUrl)) {
+            comment.commentRenderer.sponsorCommentBadge = {
+                sponsorCommentBadgeRenderer: { customBadge: { thumbnails: [{ url: author.sponsorBadgeUrl }] } }
+            };
+        }
+        if (wrapTryCatch(() => author.isVerified)) {
+            comment.commentRenderer.verifiedAuthor = true;
+        }
+        if (wrapTryCatch(() => author.isCreator)) {
+            comment.commentRenderer.authorIsChannelOwner = true;
+        }
+
+        return comment;
+    } catch (e) {
+        console.error(e);
+        return undefined;
+    }
+}
+
+function migrateContinuationItemsWithFW(continuationItems: any[], frameworkUpdatesById: Record<string, any>): any[] {
+    try {
+        return (continuationItems || []).map((item: any) => {
+            try {
+                if (wrapTryCatch(() => item.commentThreadRenderer?.commentViewModel?.commentViewModel)) {
+                    const vm = item.commentThreadRenderer.commentViewModel.commentViewModel;
+                    const commentId = wrapTryCatch(() => vm.commentId);
+                    const update = frameworkUpdatesById[commentId];
+                    const surfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.commentSurfaceKey)];
+                    const toolbarStateUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.toolbarStateKey)];
+                    const comment = generateCommentObjectFromFW({ commentId, update, surfaceUpdate, toolbarStateUpdate });
+                    if (comment) {
+                        const newItem = { ...item };
+                        newItem.commentThreadRenderer = { ...newItem.commentThreadRenderer, comment };
+                        // replies continuation normalization if present
+                        const cont = wrapTryCatch(() => item.commentThreadRenderer.replies.commentRepliesRenderer.contents[0].continuationItemRenderer.continuationEndpoint);
+                        if (cont) {
+                            newItem.commentThreadRenderer.replies = {
+                                ...newItem.commentThreadRenderer.replies,
+                                commentRepliesRenderer: {
+                                    continuations: [{ nextContinuationData: { continuation: cont.continuationCommand?.token, clickTrackingParams: cont.clickTrackingParams } }]
+                                }
+                            };
+                        }
+                        return newItem;
+                    }
+                }
+                if (wrapTryCatch(() => item.commentViewModel)) {
+                    const vm = item.commentViewModel;
+                    const commentId = wrapTryCatch(() => vm.commentId);
+                    const update = frameworkUpdatesById[commentId];
+                    const surfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.commentSurfaceKey)];
+                    const comment = generateCommentObjectFromFW({ commentId, update, surfaceUpdate });
+                    if (comment) {
+                        const newItem = { ...item };
+                        newItem.commentRenderer = comment.commentRenderer;
+                        return newItem;
+                    }
+                }
+                return item;
+            } catch (e) { console.error(e); return item; }
+        }).filter(Boolean);
+    } catch (e) {
+        console.error(e);
+        return continuationItems || [];
+    }
+}
+
+/**
+ * Try to extract replies continuation for both legacy and new VM shapes
+ */
+function extractReplyContinuationFromItem(threadItem: any): { token?: string; cTrParams?: string } {
+    try {
+        // Legacy
+        const legacyToken = wrapTryCatch(() => threadItem.commentThreadRenderer.replies.commentRepliesRenderer.continuations[0].nextContinuationData.continuation)
+            || wrapTryCatch(() => threadItem.commentThreadRenderer.replies.commentRepliesRenderer.contents[0].continuationItemRenderer.continuationEndpoint.continuationCommand.token);
+        const legacyClick = wrapTryCatch(() => threadItem.commentThreadRenderer.replies.commentRepliesRenderer.continuations[0].nextContinuationData.clickTrackingParams)
+            || wrapTryCatch(() => threadItem.commentThreadRenderer.replies.commentRepliesRenderer.contents[0].continuationItemRenderer.continuationEndpoint.clickTrackingParams);
+
+        if (legacyToken) return { token: legacyToken, cTrParams: legacyClick };
+
+        // New VM: search broadly under this thread item for likely continuation tokens
+        const searchRoot = wrapTryCatch(() => threadItem.commentThreadRenderer) || threadItem;
+        const token = objectScan(['**.nextContinuationData.continuation', '**.continuationEndpoint.continuationCommand.token'], {
+            joined: true,
+            rtn: 'value',
+            abort: true
+        })(searchRoot) as any;
+        const click = objectScan(['**.nextContinuationData.clickTrackingParams', '**.continuationEndpoint.clickTrackingParams'], {
+            joined: true,
+            rtn: 'value',
+            abort: true
+        })(searchRoot) as any;
+
+        return { token, cTrParams: click };
+    } catch (e) {
+        console.error(e);
+        return {};
+    }
+}
+
+/**
+ * Extract next continuation token and optional clickTrackingParams from the last continuation item block.
+ */
+function extractNextContinuation(response: any): { token?: string, clickTrackingParams?: string } {
+    try {
+        // Recompute continuation items directly (FW path)
+        const reloadItems = wrapTryCatch(() => response.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand.continuationItems) || [];
+        const appendItems = wrapTryCatch(() => response.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems) || [];
+        const items: any[] = (Array.isArray(reloadItems) && reloadItems.length > 0) ? reloadItems : appendItems;
+        if (!items || items.length === 0) return {};
+        const last = items[items.length - 1];
+
+        const token = wrapTryCatch(() => last.continuationItemRenderer.button.buttonRenderer.command.continuationCommand.token)
+            || wrapTryCatch(() => last.continuationItemRenderer.continuationEndpoint.continuationCommand.token);
+        const clickTrackingParams = wrapTryCatch(() => last.continuationItemRenderer.button.buttonRenderer.command.clickTrackingParams)
+            || wrapTryCatch(() => last.continuationItemRenderer.continuationEndpoint.clickTrackingParams);
+        return { token, clickTrackingParams };
+    } catch (e) {
+        console.error(e);
+        return {};
+    }
+}
+
 async function getInitYtData(url: string, signal: AbortSignal | undefined): Promise<[object] | undefined> {
 
     try {
@@ -1273,6 +1784,16 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
 
             try {
 
+                // If new model exists, normalize it into legacy slot before processing
+                if (wrapTryCatch(() => c.commentThreadRenderer) && !wrapTryCatch(() => c.commentThreadRenderer.comment)
+                    && (wrapTryCatch(() => c.commentThreadRenderer.commentViewModel) || wrapTryCatch(() => c.commentViewModel))) {
+                    const normalizedEarly = normalizeCommentFromViewModel(c);
+                    if (normalizedEarly) {
+                        c.commentThreadRenderer.comment = normalizedEarly;
+                        try { console.log('normalized VM -> comment runs:', normalizedEarly?.commentRenderer?.contentText?.runs?.length || 0); } catch {}
+                    }
+                }
+
                 if (c.commentThreadRenderer?.comment) {
 
                     let fullTextComment = '';
@@ -1281,19 +1802,28 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                     const contentText = c.commentThreadRenderer?.comment?.commentRenderer?.contentText?.runs || [];
                     for (const partTextComment of contentText) {
 
-                        fullTextComment += partTextComment?.text || '';
-    
+                        const text = (partTextComment as any)?.text
+                            ?? (partTextComment as any)?.simpleText
+                            ?? wrapTryCatch(() => (partTextComment as any)?.textRun?.content)
+                            ?? wrapTryCatch(() => (partTextComment as any)?.textRun?.text)
+                            ?? wrapTryCatch(() => (partTextComment as any)?.content)
+                            ?? '';
+                        const navigationEndpoint = (partTextComment as any)?.navigationEndpoint
+                            ?? wrapTryCatch(() => (partTextComment as any)?.textRun?.navigationEndpoint);
+
+                        fullTextComment += text || '';
+
                         try {
 
-                            if (parseInt(partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0) {
-                                renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${partTextComment?.navigationEndpoint?.watchEndpoint?.videoId}&t=${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}">${partTextComment?.text || ''}</a>`;
+                            if (parseInt(wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds) as any) >= 0) {
+                                renderFullTextComment += `<a class=\"ycs-cpointer ycs-gotochat-video\" href=\"https://www.youtube.com/watch?v=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.videoId)}&t=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}s\" data-offsetvideo=\"${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}\">${text || ''}</a>`;
 
                                 if (c.commentThreadRenderer?.comment?.commentRenderer) {
                                     c.commentThreadRenderer.comment.commentRenderer.isTimeLine = 'timeline';
                                 }
 
-                            } else if (partTextComment?.navigationEndpoint) {
-                                renderFullTextComment += `<a class=\"ycs-cpointer ycs-comment-link\" href=\"${partTextComment?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || partTextComment?.navigationEndpoint?.urlEndpoint?.url || partTextComment?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || partTextComment?.text || '#'}\" target=\"_blank\">${partTextComment?.text || ''}</a>`;
+                            } else if (navigationEndpoint) {
+                                renderFullTextComment += `<a class=\"ycs-cpointer ycs-comment-link\" href=\"${wrapTryCatch(() => navigationEndpoint?.browseEndpoint?.canonicalBaseUrl) || wrapTryCatch(() => navigationEndpoint?.urlEndpoint?.url) || wrapTryCatch(() => navigationEndpoint?.commandMetadata?.webCommandMetadata?.url) || text || '#'}\" target=\"_blank\">${text || ''}</a>`;
                                 
                             } else if (wrapTryCatch(() => (partTextComment as any).emoji)) {
                                 const url = wrapTryCatch(() => {
@@ -1311,16 +1841,16 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                                 const height = image?.height || 24;
                                 const margin = image?.margin || { left: 0, right: 0 };
                                 const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
-                                const alt = (partTextComment as any)?.text || '';
+                                const alt = text || '';
                                 renderFullTextComment += `<img src=\"${url}\" alt=\"${alt}\" title=\"${alt}\" width=\"${width}\" height=\"${height}\" style=\"${style}\" class=\"ycs-attachment\">`;
 
                             } else {
-                                renderFullTextComment += partTextComment?.text || '';
+                                renderFullTextComment += text || '';
                             }
 
                         } catch (e) {
                             console.error(e);
-                            renderFullTextComment += partTextComment?.text || '';
+                            renderFullTextComment += text || '';
                             continue;
                         }
     
@@ -1338,14 +1868,62 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                     }
 
                 }
+                // Handle new commentViewModel shape by normalizing into legacy commentRenderer
+                else if (wrapTryCatch(() => c.commentThreadRenderer?.commentViewModel) || wrapTryCatch(() => c.commentViewModel)) {
+
+                    const normalized = normalizeCommentFromViewModel(c);
+                    if (normalized && normalized.commentRenderer?.contentText?.runs) {
+
+                        let fullTextComment = '';
+                        let renderFullTextComment = '';
+
+                        const contentText = normalized.commentRenderer.contentText.runs || [];
+                        for (const partTextComment of contentText) {
+                            fullTextComment += partTextComment?.text || '';
+                            try {
+                                if (parseInt(partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0) {
+                                    renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${partTextComment?.navigationEndpoint?.watchEndpoint?.videoId}&t=${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}">${partTextComment?.text || ''}</a>`;
+                                } else if (partTextComment?.navigationEndpoint) {
+                                    renderFullTextComment += `<a class=\"ycs-cpointer ycs-comment-link\" href=\"${partTextComment?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || partTextComment?.navigationEndpoint?.urlEndpoint?.url || partTextComment?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || partTextComment?.text || '#'}\" target=\"_blank\">${partTextComment?.text || ''}</a>`;
+                                } else if (wrapTryCatch(() => (partTextComment as any).emoji)) {
+                                    const url = wrapTryCatch(() => {
+                                        const thumbnails = (partTextComment as any).emoji.image.thumbnails;
+                                        return thumbnails[thumbnails.length - 1].url;
+                                    }) || '';
+                                    const alt = (wrapTryCatch(() => (partTextComment as any).emoji.shortcuts?.[0]) as string) || '';
+                                    const style = `margin-left: 2px; margin-right: 2px;`;
+                                    renderFullTextComment += `<img src=\"${url}\" alt=\"${alt}\" title=\"${alt}\" width=\"24\" height=\"24\" style=\"${style}\" class=\"ycs-attachment\">`;
+                                } else if (wrapTryCatch(() => (partTextComment as any).attachment?.image)) {
+                                    const image: any = wrapTryCatch(() => (partTextComment as any).attachment.image);
+                                    const url = image?.url || '';
+                                    const width = image?.width || 24;
+                                    const height = image?.height || 24;
+                                    const margin = image?.margin || { left: 0, right: 0 };
+                                    const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
+                                    const alt = (partTextComment as any)?.text || '';
+                                    renderFullTextComment += `<img src=\"${url}\" alt=\"${alt}\" title=\"${alt}\" width=\"${width}\" height=\"${height}\" style=\"${style}\" class=\"ycs-attachment\">`;
+                                } else {
+                                    renderFullTextComment += partTextComment?.text || '';
+                                }
+                            } catch (e) {
+                                console.error(e);
+                                renderFullTextComment += partTextComment?.text || '';
+                                continue;
+                            }
+                        }
+
+                        normalized.typeComment = 'C';
+                        if (normalized.commentRenderer?.contentText) {
+                            normalized.commentRenderer.contentText.fullText = fullTextComment;
+                            normalized.commentRenderer.contentText.renderFullText = renderFullTextComment;
+                        }
+                        comments.push(_prepareFieldsComment(normalized));
+                        showLoadComments(comments.length, nodeStatusLoading);
+                    }
+                }
                 
 
-                const nextComments = {
-                    token: wrapTryCatch(() => c.commentThreadRenderer.replies.commentRepliesRenderer.continuations[0].nextContinuationData.continuation) ||
-                    wrapTryCatch(() => c.commentThreadRenderer.replies.commentRepliesRenderer.contents[0].continuationItemRenderer.continuationEndpoint.continuationCommand.token),
-                    cTrParams: wrapTryCatch(() => c.commentThreadRenderer.replies.commentRepliesRenderer.continuations[0].nextContinuationData.clickTrackingParams) ||
-                    wrapTryCatch(() => c.commentThreadRenderer.replies.commentRepliesRenderer.contents[0].continuationItemRenderer.continuationEndpoint.clickTrackingParams)
-                };
+                const nextComments = extractReplyContinuationFromItem(c);
 
 
                 if (nextComments.token) {
@@ -1354,22 +1932,30 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
     
                         try {
 
-                            const prms = {
-                                continue: nextComments.token,
-                                clickTracking: nextComments.cTrParams
-                            };
-    
-                            const paramsCmnts = getParamsForReplies(window, prms);
+                const paramsCmnts = getParamsForReplies(window, {
+                    continue: nextComments.token,
+                    clickTracking: nextComments.cTrParams
+                });
                             const res = await fetchR(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, { ...paramsCmnts, signal, cache: 'no-store' } as RequestInit);
-                            let data = await res.json();
-                            console.log('Queue replies: ', data);
-        
-                            if (wrapTryCatch(() => data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems)) {
-        
-                                const replies: any = wrapTryCatch(() => data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems) || [];
-                                for (const comment of replies) {
+                let data = await res.json();
+                console.log('Queue replies: ', data);
 
+                // replies: prefer FW-driven migration
+                const fwRep = getFrameworkUpdatesById(data);
+                const reloadRep = wrapTryCatch(() => data.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand.continuationItems) || [];
+                const appendRep = wrapTryCatch(() => data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems) || [];
+                const itemsRep = (Array.isArray(reloadRep) && reloadRep.length > 0) ? reloadRep : appendRep;
+                const repliesContainer: any[] = Array.isArray(itemsRep) && itemsRep.length > 0 ? migrateContinuationItemsWithFW(itemsRep, fwRep) : [];
+                if (repliesContainer && repliesContainer.length > 0) {
+                    const replies: any = repliesContainer || [];
+                                for (let comment of replies) {
+
+                                    if (!comment?.commentRenderer) {
+                                        const norm = normalizeCommentFromViewModel(comment);
+                                        if (norm && norm.commentRenderer) comment = norm;
+                                    }
                                     if (!comment?.commentRenderer) continue;
+                                    try { applyFrameworkUpdatesToComment(comment, comment, getFrameworkUpdatesById(data)); } catch (e) { console.error(e); }
         
                                     let fullTextComment = '';
                                     let renderFullTextComment = '';
@@ -1377,20 +1963,32 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                                     const contentText = comment.commentRenderer?.contentText?.runs || [];
                                     for (const partTextComment of contentText) {
 
+                                        let textStr: string = '';
+                                        let navigationEndpoint: any;
                                         try {
 
-                                            fullTextComment += partTextComment?.text || '';
+                                            textStr = (partTextComment as any)?.text
+                                                ?? (partTextComment as any)?.simpleText
+                                                ?? (wrapTryCatch(() => (partTextComment as any)?.textRun?.content) as string)
+                                                ?? (wrapTryCatch(() => (partTextComment as any)?.textRun?.text) as string)
+                                                ?? (wrapTryCatch(() => (partTextComment as any)?.content) as string)
+                                                ?? '';
+                                            navigationEndpoint = (partTextComment as any)?.navigationEndpoint
+                                                ?? wrapTryCatch(() => (partTextComment as any)?.textRun?.navigationEndpoint);
+
+                                            fullTextComment += textStr || '';
         
-                                            if (parseInt(partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0) {
+                                            if (parseInt(wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds) as any) >= 0) {
             
-                                                renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${partTextComment?.navigationEndpoint?.watchEndpoint?.videoId}&t=${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}">${partTextComment?.text || ''}</a>`;
+                                                renderFullTextComment += `<a class=\"ycs-cpointer ycs-gotochat-video\" href=\"https://www.youtube.com/watch?v=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.videoId)}&t=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}s\" data-offsetvideo=\"${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}\">${textStr || ''}</a>`;
 
                                                 if (comment.commentRenderer) {
                                                     comment.commentRenderer.isTimeLine = 'timeline';
                                                 }
             
-                                            } else if (partTextComment?.navigationEndpoint) {
-                                                renderFullTextComment += `<a class=\"ycs-cpointer ycs-comment-link\" href=\"${partTextComment?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || partTextComment?.navigationEndpoint?.urlEndpoint?.url || partTextComment?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || partTextComment?.text || '#'}\" target=\"_blank\">${partTextComment?.text || ''}</a>`;
+                                            } else if (navigationEndpoint) {
+                                                const hrefNav = (wrapTryCatch(() => navigationEndpoint?.browseEndpoint?.canonicalBaseUrl) || wrapTryCatch(() => navigationEndpoint?.urlEndpoint?.url) || wrapTryCatch(() => navigationEndpoint?.commandMetadata?.webCommandMetadata?.url) || textStr || '#') as string;
+                                                renderFullTextComment += `<a class=\"ycs-cpointer ycs-comment-link\" href=\"${hrefNav}\" target=\"_blank\">${textStr || ''}</a>`;
 
                                             } else if (wrapTryCatch(() => (partTextComment as any).emoji)) {
                                                 const url = wrapTryCatch(() => {
@@ -1408,16 +2006,16 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                                                 const height = image?.height || 24;
                                                 const margin = image?.margin || { left: 0, right: 0 };
                                                 const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
-                                                const alt = (partTextComment as any)?.text || '';
+                                                const alt = textStr || '';
                                                 renderFullTextComment += `<img src=\"${url}\" alt=\"${alt}\" title=\"${alt}\" width=\"${width}\" height=\"${height}\" style=\"${style}\" class=\"ycs-attachment\">`;
 
                                             } else {
-                                                renderFullTextComment += partTextComment?.text || '';
+                                                renderFullTextComment += textStr || '';
                                             }
 
                                         } catch (e) {
                                             console.error(e);
-                                            renderFullTextComment += partTextComment?.text || '';
+                                            renderFullTextComment += textStr || '';
                                         }
                                         
                                     }
@@ -1436,24 +2034,30 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
         
                             }
         
-                            while (wrapTryCatch(() => data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems[data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems.length - 1].continuationItemRenderer.button.buttonRenderer.command.continuationCommand)) {
-                                
-                                const rPrms = {
-                                    continue: wrapTryCatch(() => data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems[data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems.length - 1].continuationItemRenderer.button.buttonRenderer.command.continuationCommand.token),
-                                    clickTracking: wrapTryCatch(() => data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems[data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems.length - 1].continuationItemRenderer.button.buttonRenderer.command.clickTrackingParams)
-                                };
+                while (true) {
+                    const { token: rToken, clickTrackingParams: rClick } = extractNextContinuation(data);
+                    if (!rToken) break;
+                    const rPrms = { continue: rToken, clickTracking: rClick };
                                 
                                 const rParamsCmnts = getParamsForReplies(window, rPrms);
         
                                 const resReplies = await fetchR(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, { ...rParamsCmnts, signal, cache: 'no-store' } as RequestInit);
                                 data = await resReplies.json();
-        
-                                if (wrapTryCatch(() => data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems)) {
-        
-                                    const replies: any = wrapTryCatch(() => data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems) || [];
-                                    for (const comment of replies) {
+                    const fwMore = getFrameworkUpdatesById(data);
+                    const reloadMore = wrapTryCatch(() => data.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand.continuationItems) || [];
+                    const appendMore = wrapTryCatch(() => data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems) || [];
+                    const itemsMore = (Array.isArray(reloadMore) && reloadMore.length > 0) ? reloadMore : appendMore;
+                    const moreReplies: any[] = Array.isArray(itemsMore) && itemsMore.length > 0 ? migrateContinuationItemsWithFW(itemsMore, fwMore) : [];
+                    if (moreReplies && moreReplies.length > 0) {
+                        const replies: any = moreReplies;
+                                    for (let comment of replies) {
 
+                                        if (!comment?.commentRenderer) {
+                                            const norm = normalizeCommentFromViewModel(comment);
+                                            if (norm && norm.commentRenderer) comment = norm;
+                                        }
                                         if (!comment?.commentRenderer) continue;
+                                        try { applyFrameworkUpdatesToComment(comment, comment, getFrameworkUpdatesById(data)); } catch (e) { console.error(e); }
         
                                         let fullTextComment = '';
                                         let renderFullTextComment = '';
@@ -1463,28 +2067,50 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
 
                                             try {
 
-                                                if (partTextComment.text) {
-                                                    fullTextComment += partTextComment?.text || '';
+                                                const text = (partTextComment as any)?.text
+                                                    ?? (partTextComment as any)?.simpleText
+                                                    ?? wrapTryCatch(() => (partTextComment as any)?.textRun?.content)
+                                                    ?? wrapTryCatch(() => (partTextComment as any)?.textRun?.text)
+                                                    ?? wrapTryCatch(() => (partTextComment as any)?.content)
+                                                    ?? '';
+                                                const navigationEndpoint = (partTextComment as any)?.navigationEndpoint
+                                                    ?? wrapTryCatch(() => (partTextComment as any)?.textRun?.navigationEndpoint);
+
+                                                if (typeof text === 'string' && text.length > 0) {
+                                                    fullTextComment += text;
                                                 }
             
-                                                if (parseInt(partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0) {
+                                                if (parseInt(wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds) as any) >= 0) {
             
-                                                    renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${partTextComment?.navigationEndpoint?.watchEndpoint?.videoId}&t=${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}">${partTextComment?.text || ''}</a>`;
+                                                    renderFullTextComment += `<a class=\"ycs-cpointer ycs-gotochat-video\" href=\"https://www.youtube.com/watch?v=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.videoId)}&t=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}s\" data-offsetvideo=\"${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}\">${text || ''}</a>`;
     
                                                     if (comment.commentRenderer) {
                                                         comment.commentRenderer.isTimeLine = 'timeline';
                                                     }
                 
-                                                } else if (partTextComment?.navigationEndpoint) {
-                                                    renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${partTextComment?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || partTextComment?.navigationEndpoint?.urlEndpoint?.url || partTextComment?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || partTextComment?.text || '#'}" target="_blank">${partTextComment?.text || ''}</a>`;
+                                                } else if (navigationEndpoint) {
+                                                    const href = (wrapTryCatch(() => navigationEndpoint?.browseEndpoint?.canonicalBaseUrl) || wrapTryCatch(() => navigationEndpoint?.urlEndpoint?.url) || wrapTryCatch(() => navigationEndpoint?.commandMetadata?.webCommandMetadata?.url) || (text as string) || '#') as string;
+                                                    const lbl = (text as string) || '';
+                                                    renderFullTextComment += `<a class=\"ycs-cpointer ycs-comment-link\" href=\"${href}\" target=\"_blank\">${lbl}</a>`;
 
                                                 } else {
-                                                    renderFullTextComment += partTextComment?.text || '';
+                                                    renderFullTextComment += (text as string) || '';
                                                 }
 
                                             } catch (e) {
                                                 console.error(e);
-                                                renderFullTextComment += partTextComment?.text || '';
+                                                const fallbackText: string = ((): string => {
+                                                    try {
+                                                        const t = (partTextComment as any)?.text
+                                                            ?? (partTextComment as any)?.simpleText
+                                                            ?? (wrapTryCatch(() => (partTextComment as any)?.textRun?.content) as string)
+                                                            ?? (wrapTryCatch(() => (partTextComment as any)?.textRun?.text) as string)
+                                                            ?? (wrapTryCatch(() => (partTextComment as any)?.content) as string)
+                                                            ?? '';
+                                                        return typeof t === 'string' ? t : '';
+                                                    } catch { return ''; }
+                                                })();
+                                                renderFullTextComment += fallbackText;
                                             }
 
                                         }
@@ -1574,30 +2200,92 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
             return [];
         }
 
-        let cmnts: any = wrapTryCatch(() => data.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand.continuationItems);
+        // Prefer FW-driven migration when possible
+        let cmnts: any = (() => {
+            try {
+                const fw = getFrameworkUpdatesById(data);
+                // try to find continuation items from both reload and append
+                const reloadItems = wrapTryCatch(() => data.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand.continuationItems) || [];
+                const appendItems = wrapTryCatch(() => data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems) || [];
+                const items = (Array.isArray(reloadItems) && reloadItems.length > 0) ? reloadItems : appendItems;
+                if (Array.isArray(items) && items.length > 0) {
+                    return migrateContinuationItemsWithFW(items, fw);
+                }
+            } catch (e) { console.error(e); }
+            return [];
+        })();
+        try {
+            const hasCTRBase = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.commentThreadRenderer)).length;
+            const hasCTR = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.commentThreadRenderer.comment)).length;
+            const hasCV = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.commentThreadRenderer.commentViewModel) || !!wrapTryCatch(() => x.commentViewModel)).length;
+            const hasCont = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.continuationItemRenderer)).length;
+            console.log('batch stats (top): hasCTRBase:', hasCTRBase, 'hasCTR:', hasCTR, 'hasCV:', hasCV, 'hasCont:', hasCont, 'len:', (cmnts||[]).length);
+            if ((cmnts || []).length > 0) {
+                console.log('first item keys (top):', Object.keys(cmnts[0]));
+            }
+        } catch (e) { console.error(e); }
+
+        // Build frameworkUpdates map once per page batch
+        let fwById: Record<string, any> = getFrameworkUpdatesById(data);
 
         while (cmnts?.length > 0) {
 
+            // Before pushing comments, try to enrich via frameworkUpdates when possible
+            try {
+                for (const it of cmnts) {
+                    const target = wrapTryCatch(() => it.commentThreadRenderer?.comment) || it;
+                    if (target) applyFrameworkUpdatesToComment(target, it, fwById);
+                }
+            } catch (e) { console.error(e); }
+
             await _getAllRepliesComment(cmnts, elShowLoading);
 
-            const lastComment = cmnts[cmnts.length - 1];
-            console.log('last comment: ', lastComment);
-            if (lastComment?.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token) {
-                        
-                console.log('Comment next Token: ', lastComment?.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token);
+            const { token: nextToken } = extractNextContinuation({ onResponseReceivedEndpoints: data.onResponseReceivedEndpoints });
+            if (nextToken) {
+                console.log('Comment next Token: ', nextToken);
 
-                const prms = {
-                    continue: lastComment?.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token
-                };
-    
-                const paramsCmnts = getParamsForComments(window, prms);
+                const paramsCmnts = getParamsForComments(window, { continue: nextToken });
                 const res = await fetchR(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, { ...paramsCmnts, signal, cache: 'no-store' } as RequestInit);
     
                 if (res?.status === 200) {
                     
                     const resJson = await res.json();
                     console.log('resJson: ', resJson);
-                    cmnts = wrapTryCatch(() => resJson.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems) || [];
+                    // Update current response context for next token extraction
+                    data = resJson;
+                    // Try FW migration first on next pages
+                    try {
+                        const fwNext = getFrameworkUpdatesById(resJson);
+                        const reloadItemsN = wrapTryCatch(() => resJson.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand.continuationItems) || [];
+                        const appendItemsN = wrapTryCatch(() => resJson.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems) || [];
+                        const itemsN = (Array.isArray(reloadItemsN) && reloadItemsN.length > 0) ? reloadItemsN : appendItemsN;
+                        cmnts = Array.isArray(itemsN) && itemsN.length > 0 ? migrateContinuationItemsWithFW(itemsN, fwNext) : [];
+                    } catch { cmnts = []; }
+                    fwById = getFrameworkUpdatesById(resJson);
+                    try {
+                        const hasCTRBase2 = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.commentThreadRenderer)).length;
+                        const hasCTR2 = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.commentThreadRenderer.comment)).length;
+                        const hasCV2 = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.commentThreadRenderer.commentViewModel) || !!wrapTryCatch(() => x.commentViewModel)).length;
+                        const hasCont2 = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.continuationItemRenderer)).length;
+                        console.log('batch stats (next): hasCTRBase:', hasCTRBase2, 'hasCTR:', hasCTR2, 'hasCV:', hasCV2, 'hasCont:', hasCont2, 'len:', (cmnts||[]).length);
+                        if ((cmnts || []).length > 0) {
+                            console.log('first item keys (next):', Object.keys(cmnts[0]));
+                        }
+                    } catch (e) { console.error(e); }
+                    // frameworkUpdates: 標記 heart/pinned 等屬性（若可得）
+                    try {
+                        const mutations = wrapTryCatch(() => resJson.frameworkUpdates.entityBatchUpdate.mutations) || [];
+                        if (Array.isArray(mutations) && mutations.length > 0) {
+                            const byId: Record<string, any> = {};
+                            for (const m of mutations) {
+                                const id = wrapTryCatch(() => m.entityKey);
+                                if (id) byId[id] = m;
+                            }
+                            // 可在此處視需要使用 byId 補齊留言屬性
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
                     console.log('cmnts; ', cmnts);
                     
                 } else {
@@ -3348,5 +4036,6 @@ export {
     getSheetChatDetails,
     getSheetChatComments,
     getSheetTrVideoDetails,
-    getSheetTrVideo
+    getSheetTrVideo,
+    extractNextContinuation
 };
