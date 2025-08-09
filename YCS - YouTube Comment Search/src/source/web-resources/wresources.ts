@@ -25,6 +25,19 @@ import {
 
 (function (): void {
 
+    try {
+        const tt: any = (window as any).trustedTypes;
+        if (tt && tt.createPolicy && !tt.defaultPolicy) {
+            tt.createPolicy('default', {
+                createHTML: (s: string) => s,
+                createScriptURL: (s: string) => s,
+                createScript: (s: string) => s
+            });
+        }
+    } catch (e) {
+        // noop: Trusted Types not available or policy creation failed
+    }
+
     const intervalCheckLoadDOM = setInterval(() => {
 
         if (isWatchVideo() && document.querySelector('#meta.style-scope.ytd-watch-flexy')) {
@@ -2165,6 +2178,16 @@ Total: ${c.count}\n${c.html}`;
 
                     };
 
+                    const optHiddenByDefault = (value: boolean): void => {
+                        try {
+                            const app = document.querySelector('.ycs-app') as HTMLElement;
+                            if (!app) return;
+                            app.style.display = value ? 'none' : '';
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    };
+
                     try {
 
                         const opts = e.data.text;
@@ -2186,6 +2209,10 @@ Total: ${c.count}\n${c.html}`;
                             case 'cache':
 
                                 optCached(opts[key]);
+                                break;
+
+                            case 'hiddenByDefault':
+                                optHiddenByDefault(opts[key]);
                                 break;
 
                             default:

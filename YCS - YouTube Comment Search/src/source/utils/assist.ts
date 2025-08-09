@@ -712,8 +712,26 @@ async function getChatComments(signal: AbortSignal, elShowLoading: HTMLElement, 
     
                                         } else if (msg?.navigationEndpoint) {
                                             renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${msg?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || msg?.navigationEndpoint?.urlEndpoint?.url || msg?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || msg?.text || '#'}" target="_blank">${msg?.text || ''}</a>`;
-    
-                                           
+
+                                        } else if (wrapTryCatch(() => (msg as any).emoji)) {
+                                            const url = wrapTryCatch(() => {
+                                                const thumbnails = (msg as any).emoji.image.thumbnails;
+                                                return thumbnails[thumbnails.length - 1].url;
+                                            }) || '';
+                                            const alt = (wrapTryCatch(() => (msg as any).emoji.shortcuts?.[0]) as string) || '';
+                                            const style = `margin-left: 2px; margin-right: 2px;`;
+                                            renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
+
+                                        } else if (wrapTryCatch(() => (msg as any).attachment?.image)) {
+                                            const image: any = wrapTryCatch(() => (msg as any).attachment.image);
+                                            const url = image?.url || '';
+                                            const width = image?.width || 24;
+                                            const height = image?.height || 24;
+                                            const margin = image?.margin || { left: 0, right: 0 };
+                                            const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
+                                            const alt = (msg as any)?.text || '';
+                                            renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
+
                                         } else {
                                             renderFullTextComment += msg?.text || '';
                                         }
@@ -862,7 +880,26 @@ async function getChatComments(signal: AbortSignal, elShowLoading: HTMLElement, 
     
                                                 } else if (msg?.navigationEndpoint) {
                                                     renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${msg?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || msg?.navigationEndpoint?.urlEndpoint?.url || msg?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || msg?.text || '#'}" target="_blank">${msg?.text || ''}</a>`;
-    
+
+                                                } else if (wrapTryCatch(() => (msg as any).emoji)) {
+                                                    const url = wrapTryCatch(() => {
+                                                        const thumbnails = (msg as any).emoji.image.thumbnails;
+                                                        return thumbnails[thumbnails.length - 1].url;
+                                                    }) || '';
+                                                    const alt = (wrapTryCatch(() => (msg as any).emoji.shortcuts?.[0]) as string) || '';
+                                                    const style = `margin-left: 2px; margin-right: 2px;`;
+                                                    renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
+
+                                                } else if (wrapTryCatch(() => (msg as any).attachment?.image)) {
+                                                    const image: any = wrapTryCatch(() => (msg as any).attachment.image);
+                                                    const url = image?.url || '';
+                                                    const width = image?.width || 24;
+                                                    const height = image?.height || 24;
+                                                    const margin = image?.margin || { left: 0, right: 0 };
+                                                    const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
+                                                    const alt = (msg as any)?.text || '';
+                                                    renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
+
                                                 } else {
                                                     renderFullTextComment += msg?.text || '';
                                                 }
@@ -951,6 +988,81 @@ function getParamsForTranscript(w: any, param: string): object | undefined {
 
 }
 
+function getTranscriptPot(): string | undefined {
+    try {
+        const bodyHtml = document.documentElement?.innerHTML || '';
+        const matches = bodyHtml.match(/https?:[^\s"']+pot=[^\s"']+/g) || [];
+        if (matches.length === 0) return;
+        const buf = new URL(matches[0] as string).searchParams.get('pot');
+        return buf ? encodeURIComponent(buf) : undefined;
+    } catch (e) {
+        console.error(e);
+        return;
+    }
+}
+
+async function getTranscriptBaseUrl(w: any, signal: AbortSignal): Promise<string> {
+    const baseUrl = getCleanUrlVideo(w.location.href) as string;
+    const htmlResp = await fetch(baseUrl, { signal, cache: 'no-store' } as RequestInit);
+    const html = await htmlResp.text();
+    const splitted = html.split('"captions":');
+    if (splitted.length <= 1) throw new Error('Fail to load video html');
+    const captions = JSON.parse(splitted[1].split(',"videoDetails')[0].replace('\n', '')).playerCaptionsTracklistRenderer;
+    const generatedTracks = captions.captionTracks.filter(({ kind }: any) => kind === 'asr');
+    const base = (generatedTracks.length === 0 ? captions.captionTracks[0].baseUrl : generatedTracks[0].baseUrl) as string;
+    return base;
+}
+
+function buildTranscriptFromTimedText(xmlText: string): object | undefined {
+    try {
+        // extremely lightweight: extract plain text cues as fallback structure
+        const entries: any[] = [];
+        const regex = /<text start="([0-9.]+)" dur="([0-9.]+)">([\s\S]*?)<\/text>/g;
+        let m: RegExpExecArray | null;
+        while ((m = regex.exec(xmlText))) {
+            const start = parseFloat(m[1]);
+            const dur = parseFloat(m[2]);
+            const text = m[3].replace(/<\/?\w+[^>]*>/g, '');
+            entries.push({ start, duration: dur, text });
+        }
+        const cueGroups = entries.map(({ text, start, duration }) => ({
+            transcriptCueGroupRenderer: {
+                formattedStartOffset: { simpleText: toFormatted(start) },
+                cues: [ { transcriptCueRenderer: { startOffsetMs: start * 1000, cue: { simpleText: text } } } ],
+            },
+        }));
+        return {
+            actions: [
+                {
+                    updateEngagementPanelAction: {
+                        content: {
+                            transcriptRenderer: {
+                                body: {
+                                    transcriptBodyRenderer: { cueGroups },
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+        };
+    } catch (e) {
+        console.error(e);
+        return;
+    }
+}
+
+function toFormatted(sec: number): string {
+    try {
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        const sStr = (s < 10 ? `0${s}` : String(s));
+        return `${m}:${sStr}`;
+    } catch {
+        return '0:00';
+    }
+}
+
 async function getTranscriptVideo(signal: AbortSignal): Promise<object | undefined> {
 
     try {
@@ -964,9 +1076,25 @@ async function getTranscriptVideo(signal: AbortSignal): Promise<object | undefin
             
             const params = getParamsForTranscript(window, ytInitParam);
             console.log('PARAMS for TRANSCRIPT', params);
-            const transcript = await fetch(`https://www.youtube.com/youtubei/v1/get_transcript?key=${getInnertubeApiKey()}`, { ...params, signal, cache: 'no-store'});
-            const result = await transcript.json();
-            return result;
+            try {
+                const transcript = await fetch(`https://www.youtube.com/youtubei/v1/get_transcript?key=${getInnertubeApiKey()}`, { ...params, signal, cache: 'no-store'});
+                const result = await transcript.json();
+                return result;
+            } catch (e) {
+                console.error('getTranscript via youtubei failed, trying fallback with pot param...', e);
+                const pot = getTranscriptPot();
+                if (pot) {
+                    try {
+                        const base = await getTranscriptBaseUrl(window, signal);
+                        const viaTimedText = await fetch(`${base}&potc=1&pot=${pot}&c=WEB`, { signal, cache: 'no-store' } as RequestInit);
+                        const text = await viaTimedText.text();
+                        return buildTranscriptFromTimedText(text);
+                    } catch (e2) {
+                        console.error('fallback timedtext failed', e2);
+                    }
+                }
+                return;
+            }
         }
         
     } catch (e) {
@@ -1165,8 +1293,27 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                                 }
 
                             } else if (partTextComment?.navigationEndpoint) {
-                                renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${partTextComment?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || partTextComment?.navigationEndpoint?.urlEndpoint?.url || partTextComment?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || partTextComment?.text || '#'}" target="_blank">${partTextComment?.text || ''}</a>`;
+                                renderFullTextComment += `<a class=\"ycs-cpointer ycs-comment-link\" href=\"${partTextComment?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || partTextComment?.navigationEndpoint?.urlEndpoint?.url || partTextComment?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || partTextComment?.text || '#'}\" target=\"_blank\">${partTextComment?.text || ''}</a>`;
                                 
+                            } else if (wrapTryCatch(() => (partTextComment as any).emoji)) {
+                                const url = wrapTryCatch(() => {
+                                    const thumbnails = (partTextComment as any).emoji.image.thumbnails;
+                                    return thumbnails[thumbnails.length - 1].url;
+                                }) || '';
+                                const alt = (wrapTryCatch(() => (partTextComment as any).emoji.shortcuts?.[0]) as string) || '';
+                                const style = `margin-left: 2px; margin-right: 2px;`;
+                                renderFullTextComment += `<img src=\"${url}\" alt=\"${alt}\" title=\"${alt}\" width=\"24\" height=\"24\" style=\"${style}\" class=\"ycs-attachment\">`;
+
+                            } else if (wrapTryCatch(() => (partTextComment as any).attachment?.image)) {
+                                const image: any = wrapTryCatch(() => (partTextComment as any).attachment.image);
+                                const url = image?.url || '';
+                                const width = image?.width || 24;
+                                const height = image?.height || 24;
+                                const margin = image?.margin || { left: 0, right: 0 };
+                                const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
+                                const alt = (partTextComment as any)?.text || '';
+                                renderFullTextComment += `<img src=\"${url}\" alt=\"${alt}\" title=\"${alt}\" width=\"${width}\" height=\"${height}\" style=\"${style}\" class=\"ycs-attachment\">`;
+
                             } else {
                                 renderFullTextComment += partTextComment?.text || '';
                             }
@@ -1243,7 +1390,26 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                                                 }
             
                                             } else if (partTextComment?.navigationEndpoint) {
-                                                renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${partTextComment?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || partTextComment?.navigationEndpoint?.urlEndpoint?.url || partTextComment?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || partTextComment?.text || '#'}" target="_blank">${partTextComment?.text || ''}</a>`;
+                                                renderFullTextComment += `<a class=\"ycs-cpointer ycs-comment-link\" href=\"${partTextComment?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || partTextComment?.navigationEndpoint?.urlEndpoint?.url || partTextComment?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || partTextComment?.text || '#'}\" target=\"_blank\">${partTextComment?.text || ''}</a>`;
+
+                                            } else if (wrapTryCatch(() => (partTextComment as any).emoji)) {
+                                                const url = wrapTryCatch(() => {
+                                                    const thumbnails = (partTextComment as any).emoji.image.thumbnails;
+                                                    return thumbnails[thumbnails.length - 1].url;
+                                                }) || '';
+                                                const alt = (wrapTryCatch(() => (partTextComment as any).emoji.shortcuts?.[0]) as string) || '';
+                                                const style = `margin-left: 2px; margin-right: 2px;`;
+                                                renderFullTextComment += `<img src=\"${url}\" alt=\"${alt}\" title=\"${alt}\" width=\"24\" height=\"24\" style=\"${style}\" class=\"ycs-attachment\">`;
+
+                                            } else if (wrapTryCatch(() => (partTextComment as any).attachment?.image)) {
+                                                const image: any = wrapTryCatch(() => (partTextComment as any).attachment.image);
+                                                const url = image?.url || '';
+                                                const width = image?.width || 24;
+                                                const height = image?.height || 24;
+                                                const margin = image?.margin || { left: 0, right: 0 };
+                                                const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
+                                                const alt = (partTextComment as any)?.text || '';
+                                                renderFullTextComment += `<img src=\"${url}\" alt=\"${alt}\" title=\"${alt}\" width=\"${width}\" height=\"${height}\" style=\"${style}\" class=\"ycs-attachment\">`;
 
                                             } else {
                                                 renderFullTextComment += partTextComment?.text || '';
@@ -1468,9 +1634,9 @@ function msToRoundSec(msNumber: string | number): number | undefined {
     
     try {
 
-        if (msNumber && msNumber > 0) {
-            
-            return parseInt((msNumber as number / 1000) as any, 10);
+        const value = typeof msNumber === 'string' ? parseFloat(msNumber) : msNumber;
+        if (!Number.isNaN(value) && value > 0) {
+            return parseInt((value / 1000) as any, 10);
         }
 
         return;
@@ -1518,8 +1684,9 @@ function sendMsgToBadge(typeMsg: string, msg: string | number): void {
 
 function tmUsecToDateTime(microSec: string | number): string {
 
-    if (microSec && microSec > 0) {
-        const dateTime = new Date((microSec as any) / 1000);
+    const value = typeof microSec === 'string' ? parseFloat(microSec) : microSec;
+    if (!Number.isNaN(value) && value > 0) {
+        const dateTime = new Date((value as any) / 1000);
 
         return `${dateTime.toISOString().split('T')[0]}, ${dateTime.toISOString().split('T')[1].split('.')[0].slice(0, 5)}`;
     }

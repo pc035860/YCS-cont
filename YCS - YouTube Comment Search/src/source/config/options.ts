@@ -2,7 +2,8 @@ const options = {
     autoload: false,
     highlightText: true,
     cache: true,
-    autoClear: 200
+    autoClear: 200,
+    hiddenByDefault: false
 };
 
 
