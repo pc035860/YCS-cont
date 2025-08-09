@@ -2,6 +2,63 @@
 
 import { msToShareVideo, tmUsecToDateTime, wrapTryCatch, markTextComment, randomString, getPiP } from '../utils/assist';
 
+// Basic XSS hardening helpers for rendering dynamic content
+function esc(input: unknown): string {
+    try {
+        const s = String(input ?? '');
+        return s
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    } catch {
+        return '';
+    }
+}
+
+function safeUrl(raw: unknown): string {
+    try {
+        let url = String(raw || '');
+        if (!url) return '#';
+        // normalize YouTube path
+        if (url.startsWith('/')) url = `https://www.youtube.com${url}`;
+        if (url.startsWith('www.')) url = `https://${url}`;
+        const lower = url.toLowerCase();
+        if (lower.startsWith('http://') || lower.startsWith('https://')) return url;
+        return '#';
+    } catch {
+        return '#';
+    }
+}
+
+function sanitizeHtml(html: unknown): string {
+    try {
+        let s = String(html || '');
+        if (!s) return '';
+        // strip scripts
+        s = s.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+        // drop on* event handlers
+        s = s.replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '')
+             .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, '')
+             .replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, '');
+        // sanitize href/src protocols
+        s = s.replace(/href\s*=\s*"([^"]*)"/gi, (_m, p1) => `href="${esc(safeUrl(p1))}" rel="noopener noreferrer"`);
+        s = s.replace(/href\s*=\s*'([^']*)'/gi, (_m, p1) => `href='${esc(safeUrl(p1))}' rel="noopener noreferrer"`);
+        s = s.replace(/src\s*=\s*"([^"]*)"/gi, (_m, p1) => {
+            const u = safeUrl(p1);
+            return u === '#' ? 'src=""' : `src="${esc(u)}"`;
+        });
+        s = s.replace(/src\s*=\s*'([^']*)'/gi, (_m, p1) => {
+            const u = safeUrl(p1);
+            return u === '#' ? "src=''" : `src='${esc(u)}'`;
+        });
+        return s;
+    } catch {
+        return '';
+    }
+}
+
 function iconSortUp(): string {
     return `
         <span class="ycs-icons">
@@ -88,7 +145,7 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                                 </g>
                             </svg>
                         </span>
-                        <span class="ycs-like-count">${count}</span>
+                        <span class="ycs-like-count">${esc(count)}</span>
                     </div>
                 `;
             }
@@ -116,7 +173,7 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                                 d="M42,8H6c-1.105,0-2,0.895-2,2v26c0,1.105,0.895,2,2,2h8v7.998	c0,0.891,1.077,1.337,1.707,0.707L24.412,38H42c1.105,0,2-0.895,2-2V10C44,8.895,43.105,8,42,8z" />
                         </svg>
                     </span>
-                    <span class="ycs-like-count">${count}</span>
+                    <span class="ycs-like-count">${esc(count)}</span>
                     <button class="ycs-open-reply" data-idcom="${id}" title="Open replies to the comment">+</button>
                 </div>
             `;
@@ -135,10 +192,10 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                 const thumbnail = wrapTryCatch(() => cmnt.item.commentRenderer.sponsorCommentBadge.sponsorCommentBadgeRenderer.customBadge.thumbnails[0].url) || '';
 
                 return `
-                    <img alt="${tooltip}" height="14" width="14"
-                         title="${tooltip}"
+                    <img alt="${esc(tooltip)}" height="14" width="14"
+                         title="${esc(tooltip)}"
                          class="ycs-user-member"
-                         src="${thumbnail}" loading="lazy">
+                         src="${esc(thumbnail)}" loading="lazy">
                 `;
             }
 
@@ -157,7 +214,7 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
 
             if (cmnt?.item?.commentRenderer?.creatorHeart) {
 
-                const tooltip = 'Liked by the author: ' + cmnt.item.commentRenderer.creatorHeart.name;
+                const tooltip = 'Liked by the author: ' + esc(cmnt.item.commentRenderer.creatorHeart.name);
 
                 return `
                     <div class="ycs-heart-wrap" title="${tooltip}">
@@ -232,19 +289,19 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                 arrHtml.push({html: `
                     <div id="ycs-number-comment-${++countComment}" class="ycs-render-comment">
                         <div class="ycs-left">
-                            <a href="${comment.item?.commentRenderer?.authorEndpoint?.commandMetadata?.webCommandMetadata?.url || ''}" target="_blank">
+                            <a href="${safeUrl(comment.item?.commentRenderer?.authorEndpoint?.commandMetadata?.webCommandMetadata?.url || '')}" target="_blank" rel="noopener noreferrer">
                                 <div class="ycs-render-img">
-                                    <img alt="${comment.item?.commentRenderer?.authorText?.simpleText || ''}" height="40" width="40"
-                                    src="${wrapTryCatch(() => comment.item.commentRenderer.authorThumbnail.thumbnails[0].url) || ''}" loading="lazy">
+                                    <img alt="${esc(comment.item?.commentRenderer?.authorText?.simpleText || '')}" height="40" width="40"
+                                    src="${esc(wrapTryCatch(() => comment.item.commentRenderer.authorThumbnail.thumbnails[0].url) || '')}" loading="lazy">
                                 </div>
                             </a>
                         </div>
                         <div class="ycs-comment-block">
                             <div class="ycs-head-block__dib ycs-head-block ycs-head__title-main">
                                 <a class="ycs-head__title"
-                                href="${comment.item?.commentRenderer?.authorEndpoint?.commandMetadata?.webCommandMetadata?.url || ''}" target="_blank">
+                                 href="${safeUrl(comment.item?.commentRenderer?.authorEndpoint?.commandMetadata?.webCommandMetadata?.url || '')}" target="_blank" rel="noopener noreferrer">
                                     <span>
-                                        ${comment.item?.commentRenderer?.authorText?.simpleText || ''}
+                                         ${esc(comment.item?.commentRenderer?.authorText?.simpleText || '')}
                                     </span>
                                 </a>
                                 ${renderVerified(comment)}
@@ -252,8 +309,8 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                                     ${renderMemberUser(comment)}
                                     <a
                                         class="ycs-datetime-goto"
-                                        href="${wrapTryCatch(() => comment.item.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.commandMetadata.webCommandMetadata.url) || ''}" target="_blank" title="Open a comment, a reply, in a new window, for edit">
-                                            ${wrapTryCatch(() => comment.item.commentRenderer.publishedTimeText.runs[0].text) || ''}
+                                         href="${safeUrl(wrapTryCatch(() => comment.item.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.commandMetadata.webCommandMetadata.url) || '')}" target="_blank" rel="noopener noreferrer" title="Open a comment, a reply, in a new window, for edit">
+                                             ${esc(wrapTryCatch(() => comment.item.commentRenderer.publishedTimeText.runs[0].text) || '')}
                                     </a>
                                     ${renderHeart(comment)}
                                     ${renderLikeCount(comment?.item?.commentRenderer?.likeCount || comment?.item?.commentRenderer?.voteCount?.simpleText)}
@@ -261,7 +318,7 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                                     ${(comment.item?.typeComment === 'R' && isReply) ? `<span class="ycs-datetime-goto">(reply)</span><button id=${comment.refIndex} title="Open the comment to the reply here." class="ycs-open-comment">${iconExpand()}</button>` : ''}
                                 </div>
                             </div>
-                            <div class="ycs-comment__main-text">${comment.item?.commentRenderer?.contentText?.renderFullText || comment.item?.commentRenderer?.contentText?.fullText || ''}</div>
+                             <div class="ycs-comment__main-text">${comment.item?.commentRenderer?.contentText?.renderFullText ? sanitizeHtml(comment.item?.commentRenderer?.contentText?.renderFullText) : esc(comment.item?.commentRenderer?.contentText?.fullText || '')}</div>
                         </div>
                     </div>
                 `});
@@ -470,34 +527,34 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
                 arrHtml.push({html: `
                     <div id="ycs-number-comment-${++countComment}" class="ycs-render-comment">
                         <div class="ycs-left">
-                            <a href="/channel/${wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorExternalChannelId) || ''}" target="_blank">
+                            <a href="${safeUrl(`/channel/${wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorExternalChannelId) || ''}`)}" target="_blank" rel="noopener noreferrer">
                                 <div class="ycs-render-img">
-                                    <img alt="${wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorName.simpleText) || ''}" height="40" width="40"
-                                    src="${wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorPhoto.thumbnails[0].url) || ''}" loading="lazy">
+                                     <img alt="${esc(wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorName.simpleText) || '')}" height="40" width="40"
+                                     src="${esc(wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorPhoto.thumbnails[0].url) || '')}" loading="lazy">
                                 </div>
                             </a>
                         </div>
                         <div class="ycs-comment-block">
                             <div class="ycs-head-block__dib ycs-head-block ycs-head__title-main">
-                                <a class="ycs-head__title""
-                                href="/channel/${wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorExternalChannelId) || ''}" target="_blank">
+                                 <a class="ycs-head__title""
+                                 href="${safeUrl(`/channel/${wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorExternalChannelId) || ''}`)}" target="_blank" rel="noopener noreferrer">
                                     <span>
-                                    ${wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorName.simpleText) || ''}
+                                     ${esc(wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorName.simpleText) || '')}
                                     </span>
                                 </a>
                                 ${renderVerified(comment)}
                                 <div class="ycs-head-block__dib ycs-head-block__lh ycs-time-size">
                                     ${renderMemberUser(comment)}
                                     <a
-                                        class="ycs-datetime-goto" title="GMT0"
-                                        href="${msToShareVideo(comment.item?.replayChatItemAction?.videoOffsetTimeMsec) || ''}" target="_blank">
+                                         class="ycs-datetime-goto" title="GMT0"
+                                         href="${safeUrl(msToShareVideo(comment.item?.replayChatItemAction?.videoOffsetTimeMsec) || '')}" target="_blank" rel="noopener noreferrer">
                                             ${tmUsecToDateTime(wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec) as any)}
                                     </a>
                                     <span class="ycs_chat_info">(chat)</span>
                                     ${_gotoVideo(comment)}
                                 </div>
                             </div>
-                            <div class="ycs-comment__main-text">${wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText) || wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText) || ''}</div>
+                             <div class="ycs-comment__main-text">${wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText) ? sanitizeHtml(wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText)) : esc(wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText) || '')}</div>
                         </div>
                     </div>
                 `});
@@ -640,21 +697,21 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
                     <div id="ycs-number-comment-${++countComment}" class="ycs-render-comment ycs-oc-ml">
                         <div class="ycs-left">
                             <a class="ycs-goto-video ycs-cpointer"
-                                href="${msToShareVideo(wrapTryCatch(() => comment.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs) as any) || ''}"
+                                href="${safeUrl(msToShareVideo(wrapTryCatch(() => comment.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs) as any) || '')}"
                                 target="_blank"
                                 data-offsetvideo="${wrapTryCatch(() => comment.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs) || ''}"
                                 title="Go to the video by time.">
-                                ${iconPlay()} Go to: ${comment.item?.transcriptCueGroupRenderer?.formattedStartOffset?.simpleText || 0}
+                                ${iconPlay()} Go to: ${esc(comment.item?.transcriptCueGroupRenderer?.formattedStartOffset?.simpleText || 0)}
                             </a>
                             <div class="ycs-head-block__dib ycs-head-block ycs-head__title-main">
                                 <a class="ycs-datetime-goto"
-                                    href="${msToShareVideo(wrapTryCatch(() => comment.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs) as any) || ''}"
+                                    href="${safeUrl(msToShareVideo(wrapTryCatch(() => comment.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs) as any) || '')}"
                                     target="_blank" title="Timestamp link">
                                     Share link
                                 </a>
                             </div>
                         </div>
-                        <div class="ycs-comment__main-text ycs-clear">${wrapTryCatch(() => comment.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.cue.simpleText) || ''}</div>
+                        <div class="ycs-comment__main-text ycs-clear">${esc(wrapTryCatch(() => comment.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.cue.simpleText) || '')}</div>
                     </div>
                 `});
 
