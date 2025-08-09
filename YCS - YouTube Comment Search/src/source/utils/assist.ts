@@ -115,6 +115,20 @@ function wrapTryCatch(fn: (...args: any) => any): any {
     }
 }
 
+function escapeHtml(input: unknown): string {
+    try {
+        const s = String(input ?? '');
+        return s
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    } catch {
+        return '';
+    }
+}
+
 function deepFindObjKey(obj: object, key: string): Array<any> {
     const matches: any[] = [];
 

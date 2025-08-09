@@ -1,5 +1,5 @@
 
-import { insertFileScript, removeInjectionYCS } from '../utils/injections';
+import { insertFileScript, insertFileScriptWithLoad, removeInjectionYCS, removeInjections } from '../utils/injections';
 
 (function (): void {
 
@@ -85,8 +85,17 @@ import { insertFileScript, removeInjectionYCS } from '../utils/injections';
 
         }, false);
 
-        // insertFileScript(chrome.extension.getURL('web-resources/wresources.js'), 'body');
-        insertFileScript(chrome.runtime.getURL('web-resources/wresources.js'), 'body');
+        const SCRIPT_SRCS = [
+            'web-resources/htmlEntities.js',
+            'web-resources/wresources.js'
+        ];
+        const fullSrcs = SCRIPT_SRCS.map((src) => chrome.runtime.getURL(src));
+        removeInjections(fullSrcs);
+        (async function (srcs: string[], target: string): Promise<void> {
+            for (const src of srcs) {
+                await insertFileScriptWithLoad(src, target);
+            }
+        })(fullSrcs, 'body');
 
     }
 
