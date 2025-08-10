@@ -12,6 +12,11 @@ export interface ICommentsFuseResult {
 }
 
 export interface ICommentItem {
+    /**
+     * Stable original index used for sorting across filters/searches.
+     * Newest-first when sorted ascending.
+     */
+    _index?: number;
     commentRenderer: {
         authorEndpoint: unknown;
         authorIsChannelOwner: boolean;

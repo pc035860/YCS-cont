@@ -985,18 +985,27 @@ Total: ${c.count}\n${c.html}`;
                     };
 
                     let resultSearch: ICommentsFuseResult[] = [];
+                    // Compute global text search once (if query present)
+                    let textMatchedSet: Set<any> | null = null;
+                    if (querySearch && querySearch.trim()) {
+                        const fuseBase = new Fuse(comments, options);
+                        const baseMatches = fuseBase.search(querySearch.trim()) as any[];
+                        textMatchedSet = new Set(baseMatches.map((r: any) => r.item));
+                    }
 
                     if (param?.likes) {
 
                         const cmntsLikes = filterLikesComments(comments);
 
-                        if (querySearch && querySearch.trim()) {
-                            const base = cmntsLikes.map((r: any) => r.item);
-                            const fuse = new Fuse(base, options);
-                            resultSearch = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                        } else {
-                            resultSearch = cmntsLikes;
-                        }
+                        // Unified pipeline: filter-only; apply text subset; then sort by likeCount desc
+                        resultSearch = cmntsLikes;
+                        if (textMatchedSet) resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
+                        resultSearch?.sort((first: any, second: any) => {
+                            const a = first.item?.commentRenderer?.likesForSort || 0;
+                            const b = second.item?.commentRenderer?.likesForSort || 0;
+                            if (b !== a) return b - a;
+                            return (first.refIndex || 0) - (second.refIndex || 0);
+                        });
 
                         renderComment(selector, resultSearch, true, querySearch);
 
@@ -1006,6 +1015,7 @@ Total: ${c.count}\n${c.html}`;
 
                         const cmntsLinked = filterLinksComments(comments);
                         resultSearch = cmntsLinked;
+                        if (textMatchedSet) resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
 
                         if (resultSearch.length > 0) {
 
@@ -1024,31 +1034,14 @@ Total: ${c.count}\n${c.html}`;
                             const sortType = param?.sortOrder || (elSortLinks.dataset.sort as 'newest' | 'oldest');
 
                             if (sortType === 'newest') {
-                                // restrict to filtered set when query present
-                                if (querySearch && querySearch.trim()) {
-                                    const base = resultSearch.map((r: any) => r.item);
-                                    const fuse = new Fuse(base, options);
-                                    const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                                    renderComment(selector, filtered, true, querySearch);
-                                    resultSearch = filtered;
-                                } else {
-                                    renderComment(selector, resultSearch, true, querySearch);
-                                }
+                                renderComment(selector, resultSearch, true, querySearch);
 
                                 elSortLinks.dataset.sort = 'oldest';
                                 elSortLinks.innerHTML = `Links ${iconSortDown()}`;
                                 elSortLinks.title = 'Shows links in comments, replies, chat, video transcript (Newest)';
 
                             } else if (sortType === 'oldest') {
-                                if (querySearch && querySearch.trim()) {
-                                    const base = resultSearch.map((r: any) => r.item).reverse();
-                                    const fuse = new Fuse(base, options);
-                                    const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                                    renderComment(selector, filtered, true, querySearch);
-                                    resultSearch = filtered;
-                                } else {
-                                    renderComment(selector, resultSearch?.reverse(), true, querySearch);
-                                }
+                                renderComment(selector, resultSearch?.reverse(), true, querySearch);
 
                                 elSortLinks.dataset.sort = 'newest';
                                 elSortLinks.innerHTML = `Links ${iconSortUp()}`;
@@ -1072,13 +1065,8 @@ Total: ${c.count}\n${c.html}`;
                     } else if (param?.members) {
 
                         const cmntsMembers = filterMemberComments(comments);
-                        if (querySearch && querySearch.trim()) {
-                            const base = cmntsMembers.map((r: any) => r.item);
-                            const fuse = new Fuse(base, options);
-                            resultSearch = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                        } else {
-                            resultSearch = cmntsMembers;
-                        }
+                        resultSearch = cmntsMembers;
+                        if (textMatchedSet) resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
 
                         if (resultSearch.length > 0) {
 
@@ -1097,30 +1085,14 @@ Total: ${c.count}\n${c.html}`;
                             const sortType = param?.sortOrder || (elSortMembers.dataset.sort as 'newest' | 'oldest');
 
                             if (sortType === 'newest') {
-                                if (querySearch && querySearch.trim()) {
-                                    const base = resultSearch.map((r: any) => r.item);
-                                    const fuse = new Fuse(base, options);
-                                    const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                                    renderComment(selector, filtered, true, querySearch);
-                                    resultSearch = filtered;
-                                } else {
-                                    renderComment(selector, resultSearch, true, querySearch);
-                                }
+                                renderComment(selector, resultSearch, true, querySearch);
 
                                 elSortMembers.dataset.sort = 'oldest';
                                 elSortMembers.innerHTML = `Members ${iconSortDown()}`;
                                 elSortMembers.title = 'Show comments, replies, chat from channel members (Newest)';
 
                             } else if (sortType === 'oldest') {
-                                if (querySearch && querySearch.trim()) {
-                                    const base = resultSearch.map((r: any) => r.item).reverse();
-                                    const fuse = new Fuse(base, options);
-                                    const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                                    renderComment(selector, filtered, true, querySearch);
-                                    resultSearch = filtered;
-                                } else {
-                                    renderComment(selector, resultSearch?.reverse(), true, querySearch);
-                                }
+                                renderComment(selector, resultSearch?.reverse(), true, querySearch);
 
                                 elSortMembers.dataset.sort = 'newest';
                                 elSortMembers.innerHTML = `Members ${iconSortUp()}`;
@@ -1137,26 +1109,22 @@ Total: ${c.count}\n${c.html}`;
                     } else if (param?.replied) {
 
                         const cmntsReplied = filterRepliedComments(comments);
-                        if (querySearch && querySearch.trim()) {
-                            const base = cmntsReplied.map((r: any) => r.item);
-                            const fuse = new Fuse(base, options);
-                            resultSearch = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                        } else {
-                            resultSearch = cmntsReplied;
-                        }
+                        resultSearch = cmntsReplied;
+                        if (textMatchedSet) resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
+                        resultSearch?.sort((first: any, second: any) => {
+                            const a = first.item?.commentRenderer?.repliedForSort || 0;
+                            const b = second.item?.commentRenderer?.repliedForSort || 0;
+                            if (b !== a) return b - a;
+                            return (first.refIndex || 0) - (second.refIndex || 0);
+                        });
                         renderComment(selector, resultSearch, true, querySearch);
 
                         console.log('cmntsReplied: ', cmntsReplied);
 
                     } else if (param?.author) {
                         const cmntsAuthor = filterAuthorComments(comments);
-                        if (querySearch && querySearch.trim()) {
-                            const base = cmntsAuthor.map((r: any) => r.item);
-                            const fuse = new Fuse(base, options);
-                            resultSearch = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                        } else {
-                            resultSearch = cmntsAuthor;
-                        }
+                        resultSearch = cmntsAuthor;
+                        if (textMatchedSet) resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
 
                         if (resultSearch.length > 0) {
 
@@ -1197,13 +1165,8 @@ Total: ${c.count}\n${c.html}`;
 
                     } else if (param?.heart) {
                         const cmntsHeart = filterHeartComments(comments);
-                        if (querySearch && querySearch.trim()) {
-                            const base = cmntsHeart.map((r: any) => r.item);
-                            const fuse = new Fuse(base, options);
-                            resultSearch = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                        } else {
-                            resultSearch = cmntsHeart;
-                        }
+                        resultSearch = cmntsHeart;
+                        if (textMatchedSet) resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
 
                         if (resultSearch.length > 0) {
 
@@ -1244,13 +1207,8 @@ Total: ${c.count}\n${c.html}`;
 
                     } else if (param?.verified) {
                         const cmntsVerified = filterVerifiedComments(comments);
-                        if (querySearch && querySearch.trim()) {
-                            const base = cmntsVerified.map((r: any) => r.item);
-                            const fuse = new Fuse(base, options);
-                            resultSearch = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                        } else {
-                            resultSearch = cmntsVerified;
-                        }
+                        resultSearch = cmntsVerified;
+                        if (textMatchedSet) resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
 
                         if (resultSearch.length > 0) {
 
@@ -1299,77 +1257,32 @@ Total: ${c.count}\n${c.html}`;
 
 
                     } else if (param?.timestamp) {
-
-                        const timelineOptions: any = {
-                            ...fuseOpt,
-                            keys: [ 'commentRenderer.isTimeLine' ]
-                        };
-
-                        console.log('COMMENT TIMELINE SEARCH');
-
-                        const fuseTimeline = new Fuse(comments, timelineOptions);
-                        resultSearch = fuseTimeline.search('timeline') as ICommentsFuseResult[];
+                        // No second fuse; simply filter those marked as timeline
+                        let timeline = comments.filter((c: any) => c?.commentRenderer?.isTimeLine === 'timeline')
+                            .map((c: any) => ({ item: c, refIndex: (c as any)?._index }));
+                        if (textMatchedSet) timeline = timeline.filter((r: any) => textMatchedSet?.has(r.item));
+                        resultSearch = timeline as any;
 
                         if (resultSearch.length > 0) {
-
-                            console.log('timestamp before: ', resultSearch);
-
-                            resultSearch?.sort((firstItem, secondItem) => {
-
-                                return firstItem.refIndex - secondItem.refIndex;
-
-                            });
-
-                            console.log('timestamp after: ', resultSearch);
+                            resultSearch?.sort((a, b) => a.refIndex - b.refIndex);
 
                             const elSortTimeStamp = document.getElementById('ycs_btn_timestamps') as HTMLElement;
-                            // Use sortOrder from param if provided (from text search), otherwise use button's dataset
                             const sortType = param?.sortOrder || (elSortTimeStamp.dataset.sort as 'newest' | 'oldest');
-                            const textOptions: any = { ...fuseOpt, keys: keysOpt };
 
                             if (sortType === 'newest') {
-                                if (querySearch && querySearch.trim()) {
-                                    const base = resultSearch.map((r: any) => r.item);
-                                    const fuseText = new Fuse(base, textOptions);
-                                    const filtered = fuseText.search(querySearch.trim()) as ICommentsFuseResult[];
-                                    renderComment(selector, filtered, true, querySearch);
-                                    resultSearch = filtered;
-                                } else {
-                                    renderComment(selector, resultSearch, true, querySearch);
-                                }
-
+                                renderComment(selector, resultSearch, true, querySearch);
                                 elSortTimeStamp.dataset.sort = 'oldest';
                                 elSortTimeStamp.innerHTML = `Time stamps ${iconSortDown()}`;
                                 elSortTimeStamp.title = 'Show comments, replies, chat with time stamps (Newest)';
-
                             } else if (sortType === 'oldest') {
-                                if (querySearch && querySearch.trim()) {
-                                    const base = resultSearch.map((r: any) => r.item).reverse();
-                                    const fuseText = new Fuse(base, textOptions);
-                                    const filtered = fuseText.search(querySearch.trim()) as ICommentsFuseResult[];
-                                    renderComment(selector, filtered, true, querySearch);
-                                    resultSearch = filtered;
-                                } else {
-                                    renderComment(selector, resultSearch?.reverse(), true, querySearch);
-                                }
-
+                                renderComment(selector, resultSearch?.reverse(), true, querySearch);
                                 elSortTimeStamp.dataset.sort = 'newest';
                                 elSortTimeStamp.innerHTML = `Time stamps ${iconSortUp()}`;
                                 elSortTimeStamp.title = 'Show comments, replies, chat with time stamps (Oldest)';
-
                             } else {
-                                if (querySearch && querySearch.trim()) {
-                                    const base = resultSearch.map((r: any) => r.item);
-                                    const fuseText = new Fuse(base, textOptions);
-                                    const filtered = fuseText.search(querySearch.trim()) as ICommentsFuseResult[];
-                                    renderComment(selector, filtered, true, querySearch);
-                                    resultSearch = filtered;
-                                } else {
-                                    renderComment(selector, resultSearch, true, querySearch);
-                                }
+                                renderComment(selector, resultSearch, true, querySearch);
                                 elSortTimeStamp.innerHTML = `Time stamps ${iconSortDown()}`;
                             }
-
                         }
 
                     } else if (param?.sortFirst) {
@@ -1384,16 +1297,7 @@ Total: ${c.count}\n${c.html}`;
                             const sortType = param?.sortOrder || (elSortAll.dataset.sort as 'newest' | 'oldest');
 
                             if (sortType === 'newest') {
-                                if (querySearch && querySearch.trim()) {
-                                    const base = resultSearch.map((r: any) => r.item);
-                                    const textOptions: any = { ...fuseOpt, keys: keysOpt };
-                                    const fuseText = new Fuse(base, textOptions);
-                                    const filtered = fuseText.search(querySearch.trim()) as ICommentsFuseResult[];
-                                    renderComment(selector, filtered, true, querySearch);
-                                    resultSearch = filtered;
-                                } else {
-                                    renderComment(selector, resultSearch, true, querySearch);
-                                }
+                                renderComment(selector, resultSearch, true, querySearch);
 
                                 elSortAll.dataset.sort = 'oldest';
                                 elSortAll.innerHTML = `All ${iconSortDown()}`;
@@ -1401,32 +1305,14 @@ Total: ${c.count}\n${c.html}`;
 
                                 // markTextComment(selector, querySearch);
                             } else if (sortType === 'oldest') {
-                                if (querySearch && querySearch.trim()) {
-                                    const base = resultSearch.map((r: any) => r.item).reverse();
-                                    const textOptions: any = { ...fuseOpt, keys: keysOpt };
-                                    const fuseText = new Fuse(base, textOptions);
-                                    const filtered = fuseText.search(querySearch.trim()) as ICommentsFuseResult[];
-                                    renderComment(selector, filtered, true, querySearch);
-                                    resultSearch = filtered;
-                                } else {
-                                    renderComment(selector, resultSearch?.reverse(), true, querySearch);
-                                }
+                                renderComment(selector, resultSearch?.reverse(), true, querySearch);
 
                                 elSortAll.dataset.sort = 'newest';
                                 elSortAll.innerHTML = `All ${iconSortUp()}`;
                                 elSortAll.title = 'Show all comments, chat, video transcript sorted by date (Oldest)';
 
                             } else {
-                                if (querySearch && querySearch.trim()) {
-                                    const base = resultSearch.map((r: any) => r.item);
-                                    const textOptions: any = { ...fuseOpt, keys: keysOpt };
-                                    const fuseText = new Fuse(base, textOptions);
-                                    const filtered = fuseText.search(querySearch.trim()) as ICommentsFuseResult[];
-                                    renderComment(selector, filtered, true, querySearch);
-                                    resultSearch = filtered;
-                                } else {
-                                    renderComment(selector, resultSearch, true, querySearch);
-                                }
+                                renderComment(selector, resultSearch, true, querySearch);
                                 elSortAll.innerHTML = `All ${iconSortDown()}`;
                             }
 
@@ -1436,7 +1322,8 @@ Total: ${c.count}\n${c.html}`;
 
                     } else {
                         const fuse = new Fuse(comments, options);
-                        resultSearch = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                        // Map to original index to make downstream sort stable
+                        resultSearch = (fuse.search(querySearch.trim()) as any[]).map((r: any) => ({ item: r.item, refIndex: (r.item as any)?._index, score: r.score }));
                         renderComment(selector, resultSearch, true, querySearch);
                     }
 
@@ -1478,7 +1365,9 @@ Total: ${c.count}\n${c.html}`;
 
                                         try {
 
-                                            const com = { item: (comments[refID] as any).originComment, refIndex: refID };
+                                            // Find the origin comment by matching _index
+                                            const origin = comments.find((x: any) => (x as any)?._index === refID);
+                                            const com = origin ? { item: (origin as any).originComment, refIndex: refID } : undefined as any;
 
                                             const wrap = document.createElement('div');
                                             wrap.id = 'ycs-com-' + refID.toString();
@@ -1486,13 +1375,13 @@ Total: ${c.count}\n${c.html}`;
 
                                             reply.insertAdjacentElement('beforebegin', wrap);
 
-                                            renderComment('#' + wrap.id, [com], true, querySearch);
+                                            if (com) renderComment('#' + wrap.id, [com], true, querySearch);
 
                                             reply.classList.add('ycs-oc-ml');
 
                                             let toReplyAuthor;
-                                            if ((comments[refID] as any)?.commentRenderer?.contentText?.runs?.length > 0) {
-                                                for (const msg of (comments[refID] as any).commentRenderer.contentText.runs) {
+                                            if ((origin as any)?.commentRenderer?.contentText?.runs?.length > 0) {
+                                                for (const msg of (origin as any).commentRenderer.contentText.runs) {
                                                     try {
 
                                                         if (msg.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl) {
@@ -1514,7 +1403,7 @@ Total: ${c.count}\n${c.html}`;
 
                                                     try {
 
-                                                        if ((auth as any).typeComment === 'R' && (auth as any).originComment === (comments[refID] as any).originComment &&
+                                                        if ((auth as any).typeComment === 'R' && (auth as any).originComment === (origin as any).originComment &&
                                                             (auth as any).commentRenderer?.authorEndpoint?.browseEndpoint?.canonicalBaseUrl === toReplyAuthor) {
                                                             replyAuthor.push({
                                                                 item: auth,
@@ -1752,32 +1641,14 @@ Total: ${c.count}\n${c.html}`;
                                 const sortType = param?.sortOrder || (elSortAuthor.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
-                                    // Apply search text filter if present
-                                    if (querySearch && querySearch.trim()) {
-                                        const base = resultSearch.map((r: any) => r.item);
-                                        const fuse = new Fuse(base, options);
-                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                                        renderCommentChat(selector, filtered, querySearch);
-                                        resultSearch = filtered;
-                                    } else {
-                                        renderCommentChat(selector, resultSearch, querySearch);
-                                    }
+                                    renderCommentChat(selector, resultSearch, querySearch);
 
                                     elSortAuthor.dataset.sortChat = 'oldest';
                                     elSortAuthor.innerHTML = `Author ${iconSortDown()}`;
                                     elSortAuthor.title = 'Show comments, replies, chat from the author (Newest)';
 
                                 } else if (sortType === 'oldest') {
-                                    // Apply search text filter if present
-                                    if (querySearch && querySearch.trim()) {
-                                        const base = resultSearch.map((r: any) => r.item).reverse();
-                                        const fuse = new Fuse(base, options);
-                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                                        renderCommentChat(selector, filtered, querySearch);
-                                        resultSearch = filtered;
-                                    } else {
-                                        renderCommentChat(selector, resultSearch?.reverse(), querySearch);
-                                    }
+                                    renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
                                     elSortAuthor.dataset.sortChat = 'newest';
                                     elSortAuthor.innerHTML = `Author ${iconSortUp()}`;
@@ -1813,30 +1684,14 @@ Total: ${c.count}\n${c.html}`;
                                 const sortType = param?.sortOrder || (elSortDonated.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
-                                    if (querySearch && querySearch.trim()) {
-                                        const base = resultSearch.map((r: any) => r.item);
-                                        const fuse = new Fuse(base, options);
-                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                                        renderCommentChat(selector, filtered, querySearch);
-                                        resultSearch = filtered;
-                                    } else {
-                                        renderCommentChat(selector, resultSearch, querySearch);
-                                    }
+                                    renderCommentChat(selector, resultSearch, querySearch);
 
                                     elSortDonated.dataset.sortChat = 'oldest';
                                     elSortDonated.innerHTML = `Donated ${iconSortDown()}`;
                                     elSortDonated.title = 'Show chat comments from users who have donated (Newest)';
 
                                 } else if (sortType === 'oldest') {
-                                    if (querySearch && querySearch.trim()) {
-                                        const base = resultSearch.map((r: any) => r.item).reverse();
-                                        const fuse = new Fuse(base, options);
-                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                                        renderCommentChat(selector, filtered, querySearch);
-                                        resultSearch = filtered;
-                                    } else {
-                                        renderCommentChat(selector, resultSearch?.reverse(), querySearch);
-                                    }
+                                    renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
                                     elSortDonated.dataset.sortChat = 'newest';
                                     elSortDonated.innerHTML = `Donated ${iconSortUp()}`;
@@ -1873,32 +1728,14 @@ Total: ${c.count}\n${c.html}`;
                                 const sortType = param?.sortOrder || (elSortMember.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
-                                    // Apply search text filter if present
-                                    if (querySearch && querySearch.trim()) {
-                                        const base = resultSearch.map((r: any) => r.item);
-                                        const fuse = new Fuse(base, options);
-                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                                        renderCommentChat(selector, filtered, querySearch);
-                                        resultSearch = filtered;
-                                    } else {
-                                        renderCommentChat(selector, resultSearch, querySearch);
-                                    }
+                                    renderCommentChat(selector, resultSearch, querySearch);
 
                                     elSortMember.dataset.sortChat = 'oldest';
                                     elSortMember.innerHTML = `Members ${iconSortDown()}`;
                                     elSortMember.title = 'Show comments, replies, chat from channel members (Newest)';
 
                                 } else if (sortType === 'oldest') {
-                                    // Apply search text filter if present
-                                    if (querySearch && querySearch.trim()) {
-                                        const base = resultSearch.map((r: any) => r.item).reverse();
-                                        const fuse = new Fuse(base, options);
-                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                                        renderCommentChat(selector, filtered, querySearch);
-                                        resultSearch = filtered;
-                                    } else {
-                                        renderCommentChat(selector, resultSearch?.reverse(), querySearch);
-                                    }
+                                    renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
                                     elSortMember.dataset.sortChat = 'newest';
                                     elSortMember.innerHTML = `Members ${iconSortUp()}`;
@@ -2023,32 +1860,14 @@ Total: ${c.count}\n${c.html}`;
                                 const sortType = param?.sortOrder || (elSortVerified.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
-                                    // Apply search text filter if present
-                                    if (querySearch && querySearch.trim()) {
-                                        const base = resultSearch.map((r: any) => r.item);
-                                        const fuse = new Fuse(base, options);
-                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                                        renderCommentChat(selector, filtered, querySearch);
-                                        resultSearch = filtered;
-                                    } else {
-                                        renderCommentChat(selector, resultSearch, querySearch);
-                                    }
+                                    renderCommentChat(selector, resultSearch, querySearch);
 
                                     elSortVerified.dataset.sortChat = 'oldest';
                                     elSortVerified.innerHTML = `<span class="ycs-creator-verified_icon">✔</span> ${iconSortDown()}`;
                                     elSortVerified.title = 'Show comments,  replies and chat from a verified authors (Newest)';
 
                                 } else if (sortType === 'oldest') {
-                                    // Apply search text filter if present
-                                    if (querySearch && querySearch.trim()) {
-                                        const base = resultSearch.map((r: any) => r.item).reverse();
-                                        const fuse = new Fuse(base, options);
-                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                                        renderCommentChat(selector, filtered, querySearch);
-                                        resultSearch = filtered;
-                                    } else {
-                                        renderCommentChat(selector, resultSearch?.reverse(), querySearch);
-                                    }
+                                    renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
                                     elSortVerified.dataset.sortChat = 'newest';
                                     elSortVerified.innerHTML = `<span class="ycs-creator-verified_icon">✔</span> ${iconSortUp()}`;
@@ -2123,7 +1942,7 @@ Total: ${c.count}\n${c.html}`;
 
                         } else {
                             const fuse = new Fuse(cmntsChat, options);
-                            resultSearch = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                            resultSearch = (fuse.search(querySearch.trim()) as any[]).map((r: any) => ({ item: r.item, refIndex: parseInt(wrapTryCatch(() => r.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec) as any, 10) || 0, score: r.score }));
 
                             renderCommentChat(selector, resultSearch, querySearch);
                         }
@@ -2390,24 +2209,24 @@ Total: ${c.count}\n${c.html}`;
                                         }
                                     }
                                 } else {
-                                    // 無效時間格式則退回全文搜尋
-                                    const fuse = new Fuse(cmntsTrVideo, options);
-                                    resultSearch = fuse.search(querySearch.trim()) as [];
-                                    renderCommentTrVideo(selector, resultSearch, querySearch);
+                                // 無效時間格式則退回全文搜尋，並補上 refIndex
+                                const fuse = new Fuse(cmntsTrVideo, options);
+                                resultSearch = (fuse.search(querySearch.trim()) as any[]).map((r: any) => ({ item: r.item, refIndex: wrapTryCatch(() => r.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs), score: r.score }));
+                                renderCommentTrVideo(selector, resultSearch, querySearch);
                                 }
                             } else {
-                                // 無特定參數：全文搜尋
-                                const fuse = new Fuse(cmntsTrVideo, options);
-                                resultSearch = fuse.search(querySearch.trim()) as [];
-                                renderCommentTrVideo(selector, resultSearch, querySearch);
+                            // 無特定參數：全文搜尋，並補上 refIndex
+                            const fuse = new Fuse(cmntsTrVideo, options);
+                            resultSearch = (fuse.search(querySearch.trim()) as any[]).map((r: any) => ({ item: r.item, refIndex: wrapTryCatch(() => r.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs), score: r.score }));
+                            renderCommentTrVideo(selector, resultSearch, querySearch);
                             }
 
-                        } else {
-                            const fuse = new Fuse(cmntsTrVideo, options);
-                            resultSearch = fuse.search(querySearch.trim()) as [];
+                    } else {
+                        const fuse = new Fuse(cmntsTrVideo, options);
+                        resultSearch = (fuse.search(querySearch.trim()) as any[]).map((r: any) => ({ item: r.item, refIndex: wrapTryCatch(() => r.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs), score: r.score }));
 
-                            renderCommentTrVideo(selector, resultSearch, querySearch);
-                        }
+                        renderCommentTrVideo(selector, resultSearch, querySearch);
+                    }
 
                         console.log('FUSE SEARCH TR VIDEO: ', resultSearch);
 

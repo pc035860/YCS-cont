@@ -2441,7 +2441,18 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
     // console.log('reply Queue: ', replyQueue);
 
     await replyQueue.onIdle();
-    // console.log('errorRequestComments: ', errorRequestComments);
+    // Assign stable original index for all loaded comments (newest-first ascending)
+    try {
+        if (Array.isArray(comments) && comments.length > 0) {
+            const totalLen = comments.length;
+            for (let idx = 0; idx < totalLen; idx++) {
+                const cm: any = comments[idx];
+                cm._index = totalLen - idx - 1;
+            }
+        }
+    } catch (e) {
+        console.error(e);
+    }
 
     return comments;
 
@@ -2890,10 +2901,9 @@ function filterAuthorComments(comments: any): [] {
     try {
         const fAuthor: any = [];
 
-        for (const [i, c] of comments.entries()) {
+    for (const [, c] of comments.entries()) {
             if (c?.commentRenderer?.authorIsChannelOwner) {
-                
-                fAuthor.push({ item: c, refIndex: i });
+                fAuthor.push({ item: c, refIndex: (c as any)._index });
             }
         }
 
@@ -2916,13 +2926,15 @@ function filterAuthorChat(comments: any): [] {
 
         if (channelID) {
 
-            for (const [i, c] of comments.entries()) {
+            for (const [, c] of comments.entries()) {
 
                 try {
 
                     const authorExternalChannelId = wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorExternalChannelId);
                     if (authorExternalChannelId === channelID) {
-                        fAuthor.push({ item: c, refIndex: i });
+                        const ts = wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec);
+                        const ref = typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
+                        fAuthor.push({ item: c, refIndex: (Number.isFinite(ref) ? ref : 0) });
                     }
                 
                 } catch (err) {
@@ -2957,7 +2969,7 @@ function filterLikesComments(comments: any): [] {
         const fLike: any = [];
         const cmntsBigLikes = []; 
         
-        for (const [i, c] of comments.entries()) {
+        for (const [, c] of comments.entries()) {
 
             let likes = c?.commentRenderer?.voteCount?.simpleText || c?.commentRenderer?.likeCount;
 
@@ -2973,22 +2985,14 @@ function filterLikesComments(comments: any): [] {
                     likes = bigLike;
                 } else if (typeof likes === 'string') {
                     console.log('LIKES IS STRING!', likes);
-                    cmntsBigLikes.push({ item: c, refIndex: i });
+                    cmntsBigLikes.push({ item: c, refIndex: (c as any)._index });
                 }
             }
             
             if (typeof likes === 'number' && likes === likes) {
                 c.commentRenderer.likesForSort = likes;
-                fLike.push({ item: c, refIndex: i });
+                fLike.push({ item: c, refIndex: (c as any)._index });
             }
-
-        }
-
-        if (fLike.length > 0) {
-
-            fLike.sort((first: any, second: any) => {                
-                return second.item.commentRenderer.likesForSort - first.item.commentRenderer.likesForSort;
-            });
 
         }
 
@@ -3029,29 +3033,19 @@ function filterRepliedComments(comments: any): [] {
 
         const fReplied: any = [];
         
-        for (const [i, c] of comments.entries()) {
+        for (const [, c] of comments.entries()) {
 
             let replied = c?.commentRenderer?.replyCount;
             replied = parseInt(replied);
             
             if (replied) {
                 c.commentRenderer.repliedForSort = replied;
-                fReplied.push({ item: c, refIndex: i });
+                fReplied.push({ item: c, refIndex: (c as any)._index });
             }
 
         }
 
-        if (fReplied.length > 0) {
-
-            fReplied.sort((first: any, second: any) => {
-                return second.item.commentRenderer.repliedForSort - first.item.commentRenderer.repliedForSort;
-            });
-
-            return fReplied;
-
-        }
-
-        return [];
+        return fReplied;
 
     } catch (err) {
         console.error(err);
@@ -3068,12 +3062,12 @@ function filterMemberComments(comments: any): [] {
 
         const fMembers: any = [];
 
-        for (const [i, c] of comments.entries()) {
+        for (const [, c] of comments.entries()) {
 
             const member = c?.commentRenderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer?.tooltip;
             
             if (member) {
-                fMembers.push({ item: c, refIndex: i });
+                fMembers.push({ item: c, refIndex: (c as any)._index });
             }
 
         }
@@ -3114,7 +3108,9 @@ function filterMembersChat(comments: any): [] {
             }
 
             if (member) {
-                fMembers.push({ item: c });
+                const ts = wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec);
+                const ref = typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
+                fMembers.push({ item: c, refIndex: (Number.isFinite(ref) ? ref : 0) });
             }
 
         }
@@ -3139,7 +3135,9 @@ function filterDonatedChat(comments: any): [] {
         for (const c of comments) {
 
             if (wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText)) {
-                fDonated.push({ item: c });
+                const ts = wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec);
+                const ref = typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
+                fDonated.push({ item: c, refIndex: (Number.isFinite(ref) ? ref : 0) });
             }
 
         }
@@ -3227,10 +3225,9 @@ function filterHeartComments(comments: any): [] {
     try {
         const fHeart: any = [];
 
-        for (const [i, c] of comments.entries()) {
+        for (const [, c] of comments.entries()) {
             if (c?.commentRenderer?.creatorHeart) {
-                
-                fHeart.push({ item: c, refIndex: i });
+                fHeart.push({ item: c, refIndex: (c as any)._index });
             }
         }
 
@@ -3250,12 +3247,12 @@ function filterLinksComments(comments: any): [] {
     try {
         const fLinks: any = [];
 
-        for (const [i, c] of comments.entries()) {
+        for (const [, c] of comments.entries()) {
 
             try {
 
                 if (urlRegex().test(c.commentRenderer.contentText.fullText)) {
-                    fLinks.push({ item: c, refIndex: i });
+                    fLinks.push({ item: c, refIndex: (c as any)._index });
                 }
 
             } catch (err) {
@@ -3281,10 +3278,9 @@ function filterVerifiedComments(comments: any): [] {
     try {
         const fVerified: any = [];
 
-        for (const [i, c] of comments.entries()) {
+        for (const [, c] of comments.entries()) {
             if (c.commentRenderer.verifiedAuthor) {
-                
-                fVerified.push({ item: c, refIndex: i });
+                fVerified.push({ item: c, refIndex: (c as any)._index });
             }
         }
 
@@ -3304,9 +3300,11 @@ function filterLinksChatComments(comments: any): [] {
     try {
         const fLinks: any = [];
 
-        for (const [i, c] of comments.entries()) {
+        for (const [, c] of comments.entries()) {
             if (wrapTryCatch(() => urlRegex().test(c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText))) {
-                fLinks.push({ item: c, refIndex: i });
+                const ts = wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec);
+                const ref = typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
+                fLinks.push({ item: c, refIndex: (Number.isFinite(ref) ? ref : 0) });
             }
         }
 
@@ -3326,11 +3324,11 @@ function filterVerifiedChatComments(comments: any): [] {
     try {
         const fVerified: any = [];
 
-        for (const [i, c] of comments.entries()) {
+        for (const [, c] of comments.entries()) {
             if (wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.verifiedAuthor)) {
-                console.log('filterVerifiedChatComments refIndex: ', i);
-                console.log('filterVerifiedChatComments comments: ', c);
-                fVerified.push({ item: c, refIndex: i });
+                const ts = wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec);
+                const ref = typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
+                fVerified.push({ item: c, refIndex: (Number.isFinite(ref) ? ref : 0) });
             }
         }
 
@@ -3591,8 +3589,8 @@ function getRandomComment(comments: any): [] {
                         if (index === authorCommentPos) {
 
                             console.log('authorCommentPosIndex: ', authorCommentPosIndex);
-                            console.log('[{ item: comments[authorCommentPosIndex], refIndex: authorCommentPosIndex }]: ', [{ item: comments[authorCommentPosIndex], refIndex: authorCommentPosIndex }]);
-                            return [{ item: comments[authorCommentPosIndex], refIndex: authorCommentPosIndex }] as any;
+                            console.log('[{ item: comments[authorCommentPosIndex], refIndex: authorCommentPosIndex }]: ', [{ item: comments[authorCommentPosIndex], refIndex: (comments[authorCommentPosIndex] as any)?._index }]);
+                            return [{ item: comments[authorCommentPosIndex], refIndex: (comments[authorCommentPosIndex] as any)?._index }] as any;
                         }
 
                         index++;
@@ -3626,7 +3624,7 @@ function filterNewestFirst(comments: any): ICommentsFuseResult[] | void {
 
         const res: ICommentsFuseResult[] = [];
 
-        for (const [i, comment] of comments.entries()) {
+        for (const [, comment] of comments.entries()) {
 
             try {
 
@@ -3634,7 +3632,7 @@ function filterNewestFirst(comments: any): ICommentsFuseResult[] | void {
                     
                     res.push({
                         item: comment as ICommentItem,
-                        refIndex: i as number
+                        refIndex: (comment as any)?._index as number
                     });
 
                 }
