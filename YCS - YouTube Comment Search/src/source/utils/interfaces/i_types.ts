@@ -45,6 +45,7 @@ export interface IParamSearch {
     random?: boolean;
     timestamp?: boolean;
     sortFirst?: boolean;
+    sortOrder?: 'newest' | 'oldest';
 }
 
 export type ISelectedSearch = 'comments' | 'chat' | 'video' | 'all';

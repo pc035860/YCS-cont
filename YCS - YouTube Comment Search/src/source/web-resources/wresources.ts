@@ -226,6 +226,22 @@ import {
                     case 'sortFirst': param.sortFirst = true; break;
                     default: return undefined;
                     }
+                    
+                    // Get sort order from the active button's dataset
+                    const activeButton = document.querySelector('.ycs_btn_active') as HTMLElement | null;
+                    if (activeButton) {
+                        // Check for regular sort dataset
+                        const sortOrder = activeButton.dataset.sort as 'newest' | 'oldest' | undefined;
+                        if (sortOrder) {
+                            param.sortOrder = sortOrder;
+                        }
+                        // Check for chat sort dataset
+                        const sortChatOrder = activeButton.dataset.sortChat as 'newest' | 'oldest' | undefined;
+                        if (sortChatOrder) {
+                            param.sortOrder = sortChatOrder;
+                        }
+                    }
+                    
                     return param;
                 } catch {
                     // Fallback: detect by DOM
@@ -235,6 +251,19 @@ import {
                         if (!code) return undefined;
                         const param: IParamSearch = {} as IParamSearch;
                         (param as any)[code] = true;
+                        
+                        // Get sort order from the active button's dataset (fallback case)
+                        if (active) {
+                            const sortOrder = active.dataset.sort as 'newest' | 'oldest' | undefined;
+                            if (sortOrder) {
+                                param.sortOrder = sortOrder;
+                            }
+                            const sortChatOrder = active.dataset.sortChat as 'newest' | 'oldest' | undefined;
+                            if (sortChatOrder) {
+                                param.sortOrder = sortChatOrder;
+                            }
+                        }
+                        
                         return param;
                     } catch {
                         return undefined;
@@ -252,6 +281,46 @@ import {
                         countSearchComments.commentsTrVideo = 0;
                     };
 
+                    // Helper function to execute search based on selected type
+                    const executeSearchBasedOnType = (param?: IParamSearch): void => {
+                        const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement;
+                        
+                        if (elSelectOptSearch) {
+                            const selected: ISelectedSearch = 
+                                elSelectOptSearch?.options[
+                                    elSelectOptSearch?.options?.selectedIndex
+                                ].value as unknown as ISelectedSearch;
+                            
+                            switch (selected) {
+                            case 'comments':
+                                // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                                searchComments('#ycs-search-result', param);
+                                break;
+                            case 'chat':
+                                // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                                searchCommentsChat('#ycs-search-result', param);
+                                break;
+                            case 'video':
+                                // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                                searchCommentsTrVideo('#ycs-search-result', param);
+                                break;
+                            case 'all':
+                                // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                                searchCommentsAll('#ycs-search-result', param);
+                                break;
+                            default:
+                                // Default to searchCommentsAll if no valid selection
+                                // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                                searchCommentsAll('#ycs-search-result', param);
+                                break;
+                            }
+                        } else {
+                            // Fallback to searchCommentsAll if select element not found
+                            // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                            searchCommentsAll('#ycs-search-result', param);
+                        }
+                    };
+
                     hElms?.elPTimeStamps?.addEventListener('click', (e: Event) => {
 
                         try {
@@ -262,7 +331,7 @@ import {
                             clearCountComments();
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                            searchCommentsAll('#ycs-search-result', {
+                            executeSearchBasedOnType({
                                 timestamp: true
                             });
 
@@ -282,7 +351,7 @@ import {
                             clearCountComments();
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                            searchCommentsAll('#ycs-search-result', {
+                            executeSearchBasedOnType({
                                 author: true
                             });
 
@@ -302,7 +371,7 @@ import {
                             clearCountComments();
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                            searchCommentsAll('#ycs-search-result', {
+                            executeSearchBasedOnType({
                                 heart: true
                             });
 
@@ -322,7 +391,7 @@ import {
                             clearCountComments();
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                            searchCommentsAll('#ycs-search-result', {
+                            executeSearchBasedOnType({
                                 verified: true
                             });
 
@@ -342,7 +411,7 @@ import {
                             clearCountComments();
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                            searchCommentsAll('#ycs-search-result', {
+                            executeSearchBasedOnType({
                                 links: true
                             });
 
@@ -361,8 +430,7 @@ import {
                             setActiveFilterByElement('likes', currentTarget as HTMLElement);
                             clearCountComments();
 
-                            // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                            searchCommentsAll('#ycs-search-result', {
+                            executeSearchBasedOnType({
                                 likes: true
                             });
 
@@ -381,8 +449,7 @@ import {
                             setActiveFilterByElement('replied', currentTarget as HTMLElement);
                             clearCountComments();
 
-                            // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                            searchCommentsAll('#ycs-search-result', {
+                            executeSearchBasedOnType({
                                 replied: true
                             });
 
@@ -401,8 +468,7 @@ import {
                             setActiveFilterByElement('members', currentTarget as HTMLElement);
                             clearCountComments();
 
-                            // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                            searchCommentsAll('#ycs-search-result', {
+                            executeSearchBasedOnType({
                                 members: true
                             });
 
@@ -421,8 +487,7 @@ import {
                             setActiveFilterByElement('donated', currentTarget as HTMLElement);
                             clearCountComments();
 
-                            // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                            searchCommentsAll('#ycs-search-result', {
+                            executeSearchBasedOnType({
                                 donated: true
                             });
 
@@ -445,13 +510,25 @@ import {
 
                             // (currentTarget as HTMLElement)?.classList.add('ycs_btn_active');
 
-                            const elSearchRes = document.getElementById('ycs-search-result');
-                            const elSearchTotalRes: any = document.getElementById('ycs-search-total-result');
+                            // Check if search input has content
+                            const eInputSearch = document.getElementById('ycs-input-search') as HTMLInputElement;
+                            
+                            // If search input is not empty, trigger search again for results without button filter
+                            if (eInputSearch?.value && eInputSearch.value.trim()) {
+                                // Use requestAnimationFrame to ensure DOM updates are completed before triggering search
+                                requestAnimationFrame(() => {
+                                    const searchBtn = document.getElementById('ycs_btn_search');
+                                    searchBtn?.click();
+                                });
+                            } else {
+                                // Only clear results if search input is empty
+                                const elSearchRes = document.getElementById('ycs-search-result');
+                                const elSearchTotalRes: any = document.getElementById('ycs-search-total-result');
 
-                            if (elSearchRes) {
-                                elSearchRes.innerText = '';
-
-                                elSearchTotalRes.innerText = 'Search cleared';
+                                if (elSearchRes) {
+                                    elSearchRes.innerText = '';
+                                    elSearchTotalRes.innerText = 'Search cleared';
+                                }
                             }
 
                         } catch (err) {
@@ -469,8 +546,7 @@ import {
                             setActiveFilterByElement('random', currentTarget as HTMLElement);
                             clearCountComments();
 
-                            // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                            searchCommentsAll('#ycs-search-result', {
+                            executeSearchBasedOnType({
                                 random: true
                             });
 
@@ -489,8 +565,7 @@ import {
                             setActiveFilterByElement('sortFirst', currentTarget as HTMLElement);
                             clearCountComments();
 
-                            // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                            searchCommentsAll('#ycs-search-result', {
+                            executeSearchBasedOnType({
                                 sortFirst: true
                             });
 
@@ -945,7 +1020,8 @@ Total: ${c.count}\n${c.html}`;
                             console.log('Links after: ', resultSearch);
 
                             const elSortLinks = document.getElementById('ycs_btn_links') as HTMLElement;
-                            const sortType = elSortLinks.dataset.sort as 'newest' | 'oldest';
+                            // Use sortOrder from param if provided (from text search), otherwise use button's dataset
+                            const sortType = param?.sortOrder || (elSortLinks.dataset.sort as 'newest' | 'oldest');
 
                             if (sortType === 'newest') {
                                 // restrict to filtered set when query present
@@ -1017,7 +1093,8 @@ Total: ${c.count}\n${c.html}`;
                             console.log('members after: ', resultSearch);
 
                             const elSortMembers = document.getElementById('ycs_btn_members') as HTMLElement;
-                            const sortType = elSortMembers.dataset.sort as 'newest' | 'oldest';
+                            // Use sortOrder from param if provided (from text search), otherwise use button's dataset
+                            const sortType = param?.sortOrder || (elSortMembers.dataset.sort as 'newest' | 'oldest');
 
                             if (sortType === 'newest') {
                                 if (querySearch && querySearch.trim()) {
@@ -1094,7 +1171,8 @@ Total: ${c.count}\n${c.html}`;
                             console.log('author after: ', resultSearch);
 
                             const elSortAuthor = document.getElementById('ycs_btn_author') as HTMLElement;
-                            const sortType = elSortAuthor.dataset.sort as 'newest' | 'oldest';
+                            // Use sortOrder from param if provided (from text search), otherwise use button's dataset
+                            const sortType = param?.sortOrder || (elSortAuthor.dataset.sort as 'newest' | 'oldest');
 
                             if (sortType === 'newest') {
                                 renderComment(selector, resultSearch, true, querySearch);
@@ -1140,7 +1218,8 @@ Total: ${c.count}\n${c.html}`;
                             console.log('heart after: ', resultSearch);
 
                             const elSortHeart = document.getElementById('ycs_btn_heart') as HTMLElement;
-                            const sortType = elSortHeart.dataset.sort as 'newest' | 'oldest';
+                            // Use sortOrder from param if provided (from text search), otherwise use button's dataset
+                            const sortType = param?.sortOrder || (elSortHeart.dataset.sort as 'newest' | 'oldest');
 
                             if (sortType === 'newest') {
                                 renderComment(selector, resultSearch, true, querySearch);
@@ -1186,7 +1265,8 @@ Total: ${c.count}\n${c.html}`;
                             console.log('verified after: ', resultSearch);
 
                             const elSortVerified = document.getElementById('ycs_btn_verified') as HTMLElement;
-                            const sortType = elSortVerified.dataset.sort as 'newest' | 'oldest';
+                            // Use sortOrder from param if provided (from text search), otherwise use button's dataset
+                            const sortType = param?.sortOrder || (elSortVerified.dataset.sort as 'newest' | 'oldest');
 
                             if (sortType === 'newest') {
                                 renderComment(selector, resultSearch, true, querySearch);
@@ -1243,7 +1323,8 @@ Total: ${c.count}\n${c.html}`;
                             console.log('timestamp after: ', resultSearch);
 
                             const elSortTimeStamp = document.getElementById('ycs_btn_timestamps') as HTMLElement;
-                            const sortType = elSortTimeStamp.dataset.sort as 'newest' | 'oldest';
+                            // Use sortOrder from param if provided (from text search), otherwise use button's dataset
+                            const sortType = param?.sortOrder || (elSortTimeStamp.dataset.sort as 'newest' | 'oldest');
                             const textOptions: any = { ...fuseOpt, keys: keysOpt };
 
                             if (sortType === 'newest') {
@@ -1299,7 +1380,8 @@ Total: ${c.count}\n${c.html}`;
                         if (resultSearch.length > 0) {
 
                             const elSortAll = document.getElementById('ycs_btn_sort_first') as HTMLElement;
-                            const sortType = elSortAll.dataset.sort as 'newest' | 'oldest';
+                            // Use sortOrder from param if provided (from text search), otherwise use button's dataset
+                            const sortType = param?.sortOrder || (elSortAll.dataset.sort as 'newest' | 'oldest');
 
                             if (sortType === 'newest') {
                                 if (querySearch && querySearch.trim()) {
@@ -1666,17 +1748,36 @@ Total: ${c.count}\n${c.html}`;
                                 console.log('author Chat after: ', resultSearch);
 
                                 const elSortAuthor = document.getElementById('ycs_btn_author') as HTMLElement;
-                                const sortType = elSortAuthor.dataset.sortChat as 'newest' | 'oldest';
+                                // Use sortOrder from param if provided (from text search), otherwise use button's dataset
+                                const sortType = param?.sortOrder || (elSortAuthor.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
-                                    renderCommentChat(selector, resultSearch, querySearch);
+                                    // Apply search text filter if present
+                                    if (querySearch && querySearch.trim()) {
+                                        const base = resultSearch.map((r: any) => r.item);
+                                        const fuse = new Fuse(base, options);
+                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                        renderCommentChat(selector, filtered, querySearch);
+                                        resultSearch = filtered;
+                                    } else {
+                                        renderCommentChat(selector, resultSearch, querySearch);
+                                    }
 
                                     elSortAuthor.dataset.sortChat = 'oldest';
                                     elSortAuthor.innerHTML = `Author ${iconSortDown()}`;
                                     elSortAuthor.title = 'Show comments, replies, chat from the author (Newest)';
 
                                 } else if (sortType === 'oldest') {
-                                    renderCommentChat(selector, resultSearch?.reverse(), querySearch);
+                                    // Apply search text filter if present
+                                    if (querySearch && querySearch.trim()) {
+                                        const base = resultSearch.map((r: any) => r.item).reverse();
+                                        const fuse = new Fuse(base, options);
+                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                        renderCommentChat(selector, filtered, querySearch);
+                                        resultSearch = filtered;
+                                    } else {
+                                        renderCommentChat(selector, resultSearch?.reverse(), querySearch);
+                                    }
 
                                     elSortAuthor.dataset.sortChat = 'newest';
                                     elSortAuthor.innerHTML = `Author ${iconSortUp()}`;
@@ -1708,7 +1809,8 @@ Total: ${c.count}\n${c.html}`;
                                 console.log('donated Chat after: ', resultSearch);
 
                                 const elSortDonated = document.getElementById('ycs_btn_donated') as HTMLElement;
-                                const sortType = elSortDonated.dataset.sortChat as 'newest' | 'oldest';
+                                // Use sortOrder from param if provided (from text search), otherwise use button's dataset
+                                const sortType = param?.sortOrder || (elSortDonated.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
                                     if (querySearch && querySearch.trim()) {
@@ -1767,17 +1869,36 @@ Total: ${c.count}\n${c.html}`;
                                 console.log('member Chat after: ', resultSearch);
 
                                 const elSortMember = document.getElementById('ycs_btn_members') as HTMLElement;
-                                const sortType = elSortMember.dataset.sortChat as 'newest' | 'oldest';
+                                // Use sortOrder from param if provided (from text search), otherwise use button's dataset
+                                const sortType = param?.sortOrder || (elSortMember.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
-                                    renderCommentChat(selector, resultSearch, querySearch);
+                                    // Apply search text filter if present
+                                    if (querySearch && querySearch.trim()) {
+                                        const base = resultSearch.map((r: any) => r.item);
+                                        const fuse = new Fuse(base, options);
+                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                        renderCommentChat(selector, filtered, querySearch);
+                                        resultSearch = filtered;
+                                    } else {
+                                        renderCommentChat(selector, resultSearch, querySearch);
+                                    }
 
                                     elSortMember.dataset.sortChat = 'oldest';
                                     elSortMember.innerHTML = `Members ${iconSortDown()}`;
                                     elSortMember.title = 'Show comments, replies, chat from channel members (Newest)';
 
                                 } else if (sortType === 'oldest') {
-                                    renderCommentChat(selector, resultSearch?.reverse(), querySearch);
+                                    // Apply search text filter if present
+                                    if (querySearch && querySearch.trim()) {
+                                        const base = resultSearch.map((r: any) => r.item).reverse();
+                                        const fuse = new Fuse(base, options);
+                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                        renderCommentChat(selector, filtered, querySearch);
+                                        resultSearch = filtered;
+                                    } else {
+                                        renderCommentChat(selector, resultSearch?.reverse(), querySearch);
+                                    }
 
                                     elSortMember.dataset.sortChat = 'newest';
                                     elSortMember.innerHTML = `Members ${iconSortUp()}`;
@@ -1814,7 +1935,8 @@ Total: ${c.count}\n${c.html}`;
                                 console.log('timestamp CHAT after: ', resultSearch);
 
                                 const elSortTimeStamp = document.getElementById('ycs_btn_timestamps') as HTMLElement;
-                                const sortType = elSortTimeStamp.dataset.sortChat as 'newest' | 'oldest';
+                                // Use sortOrder from param if provided (from text search), otherwise use button's dataset
+                                const sortType = param?.sortOrder || (elSortTimeStamp.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
                                     renderCommentChat(selector, resultSearch, querySearch);
@@ -1854,7 +1976,8 @@ Total: ${c.count}\n${c.html}`;
                                 console.log('All Chat after: ', resultSearch);
 
                                 const elSortChatAll = document.getElementById('ycs_btn_sort_first') as HTMLElement;
-                                const sortType = elSortChatAll.dataset.sortChat as 'newest' | 'oldest';
+                                // Use sortOrder from param if provided (from text search), otherwise use button's dataset
+                                const sortType = param?.sortOrder || (elSortChatAll.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
                                     renderCommentChat(selector, resultSearch, querySearch);
@@ -1896,17 +2019,36 @@ Total: ${c.count}\n${c.html}`;
                                 console.log('All filterVerifiedChatComments after: ', resultSearch);
 
                                 const elSortVerified = document.getElementById('ycs_btn_verified') as HTMLElement;
-                                const sortType = elSortVerified.dataset.sortChat as 'newest' | 'oldest';
+                                // Use sortOrder from param if provided (from text search), otherwise use button's dataset
+                                const sortType = param?.sortOrder || (elSortVerified.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
-                                    renderCommentChat(selector, resultSearch, querySearch);
+                                    // Apply search text filter if present
+                                    if (querySearch && querySearch.trim()) {
+                                        const base = resultSearch.map((r: any) => r.item);
+                                        const fuse = new Fuse(base, options);
+                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                        renderCommentChat(selector, filtered, querySearch);
+                                        resultSearch = filtered;
+                                    } else {
+                                        renderCommentChat(selector, resultSearch, querySearch);
+                                    }
 
                                     elSortVerified.dataset.sortChat = 'oldest';
                                     elSortVerified.innerHTML = `<span class="ycs-creator-verified_icon">✔</span> ${iconSortDown()}`;
                                     elSortVerified.title = 'Show comments,  replies and chat from a verified authors (Newest)';
 
                                 } else if (sortType === 'oldest') {
-                                    renderCommentChat(selector, resultSearch?.reverse(), querySearch);
+                                    // Apply search text filter if present
+                                    if (querySearch && querySearch.trim()) {
+                                        const base = resultSearch.map((r: any) => r.item).reverse();
+                                        const fuse = new Fuse(base, options);
+                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                        renderCommentChat(selector, filtered, querySearch);
+                                        resultSearch = filtered;
+                                    } else {
+                                        renderCommentChat(selector, resultSearch?.reverse(), querySearch);
+                                    }
 
                                     elSortVerified.dataset.sortChat = 'newest';
                                     elSortVerified.innerHTML = `<span class="ycs-creator-verified_icon">✔</span> ${iconSortUp()}`;
@@ -1938,17 +2080,36 @@ Total: ${c.count}\n${c.html}`;
                                 console.log('All filterLinksChatComments after: ', resultSearch);
 
                                 const elSortVerified = document.getElementById('ycs_btn_links') as HTMLElement;
-                                const sortType = elSortVerified.dataset.sortChat as 'newest' | 'oldest';
+                                // Use sortOrder from param if provided (from text search), otherwise use button's dataset
+                                const sortType = param?.sortOrder || (elSortVerified.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
-                                    renderCommentChat(selector, resultSearch, querySearch);
+                                    // Apply search text filter if present
+                                    if (querySearch && querySearch.trim()) {
+                                        const base = resultSearch.map((r: any) => r.item);
+                                        const fuse = new Fuse(base, options);
+                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                        renderCommentChat(selector, filtered, querySearch);
+                                        resultSearch = filtered;
+                                    } else {
+                                        renderCommentChat(selector, resultSearch, querySearch);
+                                    }
 
                                     elSortVerified.dataset.sortChat = 'oldest';
                                     elSortVerified.innerHTML = `Links ${iconSortDown()}`;
                                     elSortVerified.title = 'Shows links in comments, replies, chat, video transcript (Newest)';
 
                                 } else if (sortType === 'oldest') {
-                                    renderCommentChat(selector, resultSearch?.reverse(), querySearch);
+                                    // Apply search text filter if present
+                                    if (querySearch && querySearch.trim()) {
+                                        const base = resultSearch.map((r: any) => r.item).reverse();
+                                        const fuse = new Fuse(base, options);
+                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                        renderCommentChat(selector, filtered, querySearch);
+                                        resultSearch = filtered;
+                                    } else {
+                                        renderCommentChat(selector, resultSearch?.reverse(), querySearch);
+                                    }
 
                                     elSortVerified.dataset.sortChat = 'newest';
                                     elSortVerified.innerHTML = `Links ${iconSortUp()}`;
@@ -2098,14 +2259,32 @@ Total: ${c.count}\n${c.html}`;
                                     const sortType = elSortLinksTrpVideo.dataset.sortTrp as 'newest' | 'oldest';
     
                                     if (sortType === 'newest') {
-                                        renderCommentTrVideo(selector, resultSearch, querySearch);
+                                        // Apply search text filter if present
+                                        if (querySearch && querySearch.trim()) {
+                                            const base = resultSearch.map((r: any) => r.item);
+                                            const fuse = new Fuse(base, options);
+                                            const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                            renderCommentTrVideo(selector, filtered, querySearch);
+                                            resultSearch = filtered;
+                                        } else {
+                                            renderCommentTrVideo(selector, resultSearch, querySearch);
+                                        }
     
                                         elSortLinksTrpVideo.dataset.sortTrp = 'oldest';
                                         elSortLinksTrpVideo.innerHTML = `Links ${iconSortDown()}`;
                                         elSortLinksTrpVideo.title = 'Shows links in comments, replies, chat, video transcript (Newest)';
     
                                     } else if (sortType === 'oldest') {
-                                        renderCommentTrVideo(selector, resultSearch?.reverse(), querySearch);
+                                        // Apply search text filter if present
+                                        if (querySearch && querySearch.trim()) {
+                                            const base = resultSearch.map((r: any) => r.item).reverse();
+                                            const fuse = new Fuse(base, options);
+                                            const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                            renderCommentTrVideo(selector, filtered, querySearch);
+                                            resultSearch = filtered;
+                                        } else {
+                                            renderCommentTrVideo(selector, resultSearch?.reverse(), querySearch);
+                                        }
     
                                         elSortLinksTrpVideo.dataset.sortTrp = 'newest';
                                         elSortLinksTrpVideo.innerHTML = `Links ${iconSortUp()}`;
@@ -2140,14 +2319,32 @@ Total: ${c.count}\n${c.html}`;
                                     const sortType = elSortAllTrpVideo.dataset.sortTrp as 'newest' | 'oldest';
     
                                     if (sortType === 'newest') {
-                                        renderCommentTrVideo(selector, resultSearch, querySearch);
+                                        // Apply search text filter if present
+                                        if (querySearch && querySearch.trim()) {
+                                            const base = resultSearch.map((r: any) => r.item);
+                                            const fuse = new Fuse(base, options);
+                                            const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                            renderCommentTrVideo(selector, filtered, querySearch);
+                                            resultSearch = filtered;
+                                        } else {
+                                            renderCommentTrVideo(selector, resultSearch, querySearch);
+                                        }
     
                                         elSortAllTrpVideo.dataset.sortTrp = 'oldest';
                                         elSortAllTrpVideo.innerHTML = `All ${iconSortDown()}`;
                                         elSortAllTrpVideo.title = 'Show all comments, chat, video transcript sorted by date (Newest)';
     
                                     } else if (sortType === 'oldest') {
-                                        renderCommentTrVideo(selector, resultSearch?.reverse(), querySearch);
+                                        // Apply search text filter if present
+                                        if (querySearch && querySearch.trim()) {
+                                            const base = resultSearch.map((r: any) => r.item).reverse();
+                                            const fuse = new Fuse(base, options);
+                                            const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                            renderCommentTrVideo(selector, filtered, querySearch);
+                                            resultSearch = filtered;
+                                        } else {
+                                            renderCommentTrVideo(selector, resultSearch?.reverse(), querySearch);
+                                        }
     
                                         elSortAllTrpVideo.dataset.sortTrp = 'newest';
                                         elSortAllTrpVideo.innerHTML = `All ${iconSortUp()}`;

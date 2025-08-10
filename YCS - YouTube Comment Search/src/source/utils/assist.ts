@@ -432,10 +432,10 @@ function getFrameworkUpdatesById(response: any): Record<string, any> {
                 // comment entity
                 const cmt = wrapTryCatch(() => payload.commentEntityPayload);
                 if (cmt) {
-                    // Prefer mapping by commentId like JS 版
+                    // Prefer mapping by commentId like JS version
                     const commentId = wrapTryCatch(() => cmt.properties?.commentId);
                     if (commentId) map[commentId] = cmt;
-                    // Also keep raw entity key as補充索引
+                    // Also keep raw entity key as supplementary index
                     const cKey = wrapTryCatch(() => cmt.key);
                     if (cKey) map[cKey] = cmt;
                 }
@@ -538,32 +538,74 @@ function migrateRuns(baseText: string, rawRuns: any[]): any[] {
     }
 }
 
-function parseFormattedNumberToInt(value?: string): number {
+/**
+ * Parse formatted number with language units
+ * Returns { number: parsed value, multiply: unit multiplier (1 if no unit) }
+ */
+function parseFormattedNumber(value?: string): { number: number; multiply: number } {
     try {
-        if (!value) return 0;
+        if (!value) return { number: 0, multiply: 1 };
         let s = String(value).trim();
-        if (!s) return 0;
+        if (!s) return { number: 0, multiply: 1 };
 
         // Normalize spaces
         s = s.replace(/[\u00A0\u202F\s]+/g, '');
 
         // Detect unit multipliers
-        let multiplier = 1;
-        const unitMap: Array<{ re: RegExp; mul: number }> = [
-            { re: /(k)$/, mul: 1_000 },
-            { re: /(m)$/, mul: 1_000_000 },
-            { re: /(b)$/, mul: 1_000_000_000 },
-            // CJK
-            { re: /(千)$/, mul: 1_000 },
-            { re: /(万|萬|만)$/, mul: 10_000 },
-            { re: /(億)$/, mul: 100_000_000 },
-            { re: /(천)$/, mul: 1_000 }
+        // Sort by length descending to avoid partial matches
+        const units: Array<[string, number]> = [
+            // Thousand units (1,000)
+            ['tūkst.', 1_000],    // Latvian
+            ['хиљ.', 1_000],      // Serbian (Cyrillic)
+            ['хил.', 1_000],      // Russian
+            ['тыс.', 1_000],      // Russian
+            ['тис.', 1_000],      // Ukrainian
+            ['χιλ.', 1_000],      // Greek
+            ['hilj.', 1_000],     // Slovenian
+            ['tis.', 1_000],      // Polish
+            ['ming', 1_000],      // Malay
+            ['mijë', 1_000],      // Albanian
+            ['elfu', 1_000],      // Swahili
+            ['พัน', 1_000],       // Thai
+            ['ພັນ', 1_000],       // Lao
+            ['ពាន់', 1_000],      // Khmer
+            ['ထောင်', 1_000],     // Burmese
+            ['мянга', 1_000],     // Mongolian
+            ['миң', 1_000],       // Kazakh
+            ['հզր', 1_000],       // Armenian
+            ['ათ.', 1_000],       // Georgian
+            ['mil', 1_000],       // Spanish
+            ['rb', 1_000],        // Indonesian
+            ['þ.', 1_000],        // Icelandic
+            ['ሺ', 1_000],         // Amharic
+            ['ද', 1_000],         // Sinhala
+            ['千', 1_000],        // Chinese/Japanese
+            ['천', 1_000],        // Korean
+            ['E', 1_000],         // Italian
+            ['N', 1_000],         // Norwegian
+            ['B', 1_000],         // Portuguese
+            ['k', 1_000],         // English (short)
+            // Ten thousand units (10,000)
+            ['သောင်း', 10_000],   // Burmese
+            ['万', 10_000],       // Chinese (simplified)
+            ['萬', 10_000],       // Chinese (traditional)
+            ['만', 10_000],       // Korean
+            // Million and billion units
+            ['億', 100_000_000],  // Chinese/Japanese (100 million)
+            ['m', 1_000_000],     // English (short)
+            ['b', 1_000_000_000]  // English (short)
         ];
+
+        let multiplier = 1;
         const lower = s.toLowerCase();
-        for (const { re, mul } of unitMap) {
-            if (re.test(lower)) {
+        
+        // Check for unit suffixes
+        for (const [unit, mul] of units) {
+            const unitLower = unit.toLowerCase();
+            if (lower.endsWith(unitLower)) {
                 multiplier = mul;
-                s = lower.replace(re, '');
+                // Remove the unit suffix
+                s = s.substring(0, s.length - unit.length).trim();
                 break;
             }
         }
@@ -585,15 +627,23 @@ function parseFormattedNumberToInt(value?: string): number {
             // No unit: treat separators as thousands; keep only digits
             const onlyDigits = s.replace(/[^0-9]/g, '');
             const n = Number(onlyDigits);
-            return Number.isFinite(n) ? n : 0;
+            return { number: Number.isFinite(n) ? n : 0, multiply: 1 };
         }
 
         const n = Number.parseFloat(s) * multiplier;
-        if (!Number.isFinite(n)) return 0;
-        return Math.round(n);
+        if (!Number.isFinite(n)) return { number: 0, multiply: 1 };
+        return { number: Math.round(n), multiply: multiplier };
     } catch {
-        return 0;
+        return { number: 0, multiply: 1 };
     }
+}
+
+/**
+ * Legacy wrapper for parseFormattedNumber that returns just the number
+ */
+function parseFormattedNumberToInt(value?: string): number {
+    const result = parseFormattedNumber(value);
+    return result.number;
 }
 
 /**
@@ -694,11 +744,16 @@ function generateCommentObjectFromFW(params: { commentId: string; update: any; s
         const likeCountLiked = wrapTryCatch(() => update.toolbar.likeCountLiked);
         let likeCount = 0;
         try {
-            const parsed = parseFormattedNumberToInt(likeCountLiked);
-            // 在新版中 likeCountLiked 通常是 +1 的顯示數；保守處理，最低為 0
-            likeCount = Math.max(0, parsed - 1);
+            const parsed = parseFormattedNumber(likeCountLiked);
+            // In the new version, likeCountLiked is usually +1 from the actual count
+            // When multiply === 1 (no unit), need -1 adjustment; otherwise no adjustment needed
+            if (parsed.multiply === 1) {
+                likeCount = Math.max(0, parsed.number - 1);
+            } else {
+                likeCount = parsed.number;
+            }
         } catch {}
-        const replyCount = parseFormattedNumberToInt(wrapTryCatch(() => update.toolbar.replyCount) || '0');
+        const replyCount = parseFormattedNumber(wrapTryCatch(() => update.toolbar.replyCount) || '0').number;
 
         const comment: any = {
             commentRenderer: {
@@ -2346,7 +2401,7 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                             console.log('first item keys (next):', Object.keys(cmnts[0]));
                         }
                     } catch (e) { console.error(e); }
-                    // frameworkUpdates: 標記 heart/pinned 等屬性（若可得）
+                    // frameworkUpdates: mark heart/pinned attributes (if available)
                     try {
                         const mutations = wrapTryCatch(() => resJson.frameworkUpdates.entityBatchUpdate.mutations) || [];
                         if (Array.isArray(mutations) && mutations.length > 0) {
@@ -2355,7 +2410,7 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                                 const id = wrapTryCatch(() => m.entityKey);
                                 if (id) byId[id] = m;
                             }
-                            // 可在此處視需要使用 byId 補齊留言屬性
+                            // Can use byId here to supplement comment properties if needed
                         }
                     } catch (e) {
                         console.error(e);
