@@ -1164,6 +1164,7 @@ function renderSearch(node: HTMLElement): void {
                     </button>
                     <button id="ycs_btn_clear"
                         class="ycs-btn-search ycs-title ycs-search-clear"
+                        style="visibility:hidden;"
                         name="clear" type="button"
                         title="Clear search">
                         X

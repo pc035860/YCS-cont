@@ -226,6 +226,12 @@ import {
                     const key = getActiveStorageKey();
                     if (code) sessionStorage.setItem(key, code);
                     else sessionStorage.removeItem(key);
+                    // toggle clear-filter button visibility
+                    const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
+                    if (btnClear) {
+                        const hasActive = !!code;
+                        btnClear.style.visibility = hasActive ? 'visible' : 'hidden';
+                    }
                 } catch {}
             };
 
@@ -237,6 +243,11 @@ import {
                     if (id) {
                         const el = document.getElementById(id);
                         if (el) el.classList.add('ycs_btn_active');
+                    }
+                    // sync clear-filter button visibility on init
+                    const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
+                    if (btnClear) {
+                        btnClear.style.visibility = id ? 'visible' : 'hidden';
                     }
                 } catch {}
             };
@@ -546,6 +557,10 @@ import {
                                     elSearchTotalRes.innerText = 'Search cleared';
                                 }
                             }
+
+                            // Hide clear-filter button after clearing
+                            const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
+                            if (btnClear) btnClear.style.visibility = 'hidden';
                         } catch (err) {
                             console.error(err);
                         }
