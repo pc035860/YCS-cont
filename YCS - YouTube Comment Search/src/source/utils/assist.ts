@@ -1779,18 +1779,30 @@ async function getChatComments(
                                                 }
                                                 } else if (msg?.navigationEndpoint) {
                                                     renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${msg?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || msg?.navigationEndpoint?.urlEndpoint?.url || msg?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || msg?.text || '#'}" target="_blank">${msg?.text || ''}</a>`;
-                                                } else if (wrapTryCatch(() => (msg as any).emoji)) {
-                                                    const url =
-                                                        wrapTryCatch(() => {
-                                                            const thumbnails = (msg as any).emoji.image.thumbnails;
-                                                            return thumbnails[thumbnails.length - 1].url;
-                                                        }) || '';
-                                                    const alt =
-                                                        (wrapTryCatch(
-                                                            () => (msg as any).emoji.shortcuts?.[0]
-                                                        ) as string) || '';
-                                                    const style = `margin-left: 2px; margin-right: 2px;`;
+                                            } else if (wrapTryCatch(() => (msg as any).emoji)) {
+                                                const emoji: any = wrapTryCatch(() => (msg as any).emoji) || {};
+                                                const thumbnails = wrapTryCatch(() => emoji.image.thumbnails) || [];
+                                                const url = wrapTryCatch(() => thumbnails[thumbnails.length - 1].url) || '';
+                                                const shortcut = (wrapTryCatch(() => emoji.shortcuts?.[0]) as string) || '';
+                                                const label = (wrapTryCatch(() => emoji.image.accessibility.accessibilityData.label) as string) || '';
+
+                                                // Always add a textual placeholder into fullText for exports/search
+                                                if (shortcut) {
+                                                    fullText += shortcut;
+                                                } else if (label) {
+                                                    fullText += `:${label}:`;
+                                                } else {
+                                                    fullText += ':emoji:';
+                                                }
+
+                                                // Prefer image in rich HTML, fallback to shortcut text if no image URL
+                                                const alt = shortcut || label || 'emoji';
+                                                const style = `margin-left: 2px; margin-right: 2px;`;
+                                                if (url) {
                                                     renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
+                                                } else {
+                                                    renderFullTextComment += alt;
+                                                }
                                                 } else if (wrapTryCatch(() => (msg as any).attachment?.image)) {
                                                     const image: any = wrapTryCatch(
                                                         () => (msg as any).attachment.image

@@ -269,6 +269,70 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
 
     if (nodeSelect) {
 
+        const buildChatMessageHtml = (cmnt: any): string => {
+            try {
+                const r = wrapTryCatch(
+                    () => cmnt.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+                ) as any;
+                if (!r) return '';
+
+                const rf = wrapTryCatch(() => r.message.renderFullText);
+                if (rf) return sanitizeHtml(rf);
+
+                const ft = wrapTryCatch(() => r.message.fullText);
+                if (ft) return esc(ft);
+
+                const runs = (wrapTryCatch(() => r.message.runs) as any[]) || [];
+                let html = '';
+                for (const run of runs) {
+                    try {
+                        if (wrapTryCatch(() => (run as any).emoji)) {
+                            const emoji: any = wrapTryCatch(() => (run as any).emoji) || {};
+                            const thumbnails = wrapTryCatch(() => emoji.image.thumbnails) || [];
+                            const url = wrapTryCatch(() => thumbnails[thumbnails.length - 1].url) || '';
+                            const shortcut = (wrapTryCatch(() => emoji.shortcuts?.[0]) as string) || '';
+                            const label = (wrapTryCatch(() => emoji.image.accessibility.accessibilityData.label) as string) || '';
+                            const alt = shortcut || label || 'emoji';
+                            const style = `margin-left: 2px; margin-right: 2px;`;
+                            if (url) {
+                                html += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
+                            } else {
+                                html += alt;
+                            }
+                        } else if (run?.navigationEndpoint) {
+                            if (
+                                parseInt(
+                                    wrapTryCatch(() => run.navigationEndpoint.watchEndpoint.startTimeSeconds) as any
+                                ) >= 0
+                            ) {
+                                const videoId = wrapTryCatch(() => run.navigationEndpoint.watchEndpoint.videoId) || '';
+                                const t = wrapTryCatch(() => run.navigationEndpoint.watchEndpoint.startTimeSeconds) || 0;
+                                const text = run?.text || '';
+                                html += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${videoId}&t=${t}s" data-offsetvideo="${t}">${text}</a>`;
+                            } else {
+                                const href =
+                                    wrapTryCatch(() => run.navigationEndpoint.browseEndpoint.canonicalBaseUrl) ||
+                                    wrapTryCatch(() => run.navigationEndpoint.urlEndpoint.url) ||
+                                    wrapTryCatch(() => run.navigationEndpoint.commandMetadata.webCommandMetadata.url) ||
+                                    '#';
+                                const text = run?.text || '';
+                                html += `<a class="ycs-cpointer ycs-comment-link" href="${href}" target="_blank">${text}</a>`;
+                            }
+                        } else {
+                            html += run?.text || '';
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        html += run?.text || '';
+                    }
+                }
+                return html ? sanitizeHtml(html) : '';
+            } catch (e) {
+                console.error(e);
+                return '';
+            }
+        };
+
         // nodeSelect.style.display = 'none';
 
         const arrHtml: any[] = [];
@@ -506,6 +570,71 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
         return '';
     };
 
+    // Build rich chat message HTML with emoji image fallback to shortcut/label
+    const buildChatMessageHtml = (cmnt: any): string => {
+        try {
+            const r = wrapTryCatch(
+                () => cmnt.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+            ) as any;
+            if (!r) return '';
+
+            const rf = wrapTryCatch(() => r.message.renderFullText);
+            if (rf) return sanitizeHtml(rf);
+
+            const ft = wrapTryCatch(() => r.message.fullText);
+            if (ft) return esc(ft);
+
+            const runs = (wrapTryCatch(() => r.message.runs) as any[]) || [];
+            let html = '';
+            for (const run of runs) {
+                try {
+                    if (wrapTryCatch(() => (run as any).emoji)) {
+                        const emoji: any = wrapTryCatch(() => (run as any).emoji) || {};
+                        const thumbnails = wrapTryCatch(() => emoji.image.thumbnails) || [];
+                        const url = wrapTryCatch(() => thumbnails[thumbnails.length - 1].url) || '';
+                        const shortcut = (wrapTryCatch(() => emoji.shortcuts?.[0]) as string) || '';
+                        const label = (wrapTryCatch(() => emoji.image.accessibility.accessibilityData.label) as string) || '';
+                        const alt = shortcut || label || 'emoji';
+                        const style = `margin-left: 2px; margin-right: 2px;`;
+                        if (url) {
+                            html += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
+                        } else {
+                            html += alt;
+                        }
+                    } else if (run?.navigationEndpoint) {
+                        if (
+                            parseInt(
+                                wrapTryCatch(() => run.navigationEndpoint.watchEndpoint.startTimeSeconds) as any
+                            ) >= 0
+                        ) {
+                            const videoId = wrapTryCatch(() => run.navigationEndpoint.watchEndpoint.videoId) || '';
+                            const t = wrapTryCatch(() => run.navigationEndpoint.watchEndpoint.startTimeSeconds) || 0;
+                            const text = run?.text || '';
+                            html += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${videoId}&t=${t}s" data-offsetvideo="${t}">${text}</a>`;
+                        } else {
+                            const href =
+                                wrapTryCatch(() => run.navigationEndpoint.browseEndpoint.canonicalBaseUrl) ||
+                                wrapTryCatch(() => run.navigationEndpoint.urlEndpoint.url) ||
+                                wrapTryCatch(() => run.navigationEndpoint.commandMetadata.webCommandMetadata.url) ||
+                                '#';
+                            const text = run?.text || '';
+                            html += `<a class="ycs-cpointer ycs-comment-link" href="${href}" target="_blank">${text}</a>`;
+                        }
+                    } else {
+                        html += run?.text || '';
+                    }
+                } catch (e) {
+                    console.error(e);
+                    html += run?.text || '';
+                }
+            }
+            return html ? sanitizeHtml(html) : '';
+        } catch (e) {
+            console.error(e);
+            return '';
+        }
+    };
+
     if (nodeSelect) {
 
         const arrHtml: any[] = [];
@@ -552,7 +681,14 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
                                     ${_gotoVideo(comment)}
                                 </div>
                             </div>
-                             <div class="ycs-comment__main-text">${wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText) ? sanitizeHtml(wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText)) : esc(wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText) || '')}</div>
+                             <div class="ycs-comment__main-text">${((): string => {
+                                try {
+                                    return buildChatMessageHtml(comment);
+                                } catch (e) {
+                                    console.error(e);
+                                    return '';
+                                }
+                             })()}</div>
                         </div>
                     </div>
                 `});
