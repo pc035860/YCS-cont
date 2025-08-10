@@ -541,8 +541,56 @@ function migrateRuns(baseText: string, rawRuns: any[]): any[] {
 function parseFormattedNumberToInt(value?: string): number {
     try {
         if (!value) return 0;
-        const n = Number(String(value).replace(/[^0-9]/g, ''));
-        return Number.isFinite(n) ? n : 0;
+        let s = String(value).trim();
+        if (!s) return 0;
+
+        // Normalize spaces
+        s = s.replace(/[\u00A0\u202F\s]+/g, '');
+
+        // Detect unit multipliers
+        let multiplier = 1;
+        const unitMap: Array<{ re: RegExp; mul: number }> = [
+            { re: /(k)$/, mul: 1_000 },
+            { re: /(m)$/, mul: 1_000_000 },
+            { re: /(b)$/, mul: 1_000_000_000 },
+            // CJK
+            { re: /(千)$/, mul: 1_000 },
+            { re: /(万|萬|만)$/, mul: 10_000 },
+            { re: /(億)$/, mul: 100_000_000 },
+            { re: /(천)$/, mul: 1_000 }
+        ];
+        const lower = s.toLowerCase();
+        for (const { re, mul } of unitMap) {
+            if (re.test(lower)) {
+                multiplier = mul;
+                s = lower.replace(re, '');
+                break;
+            }
+        }
+
+        // If both separators exist, last occurrence is decimal, others are thousands
+        const lastDot = s.lastIndexOf('.');
+        const lastComma = s.lastIndexOf(',');
+        if (lastDot >= 0 && lastComma >= 0) {
+            if (lastDot > lastComma) {
+                s = s.replace(/,/g, '');
+            } else {
+                s = s.replace(/\./g, '');
+                s = s.replace(',', '.');
+            }
+        } else if (multiplier > 1) {
+            // When unit exists, prefer dot as decimal; remove commas as thousands
+            s = s.replace(/,/g, '');
+        } else {
+            // No unit: treat separators as thousands; keep only digits
+            const onlyDigits = s.replace(/[^0-9]/g, '');
+            const n = Number(onlyDigits);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        const n = Number.parseFloat(s) * multiplier;
+        if (!Number.isFinite(n)) return 0;
+        return Math.round(n);
     } catch {
         return 0;
     }
@@ -663,6 +711,17 @@ function generateCommentObjectFromFW(params: { commentId: string; update: any; s
                 contentText: { runs, fullText: baseText }
             }
         };
+
+        try {
+            const hasTimeline = Array.isArray(runs) && runs.some((r: any) => {
+                const v = wrapTryCatch(() => r.navigationEndpoint.watchEndpoint.startTimeSeconds) as any;
+                const n = typeof v === 'string' ? parseInt(v, 10) : v;
+                return Number.isFinite(n) && n >= 0;
+            });
+            if (hasTimeline) {
+                comment.commentRenderer.isTimeLine = 'timeline';
+            }
+        } catch {}
 
         if (surfaceUpdate) {
             const publishedTime = wrapTryCatch(() => surfaceUpdate.publishedTimeCommand?.innertubeCommand?.commandMetadata)
@@ -1897,6 +1956,7 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                             try {
                                 if (parseInt(partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0) {
                                     renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${partTextComment?.navigationEndpoint?.watchEndpoint?.videoId}&t=${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}">${partTextComment?.text || ''}</a>`;
+                                    try { normalized.commentRenderer.isTimeLine = 'timeline'; } catch {}
                                 } else if (partTextComment?.navigationEndpoint) {
                                     renderFullTextComment += `<a class=\"ycs-cpointer ycs-comment-link\" href=\"${partTextComment?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || partTextComment?.navigationEndpoint?.urlEndpoint?.url || partTextComment?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || partTextComment?.text || '#'}\" target=\"_blank\">${partTextComment?.text || ''}</a>`;
                                 } else if (wrapTryCatch(() => (partTextComment as any).emoji)) {

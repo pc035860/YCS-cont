@@ -149,6 +149,99 @@ import {
             const elsBtnPanel = getElmsBtnPanel();
             console.log('elsBtnPanel: ', elsBtnPanel);
 
+            // Active-state management helpers for filter buttons
+            const codeToId: Record<string, string> = {
+                timestamp: 'ycs_btn_timestamps',
+                author: 'ycs_btn_author',
+                heart: 'ycs_btn_heart',
+                verified: 'ycs_btn_verified',
+                links: 'ycs_btn_links',
+                likes: 'ycs_btn_likes',
+                replied: 'ycs_btn_replied_comments',
+                members: 'ycs_btn_members',
+                donated: 'ycs_btn_donated',
+                random: 'ycs_btn_random',
+                sortFirst: 'ycs_btn_sort_first'
+            };
+            const idToCode: Record<string, ISelectedSearch | string> = (function () {
+                const res: Record<string, ISelectedSearch | string> = {};
+                for (const key in codeToId) {
+                    if (Object.prototype.hasOwnProperty.call(codeToId, key)) {
+                        const val = (codeToId as any)[key] as string;
+                        res[val] = key as ISelectedSearch | string;
+                    }
+                }
+                return res;
+            })();
+
+            const getActiveStorageKey = (): string => {
+                try {
+                    const url = getCleanUrlVideo(window.location.href) as string;
+                    const u = new URL(url);
+                    const vid = u.searchParams.get('v') || '';
+                    return `ycs:activeFilter:${vid}`;
+                } catch {
+                    return 'ycs:activeFilter:';
+                }
+            };
+
+            const setActiveFilterByElement = (code: string | null, el?: HTMLElement): void => {
+                try {
+                    removeClass(elsBtnPanel, 'ycs_btn_active');
+                    if (code && el) el.classList.add('ycs_btn_active');
+                    const key = getActiveStorageKey();
+                    if (code) sessionStorage.setItem(key, code);
+                    else sessionStorage.removeItem(key);
+                } catch {}
+            };
+
+            const applyActiveFilterFromStore = (): void => {
+                try {
+                    const key = getActiveStorageKey();
+                    const code = sessionStorage.getItem(key) || '';
+                    const id = codeToId[code];
+                    if (id) {
+                        const el = document.getElementById(id);
+                        if (el) el.classList.add('ycs_btn_active');
+                    }
+                } catch {}
+            };
+
+            const getActiveFilterParam = (): IParamSearch | undefined => {
+                try {
+                    const key = getActiveStorageKey();
+                    const code = sessionStorage.getItem(key) || '';
+                    const param: IParamSearch = {} as IParamSearch;
+                    switch (code) {
+                    case 'timestamp': param.timestamp = true; break;
+                    case 'author': param.author = true; break;
+                    case 'heart': param.heart = true; break;
+                    case 'verified': param.verified = true; break;
+                    case 'links': param.links = true; break;
+                    case 'likes': param.likes = true; break;
+                    case 'replied': param.replied = true; break;
+                    case 'members': param.members = true; break;
+                    case 'donated': param.donated = true; break;
+                    case 'random': param.random = true; break;
+                    case 'sortFirst': param.sortFirst = true; break;
+                    default: return undefined;
+                    }
+                    return param;
+                } catch {
+                    // Fallback: detect by DOM
+                    try {
+                        const active = document.querySelector('.ycs_btn_active') as HTMLElement | null;
+                        const code = active?.id ? (idToCode[active.id] as string) : '';
+                        if (!code) return undefined;
+                        const param: IParamSearch = {} as IParamSearch;
+                        (param as any)[code] = true;
+                        return param;
+                    } catch {
+                        return undefined;
+                    }
+                }
+            };
+
             const handlersBtnPanel = (hElms: any): void => {
 
                 if (hElms) {
@@ -165,11 +258,8 @@ import {
 
                             const currentTarget = e.currentTarget;
 
-                            removeClass(elsBtnPanel, 'ycs_btn_active');
-
+                            setActiveFilterByElement('timestamp', currentTarget as HTMLElement);
                             clearCountComments();
-
-                            (currentTarget as HTMLElement)?.classList.add('ycs_btn_active');
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
                             searchCommentsAll('#ycs-search-result', {
@@ -188,11 +278,8 @@ import {
 
                             const currentTarget = e.currentTarget;
 
-                            removeClass(elsBtnPanel, 'ycs_btn_active');
-
+                            setActiveFilterByElement('author', currentTarget as HTMLElement);
                             clearCountComments();
-
-                            (currentTarget as HTMLElement)?.classList.add('ycs_btn_active');
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
                             searchCommentsAll('#ycs-search-result', {
@@ -211,11 +298,8 @@ import {
 
                             const currentTarget = e.currentTarget;
 
-                            removeClass(elsBtnPanel, 'ycs_btn_active');
-
+                            setActiveFilterByElement('heart', currentTarget as HTMLElement);
                             clearCountComments();
-
-                            (currentTarget as HTMLElement)?.classList.add('ycs_btn_active');
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
                             searchCommentsAll('#ycs-search-result', {
@@ -234,11 +318,8 @@ import {
 
                             const currentTarget = e.currentTarget;
 
-                            removeClass(elsBtnPanel, 'ycs_btn_active');
-
+                            setActiveFilterByElement('verified', currentTarget as HTMLElement);
                             clearCountComments();
-
-                            (currentTarget as HTMLElement)?.classList.add('ycs_btn_active');
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
                             searchCommentsAll('#ycs-search-result', {
@@ -257,11 +338,8 @@ import {
 
                             const currentTarget = e.currentTarget;
 
-                            removeClass(elsBtnPanel, 'ycs_btn_active');
-
+                            setActiveFilterByElement('links', currentTarget as HTMLElement);
                             clearCountComments();
-
-                            (currentTarget as HTMLElement)?.classList.add('ycs_btn_active');
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
                             searchCommentsAll('#ycs-search-result', {
@@ -280,11 +358,8 @@ import {
 
                             const currentTarget = e.currentTarget;
 
-                            removeClass(elsBtnPanel, 'ycs_btn_active');
-
+                            setActiveFilterByElement('likes', currentTarget as HTMLElement);
                             clearCountComments();
-
-                            (currentTarget as HTMLElement)?.classList.add('ycs_btn_active');
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
                             searchCommentsAll('#ycs-search-result', {
@@ -303,11 +378,8 @@ import {
 
                             const currentTarget = e.currentTarget;
 
-                            removeClass(elsBtnPanel, 'ycs_btn_active');
-
+                            setActiveFilterByElement('replied', currentTarget as HTMLElement);
                             clearCountComments();
-
-                            (currentTarget as HTMLElement)?.classList.add('ycs_btn_active');
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
                             searchCommentsAll('#ycs-search-result', {
@@ -326,11 +398,8 @@ import {
 
                             const currentTarget = e.currentTarget;
 
-                            removeClass(elsBtnPanel, 'ycs_btn_active');
-
+                            setActiveFilterByElement('members', currentTarget as HTMLElement);
                             clearCountComments();
-
-                            (currentTarget as HTMLElement)?.classList.add('ycs_btn_active');
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
                             searchCommentsAll('#ycs-search-result', {
@@ -349,11 +418,8 @@ import {
 
                             const currentTarget = e.currentTarget;
 
-                            removeClass(elsBtnPanel, 'ycs_btn_active');
-
+                            setActiveFilterByElement('donated', currentTarget as HTMLElement);
                             clearCountComments();
-
-                            (currentTarget as HTMLElement)?.classList.add('ycs_btn_active');
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
                             searchCommentsAll('#ycs-search-result', {
@@ -373,7 +439,7 @@ import {
 
                             // const currentTarget = e.currentTarget;
 
-                            removeClass(elsBtnPanel, 'ycs_btn_active');
+                            setActiveFilterByElement(null);
 
                             clearCountComments();
 
@@ -400,11 +466,8 @@ import {
 
                             const currentTarget = e.currentTarget;
 
-                            removeClass(elsBtnPanel, 'ycs_btn_active');
-
+                            setActiveFilterByElement('random', currentTarget as HTMLElement);
                             clearCountComments();
-
-                            (currentTarget as HTMLElement)?.classList.add('ycs_btn_active');
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
                             searchCommentsAll('#ycs-search-result', {
@@ -423,11 +486,8 @@ import {
 
                             const currentTarget = e.currentTarget;
 
-                            removeClass(elsBtnPanel, 'ycs_btn_active');
-
+                            setActiveFilterByElement('sortFirst', currentTarget as HTMLElement);
                             clearCountComments();
-
-                            (currentTarget as HTMLElement)?.classList.add('ycs_btn_active');
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
                             searchCommentsAll('#ycs-search-result', {
@@ -445,6 +505,7 @@ import {
             };
 
             handlersBtnPanel(elsBtnPanel);
+            applyActiveFilterFromStore();
 
             const elLiveApp = document.getElementsByClassName('ycs-app')[0];
 
@@ -582,7 +643,13 @@ import {
 
                         elStatusTrVideo.innerHTML = iconReload();
 
-                        commentsTrVideo = await getTranscriptVideo(controller.signal);
+                        // Load transcript with robust fallback,
+                        // ensure old buffer won't leak when current load fails
+                        const tr = await getTranscriptVideo(controller.signal);
+                        commentsTrVideo = undefined;
+                        if (wrapTryCatch(() => (tr as any)?.actions?.[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0)) {
+                            commentsTrVideo = tr;
+                        }
 
                         try {
                             if (commentsTrVideo && elLoadTrVideo && (commentsTrVideo as any)?.actions?.length > 0 &&
@@ -847,7 +914,15 @@ Total: ${c.count}\n${c.html}`;
                     if (param?.likes) {
 
                         const cmntsLikes = filterLikesComments(comments);
-                        resultSearch = cmntsLikes;
+
+                        if (querySearch && querySearch.trim()) {
+                            const base = cmntsLikes.map((r: any) => r.item);
+                            const fuse = new Fuse(base, options);
+                            resultSearch = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                        } else {
+                            resultSearch = cmntsLikes;
+                        }
+
                         renderComment(selector, resultSearch, true, querySearch);
 
                         console.log('cmntsLikes: ', cmntsLikes);
@@ -873,21 +948,46 @@ Total: ${c.count}\n${c.html}`;
                             const sortType = elSortLinks.dataset.sort as 'newest' | 'oldest';
 
                             if (sortType === 'newest') {
-                                renderComment(selector, resultSearch, true, querySearch);
+                                // restrict to filtered set when query present
+                                if (querySearch && querySearch.trim()) {
+                                    const base = resultSearch.map((r: any) => r.item);
+                                    const fuse = new Fuse(base, options);
+                                    const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                    renderComment(selector, filtered, true, querySearch);
+                                    resultSearch = filtered;
+                                } else {
+                                    renderComment(selector, resultSearch, true, querySearch);
+                                }
 
                                 elSortLinks.dataset.sort = 'oldest';
                                 elSortLinks.innerHTML = `Links ${iconSortDown()}`;
                                 elSortLinks.title = 'Shows links in comments, replies, chat, video transcript (Newest)';
 
                             } else if (sortType === 'oldest') {
-                                renderComment(selector, resultSearch?.reverse(), true, querySearch);
+                                if (querySearch && querySearch.trim()) {
+                                    const base = resultSearch.map((r: any) => r.item).reverse();
+                                    const fuse = new Fuse(base, options);
+                                    const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                    renderComment(selector, filtered, true, querySearch);
+                                    resultSearch = filtered;
+                                } else {
+                                    renderComment(selector, resultSearch?.reverse(), true, querySearch);
+                                }
 
                                 elSortLinks.dataset.sort = 'newest';
                                 elSortLinks.innerHTML = `Links ${iconSortUp()}`;
                                 elSortLinks.title = 'Shows links in comments, replies, chat, video transcript (Oldest)';
 
                             } else {
-                                renderComment(selector, resultSearch, true, querySearch);
+                                if (querySearch && querySearch.trim()) {
+                                    const base = resultSearch.map((r: any) => r.item);
+                                    const fuse = new Fuse(base, options);
+                                    const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                    renderComment(selector, filtered, true, querySearch);
+                                    resultSearch = filtered;
+                                } else {
+                                    renderComment(selector, resultSearch, true, querySearch);
+                                }
                                 elSortLinks.innerHTML = `Links ${iconSortDown()}`;
                             }
 
@@ -896,7 +996,13 @@ Total: ${c.count}\n${c.html}`;
                     } else if (param?.members) {
 
                         const cmntsMembers = filterMemberComments(comments);
-                        resultSearch = cmntsMembers;
+                        if (querySearch && querySearch.trim()) {
+                            const base = cmntsMembers.map((r: any) => r.item);
+                            const fuse = new Fuse(base, options);
+                            resultSearch = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                        } else {
+                            resultSearch = cmntsMembers;
+                        }
 
                         if (resultSearch.length > 0) {
 
@@ -914,14 +1020,30 @@ Total: ${c.count}\n${c.html}`;
                             const sortType = elSortMembers.dataset.sort as 'newest' | 'oldest';
 
                             if (sortType === 'newest') {
-                                renderComment(selector, resultSearch, true, querySearch);
+                                if (querySearch && querySearch.trim()) {
+                                    const base = resultSearch.map((r: any) => r.item);
+                                    const fuse = new Fuse(base, options);
+                                    const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                    renderComment(selector, filtered, true, querySearch);
+                                    resultSearch = filtered;
+                                } else {
+                                    renderComment(selector, resultSearch, true, querySearch);
+                                }
 
                                 elSortMembers.dataset.sort = 'oldest';
                                 elSortMembers.innerHTML = `Members ${iconSortDown()}`;
                                 elSortMembers.title = 'Show comments, replies, chat from channel members (Newest)';
 
                             } else if (sortType === 'oldest') {
-                                renderComment(selector, resultSearch?.reverse(), true, querySearch);
+                                if (querySearch && querySearch.trim()) {
+                                    const base = resultSearch.map((r: any) => r.item).reverse();
+                                    const fuse = new Fuse(base, options);
+                                    const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                    renderComment(selector, filtered, true, querySearch);
+                                    resultSearch = filtered;
+                                } else {
+                                    renderComment(selector, resultSearch?.reverse(), true, querySearch);
+                                }
 
                                 elSortMembers.dataset.sort = 'newest';
                                 elSortMembers.innerHTML = `Members ${iconSortUp()}`;
@@ -938,14 +1060,26 @@ Total: ${c.count}\n${c.html}`;
                     } else if (param?.replied) {
 
                         const cmntsReplied = filterRepliedComments(comments);
-                        resultSearch = cmntsReplied;
+                        if (querySearch && querySearch.trim()) {
+                            const base = cmntsReplied.map((r: any) => r.item);
+                            const fuse = new Fuse(base, options);
+                            resultSearch = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                        } else {
+                            resultSearch = cmntsReplied;
+                        }
                         renderComment(selector, resultSearch, true, querySearch);
 
                         console.log('cmntsReplied: ', cmntsReplied);
 
                     } else if (param?.author) {
                         const cmntsAuthor = filterAuthorComments(comments);
-                        resultSearch = cmntsAuthor;
+                        if (querySearch && querySearch.trim()) {
+                            const base = cmntsAuthor.map((r: any) => r.item);
+                            const fuse = new Fuse(base, options);
+                            resultSearch = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                        } else {
+                            resultSearch = cmntsAuthor;
+                        }
 
                         if (resultSearch.length > 0) {
 
@@ -985,7 +1119,13 @@ Total: ${c.count}\n${c.html}`;
 
                     } else if (param?.heart) {
                         const cmntsHeart = filterHeartComments(comments);
-                        resultSearch = cmntsHeart;
+                        if (querySearch && querySearch.trim()) {
+                            const base = cmntsHeart.map((r: any) => r.item);
+                            const fuse = new Fuse(base, options);
+                            resultSearch = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                        } else {
+                            resultSearch = cmntsHeart;
+                        }
 
                         if (resultSearch.length > 0) {
 
@@ -1025,7 +1165,13 @@ Total: ${c.count}\n${c.html}`;
 
                     } else if (param?.verified) {
                         const cmntsVerified = filterVerifiedComments(comments);
-                        resultSearch = cmntsVerified;
+                        if (querySearch && querySearch.trim()) {
+                            const base = cmntsVerified.map((r: any) => r.item);
+                            const fuse = new Fuse(base, options);
+                            resultSearch = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                        } else {
+                            resultSearch = cmntsVerified;
+                        }
 
                         if (resultSearch.length > 0) {
 
@@ -1074,14 +1220,15 @@ Total: ${c.count}\n${c.html}`;
 
                     } else if (param?.timestamp) {
 
-                        (options as any).keys = [
-                            'commentRenderer.isTimeLine'
-                        ];
+                        const timelineOptions: any = {
+                            ...fuseOpt,
+                            keys: [ 'commentRenderer.isTimeLine' ]
+                        };
 
                         console.log('COMMENT TIMELINE SEARCH');
 
-                        const fuse = new Fuse(comments, options);
-                        resultSearch = fuse.search('timeline') as ICommentsFuseResult[];
+                        const fuseTimeline = new Fuse(comments, timelineOptions);
+                        resultSearch = fuseTimeline.search('timeline') as ICommentsFuseResult[];
 
                         if (resultSearch.length > 0) {
 
@@ -1097,23 +1244,48 @@ Total: ${c.count}\n${c.html}`;
 
                             const elSortTimeStamp = document.getElementById('ycs_btn_timestamps') as HTMLElement;
                             const sortType = elSortTimeStamp.dataset.sort as 'newest' | 'oldest';
+                            const textOptions: any = { ...fuseOpt, keys: keysOpt };
 
                             if (sortType === 'newest') {
-                                renderComment(selector, resultSearch, true, querySearch);
+                                if (querySearch && querySearch.trim()) {
+                                    const base = resultSearch.map((r: any) => r.item);
+                                    const fuseText = new Fuse(base, textOptions);
+                                    const filtered = fuseText.search(querySearch.trim()) as ICommentsFuseResult[];
+                                    renderComment(selector, filtered, true, querySearch);
+                                    resultSearch = filtered;
+                                } else {
+                                    renderComment(selector, resultSearch, true, querySearch);
+                                }
 
                                 elSortTimeStamp.dataset.sort = 'oldest';
                                 elSortTimeStamp.innerHTML = `Time stamps ${iconSortDown()}`;
                                 elSortTimeStamp.title = 'Show comments, replies, chat with time stamps (Newest)';
 
                             } else if (sortType === 'oldest') {
-                                renderComment(selector, resultSearch?.reverse(), true, querySearch);
+                                if (querySearch && querySearch.trim()) {
+                                    const base = resultSearch.map((r: any) => r.item).reverse();
+                                    const fuseText = new Fuse(base, textOptions);
+                                    const filtered = fuseText.search(querySearch.trim()) as ICommentsFuseResult[];
+                                    renderComment(selector, filtered, true, querySearch);
+                                    resultSearch = filtered;
+                                } else {
+                                    renderComment(selector, resultSearch?.reverse(), true, querySearch);
+                                }
 
                                 elSortTimeStamp.dataset.sort = 'newest';
                                 elSortTimeStamp.innerHTML = `Time stamps ${iconSortUp()}`;
                                 elSortTimeStamp.title = 'Show comments, replies, chat with time stamps (Oldest)';
 
                             } else {
-                                renderComment(selector, resultSearch, true, querySearch);
+                                if (querySearch && querySearch.trim()) {
+                                    const base = resultSearch.map((r: any) => r.item);
+                                    const fuseText = new Fuse(base, textOptions);
+                                    const filtered = fuseText.search(querySearch.trim()) as ICommentsFuseResult[];
+                                    renderComment(selector, filtered, true, querySearch);
+                                    resultSearch = filtered;
+                                } else {
+                                    renderComment(selector, resultSearch, true, querySearch);
+                                }
                                 elSortTimeStamp.innerHTML = `Time stamps ${iconSortDown()}`;
                             }
 
@@ -1130,7 +1302,16 @@ Total: ${c.count}\n${c.html}`;
                             const sortType = elSortAll.dataset.sort as 'newest' | 'oldest';
 
                             if (sortType === 'newest') {
-                                renderComment(selector, resultSearch, true, querySearch);
+                                if (querySearch && querySearch.trim()) {
+                                    const base = resultSearch.map((r: any) => r.item);
+                                    const textOptions: any = { ...fuseOpt, keys: keysOpt };
+                                    const fuseText = new Fuse(base, textOptions);
+                                    const filtered = fuseText.search(querySearch.trim()) as ICommentsFuseResult[];
+                                    renderComment(selector, filtered, true, querySearch);
+                                    resultSearch = filtered;
+                                } else {
+                                    renderComment(selector, resultSearch, true, querySearch);
+                                }
 
                                 elSortAll.dataset.sort = 'oldest';
                                 elSortAll.innerHTML = `All ${iconSortDown()}`;
@@ -1138,14 +1319,32 @@ Total: ${c.count}\n${c.html}`;
 
                                 // markTextComment(selector, querySearch);
                             } else if (sortType === 'oldest') {
-                                renderComment(selector, resultSearch?.reverse(), true, querySearch);
+                                if (querySearch && querySearch.trim()) {
+                                    const base = resultSearch.map((r: any) => r.item).reverse();
+                                    const textOptions: any = { ...fuseOpt, keys: keysOpt };
+                                    const fuseText = new Fuse(base, textOptions);
+                                    const filtered = fuseText.search(querySearch.trim()) as ICommentsFuseResult[];
+                                    renderComment(selector, filtered, true, querySearch);
+                                    resultSearch = filtered;
+                                } else {
+                                    renderComment(selector, resultSearch?.reverse(), true, querySearch);
+                                }
 
                                 elSortAll.dataset.sort = 'newest';
                                 elSortAll.innerHTML = `All ${iconSortUp()}`;
                                 elSortAll.title = 'Show all comments, chat, video transcript sorted by date (Oldest)';
 
                             } else {
-                                renderComment(selector, resultSearch, true, querySearch);
+                                if (querySearch && querySearch.trim()) {
+                                    const base = resultSearch.map((r: any) => r.item);
+                                    const textOptions: any = { ...fuseOpt, keys: keysOpt };
+                                    const fuseText = new Fuse(base, textOptions);
+                                    const filtered = fuseText.search(querySearch.trim()) as ICommentsFuseResult[];
+                                    renderComment(selector, filtered, true, querySearch);
+                                    resultSearch = filtered;
+                                } else {
+                                    renderComment(selector, resultSearch, true, querySearch);
+                                }
                                 elSortAll.innerHTML = `All ${iconSortDown()}`;
                             }
 
@@ -1493,7 +1692,7 @@ Total: ${c.count}\n${c.html}`;
 
                         } else if (param?.donated) {
 
-                            const cmntsDonated = filterDonatedChat(cmntsChat);
+                        const cmntsDonated = filterDonatedChat(cmntsChat);
                             resultSearch = cmntsDonated;
 
                             if (resultSearch?.length > 0) {
@@ -1512,14 +1711,30 @@ Total: ${c.count}\n${c.html}`;
                                 const sortType = elSortDonated.dataset.sortChat as 'newest' | 'oldest';
 
                                 if (sortType === 'newest') {
-                                    renderCommentChat(selector, resultSearch, querySearch);
+                                    if (querySearch && querySearch.trim()) {
+                                        const base = resultSearch.map((r: any) => r.item);
+                                        const fuse = new Fuse(base, options);
+                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                        renderCommentChat(selector, filtered, querySearch);
+                                        resultSearch = filtered;
+                                    } else {
+                                        renderCommentChat(selector, resultSearch, querySearch);
+                                    }
 
                                     elSortDonated.dataset.sortChat = 'oldest';
                                     elSortDonated.innerHTML = `Donated ${iconSortDown()}`;
                                     elSortDonated.title = 'Show chat comments from users who have donated (Newest)';
 
                                 } else if (sortType === 'oldest') {
-                                    renderCommentChat(selector, resultSearch?.reverse(), querySearch);
+                                    if (querySearch && querySearch.trim()) {
+                                        const base = resultSearch.map((r: any) => r.item).reverse();
+                                        const fuse = new Fuse(base, options);
+                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                        renderCommentChat(selector, filtered, querySearch);
+                                        resultSearch = filtered;
+                                    } else {
+                                        renderCommentChat(selector, resultSearch?.reverse(), querySearch);
+                                    }
 
                                     elSortDonated.dataset.sortChat = 'newest';
                                     elSortDonated.innerHTML = `Donated ${iconSortUp()}`;
@@ -1806,7 +2021,7 @@ Total: ${c.count}\n${c.html}`;
 
                 try {
 
-                    if (commentsTrVideo && (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length > 0) {
+                    if (commentsTrVideo && wrapTryCatch(() => (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length > 0)) {
 
                         const elSearchRes = document.querySelector(selector);
                         const inputSearch = document.getElementById('ycs-input-search');
@@ -1944,8 +2159,50 @@ Total: ${c.count}\n${c.html}`;
     
                                 }
 
+                            } else if (param?.timestamp) {
+                                // mm:ss query: 將 querySearch 解析為分鐘/秒，篩選起始時間在該分鐘（或精確到秒）的句段
+                                const mm = (querySearch || '').trim();
+                                const mmRe = /^(\d{1,3})(?::(\d{1,2}))?$/;
+                                const m = mmRe.exec(mm);
+                                if (m) {
+                                    const minutes = parseInt(m[1] || '0', 10);
+                                    const seconds = m[2] ? parseInt(m[2], 10) : undefined;
+                                    const fromMs = minutes * 60 * 1000 + (seconds ? seconds * 1000 : 0);
+                                    const toMs = seconds === undefined ? (minutes + 1) * 60 * 1000 : fromMs + 1000;
+                                    const filtered = (cmntsTrVideo as any[]).filter((g: any) => {
+                                        const start = wrapTryCatch(() => g.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs) as number;
+                                        return typeof start === 'number' && start >= fromMs && start < toMs;
+                                    }).map((g: any) => ({ item: g, refIndex: wrapTryCatch(() => g.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs) }));
+                                    resultSearch = filtered as any[];
+
+                                    const elSortTimeStamp = document.getElementById('ycs_btn_timestamps') as HTMLElement;
+                                    const sortType = elSortTimeStamp?.dataset?.sortTrp as 'newest' | 'oldest';
+                                    if (sortType === 'oldest') {
+                                        renderCommentTrVideo(selector, resultSearch?.reverse(), querySearch);
+                                        if (elSortTimeStamp) {
+                                            elSortTimeStamp.dataset.sortTrp = 'newest';
+                                            elSortTimeStamp.innerHTML = `Time stamps ${iconSortUp()}`;
+                                            elSortTimeStamp.title = 'Show comments, replies, chat with time stamps (Oldest)';
+                                        }
+                                    } else {
+                                        renderCommentTrVideo(selector, resultSearch, querySearch);
+                                        if (elSortTimeStamp) {
+                                            elSortTimeStamp.dataset.sortTrp = 'oldest';
+                                            elSortTimeStamp.innerHTML = `Time stamps ${iconSortDown()}`;
+                                            elSortTimeStamp.title = 'Show comments, replies, chat with time stamps (Newest)';
+                                        }
+                                    }
+                                } else {
+                                    // 無效時間格式則退回全文搜尋
+                                    const fuse = new Fuse(cmntsTrVideo, options);
+                                    resultSearch = fuse.search(querySearch.trim()) as [];
+                                    renderCommentTrVideo(selector, resultSearch, querySearch);
+                                }
                             } else {
-                                return;
+                                // 無特定參數：全文搜尋
+                                const fuse = new Fuse(cmntsTrVideo, options);
+                                resultSearch = fuse.search(querySearch.trim()) as [];
+                                renderCommentTrVideo(selector, resultSearch, querySearch);
                             }
 
                         } else {
@@ -2097,7 +2354,7 @@ Total: ${c.count}\n${c.html}`;
 
                 btnSearch.addEventListener('click', (): void => {
 
-                    removeClass(elsBtnPanel, 'ycs_btn_active');
+                    // keep current active filter when performing a generic Search
 
                     const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement;
 
@@ -2110,22 +2367,23 @@ Total: ${c.count}\n${c.html}`;
                                 elSelectOptSearch?.options?.selectedIndex
                             ].value as unknown as ISelectedSearch;
 
+                        const activeParam = getActiveFilterParam();
                         switch (selected) {
                         case 'comments':
                             console.log('Switch 0');
-                            searchComments('#ycs-search-result');
+                            searchComments('#ycs-search-result', activeParam);
                             break;
                         case 'chat':
                             console.log('Switch 1');
-                            searchCommentsChat('#ycs-search-result');
+                            searchCommentsChat('#ycs-search-result', activeParam);
                             break;
                         case 'video':
                             console.log('Switch 2');
-                            searchCommentsTrVideo('#ycs-search-result');
+                            searchCommentsTrVideo('#ycs-search-result', activeParam);
                             break;
                         case 'all':
                             console.log('Switch 3');
-                            searchCommentsAll('#ycs-search-result');
+                            searchCommentsAll('#ycs-search-result', activeParam);
                             break;
                         default:
                             console.log('Switch default');
