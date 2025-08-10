@@ -1,4 +1,3 @@
-
 import { options } from '../../../config/options';
 import { formatBytes, isNumeric } from '../../../utils/assist';
 import { idb } from '../../../utils/libs';
@@ -8,9 +7,7 @@ import { IStorageEstimate } from '../../../utils/interfaces/i_types';
 const STORE_CACHE_YCS = 'STORE_CACHE_YCS';
 
 window.onload = async (): Promise<void> => {
-
     try {
-
         const setRenderAutoloadOpt = (param: boolean): void => {
             if (typeof param !== 'boolean') return;
 
@@ -18,7 +15,6 @@ window.onload = async (): Promise<void> => {
         };
 
         const optSetAutoload = async (opt: HTMLInputElement): Promise<void> => {
-
             try {
                 // const opts = JSON.parse(localStorage.getItem('ycs_options') as string);
                 // opts.autoload = opt.checked;
@@ -33,7 +29,6 @@ window.onload = async (): Promise<void> => {
             } catch (err) {
                 console.error(err);
             }
-
         };
 
         const setRenderHighlightTextOpt = (param: boolean): void => {
@@ -43,7 +38,6 @@ window.onload = async (): Promise<void> => {
         };
 
         const optSetHighlightText = async (opt: HTMLInputElement): Promise<void> => {
-
             try {
                 // const opts = JSON.parse(localStorage.getItem('ycs_options') as string);
                 // opts.highlightText = opt.checked;
@@ -58,7 +52,6 @@ window.onload = async (): Promise<void> => {
             } catch (err) {
                 console.error(err);
             }
-
         };
 
         const setRenderCacheOpt = (param: boolean): void => {
@@ -68,7 +61,6 @@ window.onload = async (): Promise<void> => {
         };
 
         const optSetCache = async (opt: HTMLInputElement): Promise<void> => {
-
             try {
                 // const opts = JSON.parse(localStorage.getItem('ycs_options') as string);
                 // opts.cache = opt.checked;
@@ -83,23 +75,17 @@ window.onload = async (): Promise<void> => {
             } catch (err) {
                 console.error(err);
             }
-
         };
 
         const setRenderAutoClearCacheOpt = (param: number): void => {
-
             if (!param) return;
 
             (document.getElementById('y_opts_cache_quota') as HTMLInputElement).value = param.toString();
-
         };
 
         const optSetAutoClearCache = async (e: Event): Promise<void> => {
-
             try {
-
                 if (isNumeric((e.target as HTMLInputElement).value)) {
-
                     // const opts = JSON.parse(localStorage.getItem('ycs_options') as string);
                     // opts.autoClear = (e.target as HTMLInputElement).value;
 
@@ -110,58 +96,48 @@ window.onload = async (): Promise<void> => {
                     // const jsonOpts = JSON.stringify(opts);
 
                     // localStorage.setItem('ycs_options', jsonOpts);
-
                 }
-
             } catch (err) {
                 console.error(err);
             }
-
         };
 
         const showUsageMemory = async (): Promise<void> => {
-
             try {
-
                 const db = await idb;
 
-                const memory = await navigator.storage.estimate() as IStorageEstimate;
+                const memory = (await navigator.storage.estimate()) as IStorageEstimate;
 
                 const elTotalCache = document.getElementById('ycs_total_cache') as HTMLElement;
                 const elUsedCache = document.getElementById('ycs_used_cache') as HTMLElement;
                 const elBrowserAvStorage = document.getElementById('ycs_browser_av_storage') as HTMLElement;
                 const elQuotaAvStorage = document.getElementById('ycs_quota_av_storage') as HTMLElement;
 
-                elTotalCache.textContent = await db.count(STORE_CACHE_YCS) + '';
+                elTotalCache.textContent = (await db.count(STORE_CACHE_YCS)) + '';
 
-                elUsedCache.textContent = formatBytes((memory?.usageDetails?.indexedDB || memory.usage) as number) as string;
+                elUsedCache.textContent = formatBytes(
+                    (memory?.usageDetails?.indexedDB || memory.usage) as number
+                ) as string;
 
-                elBrowserAvStorage.textContent = ((memory.usage as number) / (memory.quota as number) * 100).toFixed(2) + '%';
+                elBrowserAvStorage.textContent =
+                    (((memory.usage as number) / (memory.quota as number)) * 100).toFixed(2) + '%';
 
                 elQuotaAvStorage.textContent = formatBytes(memory.quota as number) as string;
-
-
             } catch (err) {
                 console.error(err);
             }
-
         };
 
         const btnClearAllCache = async (): Promise<void> => {
-
             try {
-
                 const db = await idb;
 
                 await db.clear(STORE_CACHE_YCS);
 
                 await showUsageMemory();
-
-
             } catch (err) {
                 console.error(err);
             }
-
         };
 
         const optsStorage = await chrome.storage.local.get();
@@ -176,70 +152,60 @@ window.onload = async (): Promise<void> => {
         // console.log('storageOpts: ', storageOpts);
 
         if (storageOpts) {
-
             for (const key of Object.keys(storageOpts)) {
                 switch (key) {
+                    case 'autoload':
+                        setRenderAutoloadOpt(storageOpts[key]);
+                        break;
 
-                case 'autoload':
-                    setRenderAutoloadOpt(storageOpts[key]);
-                    break;
+                    case 'highlightText':
+                        console.log('setHighlightTextOpt: ', storageOpts[key]);
+                        setRenderHighlightTextOpt(storageOpts[key]);
+                        break;
 
-                case 'highlightText':
-                    console.log('setHighlightTextOpt: ', storageOpts[key]);
-                    setRenderHighlightTextOpt(storageOpts[key]);
-                    break;
+                    case 'cache':
+                        setRenderCacheOpt(storageOpts[key]);
+                        break;
 
-                case 'cache':
-                    setRenderCacheOpt(storageOpts[key]);
-                    break;
+                    case 'autoClear':
+                        setRenderAutoClearCacheOpt(storageOpts[key]);
+                        break;
 
-                case 'autoClear':
-                    setRenderAutoClearCacheOpt(storageOpts[key]);
-                    break;
-
-                default:
-                    break;
+                    default:
+                        break;
                 }
             }
-
         }
 
         const elAutoload = document.getElementsByClassName('ycs_inner_wrap')[0];
         elAutoload?.addEventListener('click', async (e: Event) => {
-
             console.log('Event options: ', e);
 
             switch ((e.target as HTMLInputElement).id) {
+                case 'y_opts_autoload':
+                    optSetAutoload(e.target as HTMLInputElement);
+                    break;
 
-            case 'y_opts_autoload':
+                case 'y_opts_highlight':
+                    optSetHighlightText(e.target as HTMLInputElement);
+                    break;
 
-                optSetAutoload((e.target as HTMLInputElement));
-                break;
+                case 'y_opts_cache':
+                    optSetCache(e.target as HTMLInputElement);
+                    break;
 
-            case 'y_opts_highlight':
+                case 'ycs_opts_btn_cache':
+                    (e.target as HTMLButtonElement).disabled = true;
 
-                optSetHighlightText((e.target as HTMLInputElement));
-                break;
+                    await btnClearAllCache();
 
-            case 'y_opts_cache':
+                    (e.target as HTMLButtonElement).disabled = false;
 
-                optSetCache((e.target as HTMLInputElement));
-                break;
+                    break;
 
-            case 'ycs_opts_btn_cache':
-
-                (e.target as HTMLButtonElement).disabled = true;
-
-                await btnClearAllCache();
-
-                (e.target as HTMLButtonElement).disabled = false;
-
-                break;
-
-            default:
-                break;
+                default:
+                    break;
             }
-
         });
 
         const elCacheQuota = document.getElementById('y_opts_cache_quota') as HTMLInputElement;
@@ -247,20 +213,15 @@ window.onload = async (): Promise<void> => {
 
         const elPageCache = document.getElementById('ycs_opts_btn_export_page') as HTMLElement;
         elPageCache.onclick = () => {
-
             try {
-
                 chrome.tabs.create({ url: chrome.runtime.getURL('./options/export.html') });
-
             } catch (err) {
                 console.error(err);
             }
-
         };
 
         await showUsageMemory();
     } catch (err) {
         console.error(err);
     }
-
 };

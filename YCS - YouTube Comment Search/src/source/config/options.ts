@@ -6,7 +6,4 @@ const options = {
     hiddenByDefault: false
 };
 
-
-export {
-    options
-};
+export { options };

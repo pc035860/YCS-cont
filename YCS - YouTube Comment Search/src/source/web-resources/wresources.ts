@@ -5,26 +5,64 @@ import 'abort-controller/polyfill';
 import Fuse from '../../../node_modules/fuse.js/dist/fuse';
 
 import {
-    downloadFile, filterAuthorChat, filterAuthorComments, filterHeartComments, filterChatNewestFirst,
-    filterDonatedChat, filterVerifiedComments, filterVerifiedChatComments, filterLikesComments,
-    filterLinksTrpVideoComments, filterMemberComments, filterMembersChat, filterNewestFirst,
-    filterRepliedComments, filterLinksChatComments, getAllCommentsModeV2, getChatComments,
-    getCleanUrlVideo, filterLinksComments, getCommentsChatHtmlText, getCommentsHtmlText,
-    getCommentsTrVideoHtmlText, getRandomComment, filterAllTrpVideoComments,
-    getTranscriptVideo, GlobalStore, initShowBarFAQ, initShowViewMode, isWatchVideo, openComments,
-    openCommentsChat, openCommentsTrVideo, removeClass, removeNodeList, sendGetCacheInIDB,
-    sendMsgToBadge, setCacheToIDB, showLoadComments, wrapTryCatch
+    downloadFile,
+    filterAuthorChat,
+    filterAuthorComments,
+    filterHeartComments,
+    filterChatNewestFirst,
+    filterDonatedChat,
+    filterVerifiedComments,
+    filterVerifiedChatComments,
+    filterLikesComments,
+    filterLinksTrpVideoComments,
+    filterMemberComments,
+    filterMembersChat,
+    filterNewestFirst,
+    filterRepliedComments,
+    filterLinksChatComments,
+    getAllCommentsModeV2,
+    getChatComments,
+    getCleanUrlVideo,
+    filterLinksComments,
+    getCommentsChatHtmlText,
+    getCommentsHtmlText,
+    getCommentsTrVideoHtmlText,
+    getRandomComment,
+    filterAllTrpVideoComments,
+    getTranscriptVideo,
+    GlobalStore,
+    initShowBarFAQ,
+    initShowViewMode,
+    isWatchVideo,
+    openComments,
+    openCommentsChat,
+    openCommentsTrVideo,
+    removeClass,
+    removeNodeList,
+    sendGetCacheInIDB,
+    sendMsgToBadge,
+    setCacheToIDB,
+    showLoadComments,
+    wrapTryCatch
 } from '../utils/assist';
 
 import { ICommentsFuseResult, IParamSearch, ISelectedSearch } from '../utils/interfaces/i_types';
 
 import {
-    iconCollapse, iconExpand, iconOk, iconReload, iconSortDown, iconSortUp, renderComment,
-    renderCommentChat, renderCommentTrVideo, renderLoadComments, renderSearch
+    iconCollapse,
+    iconExpand,
+    iconOk,
+    iconReload,
+    iconSortDown,
+    iconSortUp,
+    renderComment,
+    renderCommentChat,
+    renderCommentTrVideo,
+    renderLoadComments,
+    renderSearch
 } from '../utils/renderView';
 
 (function (): void {
-
     try {
         const tt: any = (window as any).trustedTypes;
         if (tt && tt.createPolicy && !tt.defaultPolicy) {
@@ -39,24 +77,20 @@ import {
     }
 
     const intervalCheckLoadDOM = setInterval(() => {
-
         if (isWatchVideo() && document.querySelector('#meta.style-scope.ytd-watch-flexy')) {
             clearInterval(intervalCheckLoadDOM);
 
             // eslint-disable-next-line @typescript-eslint/no-use-before-define
             initApp();
         }
-
     }, 1000);
 
     function initApp(): void {
-
         let controller: AbortController;
 
         let handleMessageEvent: (ev: MessageEvent<any>) => unknown;
 
         function app(): void {
-
             if (!isWatchVideo()) return;
 
             if (handleMessageEvent) {
@@ -94,8 +128,6 @@ import {
                 distance: 100000
             };
 
-            
-
             sendMsgToBadge('NUMBER_COMMENTS', '');
 
             removeNodeList('.ycs-app');
@@ -115,12 +147,16 @@ import {
                 try {
                     const toggles = document.getElementsByClassName('ycs-btn-toggle-app');
                     for (const toggle of Array.from(toggles)) {
-                        (toggle as HTMLElement).addEventListener('click', () => {
-                            const app = document.getElementsByClassName('ycs-app')[0] as HTMLElement;
-                            if (app) {
-                                app.classList.toggle('ycs-collapsed');
-                            }
-                        }, false);
+                        (toggle as HTMLElement).addEventListener(
+                            'click',
+                            () => {
+                                const app = document.getElementsByClassName('ycs-app')[0] as HTMLElement;
+                                if (app) {
+                                    app.classList.toggle('ycs-collapsed');
+                                }
+                            },
+                            false
+                        );
                     }
                 } catch (err) {
                     console.error(err);
@@ -128,7 +164,6 @@ import {
             }
 
             const getElmsBtnPanel = (): object => {
-
                 return {
                     elPTimeStamps: document.getElementById('ycs_btn_timestamps'),
                     elPAuthor: document.getElementById('ycs_btn_author'),
@@ -143,7 +178,6 @@ import {
                     elPRandom: document.getElementById('ycs_btn_random'),
                     elFirstComments: document.getElementById('ycs_btn_sort_first')
                 };
-
             };
 
             const elsBtnPanel = getElmsBtnPanel();
@@ -213,20 +247,43 @@ import {
                     const code = sessionStorage.getItem(key) || '';
                     const param: IParamSearch = {} as IParamSearch;
                     switch (code) {
-                    case 'timestamp': param.timestamp = true; break;
-                    case 'author': param.author = true; break;
-                    case 'heart': param.heart = true; break;
-                    case 'verified': param.verified = true; break;
-                    case 'links': param.links = true; break;
-                    case 'likes': param.likes = true; break;
-                    case 'replied': param.replied = true; break;
-                    case 'members': param.members = true; break;
-                    case 'donated': param.donated = true; break;
-                    case 'random': param.random = true; break;
-                    case 'sortFirst': param.sortFirst = true; break;
-                    default: return undefined;
+                        case 'timestamp':
+                            param.timestamp = true;
+                            break;
+                        case 'author':
+                            param.author = true;
+                            break;
+                        case 'heart':
+                            param.heart = true;
+                            break;
+                        case 'verified':
+                            param.verified = true;
+                            break;
+                        case 'links':
+                            param.links = true;
+                            break;
+                        case 'likes':
+                            param.likes = true;
+                            break;
+                        case 'replied':
+                            param.replied = true;
+                            break;
+                        case 'members':
+                            param.members = true;
+                            break;
+                        case 'donated':
+                            param.donated = true;
+                            break;
+                        case 'random':
+                            param.random = true;
+                            break;
+                        case 'sortFirst':
+                            param.sortFirst = true;
+                            break;
+                        default:
+                            return undefined;
                     }
-                    
+
                     // Get sort order from the active button's dataset
                     const activeButton = document.querySelector('.ycs_btn_active') as HTMLElement | null;
                     if (activeButton) {
@@ -241,7 +298,7 @@ import {
                             param.sortOrder = sortChatOrder;
                         }
                     }
-                    
+
                     return param;
                 } catch {
                     // Fallback: detect by DOM
@@ -251,7 +308,7 @@ import {
                         if (!code) return undefined;
                         const param: IParamSearch = {} as IParamSearch;
                         (param as any)[code] = true;
-                        
+
                         // Get sort order from the active button's dataset (fallback case)
                         if (active) {
                             const sortOrder = active.dataset.sort as 'newest' | 'oldest' | undefined;
@@ -263,7 +320,7 @@ import {
                                 param.sortOrder = sortChatOrder;
                             }
                         }
-                        
+
                         return param;
                     } catch {
                         return undefined;
@@ -272,9 +329,7 @@ import {
             };
 
             const handlersBtnPanel = (hElms: any): void => {
-
                 if (hElms) {
-
                     const clearCountComments = (): void => {
                         countSearchComments.comments = 0;
                         countSearchComments.commentsChat = 0;
@@ -284,35 +339,34 @@ import {
                     // Helper function to execute search based on selected type
                     const executeSearchBasedOnType = (param?: IParamSearch): void => {
                         const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement;
-                        
+
                         if (elSelectOptSearch) {
-                            const selected: ISelectedSearch = 
-                                elSelectOptSearch?.options[
-                                    elSelectOptSearch?.options?.selectedIndex
-                                ].value as unknown as ISelectedSearch;
-                            
+                            const selected: ISelectedSearch = elSelectOptSearch?.options[
+                                elSelectOptSearch?.options?.selectedIndex
+                            ].value as unknown as ISelectedSearch;
+
                             switch (selected) {
-                            case 'comments':
-                                // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                                searchComments('#ycs-search-result', param);
-                                break;
-                            case 'chat':
-                                // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                                searchCommentsChat('#ycs-search-result', param);
-                                break;
-                            case 'video':
-                                // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                                searchCommentsTrVideo('#ycs-search-result', param);
-                                break;
-                            case 'all':
-                                // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                                searchCommentsAll('#ycs-search-result', param);
-                                break;
-                            default:
-                                // Default to searchCommentsAll if no valid selection
-                                // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                                searchCommentsAll('#ycs-search-result', param);
-                                break;
+                                case 'comments':
+                                    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                                    searchComments('#ycs-search-result', param);
+                                    break;
+                                case 'chat':
+                                    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                                    searchCommentsChat('#ycs-search-result', param);
+                                    break;
+                                case 'video':
+                                    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                                    searchCommentsTrVideo('#ycs-search-result', param);
+                                    break;
+                                case 'all':
+                                    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                                    searchCommentsAll('#ycs-search-result', param);
+                                    break;
+                                default:
+                                    // Default to searchCommentsAll if no valid selection
+                                    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                                    searchCommentsAll('#ycs-search-result', param);
+                                    break;
                             }
                         } else {
                             // Fallback to searchCommentsAll if select element not found
@@ -322,9 +376,7 @@ import {
                     };
 
                     hElms?.elPTimeStamps?.addEventListener('click', (e: Event) => {
-
                         try {
-
                             const currentTarget = e.currentTarget;
 
                             setActiveFilterByElement('timestamp', currentTarget as HTMLElement);
@@ -334,17 +386,13 @@ import {
                             executeSearchBasedOnType({
                                 timestamp: true
                             });
-
                         } catch (err) {
                             console.error(err);
                         }
-
                     });
 
                     hElms?.elPAuthor?.addEventListener('click', (e: Event) => {
-
                         try {
-
                             const currentTarget = e.currentTarget;
 
                             setActiveFilterByElement('author', currentTarget as HTMLElement);
@@ -354,17 +402,13 @@ import {
                             executeSearchBasedOnType({
                                 author: true
                             });
-
                         } catch (err) {
                             console.error(err);
                         }
-
                     });
 
                     hElms?.elPHeart?.addEventListener('click', (e: Event) => {
-
                         try {
-
                             const currentTarget = e.currentTarget;
 
                             setActiveFilterByElement('heart', currentTarget as HTMLElement);
@@ -374,17 +418,13 @@ import {
                             executeSearchBasedOnType({
                                 heart: true
                             });
-
                         } catch (err) {
                             console.error(err);
                         }
-
                     });
 
                     hElms?.elPVerified?.addEventListener('click', (e: Event) => {
-
                         try {
-
                             const currentTarget = e.currentTarget;
 
                             setActiveFilterByElement('verified', currentTarget as HTMLElement);
@@ -394,17 +434,13 @@ import {
                             executeSearchBasedOnType({
                                 verified: true
                             });
-
                         } catch (err) {
                             console.error(err);
                         }
-
                     });
 
                     hElms?.elPLinks?.addEventListener('click', (e: Event) => {
-
                         try {
-
                             const currentTarget = e.currentTarget;
 
                             setActiveFilterByElement('links', currentTarget as HTMLElement);
@@ -414,17 +450,13 @@ import {
                             executeSearchBasedOnType({
                                 links: true
                             });
-
                         } catch (err) {
                             console.error(err);
                         }
-
                     });
 
                     hElms?.elPLikes?.addEventListener('click', (e: Event) => {
-
                         try {
-
                             const currentTarget = e.currentTarget;
 
                             setActiveFilterByElement('likes', currentTarget as HTMLElement);
@@ -433,17 +465,13 @@ import {
                             executeSearchBasedOnType({
                                 likes: true
                             });
-
                         } catch (err) {
                             console.error(err);
                         }
-
                     });
 
                     hElms?.elPReplied?.addEventListener('click', (e: Event) => {
-
                         try {
-
                             const currentTarget = e.currentTarget;
 
                             setActiveFilterByElement('replied', currentTarget as HTMLElement);
@@ -452,17 +480,13 @@ import {
                             executeSearchBasedOnType({
                                 replied: true
                             });
-
                         } catch (err) {
                             console.error(err);
                         }
-
                     });
 
                     hElms?.elPMembers?.addEventListener('click', (e: Event) => {
-
                         try {
-
                             const currentTarget = e.currentTarget;
 
                             setActiveFilterByElement('members', currentTarget as HTMLElement);
@@ -471,17 +495,13 @@ import {
                             executeSearchBasedOnType({
                                 members: true
                             });
-
                         } catch (err) {
                             console.error(err);
                         }
-
                     });
 
                     hElms?.elPDonated?.addEventListener('click', (e: Event) => {
-
                         try {
-
                             const currentTarget = e.currentTarget;
 
                             setActiveFilterByElement('donated', currentTarget as HTMLElement);
@@ -490,18 +510,14 @@ import {
                             executeSearchBasedOnType({
                                 donated: true
                             });
-
                         } catch (err) {
                             console.error(err);
                         }
-
                     });
 
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     hElms?.elPClear?.addEventListener('click', (e: Event) => {
-
                         try {
-
                             // const currentTarget = e.currentTarget;
 
                             setActiveFilterByElement(null);
@@ -512,7 +528,7 @@ import {
 
                             // Check if search input has content
                             const eInputSearch = document.getElementById('ycs-input-search') as HTMLInputElement;
-                            
+
                             // If search input is not empty, trigger search again for results without button filter
                             if (eInputSearch?.value && eInputSearch.value.trim()) {
                                 // Use requestAnimationFrame to ensure DOM updates are completed before triggering search
@@ -530,17 +546,13 @@ import {
                                     elSearchTotalRes.innerText = 'Search cleared';
                                 }
                             }
-
                         } catch (err) {
                             console.error(err);
                         }
-
                     });
 
                     hElms?.elPRandom?.addEventListener('click', (e: Event) => {
-
                         try {
-
                             const currentTarget = e.currentTarget;
 
                             setActiveFilterByElement('random', currentTarget as HTMLElement);
@@ -549,17 +561,13 @@ import {
                             executeSearchBasedOnType({
                                 random: true
                             });
-
                         } catch (err) {
                             console.error(err);
                         }
-
                     });
 
                     hElms?.elFirstComments?.addEventListener('click', (e: Event) => {
-
                         try {
-
                             const currentTarget = e.currentTarget;
 
                             setActiveFilterByElement('sortFirst', currentTarget as HTMLElement);
@@ -568,15 +576,11 @@ import {
                             executeSearchBasedOnType({
                                 sortFirst: true
                             });
-
                         } catch (err) {
                             console.error(err);
                         }
-
                     });
-
                 }
-
             };
 
             handlersBtnPanel(elsBtnPanel);
@@ -588,9 +592,7 @@ import {
 
             const elLoadComments = document.getElementById('ycs-load-cmnts');
             if (elLoadComments) {
-
                 elLoadComments.addEventListener('click', async function (e: MouseEvent): Promise<void> {
-
                     if (!elLiveApp.parentNode || !elLiveApp.parentElement) return;
                     console.log('CLICK');
 
@@ -605,7 +607,6 @@ import {
                     const elLoadCmnts = document.getElementById('ycs_cmnts');
 
                     if (elLoadCmnts && elStatusCmnts) {
-
                         elLoadCmnts.textContent = '0';
 
                         elStatusCmnts.innerHTML = iconReload();
@@ -616,17 +617,24 @@ import {
 
                         if (comments.length > 0) {
                             elStatusCmnts.innerHTML = iconOk();
-                            setCacheToIDB({ comments, commentsChat: JSON.stringify(Array.from(commentsChat.entries())), commentsTrVideo }, window.location.href, document.title);
+                            setCacheToIDB(
+                                {
+                                    comments,
+                                    commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
+                                    commentsTrVideo
+                                },
+                                window.location.href,
+                                document.title
+                            );
                         }
-
                     }
-
 
                     if (comments.length > 0) {
                         countComments.comments = comments.length;
                     }
 
-                    const totalCount = countComments.comments + countComments.commentsChat + countComments.commentsTrVideo;
+                    const totalCount =
+                        countComments.comments + countComments.commentsChat + countComments.commentsTrVideo;
                     sendMsgToBadge('NUMBER_COMMENTS', totalCount);
 
                     if (elLoadCmnts) {
@@ -639,14 +647,11 @@ import {
 
                     currentTarget.disabled = false;
                 });
-
             }
 
             const elLoadCommentsChat = document.getElementById('ycs-load-chat');
             if (elLoadCommentsChat) {
-
                 elLoadCommentsChat.addEventListener('click', async function (e: MouseEvent): Promise<void> {
-
                     if (!elLiveApp.parentNode || !elLiveApp.parentElement) return;
 
                     commentsChat.clear();
@@ -660,7 +665,6 @@ import {
                     const elLoadChat = document.getElementById('ycs_cmnts_chat');
 
                     if (elLoadChat && elStatusChat) {
-
                         elLoadChat.textContent = '0';
 
                         elStatusChat.innerHTML = iconReload();
@@ -672,36 +676,37 @@ import {
                         if (commentsChat && commentsChat.size > 0) {
                             elLoadChat.textContent = commentsChat.size.toString();
                             elStatusChat.innerHTML = iconOk();
-                            setCacheToIDB({ comments, commentsChat: JSON.stringify(Array.from(commentsChat.entries())), commentsTrVideo }, window.location.href, document.title);
+                            setCacheToIDB(
+                                {
+                                    comments,
+                                    commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
+                                    commentsTrVideo
+                                },
+                                window.location.href,
+                                document.title
+                            );
                         }
-
                     }
 
-                    if ((commentsChat && commentsChat.size > 0) && (elLiveApp.parentNode || elLiveApp.parentElement)) {
-
+                    if (commentsChat && commentsChat.size > 0 && (elLiveApp.parentNode || elLiveApp.parentElement)) {
                         countComments.commentsChat = commentsChat.size;
-
                     }
 
-                    const totalCount = countComments.comments + countComments.commentsChat + countComments.commentsTrVideo;
+                    const totalCount =
+                        countComments.comments + countComments.commentsChat + countComments.commentsTrVideo;
                     sendMsgToBadge('NUMBER_COMMENTS', totalCount);
 
                     if (elCountComments) {
                         elCountComments.textContent = `(${totalCount})`;
                     }
 
-
                     currentTarget.disabled = false;
-
                 });
-
             }
 
             const elLoadTranscriptVideo = document.getElementById('ycs-load-transcript-video');
             if (elLoadTranscriptVideo) {
-
                 elLoadTranscriptVideo.addEventListener('click', async function (e: MouseEvent): Promise<void> {
-
                     if (!elLiveApp.parentNode || !elLiveApp.parentElement) return;
 
                     const currentTarget = e.currentTarget as HTMLButtonElement;
@@ -713,7 +718,6 @@ import {
                     const elLoadTrVideo = document.getElementById('ycs_cmnts_video');
 
                     if (elLoadTrVideo && elStatusTrVideo) {
-
                         elLoadTrVideo.textContent = '0';
 
                         elStatusTrVideo.innerHTML = iconReload();
@@ -722,15 +726,38 @@ import {
                         // ensure old buffer won't leak when current load fails
                         const tr = await getTranscriptVideo(controller.signal);
                         commentsTrVideo = undefined;
-                        if (wrapTryCatch(() => (tr as any)?.actions?.[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0)) {
+                        if (
+                            wrapTryCatch(
+                                () =>
+                                    (tr as any)?.actions?.[0]?.updateEngagementPanelAction?.content?.transcriptRenderer
+                                        ?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
+                            )
+                        ) {
                             commentsTrVideo = tr;
                         }
 
                         try {
-                            if (commentsTrVideo && elLoadTrVideo && (commentsTrVideo as any)?.actions?.length > 0 &&
-                                (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0) {
-                                showLoadComments((commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length, elLoadTrVideo);
-                                setCacheToIDB({ comments, commentsChat: JSON.stringify(Array.from(commentsChat.entries())), commentsTrVideo }, window.location.href, document.title);
+                            if (
+                                commentsTrVideo &&
+                                elLoadTrVideo &&
+                                (commentsTrVideo as any)?.actions?.length > 0 &&
+                                (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content
+                                    ?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
+                            ) {
+                                showLoadComments(
+                                    (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content
+                                        .transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length,
+                                    elLoadTrVideo
+                                );
+                                setCacheToIDB(
+                                    {
+                                        comments,
+                                        commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
+                                        commentsTrVideo
+                                    },
+                                    window.location.href,
+                                    document.title
+                                );
                             } else {
                                 commentsTrVideo = undefined;
                             }
@@ -741,20 +768,32 @@ import {
 
                         console.log('Transcript: ', commentsTrVideo);
 
-                        if (wrapTryCatch(() => (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0)) {
+                        if (
+                            wrapTryCatch(
+                                () =>
+                                    (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content
+                                        ?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
+                            )
+                        ) {
                             elStatusTrVideo.innerHTML = iconOk();
-
                         }
-
                     }
 
-                    if (wrapTryCatch(() => (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0) && (elLiveApp.parentNode || elLiveApp.parentElement)) {
-
-                        countComments.commentsTrVideo = (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length;
-
+                    if (
+                        wrapTryCatch(
+                            () =>
+                                (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content
+                                    ?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
+                        ) &&
+                        (elLiveApp.parentNode || elLiveApp.parentElement)
+                    ) {
+                        countComments.commentsTrVideo = (
+                            commentsTrVideo as any
+                        ).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length;
                     }
 
-                    const totalCount = countComments.comments + countComments.commentsChat + countComments.commentsTrVideo;
+                    const totalCount =
+                        countComments.comments + countComments.commentsChat + countComments.commentsTrVideo;
                     sendMsgToBadge('NUMBER_COMMENTS', totalCount);
 
                     if (elCountComments) {
@@ -762,16 +801,12 @@ import {
                     }
 
                     currentTarget.disabled = false;
-
                 });
-
             }
 
             const elLoadAll = document.getElementById('ycs-load-all');
             if (elLoadAll) {
-
                 elLoadAll.addEventListener('click', function (): void {
-
                     const eLoadComments = document.getElementById('ycs-load-cmnts');
                     const eLoadCommentsChat = document.getElementById('ycs-load-chat');
                     const eLoadTranscriptVideo = document.getElementById('ycs-load-transcript-video');
@@ -779,27 +814,19 @@ import {
                     eLoadComments?.click();
                     eLoadCommentsChat?.click();
                     eLoadTranscriptVideo?.click();
-
                 });
-
             }
 
             const elLoadAllStop = document.getElementById('ycs_load_stop');
             if (elLoadAllStop) {
-
                 elLoadAllStop.addEventListener('click', () => {
-
                     try {
-
                         controller.abort();
                         controller = new AbortController();
-
                     } catch (err) {
                         console.error(err);
                     }
-
                 });
-
             }
 
             const btnSearch = document.getElementById('ycs_btn_search');
@@ -813,7 +840,6 @@ import {
                 };
             }
 
-
             const btnOpenCommentsNewWindow = document.getElementById('ycs_open_all_comments_window');
             btnOpenCommentsNewWindow?.addEventListener('click', () => {
                 if (comments.length === 0) return;
@@ -824,7 +850,6 @@ import {
                     console.error(e);
                     return;
                 }
-
             });
 
             const btnSaveCommentsToFile = document.getElementById('ycs_save_all_comments');
@@ -832,7 +857,6 @@ import {
                 if (comments.length === 0) return;
 
                 try {
-
                     const c = getCommentsHtmlText(comments);
                     const htmlText = `
 YCS - YouTube Comment Search
@@ -844,13 +868,10 @@ Title: ${document.title}
 Total: ${c.count}\n${c.html}`;
 
                     downloadFile(htmlText, `Comments, ${document.title} (${c.count}).txt`, 'text/plain');
-
                 } catch (e) {
                     console.error(e);
                     return;
                 }
-
-
             });
 
             const btnOpenCommentsChatNewWindow = document.getElementById('ycs_open_all_comments_chat_window');
@@ -863,7 +884,6 @@ Total: ${c.count}\n${c.html}`;
                     console.error(e);
                     return;
                 }
-
             });
 
             const btnSaveCommentsChatToFile = document.getElementById('ycs_save_all_comments_chat');
@@ -886,38 +906,45 @@ Total: ${c.count}\n${c.html}`;
                     console.error(e);
                     return;
                 }
-
             });
 
             const btnOpenCommentsTrVideoNewWindow = document.getElementById('ycs_open_all_comments_trvideo_window');
             btnOpenCommentsTrVideoNewWindow?.addEventListener('click', () => {
-
                 try {
-
                     console.log('commentsTrVideo: ', commentsTrVideo);
 
-                    if (commentsTrVideo && (commentsTrVideo as any)?.actions?.length > 0 &&
-                        (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0) {
-
-                        openCommentsTrVideo(getCommentsTrVideoHtmlText((commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups));
+                    if (
+                        commentsTrVideo &&
+                        (commentsTrVideo as any)?.actions?.length > 0 &&
+                        (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content?.transcriptRenderer
+                            ?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
+                    ) {
+                        openCommentsTrVideo(
+                            getCommentsTrVideoHtmlText(
+                                (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content
+                                    .transcriptRenderer.body.transcriptBodyRenderer.cueGroups
+                            )
+                        );
                     }
-
                 } catch (e) {
                     console.error(e);
                     return;
                 }
-
             });
 
             const btnSaveCommentsTrVideoToFile = document.getElementById('ycs_save_all_comments_trvideo');
             btnSaveCommentsTrVideoToFile?.addEventListener('click', () => {
-
                 try {
-
-                    if (commentsTrVideo && (commentsTrVideo as any)?.actions?.length > 0 &&
-                        (commentsTrVideo as any).actions[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0) {
-
-                        const c = getCommentsTrVideoHtmlText((commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups);
+                    if (
+                        commentsTrVideo &&
+                        (commentsTrVideo as any)?.actions?.length > 0 &&
+                        (commentsTrVideo as any).actions[0]?.updateEngagementPanelAction?.content?.transcriptRenderer
+                            ?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
+                    ) {
+                        const c = getCommentsTrVideoHtmlText(
+                            (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer
+                                .body.transcriptBodyRenderer.cueGroups
+                        );
 
                         const htmlText = `
 YCS - YouTube Comment Search
@@ -930,19 +957,14 @@ Total: ${c.count}\n${c.html}`;
 
                         downloadFile(htmlText, `Transcript video, ${document.title} (${c.count}).txt`, 'text/plain');
                     }
-
-
                 } catch (e) {
                     console.error(e);
                     return;
                 }
-
             });
 
             const searchComments = (selector: string, param?: IParamSearch): void => {
-
                 try {
-
                     if (comments.length === 0 || param?.donated) return;
 
                     const inputSearch = document.getElementById('ycs-input-search') as HTMLInputElement;
@@ -956,27 +978,19 @@ Total: ${c.count}\n${c.html}`;
                     const elExtSearchMain = document.getElementById('ycs_extended_search_main') as HTMLInputElement;
 
                     let fuseOpt = fuseOptions;
-                    let keysOpt = [
-                        'commentRenderer.authorText.simpleText',
-                        'commentRenderer.contentText.fullText'
-                    ];
+                    let keysOpt = ['commentRenderer.authorText.simpleText', 'commentRenderer.contentText.fullText'];
 
                     if (elExtSearch.checked) {
                         fuseOpt = JSON.parse(JSON.stringify(fuseOptions));
                         fuseOpt.useExtendedSearch = true;
 
                         if (elExtSearchTitle.checked) {
-                            keysOpt = [
-                                'commentRenderer.authorText.simpleText'
-                            ];
+                            keysOpt = ['commentRenderer.authorText.simpleText'];
                         }
 
                         if (elExtSearchMain.checked) {
-                            keysOpt = [
-                                'commentRenderer.contentText.fullText'
-                            ];
+                            keysOpt = ['commentRenderer.contentText.fullText'];
                         }
-
                     }
 
                     const options: object = {
@@ -994,7 +1008,6 @@ Total: ${c.count}\n${c.html}`;
                     }
 
                     if (param?.likes) {
-
                         const cmntsLikes = filterLikesComments(comments);
 
                         // Unified pipeline: filter-only; apply text subset; then sort by likeCount desc
@@ -1010,21 +1023,16 @@ Total: ${c.count}\n${c.html}`;
                         renderComment(selector, resultSearch, true, querySearch);
 
                         console.log('cmntsLikes: ', cmntsLikes);
-
                     } else if (param?.links) {
-
                         const cmntsLinked = filterLinksComments(comments);
                         resultSearch = cmntsLinked;
                         if (textMatchedSet) resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
 
                         if (resultSearch.length > 0) {
-
                             console.log('Links before: ', resultSearch);
 
                             resultSearch?.sort((firstItem, secondItem) => {
-
                                 return firstItem.refIndex - secondItem.refIndex;
-
                             });
 
                             console.log('Links after: ', resultSearch);
@@ -1039,14 +1047,12 @@ Total: ${c.count}\n${c.html}`;
                                 elSortLinks.dataset.sort = 'oldest';
                                 elSortLinks.innerHTML = `Links ${iconSortDown()}`;
                                 elSortLinks.title = 'Shows links in comments, replies, chat, video transcript (Newest)';
-
                             } else if (sortType === 'oldest') {
                                 renderComment(selector, resultSearch?.reverse(), true, querySearch);
 
                                 elSortLinks.dataset.sort = 'newest';
                                 elSortLinks.innerHTML = `Links ${iconSortUp()}`;
                                 elSortLinks.title = 'Shows links in comments, replies, chat, video transcript (Oldest)';
-
                             } else {
                                 if (querySearch && querySearch.trim()) {
                                     const base = resultSearch.map((r: any) => r.item);
@@ -1059,23 +1065,17 @@ Total: ${c.count}\n${c.html}`;
                                 }
                                 elSortLinks.innerHTML = `Links ${iconSortDown()}`;
                             }
-
                         }
-
                     } else if (param?.members) {
-
                         const cmntsMembers = filterMemberComments(comments);
                         resultSearch = cmntsMembers;
                         if (textMatchedSet) resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
 
                         if (resultSearch.length > 0) {
-
                             console.log('members before: ', resultSearch);
 
                             resultSearch?.sort((firstItem, secondItem) => {
-
                                 return firstItem.refIndex - secondItem.refIndex;
-
                             });
 
                             console.log('members after: ', resultSearch);
@@ -1090,14 +1090,12 @@ Total: ${c.count}\n${c.html}`;
                                 elSortMembers.dataset.sort = 'oldest';
                                 elSortMembers.innerHTML = `Members ${iconSortDown()}`;
                                 elSortMembers.title = 'Show comments, replies, chat from channel members (Newest)';
-
                             } else if (sortType === 'oldest') {
                                 renderComment(selector, resultSearch?.reverse(), true, querySearch);
 
                                 elSortMembers.dataset.sort = 'newest';
                                 elSortMembers.innerHTML = `Members ${iconSortUp()}`;
                                 elSortMembers.title = 'Show comments, replies, chat from channel members (Oldest)';
-
                             } else {
                                 renderComment(selector, resultSearch, true, querySearch);
                                 elSortMembers.innerHTML = `Members ${iconSortDown()}`;
@@ -1105,9 +1103,7 @@ Total: ${c.count}\n${c.html}`;
 
                             console.log('cmntsMembers: ', cmntsMembers);
                         }
-
                     } else if (param?.replied) {
-
                         const cmntsReplied = filterRepliedComments(comments);
                         resultSearch = cmntsReplied;
                         if (textMatchedSet) resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
@@ -1120,20 +1116,16 @@ Total: ${c.count}\n${c.html}`;
                         renderComment(selector, resultSearch, true, querySearch);
 
                         console.log('cmntsReplied: ', cmntsReplied);
-
                     } else if (param?.author) {
                         const cmntsAuthor = filterAuthorComments(comments);
                         resultSearch = cmntsAuthor;
                         if (textMatchedSet) resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
 
                         if (resultSearch.length > 0) {
-
                             console.log('author before: ', resultSearch);
 
                             resultSearch?.sort((firstItem, secondItem) => {
-
                                 return firstItem.refIndex - secondItem.refIndex;
-
                             });
 
                             console.log('author after: ', resultSearch);
@@ -1148,34 +1140,27 @@ Total: ${c.count}\n${c.html}`;
                                 elSortAuthor.dataset.sort = 'oldest';
                                 elSortAuthor.innerHTML = `Author ${iconSortDown()}`;
                                 elSortAuthor.title = 'Show comments, replies, chat from the author (Newest)';
-
                             } else if (sortType === 'oldest') {
                                 renderComment(selector, resultSearch?.reverse(), true, querySearch);
 
                                 elSortAuthor.dataset.sort = 'newest';
                                 elSortAuthor.innerHTML = `Author ${iconSortUp()}`;
                                 elSortAuthor.title = 'Show comments, replies, chat from the author (Oldest)';
-
                             } else {
                                 renderComment(selector, resultSearch, true, querySearch);
                                 elSortAuthor.innerHTML = `Author ${iconSortDown()}`;
                             }
-
                         }
-
                     } else if (param?.heart) {
                         const cmntsHeart = filterHeartComments(comments);
                         resultSearch = cmntsHeart;
                         if (textMatchedSet) resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
 
                         if (resultSearch.length > 0) {
-
                             console.log('heart before: ', resultSearch);
 
                             resultSearch?.sort((firstItem, secondItem) => {
-
                                 return firstItem.refIndex - secondItem.refIndex;
-
                             });
 
                             console.log('heart after: ', resultSearch);
@@ -1190,34 +1175,27 @@ Total: ${c.count}\n${c.html}`;
                                 elSortHeart.dataset.sort = 'oldest';
                                 elSortHeart.innerHTML = `<span class="ycs-creator-heart_icon">❤</span> ${iconSortDown()}`;
                                 elSortHeart.title = 'Show comments and replies that the author likes (Newest)';
-
                             } else if (sortType === 'oldest') {
                                 renderComment(selector, resultSearch?.reverse(), true, querySearch);
 
                                 elSortHeart.dataset.sort = 'newest';
                                 elSortHeart.innerHTML = `<span class="ycs-creator-heart_icon">❤</span> ${iconSortUp()}`;
                                 elSortHeart.title = 'Show comments and replies that the author likes (Oldest)';
-
                             } else {
                                 renderComment(selector, resultSearch, true, querySearch);
                                 elSortHeart.innerHTML = `<span class="ycs-creator-heart_icon">❤</span> ${iconSortDown()}`;
                             }
-
                         }
-
                     } else if (param?.verified) {
                         const cmntsVerified = filterVerifiedComments(comments);
                         resultSearch = cmntsVerified;
                         if (textMatchedSet) resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
 
                         if (resultSearch.length > 0) {
-
                             console.log('verified before: ', resultSearch);
 
                             resultSearch?.sort((firstItem, secondItem) => {
-
                                 return firstItem.refIndex - secondItem.refIndex;
-
                             });
 
                             console.log('verified after: ', resultSearch);
@@ -1231,34 +1209,30 @@ Total: ${c.count}\n${c.html}`;
 
                                 elSortVerified.dataset.sort = 'oldest';
                                 elSortVerified.innerHTML = `<span class="ycs-creator-verified_icon">✔</span> ${iconSortDown()}`;
-                                elSortVerified.title = 'Show comments,  replies and chat from a verified authors (Newest)';
-
+                                elSortVerified.title =
+                                    'Show comments,  replies and chat from a verified authors (Newest)';
                             } else if (sortType === 'oldest') {
                                 renderComment(selector, resultSearch?.reverse(), true, querySearch);
 
                                 elSortVerified.dataset.sort = 'newest';
                                 elSortVerified.innerHTML = `<span class="ycs-creator-verified_icon">✔</span> ${iconSortUp()}`;
-                                elSortVerified.title = 'Show comments,  replies and chat from a verified authors (Oldest)';
-
+                                elSortVerified.title =
+                                    'Show comments,  replies and chat from a verified authors (Oldest)';
                             } else {
                                 renderComment(selector, resultSearch, true, querySearch);
                                 elSortVerified.innerHTML = `<span class="ycs-creator-verified_icon">✔</span> ${iconSortDown()}`;
                             }
-
                         }
-
                     } else if (param?.random) {
-
                         const randomComment = getRandomComment(comments);
                         resultSearch = randomComment;
                         renderComment(selector, resultSearch, true, querySearch);
 
                         console.log('Get Random COMMENT: ', randomComment);
-
-
                     } else if (param?.timestamp) {
                         // No second fuse; simply filter those marked as timeline
-                        let timeline = comments.filter((c: any) => c?.commentRenderer?.isTimeLine === 'timeline')
+                        let timeline = comments
+                            .filter((c: any) => c?.commentRenderer?.isTimeLine === 'timeline')
                             .map((c: any) => ({ item: c, refIndex: (c as any)?._index }));
                         if (textMatchedSet) timeline = timeline.filter((r: any) => textMatchedSet?.has(r.item));
                         resultSearch = timeline as any;
@@ -1284,14 +1258,11 @@ Total: ${c.count}\n${c.html}`;
                                 elSortTimeStamp.innerHTML = `Time stamps ${iconSortDown()}`;
                             }
                         }
-
                     } else if (param?.sortFirst) {
-
                         const firstComments = filterNewestFirst(comments) as ICommentsFuseResult[];
                         resultSearch = firstComments;
 
                         if (resultSearch.length > 0) {
-
                             const elSortAll = document.getElementById('ycs_btn_sort_first') as HTMLElement;
                             // Use sortOrder from param if provided (from text search), otherwise use button's dataset
                             const sortType = param?.sortOrder || (elSortAll.dataset.sort as 'newest' | 'oldest');
@@ -1310,20 +1281,21 @@ Total: ${c.count}\n${c.html}`;
                                 elSortAll.dataset.sort = 'newest';
                                 elSortAll.innerHTML = `All ${iconSortUp()}`;
                                 elSortAll.title = 'Show all comments, chat, video transcript sorted by date (Oldest)';
-
                             } else {
                                 renderComment(selector, resultSearch, true, querySearch);
                                 elSortAll.innerHTML = `All ${iconSortDown()}`;
                             }
 
                             console.log('Get First COMMENT: ', firstComments);
-
                         }
-
                     } else {
                         const fuse = new Fuse(comments, options);
                         // Map to original index to make downstream sort stable
-                        resultSearch = (fuse.search(querySearch.trim()) as any[]).map((r: any) => ({ item: r.item, refIndex: (r.item as any)?._index, score: r.score }));
+                        resultSearch = (fuse.search(querySearch.trim()) as any[]).map((r: any) => ({
+                            item: r.item,
+                            refIndex: (r.item as any)?._index,
+                            score: r.score
+                        }));
                         renderComment(selector, resultSearch, true, querySearch);
                     }
 
@@ -1346,15 +1318,11 @@ Total: ${c.count}\n${c.html}`;
                     const elsCommentOpenReply = document.getElementById('ycs_wrap_comments');
 
                     if (elsCommentOpenReply) {
-
                         elsCommentOpenReply.addEventListener('click', (e) => {
-
                             try {
-
                                 console.log('EVENT CLICK FOR REPLY: ', e);
                                 if ((e.target as HTMLElement)?.classList?.contains('ycs-open-comment')) {
-
-                                    const refID = parseInt(((e.target as HTMLElement).getAttribute('id') as string), 10);
+                                    const refID = parseInt((e.target as HTMLElement).getAttribute('id') as string, 10);
                                     console.log('refID: ', refID);
 
                                     const reply = (e.target as HTMLElement).closest('.ycs-render-comment');
@@ -1362,12 +1330,12 @@ Total: ${c.count}\n${c.html}`;
                                     console.log('reply: ', reply);
 
                                     if (reply && refID && !document.getElementById('ycs-com-' + refID)) {
-
                                         try {
-
                                             // Find the origin comment by matching _index
                                             const origin = comments.find((x: any) => (x as any)?._index === refID);
-                                            const com = origin ? { item: (origin as any).originComment, refIndex: refID } : undefined as any;
+                                            const com = origin
+                                                ? { item: (origin as any).originComment, refIndex: refID }
+                                                : (undefined as any);
 
                                             const wrap = document.createElement('div');
                                             wrap.id = 'ycs-com-' + refID.toString();
@@ -1383,12 +1351,12 @@ Total: ${c.count}\n${c.html}`;
                                             if ((origin as any)?.commentRenderer?.contentText?.runs?.length > 0) {
                                                 for (const msg of (origin as any).commentRenderer.contentText.runs) {
                                                     try {
-
                                                         if (msg.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl) {
-                                                            toReplyAuthor = msg.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl;
+                                                            toReplyAuthor =
+                                                                msg.navigationEndpoint?.browseEndpoint
+                                                                    ?.canonicalBaseUrl;
                                                             break;
                                                         }
-
                                                     } catch (err) {
                                                         console.error(err);
                                                         continue;
@@ -1398,26 +1366,25 @@ Total: ${c.count}\n${c.html}`;
 
                                             const replyAuthor = [];
                                             if (toReplyAuthor) {
-
                                                 for (const auth of comments) {
-
                                                     try {
-
-                                                        if ((auth as any).typeComment === 'R' && (auth as any).originComment === (origin as any).originComment &&
-                                                            (auth as any).commentRenderer?.authorEndpoint?.browseEndpoint?.canonicalBaseUrl === toReplyAuthor) {
+                                                        if (
+                                                            (auth as any).typeComment === 'R' &&
+                                                            (auth as any).originComment ===
+                                                                (origin as any).originComment &&
+                                                            (auth as any).commentRenderer?.authorEndpoint
+                                                                ?.browseEndpoint?.canonicalBaseUrl === toReplyAuthor
+                                                        ) {
                                                             replyAuthor.push({
                                                                 item: auth,
                                                                 refIndex: refID
                                                             });
                                                         }
-
                                                     } catch (err) {
                                                         console.error(err);
                                                         continue;
                                                     }
-
                                                 }
-
                                             }
 
                                             if (replyAuthor.length > 0) {
@@ -1428,16 +1395,13 @@ Total: ${c.count}\n${c.html}`;
                                                 reply.insertAdjacentElement('beforebegin', wrapToReply);
 
                                                 renderComment('#' + wrapToReply.id, replyAuthor, false, querySearch);
-
                                             }
 
                                             (e.target as HTMLElement).innerHTML = `${iconCollapse()}`;
                                             (e.target as HTMLElement).title = 'Close the comment to the reply here.';
-
                                         } catch (err) {
                                             console.error(err);
                                         }
-
                                     } else if (reply && refID && document.getElementById('ycs-com-' + refID)) {
                                         removeNodeList('.ycs-com-' + refID);
 
@@ -1445,14 +1409,12 @@ Total: ${c.count}\n${c.html}`;
                                         (e.target as HTMLElement).innerHTML = `${iconExpand()}`;
                                         (e.target as HTMLElement).title = 'Open the comment to the reply here.';
                                     }
-
                                 } else if ((e.target as HTMLElement)?.classList?.contains('ycs-gotochat-video')) {
                                     e.preventDefault();
 
                                     const elFrameVideo: HTMLVideoElement = document.getElementsByTagName('video')[0];
 
                                     if (elFrameVideo) {
-
                                         const ms = (e.target as HTMLElement).dataset.offsetvideo;
 
                                         console.log('MS: ', ms);
@@ -1461,16 +1423,13 @@ Total: ${c.count}\n${c.html}`;
                                             elFrameVideo.currentTime = parseInt(ms);
                                         }
                                     }
-
                                 } else if ((e.target as HTMLElement)?.classList?.contains('ycs-open-reply')) {
-
                                     const id = (e.target as HTMLElement).dataset.idcom;
 
                                     const wrap = (e.target as HTMLElement).closest('.ycs-render-comment');
                                     console.log('WRAP ELEMENT: ', wrap);
 
                                     if (wrap?.querySelector(`.ycs-com-replies-${id}`)) {
-
                                         const replies = wrap.querySelector(`.ycs-com-replies-${id}`);
                                         replies?.remove();
 
@@ -1482,41 +1441,32 @@ Total: ${c.count}\n${c.html}`;
 
                                     const repls = [];
                                     if (id) {
-
                                         let index: number | undefined;
 
                                         for (const [i, o] of comments.entries()) {
-
                                             try {
-
                                                 // console.log(i, o);
                                                 if ((o as any).commentRenderer?.commentId === id) {
                                                     index = i;
                                                     break;
                                                 }
-
                                             } catch (err) {
                                                 console.error(err);
                                                 continue;
                                             }
-
                                         }
 
                                         console.log('INDEX: ', index);
 
-
                                         if (Number.isInteger(index) && (index as number) >= 0) {
                                             for (const c of comments) {
-
                                                 try {
-
                                                     if (comments[index as number] === (c as any).originComment) {
                                                         repls.push({
                                                             item: c,
                                                             refIndex: id
                                                         });
                                                     }
-
                                                 } catch (err) {
                                                     console.error(err);
                                                     continue;
@@ -1526,7 +1476,6 @@ Total: ${c.count}\n${c.html}`;
                                     }
 
                                     if (repls.length > 0) {
-
                                         const reply = (e.target as HTMLElement).closest('.ycs-render-comment');
 
                                         console.log('reply: ', reply);
@@ -1544,31 +1493,22 @@ Total: ${c.count}\n${c.html}`;
 
                                     console.log('ID: ', id);
                                     console.log('e.target: ', e.target);
-
                                 }
-
                             } catch (err) {
                                 console.error(err);
                             }
-
                         });
-
                     }
-
                 } catch (err) {
                     console.error(err);
                 }
-
             };
 
             const searchCommentsChat = (selector: string, param?: IParamSearch): void => {
-
                 try {
-
                     if (param?.likes || param?.replied || param?.random || param?.heart) return;
 
                     if (commentsChat && commentsChat.size > 0) {
-
                         const elSearchRes = document.querySelector(selector);
                         const inputSearch = document.getElementById('ycs-input-search');
 
@@ -1584,7 +1524,9 @@ Total: ${c.count}\n${c.html}`;
 
                         if (elSearchRes) elSearchRes.textContent = '';
 
-                        const elExtSearchTitle = document.getElementById('ycs_extended_search_title') as HTMLInputElement;
+                        const elExtSearchTitle = document.getElementById(
+                            'ycs_extended_search_title'
+                        ) as HTMLInputElement;
                         const elExtSearchMain = document.getElementById('ycs_extended_search_main') as HTMLInputElement;
 
                         let fuseOpt = fuseOptions;
@@ -1608,7 +1550,6 @@ Total: ${c.count}\n${c.html}`;
                                     'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.message.fullText'
                                 ];
                             }
-
                         }
 
                         const options: object = {
@@ -1619,26 +1560,23 @@ Total: ${c.count}\n${c.html}`;
                         let resultSearch: ICommentsFuseResult[] = [];
 
                         if (param?.author) {
-
                             const cmntsAuthor = filterAuthorChat(cmntsChat);
                             resultSearch = cmntsAuthor;
                             console.log('resultSearch chat author: ', resultSearch);
 
                             if (resultSearch?.length > 0) {
-
                                 console.log('author Chat before: ', resultSearch);
 
                                 resultSearch?.sort((firstItem, secondItem) => {
-
                                     return firstItem.refIndex - secondItem.refIndex;
-
                                 });
 
                                 console.log('author Chat after: ', resultSearch);
 
                                 const elSortAuthor = document.getElementById('ycs_btn_author') as HTMLElement;
                                 // Use sortOrder from param if provided (from text search), otherwise use button's dataset
-                                const sortType = param?.sortOrder || (elSortAuthor.dataset.sortChat as 'newest' | 'oldest');
+                                const sortType =
+                                    param?.sortOrder || (elSortAuthor.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
                                     renderCommentChat(selector, resultSearch, querySearch);
@@ -1646,42 +1584,35 @@ Total: ${c.count}\n${c.html}`;
                                     elSortAuthor.dataset.sortChat = 'oldest';
                                     elSortAuthor.innerHTML = `Author ${iconSortDown()}`;
                                     elSortAuthor.title = 'Show comments, replies, chat from the author (Newest)';
-
                                 } else if (sortType === 'oldest') {
                                     renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
                                     elSortAuthor.dataset.sortChat = 'newest';
                                     elSortAuthor.innerHTML = `Author ${iconSortUp()}`;
                                     elSortAuthor.title = 'Show comments, replies, chat from the author (Oldest)';
-
                                 } else {
                                     renderCommentChat(selector, resultSearch, querySearch);
                                 }
-
                             }
 
                             console.log('COMMENT CHAT authorIsChannelOwner SEARCH: ', cmntsAuthor);
-
                         } else if (param?.donated) {
-
-                        const cmntsDonated = filterDonatedChat(cmntsChat);
+                            const cmntsDonated = filterDonatedChat(cmntsChat);
                             resultSearch = cmntsDonated;
 
                             if (resultSearch?.length > 0) {
-
                                 console.log('donated Chat before: ', resultSearch);
 
                                 resultSearch?.sort((firstItem, secondItem) => {
-
                                     return firstItem.refIndex - secondItem.refIndex;
-
                                 });
 
                                 console.log('donated Chat after: ', resultSearch);
 
                                 const elSortDonated = document.getElementById('ycs_btn_donated') as HTMLElement;
                                 // Use sortOrder from param if provided (from text search), otherwise use button's dataset
-                                const sortType = param?.sortOrder || (elSortDonated.dataset.sortChat as 'newest' | 'oldest');
+                                const sortType =
+                                    param?.sortOrder || (elSortDonated.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
                                     renderCommentChat(selector, resultSearch, querySearch);
@@ -1689,43 +1620,36 @@ Total: ${c.count}\n${c.html}`;
                                     elSortDonated.dataset.sortChat = 'oldest';
                                     elSortDonated.innerHTML = `Donated ${iconSortDown()}`;
                                     elSortDonated.title = 'Show chat comments from users who have donated (Newest)';
-
                                 } else if (sortType === 'oldest') {
                                     renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
                                     elSortDonated.dataset.sortChat = 'newest';
                                     elSortDonated.innerHTML = `Donated ${iconSortUp()}`;
                                     elSortDonated.title = 'Show chat comments from users who have donated (Oldest)';
-
                                 } else {
                                     renderCommentChat(selector, resultSearch, querySearch);
                                     elSortDonated.innerHTML = `Donated ${iconSortDown()}`;
                                 }
-
                             }
 
                             console.log('cmntsDonated: ', cmntsDonated);
-
                         } else if (param?.members) {
-
                             const cmntsMembers = filterMembersChat(cmntsChat);
                             resultSearch = cmntsMembers;
 
                             if (resultSearch?.length > 0) {
-
                                 console.log('member Chat before: ', resultSearch);
 
                                 resultSearch?.sort((firstItem, secondItem) => {
-
                                     return firstItem.refIndex - secondItem.refIndex;
-
                                 });
 
                                 console.log('member Chat after: ', resultSearch);
 
                                 const elSortMember = document.getElementById('ycs_btn_members') as HTMLElement;
                                 // Use sortOrder from param if provided (from text search), otherwise use button's dataset
-                                const sortType = param?.sortOrder || (elSortMember.dataset.sortChat as 'newest' | 'oldest');
+                                const sortType =
+                                    param?.sortOrder || (elSortMember.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
                                     renderCommentChat(selector, resultSearch, querySearch);
@@ -1733,23 +1657,19 @@ Total: ${c.count}\n${c.html}`;
                                     elSortMember.dataset.sortChat = 'oldest';
                                     elSortMember.innerHTML = `Members ${iconSortDown()}`;
                                     elSortMember.title = 'Show comments, replies, chat from channel members (Newest)';
-
                                 } else if (sortType === 'oldest') {
                                     renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
                                     elSortMember.dataset.sortChat = 'newest';
                                     elSortMember.innerHTML = `Members ${iconSortUp()}`;
                                     elSortMember.title = 'Show comments, replies, chat from channel members (Oldest)';
-
                                 } else {
                                     renderCommentChat(selector, resultSearch, querySearch);
                                 }
 
                                 console.log('COMMENT CHAT cmntsMembers: ', cmntsMembers);
                             }
-
                         } else if (param?.timestamp) {
-
                             (options as any).keys = [
                                 'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine'
                             ];
@@ -1760,20 +1680,18 @@ Total: ${c.count}\n${c.html}`;
                             resultSearch = fuse.search('timeline') as ICommentsFuseResult[];
 
                             if (resultSearch?.length > 0) {
-
                                 console.log('timestamp CHAT before: ', resultSearch);
 
                                 resultSearch?.sort((firstItem, secondItem) => {
-
                                     return firstItem.refIndex - secondItem.refIndex;
-
                                 });
 
                                 console.log('timestamp CHAT after: ', resultSearch);
 
                                 const elSortTimeStamp = document.getElementById('ycs_btn_timestamps') as HTMLElement;
                                 // Use sortOrder from param if provided (from text search), otherwise use button's dataset
-                                const sortType = param?.sortOrder || (elSortTimeStamp.dataset.sortChat as 'newest' | 'oldest');
+                                const sortType =
+                                    param?.sortOrder || (elSortTimeStamp.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
                                     renderCommentChat(selector, resultSearch, querySearch);
@@ -1781,126 +1699,109 @@ Total: ${c.count}\n${c.html}`;
                                     elSortTimeStamp.dataset.sortChat = 'oldest';
                                     elSortTimeStamp.innerHTML = `Time stamps ${iconSortDown()}`;
                                     elSortTimeStamp.title = 'Show comments, replies, chat with time stamps (Newest)';
-
                                 } else if (sortType === 'oldest') {
                                     renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
                                     elSortTimeStamp.dataset.sortChat = 'newest';
                                     elSortTimeStamp.innerHTML = `Time stamps ${iconSortUp()}`;
                                     elSortTimeStamp.title = 'Show comments, replies, chat with time stamps (Oldest)';
-
                                 } else {
                                     renderCommentChat(selector, resultSearch, querySearch);
                                 }
-
                             }
-
                         } else if (param?.sortFirst) {
-
                             const cmntsChatAll = filterChatNewestFirst(commentsChat) as ICommentsFuseResult[];
                             resultSearch = cmntsChatAll;
 
                             if (resultSearch?.length > 0) {
-
                                 console.log('All Chat before: ', resultSearch);
 
                                 resultSearch?.sort((firstItem, secondItem) => {
-
                                     return firstItem.refIndex - secondItem.refIndex;
-
                                 });
 
                                 console.log('All Chat after: ', resultSearch);
 
                                 const elSortChatAll = document.getElementById('ycs_btn_sort_first') as HTMLElement;
                                 // Use sortOrder from param if provided (from text search), otherwise use button's dataset
-                                const sortType = param?.sortOrder || (elSortChatAll.dataset.sortChat as 'newest' | 'oldest');
+                                const sortType =
+                                    param?.sortOrder || (elSortChatAll.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
                                     renderCommentChat(selector, resultSearch, querySearch);
 
                                     elSortChatAll.dataset.sortChat = 'oldest';
                                     elSortChatAll.innerHTML = `All ${iconSortDown()}`;
-                                    elSortChatAll.title = 'Show all comments, chat, video transcript sorted by date (Newest)';
-
+                                    elSortChatAll.title =
+                                        'Show all comments, chat, video transcript sorted by date (Newest)';
                                 } else if (sortType === 'oldest') {
                                     renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
                                     elSortChatAll.dataset.sortChat = 'newest';
                                     elSortChatAll.innerHTML = `All ${iconSortUp()}`;
-                                    elSortChatAll.title = 'Show all comments, chat, video transcript sorted by date (Oldest)';
-
+                                    elSortChatAll.title =
+                                        'Show all comments, chat, video transcript sorted by date (Oldest)';
                                 } else {
                                     renderCommentChat(selector, resultSearch, querySearch);
                                 }
-
                             }
-
                         } else if (param?.verified) {
-
                             const cmntsChatAll = filterVerifiedChatComments(commentsChat) as ICommentsFuseResult[];
                             resultSearch = cmntsChatAll;
 
                             console.log('cmntsChatAll, filterVerifiedChatComments: ', resultSearch);
 
                             if (resultSearch?.length > 0) {
-
                                 console.log('All filterVerifiedChatComments before: ', resultSearch);
 
                                 resultSearch?.sort((firstItem, secondItem) => {
-
                                     return firstItem.refIndex - secondItem.refIndex;
-
                                 });
 
                                 console.log('All filterVerifiedChatComments after: ', resultSearch);
 
                                 const elSortVerified = document.getElementById('ycs_btn_verified') as HTMLElement;
                                 // Use sortOrder from param if provided (from text search), otherwise use button's dataset
-                                const sortType = param?.sortOrder || (elSortVerified.dataset.sortChat as 'newest' | 'oldest');
+                                const sortType =
+                                    param?.sortOrder || (elSortVerified.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
                                     renderCommentChat(selector, resultSearch, querySearch);
 
                                     elSortVerified.dataset.sortChat = 'oldest';
                                     elSortVerified.innerHTML = `<span class="ycs-creator-verified_icon">✔</span> ${iconSortDown()}`;
-                                    elSortVerified.title = 'Show comments,  replies and chat from a verified authors (Newest)';
-
+                                    elSortVerified.title =
+                                        'Show comments,  replies and chat from a verified authors (Newest)';
                                 } else if (sortType === 'oldest') {
                                     renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
                                     elSortVerified.dataset.sortChat = 'newest';
                                     elSortVerified.innerHTML = `<span class="ycs-creator-verified_icon">✔</span> ${iconSortUp()}`;
-                                    elSortVerified.title = 'Show comments,  replies and chat from a verified authors (Oldest)';
-
+                                    elSortVerified.title =
+                                        'Show comments,  replies and chat from a verified authors (Oldest)';
                                 } else {
                                     renderCommentChat(selector, resultSearch, querySearch);
                                 }
-
                             }
-
                         } else if (param?.links) {
-
                             const cmntsChatAll = filterLinksChatComments(commentsChat) as ICommentsFuseResult[];
                             resultSearch = cmntsChatAll;
 
                             console.log('cmntsChatAll, filterLinksChatComments: ', resultSearch);
 
                             if (resultSearch?.length > 0) {
-
                                 console.log('All filterLinksChatComments before: ', resultSearch);
 
                                 resultSearch?.sort((firstItem, secondItem) => {
-
                                     return firstItem.refIndex - secondItem.refIndex;
-
                                 });
 
                                 console.log('All filterLinksChatComments after: ', resultSearch);
 
                                 const elSortVerified = document.getElementById('ycs_btn_links') as HTMLElement;
                                 // Use sortOrder from param if provided (from text search), otherwise use button's dataset
-                                const sortType = param?.sortOrder || (elSortVerified.dataset.sortChat as 'newest' | 'oldest');
+                                const sortType =
+                                    param?.sortOrder || (elSortVerified.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
                                     // Apply search text filter if present
@@ -1916,8 +1817,8 @@ Total: ${c.count}\n${c.html}`;
 
                                     elSortVerified.dataset.sortChat = 'oldest';
                                     elSortVerified.innerHTML = `Links ${iconSortDown()}`;
-                                    elSortVerified.title = 'Shows links in comments, replies, chat, video transcript (Newest)';
-
+                                    elSortVerified.title =
+                                        'Shows links in comments, replies, chat, video transcript (Newest)';
                                 } else if (sortType === 'oldest') {
                                     // Apply search text filter if present
                                     if (querySearch && querySearch.trim()) {
@@ -1932,17 +1833,27 @@ Total: ${c.count}\n${c.html}`;
 
                                     elSortVerified.dataset.sortChat = 'newest';
                                     elSortVerified.innerHTML = `Links ${iconSortUp()}`;
-                                    elSortVerified.title = 'Shows links in comments, replies, chat, video transcript (Oldest)';
-
+                                    elSortVerified.title =
+                                        'Shows links in comments, replies, chat, video transcript (Oldest)';
                                 } else {
                                     renderCommentChat(selector, resultSearch, querySearch);
                                 }
-
                             }
-
                         } else {
                             const fuse = new Fuse(cmntsChat, options);
-                            resultSearch = (fuse.search(querySearch.trim()) as any[]).map((r: any) => ({ item: r.item, refIndex: parseInt(wrapTryCatch(() => r.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec) as any, 10) || 0, score: r.score }));
+                            resultSearch = (fuse.search(querySearch.trim()) as any[]).map((r: any) => ({
+                                item: r.item,
+                                refIndex:
+                                    parseInt(
+                                        wrapTryCatch(
+                                            () =>
+                                                r.item.replayChatItemAction.actions[0].addChatItemAction.item
+                                                    .liveChatTextMessageRenderer.timestampUsec
+                                        ) as any,
+                                        10
+                                    ) || 0,
+                                score: r.score
+                            }));
 
                             renderCommentChat(selector, resultSearch, querySearch);
                         }
@@ -1961,52 +1872,48 @@ Total: ${c.count}\n${c.html}`;
                         const elsGotoChatVideo = document.getElementById('ycs_wrap_comments_chat');
 
                         elsGotoChatVideo?.addEventListener('click', (e) => {
-
                             try {
-
                                 if ((e.target as HTMLElement)?.classList?.contains('ycs-gotochat-video')) {
                                     const elFrameVideo: HTMLVideoElement = document.getElementsByTagName('video')[0];
 
                                     e.preventDefault();
 
                                     if (elFrameVideo) {
-
                                         const ms = (e.target as HTMLElement).dataset.offsetvideo;
 
                                         console.log('MS: ', ms);
 
                                         if (ms) {
-                                            elFrameVideo.currentTime = (parseInt(ms) / 1000);
+                                            elFrameVideo.currentTime = parseInt(ms) / 1000;
                                         }
                                     }
                                 }
-
-
                             } catch (err) {
                                 console.error(err);
                                 return;
                             }
-
                         });
-
                     }
-
                 } catch (err) {
                     console.error(err);
                 }
-
             };
 
             const searchCommentsTrVideo = (selector: string, param?: IParamSearch): void => {
-
                 try {
-
-                    if (commentsTrVideo && wrapTryCatch(() => (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length > 0)) {
-
+                    if (
+                        commentsTrVideo &&
+                        wrapTryCatch(
+                            () =>
+                                (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content
+                                    .transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length > 0
+                        )
+                    ) {
                         const elSearchRes = document.querySelector(selector);
                         const inputSearch = document.getElementById('ycs-input-search');
 
-                        const cmntsTrVideo = (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups;
+                        const cmntsTrVideo = (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content
+                            .transcriptRenderer.body.transcriptBodyRenderer.cueGroups;
 
                         let querySearch = '';
                         if (inputSearch) {
@@ -2017,7 +1924,9 @@ Total: ${c.count}\n${c.html}`;
 
                         if (elSearchRes) elSearchRes.textContent = '';
 
-                        const elExtSearchTitle = document.getElementById('ycs_extended_search_title') as HTMLInputElement;
+                        const elExtSearchTitle = document.getElementById(
+                            'ycs_extended_search_title'
+                        ) as HTMLInputElement;
                         const elExtSearchMain = document.getElementById('ycs_extended_search_main') as HTMLInputElement;
 
                         let fuseOpt = fuseOptions;
@@ -2031,17 +1940,12 @@ Total: ${c.count}\n${c.html}`;
                             fuseOpt.useExtendedSearch = true;
 
                             if (elExtSearchTitle.checked) {
-                                keysOpt = [
-                                    'transcriptCueGroupRenderer.formattedStartOffset.simpleText'
-                                ];
+                                keysOpt = ['transcriptCueGroupRenderer.formattedStartOffset.simpleText'];
                             }
 
                             if (elExtSearchMain.checked) {
-                                keysOpt = [
-                                    'transcriptCueGroupRenderer.cues.transcriptCueRenderer.cue.simpleText'
-                                ];
+                                keysOpt = ['transcriptCueGroupRenderer.cues.transcriptCueRenderer.cue.simpleText'];
                             }
-
                         }
 
                         const options: object = {
@@ -2054,29 +1958,24 @@ Total: ${c.count}\n${c.html}`;
                         let resultSearch: any[] = [];
 
                         if (param) {
-
                             if (param?.links) {
-    
                                 const trpVideo = filterLinksTrpVideoComments(cmntsTrVideo) as ICommentsFuseResult[];
                                 resultSearch = trpVideo;
-    
+
                                 console.log('filterLinksTrpVideoComments resultSearch: ', resultSearch);
-    
+
                                 if (resultSearch?.length > 0) {
-    
                                     console.log('All filterLinksTrpVideoComments before: ', resultSearch);
-    
+
                                     resultSearch?.sort((firstItem, secondItem) => {
-    
                                         return firstItem.refIndex - secondItem.refIndex;
-    
                                     });
-    
+
                                     console.log('All filterLinksTrpVideoComments after: ', resultSearch);
-    
+
                                     const elSortLinksTrpVideo = document.getElementById('ycs_btn_links') as HTMLElement;
                                     const sortType = elSortLinksTrpVideo.dataset.sortTrp as 'newest' | 'oldest';
-    
+
                                     if (sortType === 'newest') {
                                         // Apply search text filter if present
                                         if (querySearch && querySearch.trim()) {
@@ -2088,11 +1987,11 @@ Total: ${c.count}\n${c.html}`;
                                         } else {
                                             renderCommentTrVideo(selector, resultSearch, querySearch);
                                         }
-    
+
                                         elSortLinksTrpVideo.dataset.sortTrp = 'oldest';
                                         elSortLinksTrpVideo.innerHTML = `Links ${iconSortDown()}`;
-                                        elSortLinksTrpVideo.title = 'Shows links in comments, replies, chat, video transcript (Newest)';
-    
+                                        elSortLinksTrpVideo.title =
+                                            'Shows links in comments, replies, chat, video transcript (Newest)';
                                     } else if (sortType === 'oldest') {
                                         // Apply search text filter if present
                                         if (querySearch && querySearch.trim()) {
@@ -2104,39 +2003,35 @@ Total: ${c.count}\n${c.html}`;
                                         } else {
                                             renderCommentTrVideo(selector, resultSearch?.reverse(), querySearch);
                                         }
-    
+
                                         elSortLinksTrpVideo.dataset.sortTrp = 'newest';
                                         elSortLinksTrpVideo.innerHTML = `Links ${iconSortUp()}`;
-                                        elSortLinksTrpVideo.title = 'Shows links in comments, replies, chat, video transcript (Oldest)';
-    
+                                        elSortLinksTrpVideo.title =
+                                            'Shows links in comments, replies, chat, video transcript (Oldest)';
                                     } else {
                                         renderCommentTrVideo(selector, resultSearch, querySearch);
                                     }
-    
                                 }
-    
                             } else if (param?.sortFirst) {
-
                                 const trpVideo = filterAllTrpVideoComments(cmntsTrVideo) as ICommentsFuseResult[];
                                 resultSearch = trpVideo;
-    
+
                                 console.log('filterAllTrpVideoComments resultSearch: ', resultSearch);
-    
+
                                 if (resultSearch?.length > 0) {
-    
                                     console.log('All filterAllTrpVideoComments before: ', resultSearch);
-    
+
                                     resultSearch?.sort((firstItem, secondItem) => {
-    
                                         return firstItem.refIndex - secondItem.refIndex;
-    
                                     });
-    
+
                                     console.log('All filterAllTrpVideoComments after: ', resultSearch);
-    
-                                    const elSortAllTrpVideo = document.getElementById('ycs_btn_sort_first') as HTMLElement;
+
+                                    const elSortAllTrpVideo = document.getElementById(
+                                        'ycs_btn_sort_first'
+                                    ) as HTMLElement;
                                     const sortType = elSortAllTrpVideo.dataset.sortTrp as 'newest' | 'oldest';
-    
+
                                     if (sortType === 'newest') {
                                         // Apply search text filter if present
                                         if (querySearch && querySearch.trim()) {
@@ -2148,11 +2043,11 @@ Total: ${c.count}\n${c.html}`;
                                         } else {
                                             renderCommentTrVideo(selector, resultSearch, querySearch);
                                         }
-    
+
                                         elSortAllTrpVideo.dataset.sortTrp = 'oldest';
                                         elSortAllTrpVideo.innerHTML = `All ${iconSortDown()}`;
-                                        elSortAllTrpVideo.title = 'Show all comments, chat, video transcript sorted by date (Newest)';
-    
+                                        elSortAllTrpVideo.title =
+                                            'Show all comments, chat, video transcript sorted by date (Newest)';
                                     } else if (sortType === 'oldest') {
                                         // Apply search text filter if present
                                         if (querySearch && querySearch.trim()) {
@@ -2164,17 +2059,15 @@ Total: ${c.count}\n${c.html}`;
                                         } else {
                                             renderCommentTrVideo(selector, resultSearch?.reverse(), querySearch);
                                         }
-    
+
                                         elSortAllTrpVideo.dataset.sortTrp = 'newest';
                                         elSortAllTrpVideo.innerHTML = `All ${iconSortUp()}`;
-                                        elSortAllTrpVideo.title = 'Show all comments, chat, video transcript sorted by date (Oldest)';
-    
+                                        elSortAllTrpVideo.title =
+                                            'Show all comments, chat, video transcript sorted by date (Oldest)';
                                     } else {
                                         renderCommentTrVideo(selector, resultSearch, querySearch);
                                     }
-    
                                 }
-
                             } else if (param?.timestamp) {
                                 // mm:ss query: 將 querySearch 解析為分鐘/秒，篩選起始時間在該分鐘（或精確到秒）的句段
                                 const mm = (querySearch || '').trim();
@@ -2185,48 +2078,86 @@ Total: ${c.count}\n${c.html}`;
                                     const seconds = m[2] ? parseInt(m[2], 10) : undefined;
                                     const fromMs = minutes * 60 * 1000 + (seconds ? seconds * 1000 : 0);
                                     const toMs = seconds === undefined ? (minutes + 1) * 60 * 1000 : fromMs + 1000;
-                                    const filtered = (cmntsTrVideo as any[]).filter((g: any) => {
-                                        const start = wrapTryCatch(() => g.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs) as number;
-                                        return typeof start === 'number' && start >= fromMs && start < toMs;
-                                    }).map((g: any) => ({ item: g, refIndex: wrapTryCatch(() => g.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs) }));
+                                    const filtered = (cmntsTrVideo as any[])
+                                        .filter((g: any) => {
+                                            const start = wrapTryCatch(
+                                                () =>
+                                                    g.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer
+                                                        .startOffsetMs
+                                            ) as number;
+                                            return typeof start === 'number' && start >= fromMs && start < toMs;
+                                        })
+                                        .map((g: any) => ({
+                                            item: g,
+                                            refIndex: wrapTryCatch(
+                                                () =>
+                                                    g.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer
+                                                        .startOffsetMs
+                                            )
+                                        }));
                                     resultSearch = filtered as any[];
 
-                                    const elSortTimeStamp = document.getElementById('ycs_btn_timestamps') as HTMLElement;
+                                    const elSortTimeStamp = document.getElementById(
+                                        'ycs_btn_timestamps'
+                                    ) as HTMLElement;
                                     const sortType = elSortTimeStamp?.dataset?.sortTrp as 'newest' | 'oldest';
                                     if (sortType === 'oldest') {
                                         renderCommentTrVideo(selector, resultSearch?.reverse(), querySearch);
                                         if (elSortTimeStamp) {
                                             elSortTimeStamp.dataset.sortTrp = 'newest';
                                             elSortTimeStamp.innerHTML = `Time stamps ${iconSortUp()}`;
-                                            elSortTimeStamp.title = 'Show comments, replies, chat with time stamps (Oldest)';
+                                            elSortTimeStamp.title =
+                                                'Show comments, replies, chat with time stamps (Oldest)';
                                         }
                                     } else {
                                         renderCommentTrVideo(selector, resultSearch, querySearch);
                                         if (elSortTimeStamp) {
                                             elSortTimeStamp.dataset.sortTrp = 'oldest';
                                             elSortTimeStamp.innerHTML = `Time stamps ${iconSortDown()}`;
-                                            elSortTimeStamp.title = 'Show comments, replies, chat with time stamps (Newest)';
+                                            elSortTimeStamp.title =
+                                                'Show comments, replies, chat with time stamps (Newest)';
                                         }
                                     }
                                 } else {
-                                // 無效時間格式則退回全文搜尋，並補上 refIndex
-                                const fuse = new Fuse(cmntsTrVideo, options);
-                                resultSearch = (fuse.search(querySearch.trim()) as any[]).map((r: any) => ({ item: r.item, refIndex: wrapTryCatch(() => r.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs), score: r.score }));
-                                renderCommentTrVideo(selector, resultSearch, querySearch);
+                                    // 無效時間格式則退回全文搜尋，並補上 refIndex
+                                    const fuse = new Fuse(cmntsTrVideo, options);
+                                    resultSearch = (fuse.search(querySearch.trim()) as any[]).map((r: any) => ({
+                                        item: r.item,
+                                        refIndex: wrapTryCatch(
+                                            () =>
+                                                r.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer
+                                                    .startOffsetMs
+                                        ),
+                                        score: r.score
+                                    }));
+                                    renderCommentTrVideo(selector, resultSearch, querySearch);
                                 }
                             } else {
-                            // 無特定參數：全文搜尋，並補上 refIndex
-                            const fuse = new Fuse(cmntsTrVideo, options);
-                            resultSearch = (fuse.search(querySearch.trim()) as any[]).map((r: any) => ({ item: r.item, refIndex: wrapTryCatch(() => r.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs), score: r.score }));
-                            renderCommentTrVideo(selector, resultSearch, querySearch);
+                                // 無特定參數：全文搜尋，並補上 refIndex
+                                const fuse = new Fuse(cmntsTrVideo, options);
+                                resultSearch = (fuse.search(querySearch.trim()) as any[]).map((r: any) => ({
+                                    item: r.item,
+                                    refIndex: wrapTryCatch(
+                                        () =>
+                                            r.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer
+                                                .startOffsetMs
+                                    ),
+                                    score: r.score
+                                }));
+                                renderCommentTrVideo(selector, resultSearch, querySearch);
                             }
+                        } else {
+                            const fuse = new Fuse(cmntsTrVideo, options);
+                            resultSearch = (fuse.search(querySearch.trim()) as any[]).map((r: any) => ({
+                                item: r.item,
+                                refIndex: wrapTryCatch(
+                                    () => r.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs
+                                ),
+                                score: r.score
+                            }));
 
-                    } else {
-                        const fuse = new Fuse(cmntsTrVideo, options);
-                        resultSearch = (fuse.search(querySearch.trim()) as any[]).map((r: any) => ({ item: r.item, refIndex: wrapTryCatch(() => r.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs), score: r.score }));
-
-                        renderCommentTrVideo(selector, resultSearch, querySearch);
-                    }
+                            renderCommentTrVideo(selector, resultSearch, querySearch);
+                        }
 
                         console.log('FUSE SEARCH TR VIDEO: ', resultSearch);
 
@@ -2240,7 +2171,6 @@ Total: ${c.count}\n${c.html}`;
                         const elsGotoVideo = document.getElementById('ycs_wrap_comments_trvideo');
 
                         elsGotoVideo?.addEventListener('click', (e) => {
-
                             try {
                                 console.log('TR EVENT CLICK: ', e);
                                 console.log('TR EVENT CLICK currentTarget: ', e.currentTarget);
@@ -2254,35 +2184,27 @@ Total: ${c.count}\n${c.html}`;
                                     console.log('elFrameVideo: ', elFrameVideo);
 
                                     if (elFrameVideo) {
-
                                         const ms = (e.target as HTMLElement).dataset.offsetvideo;
 
                                         console.log('MS: ', ms);
 
                                         if (ms) {
-                                            elFrameVideo.currentTime = (parseInt(ms) / 1000);
+                                            elFrameVideo.currentTime = parseInt(ms) / 1000;
                                         }
                                     }
                                 }
-
-
                             } catch (err) {
                                 console.error(err);
                                 return;
                             }
-
                         });
-
                     }
-
                 } catch (err) {
                     console.error(err);
                 }
-
             };
 
             const searchCommentsAll = (selector: string, param?: IParamSearch): void => {
-
                 const elSearchAll = document.querySelector(selector);
                 const nodeTotalSearchResult = document.getElementById('ycs-search-total-result');
 
@@ -2304,33 +2226,35 @@ Total: ${c.count}\n${c.html}`;
                 console.log('searchCommentsAll selector, param: ', selector, param);
 
                 try {
-
                     if (comments.length > 0) {
-
                         console.log('comments!!!!!!', comments);
                         elSearchAll?.appendChild(elWrapComments);
                         searchComments('#ycs_allsearch__wrap_comments', param);
-
                     }
 
                     if (commentsChat && commentsChat.size > 0) {
-
                         elSearchAll?.appendChild(elWrapCommentsChat);
                         searchCommentsChat('#ycs_allsearch__wrap_comments_chat', param);
-
                     }
 
-                    if (commentsTrVideo &&
-                        (wrapTryCatch(() => (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length) as any > 0)) {
-
+                    if (
+                        commentsTrVideo &&
+                        (wrapTryCatch(
+                            () =>
+                                (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content
+                                    .transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length
+                        ) as any) > 0
+                    ) {
                         console.log('PARAM TR VIDEO!!!!!: ', param);
                         elSearchAll?.appendChild(elWrapCommentsTrVideo);
                         searchCommentsTrVideo('#ycs_allsearch__wrap_comments_trvideo', param);
-
                     }
 
                     if (nodeTotalSearchResult) {
-                        const resTotalSearch = countSearchComments.comments + countSearchComments.commentsChat + countSearchComments.commentsTrVideo;
+                        const resTotalSearch =
+                            countSearchComments.comments +
+                            countSearchComments.commentsChat +
+                            countSearchComments.commentsTrVideo;
 
                         if (param?.timestamp) {
                             nodeTotalSearchResult.innerText = `Time stamps, found: ${resTotalSearch}`;
@@ -2359,17 +2283,13 @@ Total: ${c.count}\n${c.html}`;
                         }
                         nodeTotalSearchResult?.classList.remove('ycs-hidden');
                     }
-
                 } catch (err) {
                     console.error(err);
                 }
-
             };
 
             if (btnSearch) {
-
                 btnSearch.addEventListener('click', (): void => {
-
                     // keep current active filter when performing a generic Search
 
                     const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement;
@@ -2377,40 +2297,36 @@ Total: ${c.count}\n${c.html}`;
                     console.log('click');
 
                     if (elSelectOptSearch) {
-
-                        const selected: ISelectedSearch =
-                            elSelectOptSearch?.options[
-                                elSelectOptSearch?.options?.selectedIndex
-                            ].value as unknown as ISelectedSearch;
+                        const selected: ISelectedSearch = elSelectOptSearch?.options[
+                            elSelectOptSearch?.options?.selectedIndex
+                        ].value as unknown as ISelectedSearch;
 
                         const activeParam = getActiveFilterParam();
                         switch (selected) {
-                        case 'comments':
-                            console.log('Switch 0');
-                            searchComments('#ycs-search-result', activeParam);
-                            break;
-                        case 'chat':
-                            console.log('Switch 1');
-                            searchCommentsChat('#ycs-search-result', activeParam);
-                            break;
-                        case 'video':
-                            console.log('Switch 2');
-                            searchCommentsTrVideo('#ycs-search-result', activeParam);
-                            break;
-                        case 'all':
-                            console.log('Switch 3');
-                            searchCommentsAll('#ycs-search-result', activeParam);
-                            break;
-                        default:
-                            console.log('Switch default');
-                            break;
+                            case 'comments':
+                                console.log('Switch 0');
+                                searchComments('#ycs-search-result', activeParam);
+                                break;
+                            case 'chat':
+                                console.log('Switch 1');
+                                searchCommentsChat('#ycs-search-result', activeParam);
+                                break;
+                            case 'video':
+                                console.log('Switch 2');
+                                searchCommentsTrVideo('#ycs-search-result', activeParam);
+                                break;
+                            case 'all':
+                                console.log('Switch 3');
+                                searchCommentsAll('#ycs-search-result', activeParam);
+                                break;
+                            default:
+                                console.log('Switch default');
+                                break;
                         }
-
                     }
 
                     return;
                 });
-
             }
 
             window.postMessage({ type: 'GET_OPTIONS' }, window.location.origin);
@@ -2419,51 +2335,38 @@ Total: ${c.count}\n${c.html}`;
                 // console.log('EVENT MESSAGE e: ', e);
 
                 if (e.origin !== window.location.origin) return;
-                
+
                 if (e.data?.type === 'YCS_OPTIONS' && e.data?.text) {
                     console.log('YCS_OPTIONS', e.data);
 
                     const optAutoload = (value: boolean): void => {
-
                         if (value === true) {
                             elLoadAll?.click();
                         }
-
                     };
 
                     const wrapOptAutoload = (value: boolean, opts: any): void => {
-
                         if (!opts.cache) {
                             optAutoload(value);
                         }
-
                     };
 
                     const optHighlightText = (value: boolean): void => {
-
                         try {
-
                             GlobalStore.highlightText = value;
-
                         } catch (err) {
                             console.error(err);
                         }
-
                     };
 
                     const optCached = (value: boolean): void => {
-
                         try {
-
                             if (!value) return;
 
                             sendGetCacheInIDB(window.location.href);
-
-
                         } catch (err) {
                             console.error(err);
                         }
-
                     };
 
                     const optHiddenByDefault = (value: boolean): void => {
@@ -2477,61 +2380,50 @@ Total: ${c.count}\n${c.html}`;
                     };
 
                     try {
-
                         const opts = e.data.text;
 
                         for (const key of Object.keys(opts)) {
-
                             switch (key) {
+                                case 'autoload':
+                                    wrapOptAutoload(opts[key], opts);
+                                    break;
 
-                            case 'autoload':
+                                case 'highlightText':
+                                    optHighlightText(opts[key]);
+                                    break;
 
-                                wrapOptAutoload(opts[key], opts);
-                                break;
+                                case 'cache':
+                                    optCached(opts[key]);
+                                    break;
 
-                            case 'highlightText':
+                                case 'hiddenByDefault':
+                                    optHiddenByDefault(opts[key]);
+                                    break;
 
-                                optHighlightText(opts[key]);
-                                break;
-
-                            case 'cache':
-
-                                optCached(opts[key]);
-                                break;
-
-                            case 'hiddenByDefault':
-                                optHiddenByDefault(opts[key]);
-                                break;
-
-                            default:
-                                break;
+                                default:
+                                    break;
                             }
-
                         }
-
-
                     } catch (err) {
                         console.error(err);
                     }
-
                 }
 
                 if (e.data?.type === 'YCS_CACHE_STORAGE_GET_RESPONSE') {
-
                     console.log('YCS_CACHE_STORAGE_GET_RESPONSE:', e.data);
 
                     if (e.data?.body) {
-
                         try {
-
                             // Fix IT. This had to be done for the client side. Because the logic in object is the linked links.
                             if (e.data.body.comments.length > 0) {
-
                                 for (const cmnt of e.data.body.comments) {
                                     if (cmnt.typeComment === 'R') {
-
                                         for (const c of e.data.body.comments) {
-                                            if ((c.typeComment === 'C') && (c.commentRenderer.commentId === cmnt.originComment.commentRenderer.commentId)) {
+                                            if (
+                                                c.typeComment === 'C' &&
+                                                c.commentRenderer.commentId ===
+                                                    cmnt.originComment.commentRenderer.commentId
+                                            ) {
                                                 cmnt.originComment = c;
                                                 break;
                                             }
@@ -2541,7 +2433,6 @@ Total: ${c.count}\n${c.html}`;
 
                                 comments = e.data.body.comments;
                             }
-
                         } catch (err) {
                             console.error(err);
                         }
@@ -2557,7 +2448,7 @@ Total: ${c.count}\n${c.html}`;
                             elStatusCmnts.innerHTML = iconOk();
                         }
 
-                        if ((comments.length > 0) && (elLiveApp.parentNode || elLiveApp.parentElement)) {
+                        if (comments.length > 0 && (elLiveApp.parentNode || elLiveApp.parentElement)) {
                             countComments.comments = comments.length;
                         }
 
@@ -2568,7 +2459,6 @@ Total: ${c.count}\n${c.html}`;
 
                         // end comments
 
-
                         // chat
 
                         if (commentsChat && commentsChat.size > 0) {
@@ -2578,35 +2468,53 @@ Total: ${c.count}\n${c.html}`;
                             elStatusChat.innerHTML = iconOk();
                         }
 
-                        if ((commentsChat && commentsChat.size > 0) && (elLiveApp.parentNode || elLiveApp.parentElement)) {
-
+                        if (
+                            commentsChat &&
+                            commentsChat.size > 0 &&
+                            (elLiveApp.parentNode || elLiveApp.parentElement)
+                        ) {
                             countComments.commentsChat = commentsChat.size;
-
                         }
 
                         // end chat
 
-
                         // Tr. video
 
-                        if (wrapTryCatch(() => (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0)) {
-
+                        if (
+                            wrapTryCatch(
+                                () =>
+                                    (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content
+                                        ?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
+                            )
+                        ) {
                             const elStatusTrVideo = document.getElementById('ycs_status_trvideo') as HTMLElement;
                             const elLoadTrVideo = document.getElementById('ycs_cmnts_video') as HTMLElement;
 
-                            showLoadComments((commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length, elLoadTrVideo);
+                            showLoadComments(
+                                (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content
+                                    .transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length,
+                                elLoadTrVideo
+                            );
                             elStatusTrVideo.innerHTML = iconOk();
                         }
 
-                        if (wrapTryCatch(() => (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0) && (elLiveApp.parentNode || elLiveApp.parentElement)) {
-
-                            countComments.commentsTrVideo = (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length;
-
+                        if (
+                            wrapTryCatch(
+                                () =>
+                                    (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content
+                                        ?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
+                            ) &&
+                            (elLiveApp.parentNode || elLiveApp.parentElement)
+                        ) {
+                            countComments.commentsTrVideo = (
+                                commentsTrVideo as any
+                            ).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length;
                         }
 
                         // end tr. video
 
-                        const totalCount = countComments.comments + countComments.commentsChat + countComments.commentsTrVideo;
+                        const totalCount =
+                            countComments.comments + countComments.commentsChat + countComments.commentsTrVideo;
                         sendMsgToBadge('NUMBER_COMMENTS', totalCount);
 
                         if (elCountComments) {
@@ -2615,20 +2523,20 @@ Total: ${c.count}\n${c.html}`;
 
                         const elTitleInfo = document.getElementById('ycs-count-load') as HTMLElement;
 
-                        elTitleInfo.insertAdjacentHTML('beforeend', `
+                        elTitleInfo.insertAdjacentHTML(
+                            'beforeend',
+                            `
                             <span class="ycs-title-cache-info" title="${new Date(crdate)}">Cached</span>
-                        `);
-
+                        `
+                        );
                     } else {
                         window.postMessage({ type: 'YCS_AUTOLOAD' }, window.location.origin);
                     }
-
                 }
 
                 if (e.data?.type === 'YCS_AUTOLOAD') {
                     elLoadAll?.click();
                 }
-
             };
 
             window.addEventListener('message', handleMessageEvent);
@@ -2639,19 +2547,15 @@ Total: ${c.count}\n${c.html}`;
             const elExtSearch = document.getElementById('ycs_extended_search') as HTMLInputElement;
 
             if (elExtSearch) {
-
                 const elExtSearchTitle = document.getElementById('ycs_extended_search_title') as HTMLInputElement;
                 const elExtSearchMain = document.getElementById('ycs_extended_search_main') as HTMLInputElement;
 
                 elExtSearch?.addEventListener('click', () => {
-
                     try {
-
                         if (elExtSearch.checked) {
                             // fuseOptions.useExtendedSearch = true;
-                            
 
-                            if(elExtSearchTitle && elExtSearchMain) {
+                            if (elExtSearchTitle && elExtSearchMain) {
                                 elExtSearchTitle.disabled = false;
                                 elExtSearchMain.disabled = false;
                             }
@@ -2660,20 +2564,17 @@ Total: ${c.count}\n${c.html}`;
                         } else {
                             // fuseOptions.useExtendedSearch = false;
 
-                            if(elExtSearchTitle && elExtSearchMain) {
+                            if (elExtSearchTitle && elExtSearchMain) {
                                 elExtSearchTitle.disabled = true;
                                 elExtSearchMain.disabled = true;
                             }
 
                             // console.log('Ext. search UN CHECKED: ', fuseOptions.useExtendedSearch);
                         }
-                        
                     } catch (err) {
                         console.error(err);
                     }
-
                 });
-
             }
         }
 
@@ -2681,38 +2582,32 @@ Total: ${c.count}\n${c.html}`;
             let prevUrl = getCleanUrlVideo(window.location.href);
             // console.log('prevUrl First init: ', prevUrl);
 
-
             setInterval(() => {
-
-                if (isWatchVideo() && document.querySelector('#meta.style-scope.ytd-watch-flexy') &&
-                    (prevUrl !== getCleanUrlVideo(window.location.href))) {
+                if (
+                    isWatchVideo() &&
+                    document.querySelector('#meta.style-scope.ytd-watch-flexy') &&
+                    prevUrl !== getCleanUrlVideo(window.location.href)
+                ) {
                     prevUrl = getCleanUrlVideo(window.location.href);
                     // console.log('prevUrl After: ', prevUrl);
 
                     controller.abort();
                     app();
-
                 }
-
             }, 1000);
-
         }
 
         startObserve();
 
         try {
-
             if (isWatchVideo()) {
                 app();
             }
-
         } catch (e) {
             console.error(e);
             if (isWatchVideo()) {
                 app();
             }
-
         }
     }
-
-}());
+})();

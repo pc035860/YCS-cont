@@ -7,30 +7,38 @@ import Queue from 'p-queue';
 
 import urlRegex from 'url-regex';
 
-import { GetParams, ISheetChatComments, ISheetChatDetails, ISheetComments, ISheetCommentsParam, ISheetDetails, ISheetDetailsChatParam, ISheetDetailsParam, ISheetDetailsTrVideoParam, ISheetReplies, ISheetRepliesParam, ISheetTrVideo, ISheetTrVideoDetails } from './interfaces/i_assist';
+import {
+    GetParams,
+    ISheetChatComments,
+    ISheetChatDetails,
+    ISheetComments,
+    ISheetCommentsParam,
+    ISheetDetails,
+    ISheetDetailsChatParam,
+    ISheetDetailsParam,
+    ISheetDetailsTrVideoParam,
+    ISheetReplies,
+    ISheetRepliesParam,
+    ISheetTrVideo,
+    ISheetTrVideoDetails
+} from './interfaces/i_assist';
 import { ICommentItem, ICommentsFuseResult } from './interfaces/i_types';
 import { fetchR } from './libs';
 
 const GlobalStore = ((): any => {
-
     const store = {};
 
     return (): any => store;
-
 })();
 
 function randomString(len: number): string {
-
     let result = '';
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     const charactersLength = characters.length;
     for (let i = 0; i < len; i++) {
-        result += characters.charAt(
-            Math.floor(Math.random() * charactersLength)
-        );
+        result += characters.charAt(Math.floor(Math.random() * charactersLength));
     }
     return result;
-
 }
 
 function getRandomInt(min: number, max: number): number {
@@ -42,7 +50,7 @@ function getRandomInt(min: number, max: number): number {
 function isNumeric(digit: string | number): boolean {
     if (typeof digit != 'string' && typeof digit != 'number') return false;
 
-    return ( !isNaN(digit as any) && !isNaN(parseFloat(digit as any)) );
+    return !isNaN(digit as any) && !isNaN(parseFloat(digit as any));
 }
 
 function oIsEmpty(obj: object): boolean {
@@ -50,9 +58,7 @@ function oIsEmpty(obj: object): boolean {
 }
 
 function removeClass(elms: object, s: string): void {
-
     try {
-
         if (oIsEmpty(elms) || typeof s !== 'string') return;
 
         const els: Array<HTMLElement> = (Object as any).values(elms);
@@ -60,15 +66,12 @@ function removeClass(elms: object, s: string): void {
         for (const e of els) {
             e.classList.remove(s);
         }
-
     } catch (err) {
         console.error(err);
     }
-
 }
 
 function getObj(obj: object, path: string | [], def: any): object {
-    
     function stringToPath(p: string | []): [] {
         if (typeof p !== 'string') return p;
 
@@ -86,24 +89,21 @@ function getObj(obj: object, path: string | [], def: any): object {
     }
 
     try {
-    
         const paths = stringToPath(path);
-    
+
         let resultObj = obj;
-    
+
         for (let i = 0; i < paths.length; i++) {
             if (!resultObj[paths[i]]) return def;
-    
+
             resultObj = resultObj[paths[i]];
         }
-    
-        return resultObj;
 
+        return resultObj;
     } catch (err) {
         console.error(err);
         return def;
     }
-
 }
 
 function wrapTryCatch(fn: (...args: any) => any): any {
@@ -133,57 +133,49 @@ function deepFindObjKey(obj: object, key: string): Array<any> {
     const matches: any[] = [];
 
     try {
-
         const iterate = function iterate(object: any, path?: unknown): void {
             let match: any, item;
-    
+
             const newPath = function (add: unknown): string | unknown {
-                return path ? (path + '.' + add) : add;
+                return path ? path + '.' + add : add;
             };
-    
+
             // eslint-disable-next-line no-prototype-builtins
             if (object?.hasOwnProperty(key)) {
                 match = {};
 
                 match[newPath(key) as string] = object[key];
-                
+
                 matches.push(match);
             }
-    
+
             for (item in object) {
                 // eslint-disable-next-line no-prototype-builtins
                 if (object?.hasOwnProperty(item) && typeof (object as any)[item] === 'object') {
-                    
                     iterate(object[item], newPath(item));
                 }
             }
-    
         };
-    
-        iterate(obj);
 
+        iterate(obj);
     } catch (err) {
         console.error(err);
         return [];
     }
 
     return matches;
-
 }
 
 function getVideoId(url: string): string | undefined {
-    
     try {
         if (typeof url !== 'string') return;
 
         const u = new URL(url);
         return u.searchParams.get('v') as any;
-    
     } catch (e) {
         console.error(e);
         return;
     }
-  
 }
 
 function isWatchVideo(): boolean {
@@ -199,15 +191,13 @@ function showLoadComments(number: number, showNode: HTMLElement): void {
 
 // https://www.youtube.com/watch?v=cq2Ef6rvL6g&test=sdfasdf&zvzxvczv;afdasdvasdf
 function getCleanUrlVideo(url: string): string | undefined {
-    
     try {
         if (typeof url !== 'string') return;
 
         const u = new URL(url);
         const vParam = u.searchParams.get('v');
-    
-        if (vParam) {
 
+        if (vParam) {
             const cleanUrl = new URL(u.origin);
             cleanUrl.pathname = '/watch';
             cleanUrl.searchParams.set('v', vParam);
@@ -216,36 +206,31 @@ function getCleanUrlVideo(url: string): string | undefined {
         }
 
         return;
-
     } catch (e) {
         console.error(e);
         // throw new Error(e);
         return;
     }
-  
 }
 
 function findInitYParams(initData: [object]): string | undefined {
-
     try {
-
         if (initData) {
             let param;
             for (const obj of initData) {
                 const findObj = deepFindObjKey(obj, 'serializedShareEntity')[0];
                 console.log('findObj: ', findObj);
-    
+
                 if (findObj) {
                     [, param] = (Object as any).entries(findObj)[0];
                     console.log('findObj param: ', param);
                 }
-    
+
                 if (param) break;
             }
             console.log('INIT PARAMS: ', param);
             return param;
         }
-        
     } catch (e) {
         console.error(e);
         return;
@@ -255,40 +240,43 @@ function findInitYParams(initData: [object]): string | undefined {
 }
 
 function getParams(w: any): GetParams {
-    return JSON.parse(JSON.stringify({
-        ctoken: null,
-        continuation: null,
-        itct: null,
-        params: {
-            'credentials': 'include',
-            'headers': {
-                'accept': '*/*',
-                'accept-language': w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                'cache-control': 'no-cache',
-                'content-type': 'application/x-www-form-urlencoded',
-                'pragma': 'no-cache',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'same-origin',
-                'x-spf-previous': getCleanUrlVideo(w.location.href),
-                'x-spf-referer': getCleanUrlVideo(w.location.href),
-                'x-youtube-identity-token': w.ytcfg?.data_?.ID_TOKEN,
-                'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION,
-                'x-youtube-device': w.ytcfg?.data_?.DEVICE || 'cbr=Chrome&cplatform=DESKTOP',
-                'x-youtube-page-cl': w.ytcfg?.data_?.PAGE_CL,
-                'x-youtube-page-label': w.ytcfg?.data_?.PAGE_BUILD_LABEL,
-                'x-youtube-time-zone': Intl.DateTimeFormat().resolvedOptions().timeZone,
-                'x-youtube-utc-offset': Math.abs((new Date).getTimezoneOffset()),
-                'x-youtube-variants-checksum': w.ytcfg?.data_?.VARIANTS_CHECKSUM
-            },
-            'referrer': getCleanUrlVideo(w.location.href),
-            'referrerPolicy': 'origin-when-cross-origin',
-            'body': `session_token=${w.ytcfg?.data_?.XSRF_TOKEN}`,
-            'method': 'POST',
-            'mode': 'cors'
-        }
-    }));
+    return JSON.parse(
+        JSON.stringify({
+            ctoken: null,
+            continuation: null,
+            itct: null,
+            params: {
+                credentials: 'include',
+                headers: {
+                    accept: '*/*',
+                    'accept-language':
+                        w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                    'cache-control': 'no-cache',
+                    'content-type': 'application/x-www-form-urlencoded',
+                    pragma: 'no-cache',
+                    'sec-fetch-dest': 'empty',
+                    'sec-fetch-mode': 'cors',
+                    'sec-fetch-site': 'same-origin',
+                    'x-spf-previous': getCleanUrlVideo(w.location.href),
+                    'x-spf-referer': getCleanUrlVideo(w.location.href),
+                    'x-youtube-identity-token': w.ytcfg?.data_?.ID_TOKEN,
+                    'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                    'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION,
+                    'x-youtube-device': w.ytcfg?.data_?.DEVICE || 'cbr=Chrome&cplatform=DESKTOP',
+                    'x-youtube-page-cl': w.ytcfg?.data_?.PAGE_CL,
+                    'x-youtube-page-label': w.ytcfg?.data_?.PAGE_BUILD_LABEL,
+                    'x-youtube-time-zone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    'x-youtube-utc-offset': Math.abs(new Date().getTimezoneOffset()),
+                    'x-youtube-variants-checksum': w.ytcfg?.data_?.VARIANTS_CHECKSUM
+                },
+                referrer: getCleanUrlVideo(w.location.href),
+                referrerPolicy: 'origin-when-cross-origin',
+                body: `session_token=${w.ytcfg?.data_?.XSRF_TOKEN}`,
+                method: 'POST',
+                mode: 'cors'
+            }
+        })
+    );
 }
 
 /**
@@ -302,7 +290,9 @@ function getParams(w: any): GetParams {
  */
 function normalizeCommentFromViewModel(item: any): any | undefined {
     try {
-        const commentVM = wrapTryCatch(() => item.commentThreadRenderer.commentViewModel) || wrapTryCatch(() => item.commentViewModel);
+        const commentVM =
+            wrapTryCatch(() => item.commentThreadRenderer.commentViewModel) ||
+            wrapTryCatch(() => item.commentViewModel);
         if (!commentVM) return undefined;
 
         // Try common paths first
@@ -336,7 +326,18 @@ function normalizeCommentFromViewModel(item: any): any | undefined {
         if (candidates.length === 0) {
             const anyArrays = objectScan(['**.*'], { rtn: 'value' })(commentVM) as any[];
             for (const v of anyArrays) {
-                if (Array.isArray(v) && v.length > 0 && v.some((r: any) => typeof r === 'object' && (wrapTryCatch(() => r.text) || wrapTryCatch(() => r.emoji) || wrapTryCatch(() => r.attachment) || wrapTryCatch(() => r.navigationEndpoint)))) {
+                if (
+                    Array.isArray(v) &&
+                    v.length > 0 &&
+                    v.some(
+                        (r: any) =>
+                            typeof r === 'object' &&
+                            (wrapTryCatch(() => r.text) ||
+                                wrapTryCatch(() => r.emoji) ||
+                                wrapTryCatch(() => r.attachment) ||
+                                wrapTryCatch(() => r.navigationEndpoint))
+                    )
+                ) {
                     candidates.push(v);
                     break;
                 }
@@ -344,7 +345,8 @@ function normalizeCommentFromViewModel(item: any): any | undefined {
         }
 
         // Pick first array with run-like objects
-        const runsLike = (candidates.find(a => a && Array.isArray(a) && a.some((r: any) => typeof r === 'object')) || []) as any[];
+        const runsLike = (candidates.find((a) => a && Array.isArray(a) && a.some((r: any) => typeof r === 'object')) ||
+            []) as any[];
 
         // Convert various VM element shapes into legacy run shapes
         const mapElementToRun = (elem: any): any | undefined => {
@@ -356,12 +358,19 @@ function normalizeCommentFromViewModel(item: any): any | undefined {
                     return { text, navigationEndpoint: wrapTryCatch(() => elem.navigationEndpoint) };
                 }
                 // textRun
-                const textRunContent = wrapTryCatch(() => elem.textRun.content) || wrapTryCatch(() => elem.textRun.text);
+                const textRunContent =
+                    wrapTryCatch(() => elem.textRun.content) || wrapTryCatch(() => elem.textRun.text);
                 if (typeof textRunContent === 'string') {
-                    return { text: textRunContent, navigationEndpoint: wrapTryCatch(() => elem.textRun.navigationEndpoint) };
+                    return {
+                        text: textRunContent,
+                        navigationEndpoint: wrapTryCatch(() => elem.textRun.navigationEndpoint)
+                    };
                 }
                 // runs-like nested
-                const nestedText = wrapTryCatch(() => elem.content) || wrapTryCatch(() => elem.string) || wrapTryCatch(() => elem.value);
+                const nestedText =
+                    wrapTryCatch(() => elem.content) ||
+                    wrapTryCatch(() => elem.string) ||
+                    wrapTryCatch(() => elem.value);
                 if (typeof nestedText === 'string') {
                     return { text: nestedText };
                 }
@@ -371,7 +380,10 @@ function normalizeCommentFromViewModel(item: any): any | undefined {
                     return { emoji };
                 }
                 // attachment/image
-                const attachment = wrapTryCatch(() => elem.attachment) || wrapTryCatch(() => elem.image) || wrapTryCatch(() => elem.inlineObject);
+                const attachment =
+                    wrapTryCatch(() => elem.attachment) ||
+                    wrapTryCatch(() => elem.image) ||
+                    wrapTryCatch(() => elem.inlineObject);
                 if (attachment) {
                     return { attachment };
                 }
@@ -387,7 +399,10 @@ function normalizeCommentFromViewModel(item: any): any | undefined {
             for (const elem of elements) {
                 const mapped = mapElementToRun(elem);
                 if (mapped) acc.push(mapped);
-                const nestedSegs = wrapTryCatch(() => elem.attributedText?.content) || wrapTryCatch(() => elem.content?.content) || wrapTryCatch(() => elem.content);
+                const nestedSegs =
+                    wrapTryCatch(() => elem.attributedText?.content) ||
+                    wrapTryCatch(() => elem.content?.content) ||
+                    wrapTryCatch(() => elem.content);
                 if (Array.isArray(nestedSegs) && nestedSegs.length > 0) {
                     acc.push(...collectRunsFromElements(nestedSegs));
                 }
@@ -400,7 +415,9 @@ function normalizeCommentFromViewModel(item: any): any | undefined {
         // Fallback: build a single run from discovered text fields if runs missing
         if (!runs || runs.length === 0) {
             const parts: any[] = [];
-            const textValues = objectScan(['**.simpleText', '**.text', '**.content'], { joined: true, rtn: 'value' })(commentVM) as any[];
+            const textValues = objectScan(['**.simpleText', '**.text', '**.content'], { joined: true, rtn: 'value' })(
+                commentVM
+            ) as any[];
             for (const t of textValues) {
                 if (typeof t === 'string' && t.trim().length > 0) {
                     parts.push({ text: t });
@@ -468,11 +485,13 @@ function getFrameworkUpdatesById(response: any): Record<string, any> {
 function applyFrameworkUpdatesToComment(commentObj: any, vmSource: any, fwById: Record<string, any>): void {
     try {
         if (!commentObj || !fwById) return;
-        const vm = wrapTryCatch(() => vmSource?.commentThreadRenderer?.commentViewModel?.commentViewModel)
-            || wrapTryCatch(() => vmSource?.commentViewModel)
-            || vmSource; // allow directly passing VM
+        const vm =
+            wrapTryCatch(() => vmSource?.commentThreadRenderer?.commentViewModel?.commentViewModel) ||
+            wrapTryCatch(() => vmSource?.commentViewModel) ||
+            vmSource; // allow directly passing VM
 
-        const commentId = wrapTryCatch(() => vm.commentId) || wrapTryCatch(() => commentObj?.commentRenderer?.commentId);
+        const commentId =
+            wrapTryCatch(() => vm.commentId) || wrapTryCatch(() => commentObj?.commentRenderer?.commentId);
         if (commentId) {
             const update = fwById[commentId];
             if (update) {
@@ -555,50 +574,50 @@ function parseFormattedNumber(value?: string): { number: number; multiply: numbe
         // Sort by length descending to avoid partial matches
         const units: Array<[string, number]> = [
             // Thousand units (1,000)
-            ['tūkst.', 1_000],    // Latvian
-            ['хиљ.', 1_000],      // Serbian (Cyrillic)
-            ['хил.', 1_000],      // Russian
-            ['тыс.', 1_000],      // Russian
-            ['тис.', 1_000],      // Ukrainian
-            ['χιλ.', 1_000],      // Greek
-            ['hilj.', 1_000],     // Slovenian
-            ['tis.', 1_000],      // Polish
-            ['ming', 1_000],      // Malay
-            ['mijë', 1_000],      // Albanian
-            ['elfu', 1_000],      // Swahili
-            ['พัน', 1_000],       // Thai
-            ['ພັນ', 1_000],       // Lao
-            ['ពាន់', 1_000],      // Khmer
-            ['ထောင်', 1_000],     // Burmese
-            ['мянга', 1_000],     // Mongolian
-            ['миң', 1_000],       // Kazakh
-            ['հզր', 1_000],       // Armenian
-            ['ათ.', 1_000],       // Georgian
-            ['mil', 1_000],       // Spanish
-            ['rb', 1_000],        // Indonesian
-            ['þ.', 1_000],        // Icelandic
-            ['ሺ', 1_000],         // Amharic
-            ['ද', 1_000],         // Sinhala
-            ['千', 1_000],        // Chinese/Japanese
-            ['천', 1_000],        // Korean
-            ['E', 1_000],         // Italian
-            ['N', 1_000],         // Norwegian
-            ['B', 1_000],         // Portuguese
-            ['k', 1_000],         // English (short)
+            ['tūkst.', 1_000], // Latvian
+            ['хиљ.', 1_000], // Serbian (Cyrillic)
+            ['хил.', 1_000], // Russian
+            ['тыс.', 1_000], // Russian
+            ['тис.', 1_000], // Ukrainian
+            ['χιλ.', 1_000], // Greek
+            ['hilj.', 1_000], // Slovenian
+            ['tis.', 1_000], // Polish
+            ['ming', 1_000], // Malay
+            ['mijë', 1_000], // Albanian
+            ['elfu', 1_000], // Swahili
+            ['พัน', 1_000], // Thai
+            ['ພັນ', 1_000], // Lao
+            ['ពាន់', 1_000], // Khmer
+            ['ထောင်', 1_000], // Burmese
+            ['мянга', 1_000], // Mongolian
+            ['миң', 1_000], // Kazakh
+            ['հզր', 1_000], // Armenian
+            ['ათ.', 1_000], // Georgian
+            ['mil', 1_000], // Spanish
+            ['rb', 1_000], // Indonesian
+            ['þ.', 1_000], // Icelandic
+            ['ሺ', 1_000], // Amharic
+            ['ද', 1_000], // Sinhala
+            ['千', 1_000], // Chinese/Japanese
+            ['천', 1_000], // Korean
+            ['E', 1_000], // Italian
+            ['N', 1_000], // Norwegian
+            ['B', 1_000], // Portuguese
+            ['k', 1_000], // English (short)
             // Ten thousand units (10,000)
-            ['သောင်း', 10_000],   // Burmese
-            ['万', 10_000],       // Chinese (simplified)
-            ['萬', 10_000],       // Chinese (traditional)
-            ['만', 10_000],       // Korean
+            ['သောင်း', 10_000], // Burmese
+            ['万', 10_000], // Chinese (simplified)
+            ['萬', 10_000], // Chinese (traditional)
+            ['만', 10_000], // Korean
             // Million and billion units
-            ['億', 100_000_000],  // Chinese/Japanese (100 million)
-            ['m', 1_000_000],     // English (short)
-            ['b', 1_000_000_000]  // English (short)
+            ['億', 100_000_000], // Chinese/Japanese (100 million)
+            ['m', 1_000_000], // English (short)
+            ['b', 1_000_000_000] // English (short)
         ];
 
         let multiplier = 1;
         const lower = s.toLowerCase();
-        
+
         // Check for unit suffixes
         for (const [unit, mul] of units) {
             const unitLower = unit.toLowerCase();
@@ -649,7 +668,12 @@ function parseFormattedNumberToInt(value?: string): number {
 /**
  * generateCommentObject: build legacy-like commentRenderer from framework updates
  */
-function generateCommentObjectFromFW(params: { commentId: string; update: any; surfaceUpdate?: any; toolbarStateUpdate?: any }): any {
+function generateCommentObjectFromFW(params: {
+    commentId: string;
+    update: any;
+    surfaceUpdate?: any;
+    toolbarStateUpdate?: any;
+}): any {
     try {
         const { commentId, update, surfaceUpdate, toolbarStateUpdate } = params;
         if (!update) return undefined;
@@ -665,7 +689,9 @@ function generateCommentObjectFromFW(params: { commentId: string; update: any; s
                 try {
                     const watchEndpoint = wrapTryCatch(() => commandRun.onTap.innertubeCommand.watchEndpoint);
                     const browseEndpoint = wrapTryCatch(() => commandRun.onTap.innertubeCommand.browseEndpoint);
-                    const webUrl = wrapTryCatch(() => commandRun.onTap.innertubeCommand.commandMetadata.webCommandMetadata.url);
+                    const webUrl = wrapTryCatch(
+                        () => commandRun.onTap.innertubeCommand.commandMetadata.webCommandMetadata.url
+                    );
                     const startIndex = wrapTryCatch(() => commandRun.startIndex);
                     const length = wrapTryCatch(() => commandRun.length);
                     let text: string | undefined;
@@ -699,9 +725,14 @@ function generateCommentObjectFromFW(params: { commentId: string; update: any; s
                             }
                         });
                     }
-                } catch (e) { console.error(e); continue; }
+                } catch (e) {
+                    console.error(e);
+                    continue;
+                }
             }
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+        }
 
         try {
             const attachmentRuns = wrapTryCatch(() => propContent.attachmentRuns) || [];
@@ -716,7 +747,8 @@ function generateCommentObjectFromFW(params: { commentId: string; update: any; s
                         text = baseText.slice(startIndex, startIndex + length);
                     }
                     const imageSource = wrapTryCatch(() => image.sources[0]) || {};
-                    const imageMargin = wrapTryCatch(() => attachmentRun.element.properties.layoutProperties.margin) || {};
+                    const imageMargin =
+                        wrapTryCatch(() => attachmentRun.element.properties.layoutProperties.margin) || {};
                     rawRuns.push({
                         text,
                         startIndex,
@@ -733,9 +765,14 @@ function generateCommentObjectFromFW(params: { commentId: string; update: any; s
                             }
                         }
                     });
-                } catch (e) { console.error(e); continue; }
+                } catch (e) {
+                    console.error(e);
+                    continue;
+                }
             }
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+        }
 
         rawRuns.sort((a: any, b: any) => (a?.startIndex || 0) - (b?.startIndex || 0));
         const runs = migrateRuns(baseText, rawRuns);
@@ -768,29 +805,41 @@ function generateCommentObjectFromFW(params: { commentId: string; update: any; s
         };
 
         try {
-            const hasTimeline = Array.isArray(runs) && runs.some((r: any) => {
-                const v = wrapTryCatch(() => r.navigationEndpoint.watchEndpoint.startTimeSeconds) as any;
-                const n = typeof v === 'string' ? parseInt(v, 10) : v;
-                return Number.isFinite(n) && n >= 0;
-            });
+            const hasTimeline =
+                Array.isArray(runs) &&
+                runs.some((r: any) => {
+                    const v = wrapTryCatch(() => r.navigationEndpoint.watchEndpoint.startTimeSeconds) as any;
+                    const n = typeof v === 'string' ? parseInt(v, 10) : v;
+                    return Number.isFinite(n) && n >= 0;
+                });
             if (hasTimeline) {
                 comment.commentRenderer.isTimeLine = 'timeline';
             }
         } catch {}
 
         if (surfaceUpdate) {
-            const publishedTime = wrapTryCatch(() => surfaceUpdate.publishedTimeCommand?.innertubeCommand?.commandMetadata)
-                || wrapTryCatch(() => surfaceUpdate.pdgCommentChip?.pdgCommentChipRenderer?.chipText?.simpleText);
+            const publishedTime =
+                wrapTryCatch(() => surfaceUpdate.publishedTimeCommand?.innertubeCommand?.commandMetadata) ||
+                wrapTryCatch(() => surfaceUpdate.pdgCommentChip?.pdgCommentChipRenderer?.chipText?.simpleText);
             const publishedText = wrapTryCatch(() => update.properties?.publishedTime) || undefined;
             if (publishedText) {
                 comment.commentRenderer.publishedTimeText = {
-                    runs: [{ text: publishedText, navigationEndpoint: wrapTryCatch(() => surfaceUpdate?.publishedTimeCommand?.innertubeCommand) }]
+                    runs: [
+                        {
+                            text: publishedText,
+                            navigationEndpoint: wrapTryCatch(
+                                () => surfaceUpdate?.publishedTimeCommand?.innertubeCommand
+                            )
+                        }
+                    ]
                 };
             }
         }
 
         if (toolbarStateUpdate && wrapTryCatch(() => toolbarStateUpdate.heartState) === 'TOOLBAR_HEART_STATE_HEARTED') {
-            comment.commentRenderer.creatorHeart = { tooltip: wrapTryCatch(() => update.toolbar?.heartActiveTooltip) || 'hearted' } as any;
+            comment.commentRenderer.creatorHeart = {
+                tooltip: wrapTryCatch(() => update.toolbar?.heartActiveTooltip) || 'hearted'
+            } as any;
         }
 
         if (wrapTryCatch(() => author.sponsorBadgeUrl)) {
@@ -814,46 +863,67 @@ function generateCommentObjectFromFW(params: { commentId: string; update: any; s
 
 function migrateContinuationItemsWithFW(continuationItems: any[], frameworkUpdatesById: Record<string, any>): any[] {
     try {
-        return (continuationItems || []).map((item: any) => {
-            try {
-                if (wrapTryCatch(() => item.commentThreadRenderer?.commentViewModel?.commentViewModel)) {
-                    const vm = item.commentThreadRenderer.commentViewModel.commentViewModel;
-                    const commentId = wrapTryCatch(() => vm.commentId);
-                    const update = frameworkUpdatesById[commentId];
-                    const surfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.commentSurfaceKey)];
-                    const toolbarStateUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.toolbarStateKey)];
-                    const comment = generateCommentObjectFromFW({ commentId, update, surfaceUpdate, toolbarStateUpdate });
-                    if (comment) {
-                        const newItem = { ...item };
-                        newItem.commentThreadRenderer = { ...newItem.commentThreadRenderer, comment };
-                        // replies continuation normalization if present
-                        const cont = wrapTryCatch(() => item.commentThreadRenderer.replies.commentRepliesRenderer.contents[0].continuationItemRenderer.continuationEndpoint);
-                        if (cont) {
-                            newItem.commentThreadRenderer.replies = {
-                                ...newItem.commentThreadRenderer.replies,
-                                commentRepliesRenderer: {
-                                    continuations: [{ nextContinuationData: { continuation: cont.continuationCommand?.token, clickTrackingParams: cont.clickTrackingParams } }]
-                                }
-                            };
+        return (continuationItems || [])
+            .map((item: any) => {
+                try {
+                    if (wrapTryCatch(() => item.commentThreadRenderer?.commentViewModel?.commentViewModel)) {
+                        const vm = item.commentThreadRenderer.commentViewModel.commentViewModel;
+                        const commentId = wrapTryCatch(() => vm.commentId);
+                        const update = frameworkUpdatesById[commentId];
+                        const surfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.commentSurfaceKey)];
+                        const toolbarStateUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.toolbarStateKey)];
+                        const comment = generateCommentObjectFromFW({
+                            commentId,
+                            update,
+                            surfaceUpdate,
+                            toolbarStateUpdate
+                        });
+                        if (comment) {
+                            const newItem = { ...item };
+                            newItem.commentThreadRenderer = { ...newItem.commentThreadRenderer, comment };
+                            // replies continuation normalization if present
+                            const cont = wrapTryCatch(
+                                () =>
+                                    item.commentThreadRenderer.replies.commentRepliesRenderer.contents[0]
+                                        .continuationItemRenderer.continuationEndpoint
+                            );
+                            if (cont) {
+                                newItem.commentThreadRenderer.replies = {
+                                    ...newItem.commentThreadRenderer.replies,
+                                    commentRepliesRenderer: {
+                                        continuations: [
+                                            {
+                                                nextContinuationData: {
+                                                    continuation: cont.continuationCommand?.token,
+                                                    clickTrackingParams: cont.clickTrackingParams
+                                                }
+                                            }
+                                        ]
+                                    }
+                                };
+                            }
+                            return newItem;
                         }
-                        return newItem;
                     }
-                }
-                if (wrapTryCatch(() => item.commentViewModel)) {
-                    const vm = item.commentViewModel;
-                    const commentId = wrapTryCatch(() => vm.commentId);
-                    const update = frameworkUpdatesById[commentId];
-                    const surfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.commentSurfaceKey)];
-                    const comment = generateCommentObjectFromFW({ commentId, update, surfaceUpdate });
-                    if (comment) {
-                        const newItem = { ...item };
-                        newItem.commentRenderer = comment.commentRenderer;
-                        return newItem;
+                    if (wrapTryCatch(() => item.commentViewModel)) {
+                        const vm = item.commentViewModel;
+                        const commentId = wrapTryCatch(() => vm.commentId);
+                        const update = frameworkUpdatesById[commentId];
+                        const surfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.commentSurfaceKey)];
+                        const comment = generateCommentObjectFromFW({ commentId, update, surfaceUpdate });
+                        if (comment) {
+                            const newItem = { ...item };
+                            newItem.commentRenderer = comment.commentRenderer;
+                            return newItem;
+                        }
                     }
+                    return item;
+                } catch (e) {
+                    console.error(e);
+                    return item;
                 }
-                return item;
-            } catch (e) { console.error(e); return item; }
-        }).filter(Boolean);
+            })
+            .filter(Boolean);
     } catch (e) {
         console.error(e);
         return continuationItems || [];
@@ -866,25 +936,49 @@ function migrateContinuationItemsWithFW(continuationItems: any[], frameworkUpdat
 function extractReplyContinuationFromItem(threadItem: any): { token?: string; cTrParams?: string } {
     try {
         // Legacy
-        const legacyToken = wrapTryCatch(() => threadItem.commentThreadRenderer.replies.commentRepliesRenderer.continuations[0].nextContinuationData.continuation)
-            || wrapTryCatch(() => threadItem.commentThreadRenderer.replies.commentRepliesRenderer.contents[0].continuationItemRenderer.continuationEndpoint.continuationCommand.token);
-        const legacyClick = wrapTryCatch(() => threadItem.commentThreadRenderer.replies.commentRepliesRenderer.continuations[0].nextContinuationData.clickTrackingParams)
-            || wrapTryCatch(() => threadItem.commentThreadRenderer.replies.commentRepliesRenderer.contents[0].continuationItemRenderer.continuationEndpoint.clickTrackingParams);
+        const legacyToken =
+            wrapTryCatch(
+                () =>
+                    threadItem.commentThreadRenderer.replies.commentRepliesRenderer.continuations[0]
+                        .nextContinuationData.continuation
+            ) ||
+            wrapTryCatch(
+                () =>
+                    threadItem.commentThreadRenderer.replies.commentRepliesRenderer.contents[0].continuationItemRenderer
+                        .continuationEndpoint.continuationCommand.token
+            );
+        const legacyClick =
+            wrapTryCatch(
+                () =>
+                    threadItem.commentThreadRenderer.replies.commentRepliesRenderer.continuations[0]
+                        .nextContinuationData.clickTrackingParams
+            ) ||
+            wrapTryCatch(
+                () =>
+                    threadItem.commentThreadRenderer.replies.commentRepliesRenderer.contents[0].continuationItemRenderer
+                        .continuationEndpoint.clickTrackingParams
+            );
 
         if (legacyToken) return { token: legacyToken, cTrParams: legacyClick };
 
         // New VM: search broadly under this thread item for likely continuation tokens
         const searchRoot = wrapTryCatch(() => threadItem.commentThreadRenderer) || threadItem;
-        const token = objectScan(['**.nextContinuationData.continuation', '**.continuationEndpoint.continuationCommand.token'], {
-            joined: true,
-            rtn: 'value',
-            abort: true
-        })(searchRoot) as any;
-        const click = objectScan(['**.nextContinuationData.clickTrackingParams', '**.continuationEndpoint.clickTrackingParams'], {
-            joined: true,
-            rtn: 'value',
-            abort: true
-        })(searchRoot) as any;
+        const token = objectScan(
+            ['**.nextContinuationData.continuation', '**.continuationEndpoint.continuationCommand.token'],
+            {
+                joined: true,
+                rtn: 'value',
+                abort: true
+            }
+        )(searchRoot) as any;
+        const click = objectScan(
+            ['**.nextContinuationData.clickTrackingParams', '**.continuationEndpoint.clickTrackingParams'],
+            {
+                joined: true,
+                rtn: 'value',
+                abort: true
+            }
+        )(searchRoot) as any;
 
         return { token, cTrParams: click };
     } catch (e) {
@@ -896,19 +990,27 @@ function extractReplyContinuationFromItem(threadItem: any): { token?: string; cT
 /**
  * Extract next continuation token and optional clickTrackingParams from the last continuation item block.
  */
-function extractNextContinuation(response: any): { token?: string, clickTrackingParams?: string } {
+function extractNextContinuation(response: any): { token?: string; clickTrackingParams?: string } {
     try {
         // Recompute continuation items directly (FW path)
-        const reloadItems = wrapTryCatch(() => response.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand.continuationItems) || [];
-        const appendItems = wrapTryCatch(() => response.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems) || [];
-        const items: any[] = (Array.isArray(reloadItems) && reloadItems.length > 0) ? reloadItems : appendItems;
+        const reloadItems =
+            wrapTryCatch(
+                () => response.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand.continuationItems
+            ) || [];
+        const appendItems =
+            wrapTryCatch(
+                () => response.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems
+            ) || [];
+        const items: any[] = Array.isArray(reloadItems) && reloadItems.length > 0 ? reloadItems : appendItems;
         if (!items || items.length === 0) return {};
         const last = items[items.length - 1];
 
-        const token = wrapTryCatch(() => last.continuationItemRenderer.button.buttonRenderer.command.continuationCommand.token)
-            || wrapTryCatch(() => last.continuationItemRenderer.continuationEndpoint.continuationCommand.token);
-        const clickTrackingParams = wrapTryCatch(() => last.continuationItemRenderer.button.buttonRenderer.command.clickTrackingParams)
-            || wrapTryCatch(() => last.continuationItemRenderer.continuationEndpoint.clickTrackingParams);
+        const token =
+            wrapTryCatch(() => last.continuationItemRenderer.button.buttonRenderer.command.continuationCommand.token) ||
+            wrapTryCatch(() => last.continuationItemRenderer.continuationEndpoint.continuationCommand.token);
+        const clickTrackingParams =
+            wrapTryCatch(() => last.continuationItemRenderer.button.buttonRenderer.command.clickTrackingParams) ||
+            wrapTryCatch(() => last.continuationItemRenderer.continuationEndpoint.clickTrackingParams);
         return { token, clickTrackingParams };
     } catch (e) {
         console.error(e);
@@ -917,12 +1019,10 @@ function extractNextContinuation(response: any): { token?: string, clickTracking
 }
 
 async function getInitYtData(url: string, signal: AbortSignal | undefined): Promise<[object] | undefined> {
-
     try {
-        
         if (!url) return;
 
-        const getFirstParam = (getParams(window)).params as RequestInit;
+        const getFirstParam = getParams(window).params as RequestInit;
 
         getFirstParam.method = 'GET';
         delete (getFirstParam.headers as any)['content-type'];
@@ -936,316 +1036,358 @@ async function getInitYtData(url: string, signal: AbortSignal | undefined): Prom
         GlobalStore.getInitYtData = result;
 
         return result;
-        
     } catch (e) {
         console.error(e);
         return;
     }
-    
 }
 
 async function delayMs(ms: number): Promise<void> {
-    return await new Promise(resolve => setTimeout(resolve, ms));
+    return await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function getParamsForChat(w: any, cLiveChat: any, pOffsetMs: number): object | undefined {
-
     if (!cLiveChat) return;
-    
+
     try {
-
-        return JSON.parse(JSON.stringify({
-            'headers': {
-                'accept': '*/*',
-                'accept-language': w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                'pragma': 'no-cache',
-                'cache-control': 'no-store',
-                'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
-            },
-            'referrerPolicy': 'strict-origin-when-cross-origin',
-            'body': JSON.stringify({ context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client }, continuation: cLiveChat.continuation, currentPlayerState: { playerOffsetMs: pOffsetMs.toString()}}),
-            'method': 'POST',
-            'mode': 'cors',
-            'credentials': 'include'
-        }));
-
+        return JSON.parse(
+            JSON.stringify({
+                headers: {
+                    accept: '*/*',
+                    'accept-language':
+                        w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                    'content-type': 'application/json',
+                    pragma: 'no-cache',
+                    'cache-control': 'no-store',
+                    'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                    'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
+                },
+                referrerPolicy: 'strict-origin-when-cross-origin',
+                body: JSON.stringify({
+                    context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client },
+                    continuation: cLiveChat.continuation,
+                    currentPlayerState: { playerOffsetMs: pOffsetMs.toString() }
+                }),
+                method: 'POST',
+                mode: 'cors',
+                credentials: 'include'
+            })
+        );
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 async function getDetailsVideoIDV2(w: any, url: string, signal: AbortSignal): Promise<object | undefined> {
-    
     try {
         if (typeof url !== 'string') return;
 
-        const params = JSON.parse(JSON.stringify({
-            'headers': {
-                'accept': '*/*',
-                'accept-language': w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                'pragma': 'no-cache',
-                'cache-control': 'no-store',
-                'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
-            },
-            'referrer': url,
-            'referrerPolicy': 'strict-origin-when-cross-origin',
-            'body': JSON.stringify({ context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client }, videoId: getVideoId(url)}),
-            'method': 'POST',
-            'mode': 'cors',
-            'credentials': 'include'
-        }));
+        const params = JSON.parse(
+            JSON.stringify({
+                headers: {
+                    accept: '*/*',
+                    'accept-language':
+                        w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                    'content-type': 'application/json',
+                    pragma: 'no-cache',
+                    'cache-control': 'no-store',
+                    'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                    'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
+                },
+                referrer: url,
+                referrerPolicy: 'strict-origin-when-cross-origin',
+                body: JSON.stringify({
+                    context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client },
+                    videoId: getVideoId(url)
+                }),
+                method: 'POST',
+                mode: 'cors',
+                credentials: 'include'
+            })
+        );
 
         console.log('getDetailsVideoIDV2 PARAMS: ', params);
 
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        const res = await fetch(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, { ...params, signal, cache: 'no-store' } as RequestInit);
+        const res = await fetch(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, {
+            ...params,
+            signal,
+            cache: 'no-store'
+        } as RequestInit);
 
         const data = await res.json();
         console.log('getDetailsVideoIDV2 DATA: ', data);
 
         return data;
-
     } catch (err) {
         console.error(err);
         return;
     }
-
 }
 
 async function getDetailsCommentsVideoIDV2(w: any, ps: any, signal: AbortSignal): Promise<object | undefined> {
-
     try {
         if (typeof ps !== 'object') return;
 
-        const params = JSON.parse(JSON.stringify({
-            'headers': {
-                'accept': '*/*',
-                'accept-language': w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                'pragma': 'no-cache',
-                'cache-control': 'no-store',
-                'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
-            },
-            'referrer': ps.url,
-            'referrerPolicy': 'strict-origin-when-cross-origin',
-            'body': JSON.stringify({ context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client }, clickTracking: { clickTrackingParams: '' }, continuation: ps.continue}),
-            'method': 'POST',
-            'mode': 'cors',
-            'credentials': 'include'
-        }));
+        const params = JSON.parse(
+            JSON.stringify({
+                headers: {
+                    accept: '*/*',
+                    'accept-language':
+                        w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                    'content-type': 'application/json',
+                    pragma: 'no-cache',
+                    'cache-control': 'no-store',
+                    'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                    'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
+                },
+                referrer: ps.url,
+                referrerPolicy: 'strict-origin-when-cross-origin',
+                body: JSON.stringify({
+                    context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client },
+                    clickTracking: { clickTrackingParams: '' },
+                    continuation: ps.continue
+                }),
+                method: 'POST',
+                mode: 'cors',
+                credentials: 'include'
+            })
+        );
 
         console.log('getDetailsCommentsVideoIDV2 PARAMS: ', params);
 
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        const res = await fetch(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, { ...params, signal, cache: 'no-store' } as RequestInit);
+        const res = await fetch(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, {
+            ...params,
+            signal,
+            cache: 'no-store'
+        } as RequestInit);
 
         const data = await res.json();
         console.log('getDetailsCommentsVideoIDV2 DATA: ', data);
 
         return data;
-
     } catch (err) {
         console.error(err);
         return;
     }
-
 }
 
 function getParamsForComments(w: any, params: any): object | undefined {
-    
     try {
-
-        return JSON.parse(JSON.stringify({
-            'headers': {
-                'accept': '*/*',
-                'accept-language': w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                'pragma': 'no-cache',
-                'cache-control': 'no-store',
-                'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
-            },
-            'referrerPolicy': 'strict-origin-when-cross-origin',
-            'body': JSON.stringify({ context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client }, clickTracking: { clickTrackingParams: params.clickTrackingParams }, continuation: params.continue}),
-            'method': 'POST',
-            'mode': 'cors',
-            'credentials': 'include'
-        }));
-
+        return JSON.parse(
+            JSON.stringify({
+                headers: {
+                    accept: '*/*',
+                    'accept-language':
+                        w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                    'content-type': 'application/json',
+                    pragma: 'no-cache',
+                    'cache-control': 'no-store',
+                    'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                    'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
+                },
+                referrerPolicy: 'strict-origin-when-cross-origin',
+                body: JSON.stringify({
+                    context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client },
+                    clickTracking: { clickTrackingParams: params.clickTrackingParams },
+                    continuation: params.continue
+                }),
+                method: 'POST',
+                mode: 'cors',
+                credentials: 'include'
+            })
+        );
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 function getParamsForReplies(w: any, params: any): object | undefined {
-    
     try {
-
-        return JSON.parse(JSON.stringify({
-            'headers': {
-                'accept': '*/*',
-                'accept-language': w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                'pragma': 'no-cache',
-                'cache-control': 'no-store',
-                'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
-            },
-            'referrerPolicy': 'strict-origin-when-cross-origin',
-            'body': JSON.stringify({ context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client }, clickTracking: { clickTrackingParams: params.clickTracking }, continuation: params.continue}),
-            'method': 'POST',
-            'mode': 'cors',
-            'credentials': 'include'
-        }));
-
+        return JSON.parse(
+            JSON.stringify({
+                headers: {
+                    accept: '*/*',
+                    'accept-language':
+                        w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                    'content-type': 'application/json',
+                    pragma: 'no-cache',
+                    'cache-control': 'no-store',
+                    'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                    'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
+                },
+                referrerPolicy: 'strict-origin-when-cross-origin',
+                body: JSON.stringify({
+                    context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client },
+                    clickTracking: { clickTrackingParams: params.clickTracking },
+                    continuation: params.continue
+                }),
+                method: 'POST',
+                mode: 'cors',
+                credentials: 'include'
+            })
+        );
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 function getParamsForLiveChat(w: any, cLiveChat: any): object | undefined {
-
     if (!cLiveChat) return;
-    
+
     try {
-
-        return JSON.parse(JSON.stringify({
-            'headers': {
-                'accept': '*/*',
-                'accept-language': w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                'pragma': 'no-cache',
-                'cache-control': 'no-store',
-                'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
-            },
-            'referrerPolicy': 'strict-origin-when-cross-origin',
-            'body': JSON.stringify({ context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client }, continuation: cLiveChat.continuation }),
-            'method': 'POST',
-            'mode': 'cors',
-            'credentials': 'include'
-        }));
-
+        return JSON.parse(
+            JSON.stringify({
+                headers: {
+                    accept: '*/*',
+                    'accept-language':
+                        w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                    'content-type': 'application/json',
+                    pragma: 'no-cache',
+                    'cache-control': 'no-store',
+                    'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                    'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
+                },
+                referrerPolicy: 'strict-origin-when-cross-origin',
+                body: JSON.stringify({
+                    context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client },
+                    continuation: cLiveChat.continuation
+                }),
+                method: 'POST',
+                mode: 'cors',
+                credentials: 'include'
+            })
+        );
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 function getInnertubeApiKey(): string | undefined {
-
     try {
-
-        return (window as any)?.ytcfg.data_?.INNERTUBE_API_KEY ||
-            (window as any)?.ytcfg?.data_?.WEB_PLAYER_CONTEXT_CONFIGS?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_WATCH?.innertubeApiKey ||
-            (window as any)?.ytcfg?.data_?.WEB_PLAYER_CONTEXT_CONFIGS?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_CHANNEL_TRAILER?.innertubeApiKey ||
-            (window as any)?.ytcfg?.data_?.WEB_PLAYER_CONTEXT_CONFIGS?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_PLAYLIST_OVERVIEW?.innertubeApiKey ||
-            (window as any)?.ytcfg?.data_?.WEB_PLAYER_CONTEXT_CONFIGS?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_VERTICAL_LANDING_PAGE_PROMO?.innertubeApiKey ||
-            (window as any)?.ytcfg?.data_?.WEB_PLAYER_CONTEXT_CONFIGS?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_SPONSORSHIPS_OFFER?.innertubeApiKey ||
-            (window as any)?.ytplayer?.web_player_context_config?.innertubeApiKey;
-        
+        return (
+            (window as any)?.ytcfg.data_?.INNERTUBE_API_KEY ||
+            (window as any)?.ytcfg?.data_?.WEB_PLAYER_CONTEXT_CONFIGS?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_WATCH
+                ?.innertubeApiKey ||
+            (window as any)?.ytcfg?.data_?.WEB_PLAYER_CONTEXT_CONFIGS
+                ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_CHANNEL_TRAILER?.innertubeApiKey ||
+            (window as any)?.ytcfg?.data_?.WEB_PLAYER_CONTEXT_CONFIGS
+                ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_PLAYLIST_OVERVIEW?.innertubeApiKey ||
+            (window as any)?.ytcfg?.data_?.WEB_PLAYER_CONTEXT_CONFIGS
+                ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_VERTICAL_LANDING_PAGE_PROMO?.innertubeApiKey ||
+            (window as any)?.ytcfg?.data_?.WEB_PLAYER_CONTEXT_CONFIGS
+                ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_SPONSORSHIPS_OFFER?.innertubeApiKey ||
+            (window as any)?.ytplayer?.web_player_context_config?.innertubeApiKey
+        );
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 async function getCDChat(signal: AbortSignal): Promise<object | undefined> {
-    
     try {
-
-        const ytData = await getInitYtData(window.location.href, signal) as any;
+        const ytData = (await getInitYtData(window.location.href, signal)) as any;
 
         if (ytData) {
-
-            if (wrapTryCatch(() => ytData[3].response.contents.twoColumnWatchNextResults.conversationBar.liveChatRenderer.header.liveChatHeaderRenderer.viewSelector.sortFilterSubMenuRenderer.subMenuItems[1].continuation.reloadContinuationData)) {
-                return wrapTryCatch(() => ytData[3].response.contents.twoColumnWatchNextResults.conversationBar.liveChatRenderer.header.liveChatHeaderRenderer.viewSelector.sortFilterSubMenuRenderer.subMenuItems[1].continuation.reloadContinuationData);
+            if (
+                wrapTryCatch(
+                    () =>
+                        ytData[3].response.contents.twoColumnWatchNextResults.conversationBar.liveChatRenderer.header
+                            .liveChatHeaderRenderer.viewSelector.sortFilterSubMenuRenderer.subMenuItems[1].continuation
+                            .reloadContinuationData
+                )
+            ) {
+                return wrapTryCatch(
+                    () =>
+                        ytData[3].response.contents.twoColumnWatchNextResults.conversationBar.liveChatRenderer.header
+                            .liveChatHeaderRenderer.viewSelector.sortFilterSubMenuRenderer.subMenuItems[1].continuation
+                            .reloadContinuationData
+                );
             }
 
             const rCData = deepFindObjKey(ytData, 'reloadContinuationData');
             if (rCData.length > 0) {
-               
                 // @ts-expect-error [ES2017]
                 return Object.values(rCData[rCData.length - 1])[0] as object;
             }
-
         }
 
         return;
-        
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 async function getLiveChat(signal: AbortSignal): Promise<object[] | undefined> {
-
     try {
-
         const cDChat = await getCDChat(signal);
         const params = getParamsForLiveChat(window, cDChat);
 
         if (params) {
-            
-            const res = await fetch(`https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key=${getInnertubeApiKey()}`, { ...params, signal, cache: 'no-store' });
-        
+            const res = await fetch(
+                `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key=${getInnertubeApiKey()}`,
+                { ...params, signal, cache: 'no-store' }
+            );
+
             const cmnts = await res.json();
 
             return cmnts?.continuationContents?.liveChatContinuation;
-
         }
 
         return;
-        
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
-async function getChatComments(signal: AbortSignal, elShowLoading: HTMLElement, container: Map<number, object> | undefined = undefined): Promise<Map<number, object> | undefined> {
-
+async function getChatComments(
+    signal: AbortSignal,
+    elShowLoading: HTMLElement,
+    container: Map<number, object> | undefined = undefined
+): Promise<Map<number, object> | undefined> {
     try {
-
         const _prepareFieldsChatComments = (cmnt: any): object => {
-
             try {
-    
-                if (wrapTryCatch(() => cmnt.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorBadges[0].liveChatAuthorBadgeRenderer.icon.iconType.indexOf('VERIFIED') >= 0) || wrapTryCatch(() => cmnt.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorBadges[0].liveChatAuthorBadgeRenderer.icon.iconType.indexOf('CHECK') >= 0) ||
-                wrapTryCatch(() => cmnt.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorBadges[0].liveChatAuthorBadgeRenderer.tooltip.indexOf('Verified') >= 0)) {
-
+                if (
+                    wrapTryCatch(
+                        () =>
+                            cmnt.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorBadges[0].liveChatAuthorBadgeRenderer.icon.iconType.indexOf(
+                                'VERIFIED'
+                            ) >= 0
+                    ) ||
+                    wrapTryCatch(
+                        () =>
+                            cmnt.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorBadges[0].liveChatAuthorBadgeRenderer.icon.iconType.indexOf(
+                                'CHECK'
+                            ) >= 0
+                    ) ||
+                    wrapTryCatch(
+                        () =>
+                            cmnt.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorBadges[0].liveChatAuthorBadgeRenderer.tooltip.indexOf(
+                                'Verified'
+                            ) >= 0
+                    )
+                ) {
                     try {
-
-                        cmnt.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.verifiedAuthor = true; 
-                        
+                        cmnt.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.verifiedAuthor = true;
                     } catch (err) {
                         console.error(err);
                     }
-
                 }
-                
+
                 return cmnt;
             } catch (err) {
                 console.error(err);
                 return cmnt;
             }
-        
         };
 
         const cDChat = await getCDChat(signal);
@@ -1259,108 +1401,153 @@ async function getChatComments(signal: AbortSignal, elShowLoading: HTMLElement, 
         const liveChatData: any = await getLiveChat(signal);
 
         if (liveChatData) {
-
             try {
-
                 if (liveChatData?.actions?.length > 0) {
                     console.log('IS LIVECHAT!!!!!', liveChatData);
-        
+
                     for (const c of liveChatData.actions) {
-
                         try {
-
                             const protoComment = {
                                 replayChatItemAction: {
-                                    actions: [{
-                                        addChatItemAction: {}
-                                    }]
+                                    actions: [
+                                        {
+                                            addChatItemAction: {}
+                                        }
+                                    ]
                                 }
                             };
-            
+
                             protoComment.replayChatItemAction.actions[0] = c;
                             const comment: any = protoComment;
-    
-                            if (!wrapTryCatch(() => comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec)) {
-    
-                                if (wrapTryCatch(() => comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatPaidMessageRenderer)) {
-        
-                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer = comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatPaidMessageRenderer;
+
+                            if (
+                                !wrapTryCatch(
+                                    () =>
+                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                            .liveChatTextMessageRenderer.timestampUsec
+                                )
+                            ) {
+                                if (
+                                    wrapTryCatch(
+                                        () =>
+                                            comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                .liveChatPaidMessageRenderer
+                                    )
+                                ) {
+                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
+                                        comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatPaidMessageRenderer;
                                     console.log('Done! Added liveChatPaidMessageRenderer: ', comment);
-        
-                                } else if (wrapTryCatch(() => comment.replayChatItemAction.actions[0].addBannerToLiveChatCommand.bannerRenderer.liveChatBannerRenderer.contents.liveChatTextMessageRenderer)) {
-        
-                                    comment.replayChatItemAction.actions[0].addChatItemAction = { item: { liveChatTextMessageRenderer: {} } };
-                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer = comment.replayChatItemAction.actions[0].addBannerToLiveChatCommand.bannerRenderer.liveChatBannerRenderer.contents.liveChatTextMessageRenderer;
+                                } else if (
+                                    wrapTryCatch(
+                                        () =>
+                                            comment.replayChatItemAction.actions[0].addBannerToLiveChatCommand
+                                                .bannerRenderer.liveChatBannerRenderer.contents
+                                                .liveChatTextMessageRenderer
+                                    )
+                                ) {
+                                    comment.replayChatItemAction.actions[0].addChatItemAction = {
+                                        item: { liveChatTextMessageRenderer: {} }
+                                    };
+                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
+                                        comment.replayChatItemAction.actions[0].addBannerToLiveChatCommand.bannerRenderer.liveChatBannerRenderer.contents.liveChatTextMessageRenderer;
                                     console.log('Done! Added liveChatBannerRenderer: ', comment);
-        
-                                } else if (wrapTryCatch(() => comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint.showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer)) {
-        
-                                    comment.replayChatItemAction.actions[0].addChatItemAction = { item: { liveChatTextMessageRenderer: {} } };
-                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer = comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint.showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer;
+                                } else if (
+                                    wrapTryCatch(
+                                        () =>
+                                            comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item
+                                                .liveChatTickerPaidMessageItemRenderer.showItemEndpoint
+                                                .showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer
+                                    )
+                                ) {
+                                    comment.replayChatItemAction.actions[0].addChatItemAction = {
+                                        item: { liveChatTextMessageRenderer: {} }
+                                    };
+                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
+                                        comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint.showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer;
                                     console.log('Done! Added LiveChatTickerItemAction: ', comment);
-                                    
                                 } else {
-        
                                     // console.log('deepFindObjKey: ', deepFindObjKey(comment, 'timestampUsec'));
-                                    const pathComment = wrapTryCatch(() => Object.keys(deepFindObjKey(comment, 'timestampUsec')[0])[0].split('.').slice(0, -1).join('.')) as string | undefined;
+                                    const pathComment = wrapTryCatch(() =>
+                                        Object.keys(deepFindObjKey(comment, 'timestampUsec')[0])[0]
+                                            .split('.')
+                                            .slice(0, -1)
+                                            .join('.')
+                                    ) as string | undefined;
                                     // console.log('pathComment: ', pathComment);
                                     if (pathComment) {
                                         const findedComment = getObj(comment, pathComment, undefined) as any;
                                         console.log('-----------------> GET OBJECT LIVE CHAT COMMENT: ', findedComment);
-        
+
                                         if (findedComment && findedComment?.authorName && findedComment?.message) {
                                             console.log('-----------------> FINDED LIVE CHAT COMMENT: ', findedComment);
-                                            comment.replayChatItemAction.actions[0].addChatItemAction = { item: { liveChatTextMessageRenderer: {} } };
-                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer = findedComment;
+                                            comment.replayChatItemAction.actions[0].addChatItemAction = {
+                                                item: { liveChatTextMessageRenderer: {} }
+                                            };
+                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
+                                                findedComment;
                                         }
-        
                                     }
-        
                                 }
-    
                             }
-    
-            
-                            const timestampUsec: string | undefined = wrapTryCatch(() => comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec) as any;
-                            
+
+                            const timestampUsec: string | undefined = wrapTryCatch(
+                                () =>
+                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                        .liveChatTextMessageRenderer.timestampUsec
+                            ) as any;
+
                             if (timestampUsec && !chatCmnts.has(parseInt(timestampUsec, 10))) {
-            
-                                const chatMsgs = wrapTryCatch(() => comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.runs) as any || [];
-            
+                                const chatMsgs =
+                                    (wrapTryCatch(
+                                        () =>
+                                            comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                .liveChatTextMessageRenderer.message.runs
+                                    ) as any) || [];
+
                                 let fullText = '';
                                 let renderFullTextComment = '';
-    
-                                if (wrapTryCatch(() => comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText)) {
+
+                                if (
+                                    wrapTryCatch(
+                                        () =>
+                                            comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                .liveChatTextMessageRenderer.purchaseAmountText.simpleText
+                                    )
+                                ) {
                                     console.log('Added purchaseAmountText for chat');
                                     renderFullTextComment += `<span class="ycs-chat_donation ycs-chat_donation__title">Donated: </span><span class="ycs-chat_donation ycs-chat_donation__bg">${comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText}</span><br><br>`;
                                     fullText += `${comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText} `;
                                 }
-            
+
                                 for (const msg of chatMsgs) {
-    
                                     try {
-    
                                         fullText += msg?.text || '';
-            
+
                                         if (parseInt(msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0) {
                                             renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${msg?.navigationEndpoint?.watchEndpoint?.videoId}&t=${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}">${msg?.text || ''}</a>`;
-    
-                                            if (wrapTryCatch(() => comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer)) {
-                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine = 'timeline';
+
+                                            if (
+                                                wrapTryCatch(
+                                                    () =>
+                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                            .liveChatTextMessageRenderer
+                                                )
+                                            ) {
+                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
+                                                    'timeline';
                                             }
-    
                                         } else if (msg?.navigationEndpoint) {
                                             renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${msg?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || msg?.navigationEndpoint?.urlEndpoint?.url || msg?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || msg?.text || '#'}" target="_blank">${msg?.text || ''}</a>`;
-
                                         } else if (wrapTryCatch(() => (msg as any).emoji)) {
-                                            const url = wrapTryCatch(() => {
-                                                const thumbnails = (msg as any).emoji.image.thumbnails;
-                                                return thumbnails[thumbnails.length - 1].url;
-                                            }) || '';
-                                            const alt = (wrapTryCatch(() => (msg as any).emoji.shortcuts?.[0]) as string) || '';
+                                            const url =
+                                                wrapTryCatch(() => {
+                                                    const thumbnails = (msg as any).emoji.image.thumbnails;
+                                                    return thumbnails[thumbnails.length - 1].url;
+                                                }) || '';
+                                            const alt =
+                                                (wrapTryCatch(() => (msg as any).emoji.shortcuts?.[0]) as string) || '';
                                             const style = `margin-left: 2px; margin-right: 2px;`;
                                             renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
-
                                         } else if (wrapTryCatch(() => (msg as any).attachment?.image)) {
                                             const image: any = wrapTryCatch(() => (msg as any).attachment.image);
                                             const url = image?.url || '';
@@ -1370,73 +1557,71 @@ async function getChatComments(signal: AbortSignal, elShowLoading: HTMLElement, 
                                             const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
                                             const alt = (msg as any)?.text || '';
                                             renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
-
                                         } else {
                                             renderFullTextComment += msg?.text || '';
                                         }
-    
                                     } catch (e) {
                                         console.error(e);
                                         renderFullTextComment += msg?.text || '';
                                     }
-            
                                 }
-    
+
                                 if (fullText) {
-            
-                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText = fullText;
-            
-                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText = renderFullTextComment || fullText;
-            
+                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText =
+                                        fullText;
+
+                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText =
+                                        renderFullTextComment || fullText;
                                 }
-            
-                                if (wrapTryCatch(() => comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorName)) {
+
+                                if (
+                                    wrapTryCatch(
+                                        () =>
+                                            comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                .liveChatTextMessageRenderer.authorName
+                                    )
+                                ) {
                                     chatCmnts.set(parseInt(timestampUsec, 10), _prepareFieldsChatComments(comment));
                                     showLoadComments(chatCmnts.size, elShowLoading);
                                 }
-
                             }
                         } catch (err) {
                             console.error(err);
                             continue;
                         }
-        
                     }
-        
                 }
-    
             } catch (e) {
                 console.error(e);
                 return chatCmnts;
             }
-    
         } else {
-
             try {
-
                 let currentOffsetTimeMsec = 0;
                 let next = true;
-    
+
                 while (next) {
-    
                     console.log('Loop chat comments');
                     const params = getParamsForChat(window, cDChat, currentOffsetTimeMsec);
                     console.log('currentOffsetTimeMsec: ', currentOffsetTimeMsec);
-        
+
                     if (params) {
-        
-                        const res = await fetchR(`https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?key=${getInnertubeApiKey()}`, { ...params, signal, cache: 'no-store' });
-        
+                        const res = await fetchR(
+                            `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?key=${getInnertubeApiKey()}`,
+                            { ...params, signal, cache: 'no-store' }
+                        );
+
                         let cmnts = await res.json();
                         cmnts = cmnts?.continuationContents?.liveChatContinuation?.actions;
                         console.log('Chat comments: ', cmnts);
-        
+
                         if (cmnts && cmnts.length > 0) {
-        
-                            const [, lastOffsetTimeInCmnts] = (Object as any).entries(deepFindObjKey(cmnts[cmnts.length - 1], 'videoOffsetTimeMsec')[0])[0];
-                            
+                            const [, lastOffsetTimeInCmnts] = (Object as any).entries(
+                                deepFindObjKey(cmnts[cmnts.length - 1], 'videoOffsetTimeMsec')[0]
+                            )[0];
+
                             console.log('lastOffsetTimeInCmnts: ', lastOffsetTimeInCmnts);
-        
+
                             if (currentOffsetTimeMsec === lastOffsetTimeInCmnts) {
                                 console.log('BREAK!');
                                 console.log('currentOffsetTimeMsec: ', currentOffsetTimeMsec);
@@ -1444,93 +1629,157 @@ async function getChatComments(signal: AbortSignal, elShowLoading: HTMLElement, 
                                 next = false;
                                 break;
                             }
-    
+
                             for (const comment of cmnts) {
-
                                 try {
-
-                                    if (!wrapTryCatch(() => comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec)) {
-
-                                        if (wrapTryCatch(() => comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatPaidMessageRenderer)) {
-                
-                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer = comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatPaidMessageRenderer;
+                                    if (
+                                        !wrapTryCatch(
+                                            () =>
+                                                comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                    .liveChatTextMessageRenderer.timestampUsec
+                                        )
+                                    ) {
+                                        if (
+                                            wrapTryCatch(
+                                                () =>
+                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                        .liveChatPaidMessageRenderer
+                                            )
+                                        ) {
+                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
+                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatPaidMessageRenderer;
                                             console.log('Done! Added liveChatPaidMessageRenderer: ', comment);
-                
-                                        } else if (wrapTryCatch(() => comment.replayChatItemAction.actions[0].addBannerToLiveChatCommand.bannerRenderer.liveChatBannerRenderer.contents.liveChatTextMessageRenderer)) {
-                
-                                            comment.replayChatItemAction.actions[0].addChatItemAction = { item: { liveChatTextMessageRenderer: {} } };
-                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer = comment.replayChatItemAction.actions[0].addBannerToLiveChatCommand.bannerRenderer.liveChatBannerRenderer.contents.liveChatTextMessageRenderer;
+                                        } else if (
+                                            wrapTryCatch(
+                                                () =>
+                                                    comment.replayChatItemAction.actions[0].addBannerToLiveChatCommand
+                                                        .bannerRenderer.liveChatBannerRenderer.contents
+                                                        .liveChatTextMessageRenderer
+                                            )
+                                        ) {
+                                            comment.replayChatItemAction.actions[0].addChatItemAction = {
+                                                item: { liveChatTextMessageRenderer: {} }
+                                            };
+                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
+                                                comment.replayChatItemAction.actions[0].addBannerToLiveChatCommand.bannerRenderer.liveChatBannerRenderer.contents.liveChatTextMessageRenderer;
                                             console.log('Done! Added liveChatBannerRenderer: ', comment);
-                
-                                        } else if (wrapTryCatch(() => comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint.showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer)) {
-                
-                                            comment.replayChatItemAction.actions[0].addChatItemAction = { item: { liveChatTextMessageRenderer: {} } };
-                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer = comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint.showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer;
+                                        } else if (
+                                            wrapTryCatch(
+                                                () =>
+                                                    comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction
+                                                        .item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint
+                                                        .showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer
+                                            )
+                                        ) {
+                                            comment.replayChatItemAction.actions[0].addChatItemAction = {
+                                                item: { liveChatTextMessageRenderer: {} }
+                                            };
+                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
+                                                comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint.showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer;
                                             console.log('Done! Added LiveChatTickerItemAction: ', comment);
-                                            
                                         } else {
-                
                                             // console.log('deepFindObjKey: ', deepFindObjKey(comment, 'timestampUsec'));
-                                            const pathComment = wrapTryCatch(() => Object.keys(deepFindObjKey(comment, 'timestampUsec')[0])[0].split('.').slice(0, -1).join('.')) as string | undefined;
+                                            const pathComment = wrapTryCatch(() =>
+                                                Object.keys(deepFindObjKey(comment, 'timestampUsec')[0])[0]
+                                                    .split('.')
+                                                    .slice(0, -1)
+                                                    .join('.')
+                                            ) as string | undefined;
                                             // console.log('pathComment: ', pathComment);
                                             if (pathComment) {
                                                 const findedComment = getObj(comment, pathComment, undefined) as any;
-                                                console.log('-----------------> GET OBJECT CHAT COMMENT: ', findedComment);
-                
-                                                if (findedComment && findedComment?.authorName && findedComment?.message) {
-                                                    console.log('-----------------> FINDED CHAT COMMENT: ', findedComment);
-                                                    comment.replayChatItemAction.actions[0].addChatItemAction = { item: { liveChatTextMessageRenderer: {} } };
-                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer = findedComment;
+                                                console.log(
+                                                    '-----------------> GET OBJECT CHAT COMMENT: ',
+                                                    findedComment
+                                                );
+
+                                                if (
+                                                    findedComment &&
+                                                    findedComment?.authorName &&
+                                                    findedComment?.message
+                                                ) {
+                                                    console.log(
+                                                        '-----------------> FINDED CHAT COMMENT: ',
+                                                        findedComment
+                                                    );
+                                                    comment.replayChatItemAction.actions[0].addChatItemAction = {
+                                                        item: { liveChatTextMessageRenderer: {} }
+                                                    };
+                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
+                                                        findedComment;
                                                 }
-                
                                             }
-                
                                         }
-            
                                     }
-    
-                                    const timestampUsec: string | undefined = wrapTryCatch(() => comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec) as any;
-    
+
+                                    const timestampUsec: string | undefined = wrapTryCatch(
+                                        () =>
+                                            comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                .liveChatTextMessageRenderer.timestampUsec
+                                    ) as any;
+
                                     if (timestampUsec && !chatCmnts.has(parseInt(timestampUsec, 10))) {
-        
-                                        const chatMsgs = wrapTryCatch(() => comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.runs) as any || [];
-        
+                                        const chatMsgs =
+                                            (wrapTryCatch(
+                                                () =>
+                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                        .liveChatTextMessageRenderer.message.runs
+                                            ) as any) || [];
+
                                         let fullText = '';
                                         let renderFullTextComment = '';
-    
-                                        if (wrapTryCatch(() => comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText)) {
+
+                                        if (
+                                            wrapTryCatch(
+                                                () =>
+                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                        .liveChatTextMessageRenderer.purchaseAmountText.simpleText
+                                            )
+                                        ) {
                                             console.log('Added purchaseAmountText for chat');
                                             renderFullTextComment += `<span class="ycs-chat_donation ycs-chat_donation__title">Donated: </span><span class="ycs-chat_donation ycs-chat_donation__bg">${comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText}</span><br><br>`;
                                             fullText += `${comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText} `;
                                         }
-        
+
                                         for (const msg of chatMsgs) {
-    
                                             try {
-    
                                                 fullText += msg?.text || '';
-        
-                                                if (parseInt(msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0) {
+
+                                                if (
+                                                    parseInt(
+                                                        msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds
+                                                    ) >= 0
+                                                ) {
                                                     renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${msg?.navigationEndpoint?.watchEndpoint?.videoId}&t=${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}">${msg?.text || ''}</a>`;
-    
-                                                    if (wrapTryCatch(() => comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer)) {
-                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine = 'timeline';
+
+                                                    if (
+                                                        wrapTryCatch(
+                                                            () =>
+                                                                comment.replayChatItemAction.actions[0]
+                                                                    .addChatItemAction.item.liveChatTextMessageRenderer
+                                                        )
+                                                    ) {
+                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
+                                                            'timeline';
                                                     }
-    
                                                 } else if (msg?.navigationEndpoint) {
                                                     renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${msg?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || msg?.navigationEndpoint?.urlEndpoint?.url || msg?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || msg?.text || '#'}" target="_blank">${msg?.text || ''}</a>`;
-
                                                 } else if (wrapTryCatch(() => (msg as any).emoji)) {
-                                                    const url = wrapTryCatch(() => {
-                                                        const thumbnails = (msg as any).emoji.image.thumbnails;
-                                                        return thumbnails[thumbnails.length - 1].url;
-                                                    }) || '';
-                                                    const alt = (wrapTryCatch(() => (msg as any).emoji.shortcuts?.[0]) as string) || '';
+                                                    const url =
+                                                        wrapTryCatch(() => {
+                                                            const thumbnails = (msg as any).emoji.image.thumbnails;
+                                                            return thumbnails[thumbnails.length - 1].url;
+                                                        }) || '';
+                                                    const alt =
+                                                        (wrapTryCatch(
+                                                            () => (msg as any).emoji.shortcuts?.[0]
+                                                        ) as string) || '';
                                                     const style = `margin-left: 2px; margin-right: 2px;`;
                                                     renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
-
                                                 } else if (wrapTryCatch(() => (msg as any).attachment?.image)) {
-                                                    const image: any = wrapTryCatch(() => (msg as any).attachment.image);
+                                                    const image: any = wrapTryCatch(
+                                                        () => (msg as any).attachment.image
+                                                    );
                                                     const url = image?.url || '';
                                                     const width = image?.width || 24;
                                                     const height = image?.height || 24;
@@ -1538,93 +1787,91 @@ async function getChatComments(signal: AbortSignal, elShowLoading: HTMLElement, 
                                                     const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
                                                     const alt = (msg as any)?.text || '';
                                                     renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
-
                                                 } else {
                                                     renderFullTextComment += msg?.text || '';
                                                 }
-    
                                             } catch (e) {
                                                 console.error(e);
                                                 renderFullTextComment += msg?.text || '';
                                             }
                                         }
-        
+
                                         if (fullText) {
-        
-                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText = fullText;
-        
-                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText = renderFullTextComment || fullText;
-        
+                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText =
+                                                fullText;
+
+                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText =
+                                                renderFullTextComment || fullText;
                                         }
-        
-                                        if (wrapTryCatch(() => comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorName)) {
-                                            chatCmnts.set(parseInt(timestampUsec, 10), _prepareFieldsChatComments(comment));
+
+                                        if (
+                                            wrapTryCatch(
+                                                () =>
+                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                        .liveChatTextMessageRenderer.authorName
+                                            )
+                                        ) {
+                                            chatCmnts.set(
+                                                parseInt(timestampUsec, 10),
+                                                _prepareFieldsChatComments(comment)
+                                            );
                                             showLoadComments(chatCmnts.size, elShowLoading);
                                         }
                                     }
-
                                 } catch (err) {
                                     console.error(err);
                                     continue;
                                 }
-    
                             }
-                            
+
                             currentOffsetTimeMsec = lastOffsetTimeInCmnts;
                         }
-        
                     } else {
                         next = false;
                         return chatCmnts;
                     }
-    
                 }
-    
+
                 return chatCmnts;
-    
             } catch (e) {
                 console.error(e);
                 return chatCmnts;
             }
-
         }
-        
     } catch (e) {
         console.error(e);
         return;
     }
 
     return;
-
 }
 
 function getParamsForTranscript(w: any, param: string): object | undefined {
-    
     try {
-        
-        return JSON.parse(JSON.stringify({
-            'headers': {
-                'accept': '*/*',
-                'accept-language': w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                'pragma': 'no-cache',
-                'cache-control': 'no-store',
-                'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                'x-youtube-client-version': w.ytcfg.data_.INNERTUBE_CONTEXT_CLIENT_VERSION
-            },
-            'referrer': getCleanUrlVideo(w.location.href),
-            'referrerPolicy': 'origin-when-cross-origin',
-            'body': JSON.stringify({ context: { client: w.ytcfg.data_.INNERTUBE_CONTEXT.client }, params: param }),
-            'method': 'POST',
-            'mode': 'cors',
-            'credentials': 'include'
-        }));
-
+        return JSON.parse(
+            JSON.stringify({
+                headers: {
+                    accept: '*/*',
+                    'accept-language':
+                        w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                    'content-type': 'application/json',
+                    pragma: 'no-cache',
+                    'cache-control': 'no-store',
+                    'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                    'x-youtube-client-version': w.ytcfg.data_.INNERTUBE_CONTEXT_CLIENT_VERSION
+                },
+                referrer: getCleanUrlVideo(w.location.href),
+                referrerPolicy: 'origin-when-cross-origin',
+                body: JSON.stringify({ context: { client: w.ytcfg.data_.INNERTUBE_CONTEXT.client }, params: param }),
+                method: 'POST',
+                mode: 'cors',
+                credentials: 'include'
+            })
+        );
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 function getTranscriptPot(): string | undefined {
@@ -1646,9 +1893,13 @@ async function getTranscriptBaseUrl(w: any, signal: AbortSignal): Promise<string
     const html = await htmlResp.text();
     const splitted = html.split('"captions":');
     if (splitted.length <= 1) throw new Error('Fail to load video html');
-    const captions = JSON.parse(splitted[1].split(',"videoDetails')[0].replace('\n', '')).playerCaptionsTracklistRenderer;
+    const captions = JSON.parse(
+        splitted[1].split(',"videoDetails')[0].replace('\n', '')
+    ).playerCaptionsTracklistRenderer;
     const generatedTracks = captions.captionTracks.filter(({ kind }: any) => kind === 'asr');
-    const base = (generatedTracks.length === 0 ? captions.captionTracks[0].baseUrl : generatedTracks[0].baseUrl) as string;
+    const base = (
+        generatedTracks.length === 0 ? captions.captionTracks[0].baseUrl : generatedTracks[0].baseUrl
+    ) as string;
     return base;
 }
 
@@ -1667,8 +1918,8 @@ function buildTranscriptFromTimedText(xmlText: string): object | undefined {
         const cueGroups = entries.map(({ text, start, duration }) => ({
             transcriptCueGroupRenderer: {
                 formattedStartOffset: { simpleText: toFormatted(start) },
-                cues: [ { transcriptCueRenderer: { startOffsetMs: start * 1000, cue: { simpleText: text } } } ],
-            },
+                cues: [{ transcriptCueRenderer: { startOffsetMs: start * 1000, cue: { simpleText: text } } }]
+            }
         }));
         return {
             actions: [
@@ -1677,13 +1928,13 @@ function buildTranscriptFromTimedText(xmlText: string): object | undefined {
                         content: {
                             transcriptRenderer: {
                                 body: {
-                                    transcriptBodyRenderer: { cueGroups },
-                                },
-                            },
-                        },
-                    },
-                },
-            ],
+                                    transcriptBodyRenderer: { cueGroups }
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
         };
     } catch (e) {
         console.error(e);
@@ -1695,7 +1946,7 @@ function toFormatted(sec: number): string {
     try {
         const m = Math.floor(sec / 60);
         const s = Math.floor(sec % 60);
-        const sStr = (s < 10 ? `0${s}` : String(s));
+        const sStr = s < 10 ? `0${s}` : String(s);
         return `${m}:${sStr}`;
     } catch {
         return '0:00';
@@ -1703,20 +1954,19 @@ function toFormatted(sec: number): string {
 }
 
 async function getTranscriptVideo(signal: AbortSignal): Promise<object | undefined> {
-
     try {
-
         const initData = await getInitYtData(getCleanUrlVideo(window.location.href) as any, signal);
 
         if (initData) {
-            
             const ytInitParam = findInitYParams(initData) as string;
 
-            
             const params = getParamsForTranscript(window, ytInitParam);
             console.log('PARAMS for TRANSCRIPT', params);
             try {
-                const transcript = await fetch(`https://www.youtube.com/youtubei/v1/get_transcript?key=${getInnertubeApiKey()}`, { ...params, signal, cache: 'no-store'});
+                const transcript = await fetch(
+                    `https://www.youtube.com/youtubei/v1/get_transcript?key=${getInnertubeApiKey()}`,
+                    { ...params, signal, cache: 'no-store' }
+                );
                 const result = await transcript.json();
                 return result;
             } catch (e) {
@@ -1725,7 +1975,10 @@ async function getTranscriptVideo(signal: AbortSignal): Promise<object | undefin
                 if (pot) {
                     try {
                         const base = await getTranscriptBaseUrl(window, signal);
-                        const viaTimedText = await fetch(`${base}&potc=1&pot=${pot}&c=WEB`, { signal, cache: 'no-store' } as RequestInit);
+                        const viaTimedText = await fetch(`${base}&potc=1&pot=${pot}&c=WEB`, {
+                            signal,
+                            cache: 'no-store'
+                        } as RequestInit);
                         const text = await viaTimedText.text();
                         return buildTranscriptFromTimedText(text);
                     } catch (e2) {
@@ -1735,7 +1988,6 @@ async function getTranscriptVideo(signal: AbortSignal): Promise<object | undefin
                 return;
             }
         }
-        
     } catch (e) {
         console.error(e);
         return;
@@ -1753,20 +2005,34 @@ function removeNodeList(selector: string): void {
     }
 }
 
-async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSignal | undefined = undefined, container: object[] | undefined = undefined): Promise<object[]> {
-
+async function getAllCommentsModeV2(
+    elShowLoading: HTMLElement,
+    signal: AbortSignal | undefined = undefined,
+    container: object[] | undefined = undefined
+): Promise<object[]> {
     const _getTokensComments = async (): Promise<any | undefined> => {
-
         try {
-
-            const detailsVideoV2 = await getDetailsVideoIDV2(window, getCleanUrlVideo(window.location.href) as string, signal as AbortSignal);
-            const detailsVideoV2Token = objectScan(['**.contents.twoColumnWatchNextResults.results.results.contents[?].itemSectionRenderer.contents[?].continuationItemRenderer.continuationEndpoint.continuationCommand.token'], { joined: true, rtn: 'value', abort: true })(detailsVideoV2);
+            const detailsVideoV2 = await getDetailsVideoIDV2(
+                window,
+                getCleanUrlVideo(window.location.href) as string,
+                signal as AbortSignal
+            );
+            const detailsVideoV2Token = objectScan(
+                [
+                    '**.contents.twoColumnWatchNextResults.results.results.contents[?].itemSectionRenderer.contents[?].continuationItemRenderer.continuationEndpoint.continuationCommand.token'
+                ],
+                { joined: true, rtn: 'value', abort: true }
+            )(detailsVideoV2);
             console.log('objectScan detailsVideoV2Token: ', detailsVideoV2Token);
 
-            const detailsCmntsVIDV2 = await getDetailsCommentsVideoIDV2(window, {
-                url: getCleanUrlVideo(window.location.href),
-                continue: detailsVideoV2Token
-            }, signal as AbortSignal);
+            const detailsCmntsVIDV2 = await getDetailsCommentsVideoIDV2(
+                window,
+                {
+                    url: getCleanUrlVideo(window.location.href),
+                    continue: detailsVideoV2Token
+                },
+                signal as AbortSignal
+            );
 
             console.log('detailsCmntsVIDV2: ', detailsCmntsVIDV2);
 
@@ -1778,118 +2044,154 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
 
             let tokenComments;
             for (const ptrn of findPtrn) {
-
                 try {
-                    
-                    tokenComments = objectScan([`${ptrn}`], { joined: true, rtn: 'value', abort: true })(detailsCmntsVIDV2);
+                    tokenComments = objectScan([`${ptrn}`], { joined: true, rtn: 'value', abort: true })(
+                        detailsCmntsVIDV2
+                    );
 
                     if (tokenComments) break;
-
                 } catch (err) {
                     console.error(err);
                     continue;
                 }
-
             }
 
-            const nextToken = objectScan(['**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'], { joined: true, rtn: 'value', abort: true })(detailsCmntsVIDV2);
+            const nextToken = objectScan(
+                ['**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'],
+                { joined: true, rtn: 'value', abort: true }
+            )(detailsCmntsVIDV2);
 
             return {
                 continue: nextToken,
                 clickTrackingParams: tokenComments
             };
-            
         } catch (err) {
             console.error(err);
             return;
         }
-
     };
 
     const _prepareFieldsComment = (cmnt: any): object => {
-
         try {
-
-            if(wrapTryCatch(() => cmnt.commentRenderer.actionButtons.commentActionButtonsRenderer.creatorHeart)) {
-
+            if (wrapTryCatch(() => cmnt.commentRenderer.actionButtons.commentActionButtonsRenderer.creatorHeart)) {
                 try {
-                    
                     cmnt.commentRenderer.creatorHeart = {
-                        name: wrapTryCatch(() => cmnt.commentRenderer.actionButtons.commentActionButtonsRenderer.creatorHeart.creatorHeartRenderer.creatorThumbnail.accessibility.accessibilityData.label)
+                        name: wrapTryCatch(
+                            () =>
+                                cmnt.commentRenderer.actionButtons.commentActionButtonsRenderer.creatorHeart
+                                    .creatorHeartRenderer.creatorThumbnail.accessibility.accessibilityData.label
+                        )
                     };
-
                 } catch (err) {
                     console.error(err);
                 }
-
             }
 
-            if (wrapTryCatch(() => cmnt.commentRenderer.authorCommentBadge.authorCommentBadgeRenderer.icon.iconType.indexOf('CHECK') >= 0) ||
-                wrapTryCatch(() => cmnt.commentRenderer.authorCommentBadge.authorCommentBadgeRenderer.iconTooltip.indexOf('Verified') >= 0)) {
-
+            if (
+                wrapTryCatch(
+                    () =>
+                        cmnt.commentRenderer.authorCommentBadge.authorCommentBadgeRenderer.icon.iconType.indexOf(
+                            'CHECK'
+                        ) >= 0
+                ) ||
+                wrapTryCatch(
+                    () =>
+                        cmnt.commentRenderer.authorCommentBadge.authorCommentBadgeRenderer.iconTooltip.indexOf(
+                            'Verified'
+                        ) >= 0
+                )
+            ) {
                 try {
-
-                    cmnt.commentRenderer.verifiedAuthor = true; 
-                    
+                    cmnt.commentRenderer.verifiedAuthor = true;
                 } catch (err) {
                     console.error(err);
                 }
-
             }
-            
-            const fields = ['actionButtons', 'authorCommentBadge', 'collapseButton', 'expandButton', 'loggingDirectives', 'voteStatus', 'trackingParams', 'isLiked'];
-    
+
+            const fields = [
+                'actionButtons',
+                'authorCommentBadge',
+                'collapseButton',
+                'expandButton',
+                'loggingDirectives',
+                'voteStatus',
+                'trackingParams',
+                'isLiked'
+            ];
+
             for (const f of fields) {
                 wrapTryCatch(() => delete cmnt.commentRenderer[f]);
             }
-    
+
             wrapTryCatch(() => delete cmnt.commentRenderer.authorThumbnail.accessibility);
-            wrapTryCatch(() => cmnt.commentRenderer.authorThumbnail.thumbnails.length = 1);
+            wrapTryCatch(() => (cmnt.commentRenderer.authorThumbnail.thumbnails.length = 1));
             wrapTryCatch(() => delete cmnt.commentRenderer.authorThumbnail.thumbnails[0].height);
             wrapTryCatch(() => delete cmnt.commentRenderer.authorThumbnail.thumbnails[0].width);
 
-            
-            wrapTryCatch(() => delete cmnt.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.commandMetadata.webCommandMetadata.rootVe);
-            wrapTryCatch(() => delete cmnt.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.commandMetadata.webCommandMetadata.webPageType);
-            
+            wrapTryCatch(
+                () =>
+                    delete cmnt.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.commandMetadata
+                        .webCommandMetadata.rootVe
+            );
+            wrapTryCatch(
+                () =>
+                    delete cmnt.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.commandMetadata
+                        .webCommandMetadata.webPageType
+            );
 
-            wrapTryCatch(() => delete cmnt.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.watchEndpoint.params);
+            wrapTryCatch(
+                () => delete cmnt.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.watchEndpoint.params
+            );
 
             wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.clickTrackingParams);
 
             wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.commandMetadata.webCommandMetadata.apiUrl);
             wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.commandMetadata.webCommandMetadata.rootVe);
-            wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.commandMetadata.webCommandMetadata.webPageType);
+            wrapTryCatch(
+                () => delete cmnt.commentRenderer.authorEndpoint.commandMetadata.webCommandMetadata.webPageType
+            );
 
             wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.browseEndpoint.browseId);
 
-
-            wrapTryCatch(() => delete cmnt.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.clickTrackingParams);
+            wrapTryCatch(
+                () => delete cmnt.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.clickTrackingParams
+            );
 
             if (wrapTryCatch(() => cmnt.commentRenderer.contentText.runs.length > 0)) {
                 for (const [i, textPart] of cmnt.commentRenderer.contentText.runs.entries()) {
-    
                     if (textPart.navigationEndpoint) {
-                        wrapTryCatch(() => delete cmnt.commentRenderer.contentText.runs[i].navigationEndpoint.commandMetadata.webCommandMetadata.apiUrl);
-                        wrapTryCatch(() => delete cmnt.commentRenderer.contentText.runs[i].navigationEndpoint.commandMetadata.webCommandMetadata.rootVe);
-                        wrapTryCatch(() => delete cmnt.commentRenderer.contentText.runs[i].navigationEndpoint.commandMetadata.webCommandMetadata.webPageType);
-                        
-                        wrapTryCatch(() => delete cmnt.commentRenderer.contentText.runs[i].navigationEndpoint.clickTrackingParams);
+                        wrapTryCatch(
+                            () =>
+                                delete cmnt.commentRenderer.contentText.runs[i].navigationEndpoint.commandMetadata
+                                    .webCommandMetadata.apiUrl
+                        );
+                        wrapTryCatch(
+                            () =>
+                                delete cmnt.commentRenderer.contentText.runs[i].navigationEndpoint.commandMetadata
+                                    .webCommandMetadata.rootVe
+                        );
+                        wrapTryCatch(
+                            () =>
+                                delete cmnt.commentRenderer.contentText.runs[i].navigationEndpoint.commandMetadata
+                                    .webCommandMetadata.webPageType
+                        );
+
+                        wrapTryCatch(
+                            () => delete cmnt.commentRenderer.contentText.runs[i].navigationEndpoint.clickTrackingParams
+                        );
 
                         wrapTryCatch(() => delete cmnt.commentRenderer.contentText.runs[i].text);
                     } else {
                         wrapTryCatch(() => delete cmnt.commentRenderer.contentText.runs[i]);
                     }
-
                 }
             }
-            
+
             return cmnt;
         } catch (err) {
             console.error(err);
             return cmnt;
         }
-    
     };
 
     const comments: object[] = container || [];
@@ -1898,7 +2200,7 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
 
     /**
      * Проходит в первой пачки комментариев и добаляет их в [comments] массив, предварительно соединив текст => fullText.
-     * Также смотрит есть ли ответы (replies), добавляет их в массив 
+     * Также смотрит есть ли ответы (replies), добавляет их в массив
      */
     // eslint-disable-next-line require-await
     async function _getAllRepliesComment(cmnts: any, nodeStatusLoading: HTMLElement): Promise<void> {
@@ -1909,59 +2211,68 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
         console.log('cmts: ', cmts);
 
         for (const c of cmts) {
-
             try {
-
                 // If new model exists, normalize it into legacy slot before processing
-                if (wrapTryCatch(() => c.commentThreadRenderer) && !wrapTryCatch(() => c.commentThreadRenderer.comment)
-                    && (wrapTryCatch(() => c.commentThreadRenderer.commentViewModel) || wrapTryCatch(() => c.commentViewModel))) {
+                if (
+                    wrapTryCatch(() => c.commentThreadRenderer) &&
+                    !wrapTryCatch(() => c.commentThreadRenderer.comment) &&
+                    (wrapTryCatch(() => c.commentThreadRenderer.commentViewModel) ||
+                        wrapTryCatch(() => c.commentViewModel))
+                ) {
                     const normalizedEarly = normalizeCommentFromViewModel(c);
                     if (normalizedEarly) {
                         c.commentThreadRenderer.comment = normalizedEarly;
-                        try { console.log('normalized VM -> comment runs:', normalizedEarly?.commentRenderer?.contentText?.runs?.length || 0); } catch {}
+                        try {
+                            console.log(
+                                'normalized VM -> comment runs:',
+                                normalizedEarly?.commentRenderer?.contentText?.runs?.length || 0
+                            );
+                        } catch {}
                     }
                 }
 
                 if (c.commentThreadRenderer?.comment) {
-
                     let fullTextComment = '';
                     let renderFullTextComment = '';
-    
+
                     const contentText = c.commentThreadRenderer?.comment?.commentRenderer?.contentText?.runs || [];
                     for (const partTextComment of contentText) {
-
-                        const text = (partTextComment as any)?.text
-                            ?? (partTextComment as any)?.simpleText
-                            ?? wrapTryCatch(() => (partTextComment as any)?.textRun?.content)
-                            ?? wrapTryCatch(() => (partTextComment as any)?.textRun?.text)
-                            ?? wrapTryCatch(() => (partTextComment as any)?.content)
-                            ?? '';
-                        const navigationEndpoint = (partTextComment as any)?.navigationEndpoint
-                            ?? wrapTryCatch(() => (partTextComment as any)?.textRun?.navigationEndpoint);
+                        const text =
+                            (partTextComment as any)?.text ??
+                            (partTextComment as any)?.simpleText ??
+                            wrapTryCatch(() => (partTextComment as any)?.textRun?.content) ??
+                            wrapTryCatch(() => (partTextComment as any)?.textRun?.text) ??
+                            wrapTryCatch(() => (partTextComment as any)?.content) ??
+                            '';
+                        const navigationEndpoint =
+                            (partTextComment as any)?.navigationEndpoint ??
+                            wrapTryCatch(() => (partTextComment as any)?.textRun?.navigationEndpoint);
 
                         fullTextComment += text || '';
 
                         try {
-
-                            if (parseInt(wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds) as any) >= 0) {
+                            if (
+                                parseInt(
+                                    wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds) as any
+                                ) >= 0
+                            ) {
                                 renderFullTextComment += `<a class=\"ycs-cpointer ycs-gotochat-video\" href=\"https://www.youtube.com/watch?v=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.videoId)}&t=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}s\" data-offsetvideo=\"${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}\">${text || ''}</a>`;
 
                                 if (c.commentThreadRenderer?.comment?.commentRenderer) {
                                     c.commentThreadRenderer.comment.commentRenderer.isTimeLine = 'timeline';
                                 }
-
                             } else if (navigationEndpoint) {
                                 renderFullTextComment += `<a class=\"ycs-cpointer ycs-comment-link\" href=\"${wrapTryCatch(() => navigationEndpoint?.browseEndpoint?.canonicalBaseUrl) || wrapTryCatch(() => navigationEndpoint?.urlEndpoint?.url) || wrapTryCatch(() => navigationEndpoint?.commandMetadata?.webCommandMetadata?.url) || text || '#'}\" target=\"_blank\">${text || ''}</a>`;
-                                
                             } else if (wrapTryCatch(() => (partTextComment as any).emoji)) {
-                                const url = wrapTryCatch(() => {
-                                    const thumbnails = (partTextComment as any).emoji.image.thumbnails;
-                                    return thumbnails[thumbnails.length - 1].url;
-                                }) || '';
-                                const alt = (wrapTryCatch(() => (partTextComment as any).emoji.shortcuts?.[0]) as string) || '';
+                                const url =
+                                    wrapTryCatch(() => {
+                                        const thumbnails = (partTextComment as any).emoji.image.thumbnails;
+                                        return thumbnails[thumbnails.length - 1].url;
+                                    }) || '';
+                                const alt =
+                                    (wrapTryCatch(() => (partTextComment as any).emoji.shortcuts?.[0]) as string) || '';
                                 const style = `margin-left: 2px; margin-right: 2px;`;
                                 renderFullTextComment += `<img src=\"${url}\" alt=\"${alt}\" title=\"${alt}\" width=\"24\" height=\"24\" style=\"${style}\" class=\"ycs-attachment\">`;
-
                             } else if (wrapTryCatch(() => (partTextComment as any).attachment?.image)) {
                                 const image: any = wrapTryCatch(() => (partTextComment as any).attachment.image);
                                 const url = image?.url || '';
@@ -1971,37 +2282,35 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                                 const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
                                 const alt = text || '';
                                 renderFullTextComment += `<img src=\"${url}\" alt=\"${alt}\" title=\"${alt}\" width=\"${width}\" height=\"${height}\" style=\"${style}\" class=\"ycs-attachment\">`;
-
                             } else {
                                 renderFullTextComment += text || '';
                             }
-
                         } catch (e) {
                             console.error(e);
                             renderFullTextComment += text || '';
                             continue;
                         }
-    
                     }
-    
+
                     if (c.commentThreadRenderer?.comment?.commentRenderer?.contentText) {
                         c.commentThreadRenderer.comment.commentRenderer.contentText.fullText = fullTextComment;
-                        c.commentThreadRenderer.comment.commentRenderer.contentText.renderFullText = renderFullTextComment;
+                        c.commentThreadRenderer.comment.commentRenderer.contentText.renderFullText =
+                            renderFullTextComment;
                     }
-    
+
                     if (c.commentThreadRenderer?.comment?.commentRenderer) {
                         c.commentThreadRenderer.comment.typeComment = 'C';
                         comments.push(_prepareFieldsComment(c.commentThreadRenderer.comment));
                         showLoadComments(comments.length, nodeStatusLoading);
                     }
-
                 }
                 // Handle new commentViewModel shape by normalizing into legacy commentRenderer
-                else if (wrapTryCatch(() => c.commentThreadRenderer?.commentViewModel) || wrapTryCatch(() => c.commentViewModel)) {
-
+                else if (
+                    wrapTryCatch(() => c.commentThreadRenderer?.commentViewModel) ||
+                    wrapTryCatch(() => c.commentViewModel)
+                ) {
                     const normalized = normalizeCommentFromViewModel(c);
                     if (normalized && normalized.commentRenderer?.contentText?.runs) {
-
                         let fullTextComment = '';
                         let renderFullTextComment = '';
 
@@ -2009,17 +2318,24 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                         for (const partTextComment of contentText) {
                             fullTextComment += partTextComment?.text || '';
                             try {
-                                if (parseInt(partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0) {
+                                if (
+                                    parseInt(partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0
+                                ) {
                                     renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${partTextComment?.navigationEndpoint?.watchEndpoint?.videoId}&t=${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}">${partTextComment?.text || ''}</a>`;
-                                    try { normalized.commentRenderer.isTimeLine = 'timeline'; } catch {}
+                                    try {
+                                        normalized.commentRenderer.isTimeLine = 'timeline';
+                                    } catch {}
                                 } else if (partTextComment?.navigationEndpoint) {
                                     renderFullTextComment += `<a class=\"ycs-cpointer ycs-comment-link\" href=\"${partTextComment?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || partTextComment?.navigationEndpoint?.urlEndpoint?.url || partTextComment?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || partTextComment?.text || '#'}\" target=\"_blank\">${partTextComment?.text || ''}</a>`;
                                 } else if (wrapTryCatch(() => (partTextComment as any).emoji)) {
-                                    const url = wrapTryCatch(() => {
-                                        const thumbnails = (partTextComment as any).emoji.image.thumbnails;
-                                        return thumbnails[thumbnails.length - 1].url;
-                                    }) || '';
-                                    const alt = (wrapTryCatch(() => (partTextComment as any).emoji.shortcuts?.[0]) as string) || '';
+                                    const url =
+                                        wrapTryCatch(() => {
+                                            const thumbnails = (partTextComment as any).emoji.image.thumbnails;
+                                            return thumbnails[thumbnails.length - 1].url;
+                                        }) || '';
+                                    const alt =
+                                        (wrapTryCatch(() => (partTextComment as any).emoji.shortcuts?.[0]) as string) ||
+                                        '';
                                     const style = `margin-left: 2px; margin-right: 2px;`;
                                     renderFullTextComment += `<img src=\"${url}\" alt=\"${alt}\" title=\"${alt}\" width=\"24\" height=\"24\" style=\"${style}\" class=\"ycs-attachment\">`;
                                 } else if (wrapTryCatch(() => (partTextComment as any).attachment?.image)) {
@@ -2050,86 +2366,124 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                         showLoadComments(comments.length, nodeStatusLoading);
                     }
                 }
-                
 
                 const nextComments = extractReplyContinuationFromItem(c);
 
-
                 if (nextComments.token) {
-    
                     replyQueue.add(async () => {
-    
                         try {
+                            const paramsCmnts = getParamsForReplies(window, {
+                                continue: nextComments.token,
+                                clickTracking: nextComments.cTrParams
+                            });
+                            const res = await fetchR(
+                                `https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`,
+                                { ...paramsCmnts, signal, cache: 'no-store' } as RequestInit
+                            );
+                            let data = await res.json();
+                            console.log('Queue replies: ', data);
 
-                const paramsCmnts = getParamsForReplies(window, {
-                    continue: nextComments.token,
-                    clickTracking: nextComments.cTrParams
-                });
-                            const res = await fetchR(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, { ...paramsCmnts, signal, cache: 'no-store' } as RequestInit);
-                let data = await res.json();
-                console.log('Queue replies: ', data);
-
-                // replies: prefer FW-driven migration
-                const fwRep = getFrameworkUpdatesById(data);
-                const reloadRep = wrapTryCatch(() => data.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand.continuationItems) || [];
-                const appendRep = wrapTryCatch(() => data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems) || [];
-                const itemsRep = (Array.isArray(reloadRep) && reloadRep.length > 0) ? reloadRep : appendRep;
-                const repliesContainer: any[] = Array.isArray(itemsRep) && itemsRep.length > 0 ? migrateContinuationItemsWithFW(itemsRep, fwRep) : [];
-                if (repliesContainer && repliesContainer.length > 0) {
-                    const replies: any = repliesContainer || [];
+                            // replies: prefer FW-driven migration
+                            const fwRep = getFrameworkUpdatesById(data);
+                            const reloadRep =
+                                wrapTryCatch(
+                                    () =>
+                                        data.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand
+                                            .continuationItems
+                                ) || [];
+                            const appendRep =
+                                wrapTryCatch(
+                                    () =>
+                                        data.onResponseReceivedEndpoints[0].appendContinuationItemsAction
+                                            .continuationItems
+                                ) || [];
+                            const itemsRep = Array.isArray(reloadRep) && reloadRep.length > 0 ? reloadRep : appendRep;
+                            const repliesContainer: any[] =
+                                Array.isArray(itemsRep) && itemsRep.length > 0
+                                    ? migrateContinuationItemsWithFW(itemsRep, fwRep)
+                                    : [];
+                            if (repliesContainer && repliesContainer.length > 0) {
+                                const replies: any = repliesContainer || [];
                                 for (let comment of replies) {
-
                                     if (!comment?.commentRenderer) {
                                         const norm = normalizeCommentFromViewModel(comment);
                                         if (norm && norm.commentRenderer) comment = norm;
                                     }
                                     if (!comment?.commentRenderer) continue;
-                                    try { applyFrameworkUpdatesToComment(comment, comment, getFrameworkUpdatesById(data)); } catch (e) { console.error(e); }
-        
+                                    try {
+                                        applyFrameworkUpdatesToComment(comment, comment, getFrameworkUpdatesById(data));
+                                    } catch (e) {
+                                        console.error(e);
+                                    }
+
                                     let fullTextComment = '';
                                     let renderFullTextComment = '';
-        
+
                                     const contentText = comment.commentRenderer?.contentText?.runs || [];
                                     for (const partTextComment of contentText) {
-
                                         let textStr: string = '';
                                         let navigationEndpoint: any;
                                         try {
-
-                                            textStr = (partTextComment as any)?.text
-                                                ?? (partTextComment as any)?.simpleText
-                                                ?? (wrapTryCatch(() => (partTextComment as any)?.textRun?.content) as string)
-                                                ?? (wrapTryCatch(() => (partTextComment as any)?.textRun?.text) as string)
-                                                ?? (wrapTryCatch(() => (partTextComment as any)?.content) as string)
-                                                ?? '';
-                                            navigationEndpoint = (partTextComment as any)?.navigationEndpoint
-                                                ?? wrapTryCatch(() => (partTextComment as any)?.textRun?.navigationEndpoint);
+                                            textStr =
+                                                (partTextComment as any)?.text ??
+                                                (partTextComment as any)?.simpleText ??
+                                                (wrapTryCatch(
+                                                    () => (partTextComment as any)?.textRun?.content
+                                                ) as string) ??
+                                                (wrapTryCatch(
+                                                    () => (partTextComment as any)?.textRun?.text
+                                                ) as string) ??
+                                                (wrapTryCatch(() => (partTextComment as any)?.content) as string) ??
+                                                '';
+                                            navigationEndpoint =
+                                                (partTextComment as any)?.navigationEndpoint ??
+                                                wrapTryCatch(
+                                                    () => (partTextComment as any)?.textRun?.navigationEndpoint
+                                                );
 
                                             fullTextComment += textStr || '';
-        
-                                            if (parseInt(wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds) as any) >= 0) {
-            
+
+                                            if (
+                                                parseInt(
+                                                    wrapTryCatch(
+                                                        () => navigationEndpoint?.watchEndpoint?.startTimeSeconds
+                                                    ) as any
+                                                ) >= 0
+                                            ) {
                                                 renderFullTextComment += `<a class=\"ycs-cpointer ycs-gotochat-video\" href=\"https://www.youtube.com/watch?v=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.videoId)}&t=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}s\" data-offsetvideo=\"${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}\">${textStr || ''}</a>`;
 
                                                 if (comment.commentRenderer) {
                                                     comment.commentRenderer.isTimeLine = 'timeline';
                                                 }
-            
                                             } else if (navigationEndpoint) {
-                                                const hrefNav = (wrapTryCatch(() => navigationEndpoint?.browseEndpoint?.canonicalBaseUrl) || wrapTryCatch(() => navigationEndpoint?.urlEndpoint?.url) || wrapTryCatch(() => navigationEndpoint?.commandMetadata?.webCommandMetadata?.url) || textStr || '#') as string;
+                                                const hrefNav = (wrapTryCatch(
+                                                    () => navigationEndpoint?.browseEndpoint?.canonicalBaseUrl
+                                                ) ||
+                                                    wrapTryCatch(() => navigationEndpoint?.urlEndpoint?.url) ||
+                                                    wrapTryCatch(
+                                                        () =>
+                                                            navigationEndpoint?.commandMetadata?.webCommandMetadata?.url
+                                                    ) ||
+                                                    textStr ||
+                                                    '#') as string;
                                                 renderFullTextComment += `<a class=\"ycs-cpointer ycs-comment-link\" href=\"${hrefNav}\" target=\"_blank\">${textStr || ''}</a>`;
-
                                             } else if (wrapTryCatch(() => (partTextComment as any).emoji)) {
-                                                const url = wrapTryCatch(() => {
-                                                    const thumbnails = (partTextComment as any).emoji.image.thumbnails;
-                                                    return thumbnails[thumbnails.length - 1].url;
-                                                }) || '';
-                                                const alt = (wrapTryCatch(() => (partTextComment as any).emoji.shortcuts?.[0]) as string) || '';
+                                                const url =
+                                                    wrapTryCatch(() => {
+                                                        const thumbnails = (partTextComment as any).emoji.image
+                                                            .thumbnails;
+                                                        return thumbnails[thumbnails.length - 1].url;
+                                                    }) || '';
+                                                const alt =
+                                                    (wrapTryCatch(
+                                                        () => (partTextComment as any).emoji.shortcuts?.[0]
+                                                    ) as string) || '';
                                                 const style = `margin-left: 2px; margin-right: 2px;`;
                                                 renderFullTextComment += `<img src=\"${url}\" alt=\"${alt}\" title=\"${alt}\" width=\"24\" height=\"24\" style=\"${style}\" class=\"ycs-attachment\">`;
-
                                             } else if (wrapTryCatch(() => (partTextComment as any).attachment?.image)) {
-                                                const image: any = wrapTryCatch(() => (partTextComment as any).attachment.image);
+                                                const image: any = wrapTryCatch(
+                                                    () => (partTextComment as any).attachment.image
+                                                );
                                                 const url = image?.url || '';
                                                 const width = image?.width || 24;
                                                 const height = image?.height || 24;
@@ -2137,149 +2491,182 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                                                 const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
                                                 const alt = textStr || '';
                                                 renderFullTextComment += `<img src=\"${url}\" alt=\"${alt}\" title=\"${alt}\" width=\"${width}\" height=\"${height}\" style=\"${style}\" class=\"ycs-attachment\">`;
-
                                             } else {
                                                 renderFullTextComment += textStr || '';
                                             }
-
                                         } catch (e) {
                                             console.error(e);
                                             renderFullTextComment += textStr || '';
                                         }
-                                        
                                     }
-        
+
                                     if (comment?.commentRenderer?.contentText) {
                                         comment.commentRenderer.contentText.fullText = fullTextComment;
                                         comment.commentRenderer.contentText.renderFullText = renderFullTextComment;
                                     }
-        
+
                                     comment.typeComment = 'R';
                                     comment.originComment = c.commentThreadRenderer.comment;
                                     comments.push(_prepareFieldsComment(comment));
 
                                     showLoadComments(comments.length, nodeStatusLoading);
                                 }
-        
                             }
-        
-                while (true) {
-                    const { token: rToken, clickTrackingParams: rClick } = extractNextContinuation(data);
-                    if (!rToken) break;
-                    const rPrms = { continue: rToken, clickTracking: rClick };
-                                
-                                const rParamsCmnts = getParamsForReplies(window, rPrms);
-        
-                                const resReplies = await fetchR(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, { ...rParamsCmnts, signal, cache: 'no-store' } as RequestInit);
-                                data = await resReplies.json();
-                    const fwMore = getFrameworkUpdatesById(data);
-                    const reloadMore = wrapTryCatch(() => data.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand.continuationItems) || [];
-                    const appendMore = wrapTryCatch(() => data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems) || [];
-                    const itemsMore = (Array.isArray(reloadMore) && reloadMore.length > 0) ? reloadMore : appendMore;
-                    const moreReplies: any[] = Array.isArray(itemsMore) && itemsMore.length > 0 ? migrateContinuationItemsWithFW(itemsMore, fwMore) : [];
-                    if (moreReplies && moreReplies.length > 0) {
-                        const replies: any = moreReplies;
-                                    for (let comment of replies) {
 
+                            while (true) {
+                                const { token: rToken, clickTrackingParams: rClick } = extractNextContinuation(data);
+                                if (!rToken) break;
+                                const rPrms = { continue: rToken, clickTracking: rClick };
+
+                                const rParamsCmnts = getParamsForReplies(window, rPrms);
+
+                                const resReplies = await fetchR(
+                                    `https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`,
+                                    { ...rParamsCmnts, signal, cache: 'no-store' } as RequestInit
+                                );
+                                data = await resReplies.json();
+                                const fwMore = getFrameworkUpdatesById(data);
+                                const reloadMore =
+                                    wrapTryCatch(
+                                        () =>
+                                            data.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand
+                                                .continuationItems
+                                    ) || [];
+                                const appendMore =
+                                    wrapTryCatch(
+                                        () =>
+                                            data.onResponseReceivedEndpoints[0].appendContinuationItemsAction
+                                                .continuationItems
+                                    ) || [];
+                                const itemsMore =
+                                    Array.isArray(reloadMore) && reloadMore.length > 0 ? reloadMore : appendMore;
+                                const moreReplies: any[] =
+                                    Array.isArray(itemsMore) && itemsMore.length > 0
+                                        ? migrateContinuationItemsWithFW(itemsMore, fwMore)
+                                        : [];
+                                if (moreReplies && moreReplies.length > 0) {
+                                    const replies: any = moreReplies;
+                                    for (let comment of replies) {
                                         if (!comment?.commentRenderer) {
                                             const norm = normalizeCommentFromViewModel(comment);
                                             if (norm && norm.commentRenderer) comment = norm;
                                         }
                                         if (!comment?.commentRenderer) continue;
-                                        try { applyFrameworkUpdatesToComment(comment, comment, getFrameworkUpdatesById(data)); } catch (e) { console.error(e); }
-        
+                                        try {
+                                            applyFrameworkUpdatesToComment(
+                                                comment,
+                                                comment,
+                                                getFrameworkUpdatesById(data)
+                                            );
+                                        } catch (e) {
+                                            console.error(e);
+                                        }
+
                                         let fullTextComment = '';
                                         let renderFullTextComment = '';
-        
+
                                         const contentText = comment.commentRenderer?.contentText?.runs || [];
                                         for (const partTextComment of contentText) {
-
                                             try {
-
-                                                const text = (partTextComment as any)?.text
-                                                    ?? (partTextComment as any)?.simpleText
-                                                    ?? wrapTryCatch(() => (partTextComment as any)?.textRun?.content)
-                                                    ?? wrapTryCatch(() => (partTextComment as any)?.textRun?.text)
-                                                    ?? wrapTryCatch(() => (partTextComment as any)?.content)
-                                                    ?? '';
-                                                const navigationEndpoint = (partTextComment as any)?.navigationEndpoint
-                                                    ?? wrapTryCatch(() => (partTextComment as any)?.textRun?.navigationEndpoint);
+                                                const text =
+                                                    (partTextComment as any)?.text ??
+                                                    (partTextComment as any)?.simpleText ??
+                                                    wrapTryCatch(() => (partTextComment as any)?.textRun?.content) ??
+                                                    wrapTryCatch(() => (partTextComment as any)?.textRun?.text) ??
+                                                    wrapTryCatch(() => (partTextComment as any)?.content) ??
+                                                    '';
+                                                const navigationEndpoint =
+                                                    (partTextComment as any)?.navigationEndpoint ??
+                                                    wrapTryCatch(
+                                                        () => (partTextComment as any)?.textRun?.navigationEndpoint
+                                                    );
 
                                                 if (typeof text === 'string' && text.length > 0) {
                                                     fullTextComment += text;
                                                 }
-            
-                                                if (parseInt(wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds) as any) >= 0) {
-            
+
+                                                if (
+                                                    parseInt(
+                                                        wrapTryCatch(
+                                                            () => navigationEndpoint?.watchEndpoint?.startTimeSeconds
+                                                        ) as any
+                                                    ) >= 0
+                                                ) {
                                                     renderFullTextComment += `<a class=\"ycs-cpointer ycs-gotochat-video\" href=\"https://www.youtube.com/watch?v=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.videoId)}&t=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}s\" data-offsetvideo=\"${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}\">${text || ''}</a>`;
-    
+
                                                     if (comment.commentRenderer) {
                                                         comment.commentRenderer.isTimeLine = 'timeline';
                                                     }
-                
                                                 } else if (navigationEndpoint) {
-                                                    const href = (wrapTryCatch(() => navigationEndpoint?.browseEndpoint?.canonicalBaseUrl) || wrapTryCatch(() => navigationEndpoint?.urlEndpoint?.url) || wrapTryCatch(() => navigationEndpoint?.commandMetadata?.webCommandMetadata?.url) || (text as string) || '#') as string;
+                                                    const href = (wrapTryCatch(
+                                                        () => navigationEndpoint?.browseEndpoint?.canonicalBaseUrl
+                                                    ) ||
+                                                        wrapTryCatch(() => navigationEndpoint?.urlEndpoint?.url) ||
+                                                        wrapTryCatch(
+                                                            () =>
+                                                                navigationEndpoint?.commandMetadata?.webCommandMetadata
+                                                                    ?.url
+                                                        ) ||
+                                                        (text as string) ||
+                                                        '#') as string;
                                                     const lbl = (text as string) || '';
                                                     renderFullTextComment += `<a class=\"ycs-cpointer ycs-comment-link\" href=\"${href}\" target=\"_blank\">${lbl}</a>`;
-
                                                 } else {
                                                     renderFullTextComment += (text as string) || '';
                                                 }
-
                                             } catch (e) {
                                                 console.error(e);
                                                 const fallbackText: string = ((): string => {
                                                     try {
-                                                        const t = (partTextComment as any)?.text
-                                                            ?? (partTextComment as any)?.simpleText
-                                                            ?? (wrapTryCatch(() => (partTextComment as any)?.textRun?.content) as string)
-                                                            ?? (wrapTryCatch(() => (partTextComment as any)?.textRun?.text) as string)
-                                                            ?? (wrapTryCatch(() => (partTextComment as any)?.content) as string)
-                                                            ?? '';
+                                                        const t =
+                                                            (partTextComment as any)?.text ??
+                                                            (partTextComment as any)?.simpleText ??
+                                                            (wrapTryCatch(
+                                                                () => (partTextComment as any)?.textRun?.content
+                                                            ) as string) ??
+                                                            (wrapTryCatch(
+                                                                () => (partTextComment as any)?.textRun?.text
+                                                            ) as string) ??
+                                                            (wrapTryCatch(
+                                                                () => (partTextComment as any)?.content
+                                                            ) as string) ??
+                                                            '';
                                                         return typeof t === 'string' ? t : '';
-                                                    } catch { return ''; }
+                                                    } catch {
+                                                        return '';
+                                                    }
                                                 })();
                                                 renderFullTextComment += fallbackText;
                                             }
-
                                         }
-        
+
                                         if (comment?.commentRenderer?.contentText) {
                                             comment.commentRenderer.contentText.fullText = fullTextComment;
                                             comment.commentRenderer.contentText.renderFullText = renderFullTextComment;
                                         }
-                                        
+
                                         comment.typeComment = 'R';
                                         comment.originComment = c.commentThreadRenderer.comment;
                                         comments.push(_prepareFieldsComment(comment));
                                         showLoadComments(comments.length, nodeStatusLoading);
                                     }
-
                                 }
                             }
-        
                         } catch (e) {
                             console.error(e);
                         }
-                    
                     });
-    
                 }
-
             } catch (e) {
                 console.error(e);
                 continue;
             }
-
         }
-
     }
 
     try {
-        
         let response, data: any;
         try {
-
             console.log('Try get comments with inner tube api key');
 
             const tokensComments = await _getTokensComments();
@@ -2289,40 +2676,62 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
 
             let paramsCmnts;
             if (tokensComments.clickTrackingParams) {
-
                 paramsCmnts = getParamsForComments(window, {
                     continue: tokensComments.continue,
                     clickTrackingParams: tokensComments.clickTrackingParams
                 });
 
                 console.log('WITHOUT REFRESH!');
-
             } else {
-
                 paramsCmnts = getParamsForComments(window, {
-                    continue: wrapTryCatch(() => objectScan(['**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'], { joined: true, rtn: 'value', abort: true })((window as any).ytInitialData)),
-                    clickTrackingParams: wrapTryCatch(() => objectScan(['**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.clickTrackingParams'], { joined: true, rtn: 'value', abort: true })((window as any).ytInitialData))
+                    continue: wrapTryCatch(() =>
+                        objectScan(
+                            [
+                                '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'
+                            ],
+                            { joined: true, rtn: 'value', abort: true }
+                        )((window as any).ytInitialData)
+                    ),
+                    clickTrackingParams: wrapTryCatch(() =>
+                        objectScan(
+                            [
+                                '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.clickTrackingParams'
+                            ],
+                            { joined: true, rtn: 'value', abort: true }
+                        )((window as any).ytInitialData)
+                    )
                 });
 
-                console.log('objectScan REFRESH: ', wrapTryCatch(() => objectScan(['**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'], { joined: true, rtn: 'value', abort: true })((window as any).ytInitialData)));
+                console.log(
+                    'objectScan REFRESH: ',
+                    wrapTryCatch(() =>
+                        objectScan(
+                            [
+                                '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'
+                            ],
+                            { joined: true, rtn: 'value', abort: true }
+                        )((window as any).ytInitialData)
+                    )
+                );
             }
 
             if (paramsCmnts) {
-                response = await fetch(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, { ...paramsCmnts, signal, cache: 'no-store' } as RequestInit);
+                response = await fetch(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, {
+                    ...paramsCmnts,
+                    signal,
+                    cache: 'no-store'
+                } as RequestInit);
             }
 
             if (response?.status === 200) {
-                
                 const res = await response.json();
                 console.log('response: ', response);
                 data = res;
                 console.log('data; ', data);
-                
             } else {
                 // removeNodeList('.iframe_ytInitialData');
                 return [];
             }
-
         } catch (err) {
             console.error(err);
             // removeNodeList('.iframe_ytInitialData');
@@ -2334,50 +2743,83 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
             try {
                 const fw = getFrameworkUpdatesById(data);
                 // try to find continuation items from both reload and append
-                const reloadItems = wrapTryCatch(() => data.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand.continuationItems) || [];
-                const appendItems = wrapTryCatch(() => data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems) || [];
-                const items = (Array.isArray(reloadItems) && reloadItems.length > 0) ? reloadItems : appendItems;
+                const reloadItems =
+                    wrapTryCatch(
+                        () => data.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand.continuationItems
+                    ) || [];
+                const appendItems =
+                    wrapTryCatch(
+                        () => data.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems
+                    ) || [];
+                const items = Array.isArray(reloadItems) && reloadItems.length > 0 ? reloadItems : appendItems;
                 if (Array.isArray(items) && items.length > 0) {
                     return migrateContinuationItemsWithFW(items, fw);
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+            }
             return [];
         })();
         try {
             const hasCTRBase = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.commentThreadRenderer)).length;
-            const hasCTR = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.commentThreadRenderer.comment)).length;
-            const hasCV = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.commentThreadRenderer.commentViewModel) || !!wrapTryCatch(() => x.commentViewModel)).length;
+            const hasCTR = (cmnts || []).filter(
+                (x: any) => !!wrapTryCatch(() => x.commentThreadRenderer.comment)
+            ).length;
+            const hasCV = (cmnts || []).filter(
+                (x: any) =>
+                    !!wrapTryCatch(() => x.commentThreadRenderer.commentViewModel) ||
+                    !!wrapTryCatch(() => x.commentViewModel)
+            ).length;
             const hasCont = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.continuationItemRenderer)).length;
-            console.log('batch stats (top): hasCTRBase:', hasCTRBase, 'hasCTR:', hasCTR, 'hasCV:', hasCV, 'hasCont:', hasCont, 'len:', (cmnts||[]).length);
+            console.log(
+                'batch stats (top): hasCTRBase:',
+                hasCTRBase,
+                'hasCTR:',
+                hasCTR,
+                'hasCV:',
+                hasCV,
+                'hasCont:',
+                hasCont,
+                'len:',
+                (cmnts || []).length
+            );
             if ((cmnts || []).length > 0) {
                 console.log('first item keys (top):', Object.keys(cmnts[0]));
             }
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+        }
 
         // Build frameworkUpdates map once per page batch
         let fwById: Record<string, any> = getFrameworkUpdatesById(data);
 
         while (cmnts?.length > 0) {
-
             // Before pushing comments, try to enrich via frameworkUpdates when possible
             try {
                 for (const it of cmnts) {
                     const target = wrapTryCatch(() => it.commentThreadRenderer?.comment) || it;
                     if (target) applyFrameworkUpdatesToComment(target, it, fwById);
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+            }
 
             await _getAllRepliesComment(cmnts, elShowLoading);
 
-            const { token: nextToken } = extractNextContinuation({ onResponseReceivedEndpoints: data.onResponseReceivedEndpoints });
+            const { token: nextToken } = extractNextContinuation({
+                onResponseReceivedEndpoints: data.onResponseReceivedEndpoints
+            });
             if (nextToken) {
                 console.log('Comment next Token: ', nextToken);
 
                 const paramsCmnts = getParamsForComments(window, { continue: nextToken });
-                const res = await fetchR(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, { ...paramsCmnts, signal, cache: 'no-store' } as RequestInit);
-    
+                const res = await fetchR(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, {
+                    ...paramsCmnts,
+                    signal,
+                    cache: 'no-store'
+                } as RequestInit);
+
                 if (res?.status === 200) {
-                    
                     const resJson = await res.json();
                     console.log('resJson: ', resJson);
                     // Update current response context for next token extraction
@@ -2385,25 +2827,65 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                     // Try FW migration first on next pages
                     try {
                         const fwNext = getFrameworkUpdatesById(resJson);
-                        const reloadItemsN = wrapTryCatch(() => resJson.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand.continuationItems) || [];
-                        const appendItemsN = wrapTryCatch(() => resJson.onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems) || [];
-                        const itemsN = (Array.isArray(reloadItemsN) && reloadItemsN.length > 0) ? reloadItemsN : appendItemsN;
-                        cmnts = Array.isArray(itemsN) && itemsN.length > 0 ? migrateContinuationItemsWithFW(itemsN, fwNext) : [];
-                    } catch { cmnts = []; }
+                        const reloadItemsN =
+                            wrapTryCatch(
+                                () =>
+                                    resJson.onResponseReceivedEndpoints[1].reloadContinuationItemsCommand
+                                        .continuationItems
+                            ) || [];
+                        const appendItemsN =
+                            wrapTryCatch(
+                                () =>
+                                    resJson.onResponseReceivedEndpoints[0].appendContinuationItemsAction
+                                        .continuationItems
+                            ) || [];
+                        const itemsN =
+                            Array.isArray(reloadItemsN) && reloadItemsN.length > 0 ? reloadItemsN : appendItemsN;
+                        cmnts =
+                            Array.isArray(itemsN) && itemsN.length > 0
+                                ? migrateContinuationItemsWithFW(itemsN, fwNext)
+                                : [];
+                    } catch {
+                        cmnts = [];
+                    }
                     fwById = getFrameworkUpdatesById(resJson);
                     try {
-                        const hasCTRBase2 = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.commentThreadRenderer)).length;
-                        const hasCTR2 = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.commentThreadRenderer.comment)).length;
-                        const hasCV2 = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.commentThreadRenderer.commentViewModel) || !!wrapTryCatch(() => x.commentViewModel)).length;
-                        const hasCont2 = (cmnts || []).filter((x: any) => !!wrapTryCatch(() => x.continuationItemRenderer)).length;
-                        console.log('batch stats (next): hasCTRBase:', hasCTRBase2, 'hasCTR:', hasCTR2, 'hasCV:', hasCV2, 'hasCont:', hasCont2, 'len:', (cmnts||[]).length);
+                        const hasCTRBase2 = (cmnts || []).filter(
+                            (x: any) => !!wrapTryCatch(() => x.commentThreadRenderer)
+                        ).length;
+                        const hasCTR2 = (cmnts || []).filter(
+                            (x: any) => !!wrapTryCatch(() => x.commentThreadRenderer.comment)
+                        ).length;
+                        const hasCV2 = (cmnts || []).filter(
+                            (x: any) =>
+                                !!wrapTryCatch(() => x.commentThreadRenderer.commentViewModel) ||
+                                !!wrapTryCatch(() => x.commentViewModel)
+                        ).length;
+                        const hasCont2 = (cmnts || []).filter(
+                            (x: any) => !!wrapTryCatch(() => x.continuationItemRenderer)
+                        ).length;
+                        console.log(
+                            'batch stats (next): hasCTRBase:',
+                            hasCTRBase2,
+                            'hasCTR:',
+                            hasCTR2,
+                            'hasCV:',
+                            hasCV2,
+                            'hasCont:',
+                            hasCont2,
+                            'len:',
+                            (cmnts || []).length
+                        );
                         if ((cmnts || []).length > 0) {
                             console.log('first item keys (next):', Object.keys(cmnts[0]));
                         }
-                    } catch (e) { console.error(e); }
+                    } catch (e) {
+                        console.error(e);
+                    }
                     // frameworkUpdates: mark heart/pinned attributes (if available)
                     try {
-                        const mutations = wrapTryCatch(() => resJson.frameworkUpdates.entityBatchUpdate.mutations) || [];
+                        const mutations =
+                            wrapTryCatch(() => resJson.frameworkUpdates.entityBatchUpdate.mutations) || [];
                         if (Array.isArray(mutations) && mutations.length > 0) {
                             const byId: Record<string, any> = {};
                             for (const m of mutations) {
@@ -2416,22 +2898,17 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
                         console.error(e);
                     }
                     console.log('cmnts; ', cmnts);
-                    
                 } else {
                     cmnts = [];
                 }
-
             } else {
                 cmnts = [];
                 console.log('else last comment: ', cmnts);
             }
 
             console.log('iteration comments: ', comments.length);
-
         }
         console.log('END iteration push, now comments size is: ', comments.length);
-
-
     } catch (e) {
         console.error(e);
         // console.log('errorRequestComments: ', errorRequestComments);
@@ -2455,63 +2932,47 @@ async function getAllCommentsModeV2(elShowLoading: HTMLElement, signal: AbortSig
     }
 
     return comments;
-
 }
 
 function msToRoundSec(msNumber: string | number): number | undefined {
-    
     try {
-
         const value = typeof msNumber === 'string' ? parseFloat(msNumber) : msNumber;
         if (!Number.isNaN(value) && value > 0) {
             return parseInt((value / 1000) as any, 10);
         }
 
         return;
-        
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 function msToShareVideo(msNumber: string | number): string | undefined {
-
     try {
-
         const u = new URL(window.location.href);
         const vParam = u.searchParams.get('v');
 
         const shareUrl = `https://youtu.be/${vParam}?t=${msToRoundSec(msNumber) || 0}`;
 
         return shareUrl;
-        
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 function sendMsgToBadge(typeMsg: string, msg: string | number): void {
-
     try {
-
-        if ((typeof msg === 'string' || typeof msg === 'number') &&
-             typeof typeMsg === 'string') {
+        if ((typeof msg === 'string' || typeof msg === 'number') && typeof typeMsg === 'string') {
             window.postMessage({ type: typeMsg.toString(), text: msg.toString() }, window.location.origin);
         }
-
-        
     } catch (e) {
         console.error(e);
     }
-
 }
 
 function tmUsecToDateTime(microSec: string | number): string {
-
     const value = typeof microSec === 'string' ? parseFloat(microSec) : microSec;
     if (!Number.isNaN(value) && value > 0) {
         const dateTime = new Date((value as any) / 1000);
@@ -2523,129 +2984,136 @@ function tmUsecToDateTime(microSec: string | number): string {
 }
 
 function downloadFile(content: string, fileName: string, type: string): void {
-
     try {
-        
         const a = document.createElement('a');
-        const file = new Blob([content], {type: type});
-        
-        a.href= URL.createObjectURL(file);
+        const file = new Blob([content], { type: type });
+
+        a.href = URL.createObjectURL(file);
         a.download = fileName;
         a.click();
 
         URL.revokeObjectURL(a.href);
-
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 function openComments(comments: any): WindowProxy | undefined {
     if (!comments.count && !comments.html) return;
 
     try {
-        
-        const commentsNewWindow = window.open('', 'CommentsNewWindow', 'width=640,height=700,menubar=0,toolbar=0,location=0,status=0,resizable=1,scrollbars=1,directories=0,channelmode=0,titlebar=0,top=25,left=25');
+        const commentsNewWindow = window.open(
+            '',
+            'CommentsNewWindow',
+            'width=640,height=700,menubar=0,toolbar=0,location=0,status=0,resizable=1,scrollbars=1,directories=0,channelmode=0,titlebar=0,top=25,left=25'
+        );
 
         if (commentsNewWindow) {
             commentsNewWindow.document.title = `Comments, ${document.title} (${comments.count})`;
             const elWrapPre = document.createElement('pre');
             elWrapPre.style.cssText = 'word-wrap: break-word; white-space: pre-wrap;';
-            elWrapPre.insertAdjacentText('afterbegin', `
+            elWrapPre.insertAdjacentText(
+                'afterbegin',
+                `
 YCS - YouTube Comment Search
 
 Comments
 File created by ${new Date().toString()}
 Video URL: ${getCleanUrlVideo(window.location.href)}
 Title: ${document.title}
-Total: ${comments.count}\n${comments.html}`);
+Total: ${comments.count}\n${comments.html}`
+            );
             commentsNewWindow.document.body.textContent = '';
             commentsNewWindow.document.body.appendChild(elWrapPre);
             return commentsNewWindow;
         }
 
         return;
-
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 function openCommentsChat(comments: any): WindowProxy | undefined {
     if (!comments.count && !comments.html) return;
 
     try {
-        
-        const commentsNewWindow = window.open('', 'CommentsChatNewWindow', 'width=640,height=700,menubar=0,toolbar=0,location=0,status=0,resizable=1,scrollbars=1,directories=0,channelmode=0,titlebar=0,top=50,left=50');
+        const commentsNewWindow = window.open(
+            '',
+            'CommentsChatNewWindow',
+            'width=640,height=700,menubar=0,toolbar=0,location=0,status=0,resizable=1,scrollbars=1,directories=0,channelmode=0,titlebar=0,top=50,left=50'
+        );
 
         if (commentsNewWindow) {
             commentsNewWindow.document.title = `Comments chat, ${document.title} (${comments.count})`;
             const elWrapPre = document.createElement('pre');
             elWrapPre.style.cssText = 'word-wrap: break-word; white-space: pre-wrap;';
-            elWrapPre.insertAdjacentText('afterbegin', `
+            elWrapPre.insertAdjacentText(
+                'afterbegin',
+                `
 YCS - YouTube Comment Search
 
 Comments chat
 File created by ${new Date().toString()}
 Video URL: ${getCleanUrlVideo(window.location.href)}
 Title: ${document.title}
-Total: ${comments.count}\n${comments.html}`);
+Total: ${comments.count}\n${comments.html}`
+            );
             commentsNewWindow.document.body.textContent = '';
             commentsNewWindow.document.body.appendChild(elWrapPre);
             return commentsNewWindow;
         }
 
         return;
-
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 function openCommentsTrVideo(comments: any): WindowProxy | undefined {
     if (!comments.count && !comments.html) return;
 
     try {
-        
-        const commentsNewWindow = window.open('', 'CommentsTrVideoNewWindow', 'width=640,height=700,menubar=0,toolbar=0,location=0,status=0,resizable=1,scrollbars=1,directories=0,channelmode=0,titlebar=0,top=75,left=75');
+        const commentsNewWindow = window.open(
+            '',
+            'CommentsTrVideoNewWindow',
+            'width=640,height=700,menubar=0,toolbar=0,location=0,status=0,resizable=1,scrollbars=1,directories=0,channelmode=0,titlebar=0,top=75,left=75'
+        );
 
         if (commentsNewWindow) {
             commentsNewWindow.document.title = `Transcript video, ${document.title} (${comments.count})`;
             const elWrapPre = document.createElement('pre');
             elWrapPre.style.cssText = 'word-wrap: break-word; white-space: pre-wrap;';
-            elWrapPre.insertAdjacentText('afterbegin', `
+            elWrapPre.insertAdjacentText(
+                'afterbegin',
+                `
 YCS - YouTube Comment Search
 
 Transcript video
 File created by ${new Date().toString()}
 Video URL: ${getCleanUrlVideo(window.location.href)}
 Title: ${document.title}
-Total: ${comments.count}\n${comments.html}`);
+Total: ${comments.count}\n${comments.html}`
+            );
             commentsNewWindow.document.body.textContent = '';
             commentsNewWindow.document.body.appendChild(elWrapPre);
             return commentsNewWindow;
         }
 
         return;
-
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 function getCommentsHtmlText(comments: any): any | undefined {
     if (!Array.isArray(comments)) return;
 
     try {
-        
         let html = '';
         let countComment = 0;
 
@@ -2653,100 +3121,77 @@ function getCommentsHtmlText(comments: any): any | undefined {
             replies: Set<any> = new Set();
 
         for (const c of comments) {
-
             if (c?.typeComment === 'C') {
                 c.commentRenderer.ycsReplies = [];
                 cmnts.add(c);
             } else if (c?.typeComment === 'R') {
                 replies.add(c);
             }
-
         }
 
         console.log('cmnts: ', cmnts);
         console.log('replies: ', replies);
         for (const c of cmnts) {
-
             if (wrapTryCatch(() => c.commentRenderer.replyCount > 0)) {
-
                 for (const r of replies) {
-    
                     if (r?.originComment.commentRenderer.commentId === c.commentRenderer.commentId) {
                         c.commentRenderer.ycsReplies.push(r);
                         // console.log('push to ycsReplies: ', r);
                         replies.delete(r);
                     }
-    
                 }
-                
             }
-
         }
 
         const getUserMember = (cmnt: any): string => {
-
             try {
-
                 if (cmnt?.commentRenderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer?.tooltip) {
                     const tooltip = cmnt.commentRenderer.sponsorCommentBadge.sponsorCommentBadgeRenderer.tooltip;
                     return ` | member: ${tooltip}`;
                 }
-                
-                return '';
 
+                return '';
             } catch (err) {
                 console.error(err);
                 return '';
             }
-
         };
 
         const renderTypeComment = (cmnt: any): string => {
-
             try {
-
                 if (cmnt?.typeComment === 'C') {
                     return '[COMMENT]';
                 } else if (cmnt?.typeComment === 'R') {
                     return '[REPLY]';
                 }
-                
-                return '';
 
+                return '';
             } catch (err) {
                 console.error(err);
                 return '';
             }
-
         };
 
         const renderCountReply = (cmnt: any): string => {
-
             try {
-
                 if (cmnt?.typeComment === 'C') {
                     return ` | reply: ${cmnt?.commentRenderer?.replyCount || 0}`;
                 }
-                
-                return '';
 
+                return '';
             } catch (err) {
                 console.error(err);
                 return '';
             }
-
         };
 
         const renderReplies = (cmnt: any): string => {
-
             try {
-
                 // console.log('cmnt: ', cmnt);
 
                 if (cmnt?.commentRenderer?.ycsReplies?.length > 0) {
-
                     let resReplies = '\nReplies:\n';
-                    
+
                     for (const c of cmnt.commentRenderer.ycsReplies) {
                         countComment++;
 
@@ -2762,22 +3207,18 @@ ${c?.commentRenderer?.contentText?.fullText || ''}\n
 
                     return resReplies;
                 }
-                
-                return '';
 
+                return '';
             } catch (err) {
                 console.error(err);
                 return '';
             }
-
         };
 
         console.log('Comments: ', comments);
 
         for (const c of cmnts) {
-    
             try {
-
                 countComment++;
 
                 html += `
@@ -2790,41 +3231,34 @@ ${wrapTryCatch(() => c.commentRenderer.publishedTimeText.runs[0].text) || ''} | 
 ${c?.commentRenderer?.contentText?.fullText || ''}
 ${renderReplies(c)}
 #####\n`;
-
             } catch (e) {
                 console.error(e);
                 continue;
             }
-    
         }
 
         // cmnts.clear();
         // replies.clear();
-        
+
         return {
             count: countComment,
             html: html
         };
-
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 function getCommentsChatHtmlText(comments: any): any | undefined {
     if (!Array.isArray(comments)) return;
 
     try {
-        
         let html = '';
         let countComment = 0;
 
         for (const c of comments) {
-    
             try {
-
                 countComment++;
 
                 html += `
@@ -2835,38 +3269,31 @@ date: ${wrapTryCatch(() => new Date(c.replayChatItemAction.actions[0].addChatIte
 ${wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText) ? 'donated: ' + c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText + '\n' : ''}
 ${wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText) || ''}
 \n#####\n`;
-
             } catch (e) {
                 console.error(e);
                 continue;
             }
-    
         }
-        
+
         return {
             count: countComment,
             html: html
         };
-
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 function getCommentsTrVideoHtmlText(comments: any): any | undefined {
     if (!Array.isArray(comments)) return;
 
     try {
-        
         let html = '';
         let countComment = 0;
 
         for (const c of comments) {
-    
             try {
-
                 countComment++;
 
                 html += `
@@ -2874,50 +3301,42 @@ function getCommentsTrVideoHtmlText(comments: any): any | undefined {
 Time: ${c?.transcriptCueGroupRenderer?.formattedStartOffset?.simpleText || 0}\n
 ${wrapTryCatch(() => c.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.cue.simpleText) || ''}
 \n#####\n`;
-
             } catch (e) {
                 console.error(e);
                 continue;
             }
-    
         }
-        
+
         return {
             count: countComment,
             html: html
         };
-
     } catch (e) {
         console.error(e);
         return;
     }
-
 }
 
 function filterAuthorComments(comments: any): [] {
-
     if (comments.length === 0) return [];
 
     try {
         const fAuthor: any = [];
 
-    for (const [, c] of comments.entries()) {
+        for (const [, c] of comments.entries()) {
             if (c?.commentRenderer?.authorIsChannelOwner) {
                 fAuthor.push({ item: c, refIndex: (c as any)._index });
             }
         }
 
         return fAuthor;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function filterAuthorChat(comments: any): [] {
-
     if (comments.length === 0) return [];
 
     try {
@@ -2925,60 +3344,54 @@ function filterAuthorChat(comments: any): [] {
         const channelID = wrapTryCatch(() => GlobalStore.getInitYtData[2].playerResponse.videoDetails.channelId);
 
         if (channelID) {
-
             for (const [, c] of comments.entries()) {
-
                 try {
-
-                    const authorExternalChannelId = wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorExternalChannelId);
+                    const authorExternalChannelId = wrapTryCatch(
+                        () =>
+                            c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+                                .authorExternalChannelId
+                    );
                     if (authorExternalChannelId === channelID) {
-                        const ts = wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec);
-                        const ref = typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
-                        fAuthor.push({ item: c, refIndex: (Number.isFinite(ref) ? ref : 0) });
+                        const ts = wrapTryCatch(
+                            () =>
+                                c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+                                    .timestampUsec
+                        );
+                        const ref =
+                            typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
+                        fAuthor.push({ item: c, refIndex: Number.isFinite(ref) ? ref : 0 });
                     }
-                
                 } catch (err) {
                     console.error(err);
                     continue;
                 }
-
             }
-
         } else {
             console.log('Not AUTHOR FOR CHAT COMMENTS!');
         }
 
-
         console.log('GlobalStore.getInitYtData: ', GlobalStore.getInitYtData);
 
         return fAuthor;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function filterLikesComments(comments: any): [] {
-
     if (comments.length === 0) return [];
 
     try {
-
         const fLike: any = [];
-        const cmntsBigLikes = []; 
-        
-        for (const [, c] of comments.entries()) {
+        const cmntsBigLikes = [];
 
+        for (const [, c] of comments.entries()) {
             let likes = c?.commentRenderer?.voteCount?.simpleText || c?.commentRenderer?.likeCount;
 
             if (isNumeric(likes)) {
-
                 likes = parseInt(likes);
-                
             } else if (typeof likes === 'string' || typeof likes === 'number') {
-
                 const bigLike = parseFloat(likes as any) * 1000;
 
                 if (bigLike === bigLike) {
@@ -2988,12 +3401,11 @@ function filterLikesComments(comments: any): [] {
                     cmntsBigLikes.push({ item: c, refIndex: (c as any)._index });
                 }
             }
-            
+
             if (typeof likes === 'number' && likes === likes) {
                 c.commentRenderer.likesForSort = likes;
                 fLike.push({ item: c, refIndex: (c as any)._index });
             }
-
         }
 
         if (cmntsBigLikes.length > 0) {
@@ -3017,150 +3429,133 @@ function filterLikesComments(comments: any): [] {
         }
 
         return fLike;
-
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function filterRepliedComments(comments: any): [] {
-
     if (comments.length === 0) return [];
 
     try {
-
         const fReplied: any = [];
-        
-        for (const [, c] of comments.entries()) {
 
+        for (const [, c] of comments.entries()) {
             let replied = c?.commentRenderer?.replyCount;
             replied = parseInt(replied);
-            
+
             if (replied) {
                 c.commentRenderer.repliedForSort = replied;
                 fReplied.push({ item: c, refIndex: (c as any)._index });
             }
-
         }
 
         return fReplied;
-
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function filterMemberComments(comments: any): [] {
-
     if (comments.length === 0) return [];
 
     try {
-
         const fMembers: any = [];
 
         for (const [, c] of comments.entries()) {
-
             const member = c?.commentRenderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer?.tooltip;
-            
+
             if (member) {
                 fMembers.push({ item: c, refIndex: (c as any)._index });
             }
-
         }
 
         return fMembers;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function filterMembersChat(comments: any): [] {
-
     if (comments.length === 0) return [];
 
     try {
-
         const fMembers: any = [];
 
         for (const c of comments) {
-
-            const authorBadge: any =  wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorBadges);
+            const authorBadge: any = wrapTryCatch(
+                () => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorBadges
+            );
             let member: any;
 
             console.log('FILTER authorBadge: ', authorBadge);
 
             if (authorBadge?.length > 0) {
-
                 for (const m of authorBadge) {
                     if (m?.liveChatAuthorBadgeRenderer?.customThumbnail) {
                         member = m;
                         break;
                     }
                 }
-
             }
 
             if (member) {
-                const ts = wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec);
+                const ts = wrapTryCatch(
+                    () =>
+                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+                            .timestampUsec
+                );
                 const ref = typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
-                fMembers.push({ item: c, refIndex: (Number.isFinite(ref) ? ref : 0) });
+                fMembers.push({ item: c, refIndex: Number.isFinite(ref) ? ref : 0 });
             }
-
         }
 
         return fMembers;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function filterDonatedChat(comments: any): [] {
-
     if (comments.length === 0) return [];
 
     try {
-
         const fDonated: any = [];
 
         for (const c of comments) {
-
-            if (wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText)) {
-                const ts = wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec);
+            if (
+                wrapTryCatch(
+                    () =>
+                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+                            .purchaseAmountText.simpleText
+                )
+            ) {
+                const ts = wrapTryCatch(
+                    () =>
+                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+                            .timestampUsec
+                );
                 const ref = typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
-                fDonated.push({ item: c, refIndex: (Number.isFinite(ref) ? ref : 0) });
+                fDonated.push({ item: c, refIndex: Number.isFinite(ref) ? ref : 0 });
             }
-
         }
-
 
         console.log('Donated CHAT: ', fDonated);
         return fDonated;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function initShowBarFAQ(): void {
-
     try {
-
         const hCloseModalOut = (e: Event): void => {
-
             try {
-
                 const elModalWindow = document.getElementById('ycs_modal_window') as HTMLElement;
 
                 if (e.target == elModalWindow) {
@@ -3169,40 +3564,30 @@ function initShowBarFAQ(): void {
                     const elYCSApp = document.getElementsByClassName('ycs-app')[0];
                     elYCSApp?.removeEventListener('click', hCloseModalOut);
                 }
-
             } catch (err) {
                 console.error(err);
             }
-
         };
 
         const hOpenModal = (): void => {
-
             try {
-                
                 const elModalWindow = document.getElementById('ycs_modal_window') as HTMLElement;
                 elModalWindow.style.display = 'block';
 
                 const elYCSApp = document.getElementsByClassName('ycs-app')[0];
                 elYCSApp?.addEventListener('click', hCloseModalOut);
-
             } catch (err) {
                 console.error(err);
             }
-
         };
 
         const hCloseModal = (): void => {
-
             try {
-                
                 const elModalWindow = document.getElementById('ycs_modal_window') as HTMLElement;
                 elModalWindow.style.display = 'none';
-
             } catch (err) {
                 console.error(err);
             }
-
         };
 
         const btnCloseModal = document.getElementById('ycs_btn_close_modal');
@@ -3210,16 +3595,12 @@ function initShowBarFAQ(): void {
 
         btnCloseModal?.addEventListener('click', hCloseModal);
         btnOpenModal?.addEventListener('click', hOpenModal);
-
-
     } catch (err) {
         console.error(err);
     }
-
 }
 
 function filterHeartComments(comments: any): [] {
-
     if (comments.length === 0) return [];
 
     try {
@@ -3232,47 +3613,37 @@ function filterHeartComments(comments: any): [] {
         }
 
         return fHeart;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function filterLinksComments(comments: any): [] {
-
     if (comments.length === 0) return [];
 
     try {
         const fLinks: any = [];
 
         for (const [, c] of comments.entries()) {
-
             try {
-
                 if (urlRegex().test(c.commentRenderer.contentText.fullText)) {
                     fLinks.push({ item: c, refIndex: (c as any)._index });
                 }
-
             } catch (err) {
                 console.error(err);
                 continue;
             }
-            
         }
 
         return fLinks;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function filterVerifiedComments(comments: any): [] {
-
     if (comments.length === 0) return [];
 
     try {
@@ -3285,120 +3656,125 @@ function filterVerifiedComments(comments: any): [] {
         }
 
         return fVerified;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function filterLinksChatComments(comments: any): [] {
-
     if (comments.length === 0) return [];
 
     try {
         const fLinks: any = [];
 
         for (const [, c] of comments.entries()) {
-            if (wrapTryCatch(() => urlRegex().test(c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText))) {
-                const ts = wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec);
+            if (
+                wrapTryCatch(() =>
+                    urlRegex().test(
+                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message
+                            .fullText
+                    )
+                )
+            ) {
+                const ts = wrapTryCatch(
+                    () =>
+                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+                            .timestampUsec
+                );
                 const ref = typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
-                fLinks.push({ item: c, refIndex: (Number.isFinite(ref) ? ref : 0) });
+                fLinks.push({ item: c, refIndex: Number.isFinite(ref) ? ref : 0 });
             }
         }
 
         return fLinks;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function filterVerifiedChatComments(comments: any): [] {
-
     if (comments.length === 0) return [];
 
     try {
         const fVerified: any = [];
 
         for (const [, c] of comments.entries()) {
-            if (wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.verifiedAuthor)) {
-                const ts = wrapTryCatch(() => c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec);
+            if (
+                wrapTryCatch(
+                    () =>
+                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+                            .verifiedAuthor
+                )
+            ) {
+                const ts = wrapTryCatch(
+                    () =>
+                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+                            .timestampUsec
+                );
                 const ref = typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
-                fVerified.push({ item: c, refIndex: (Number.isFinite(ref) ? ref : 0) });
+                fVerified.push({ item: c, refIndex: Number.isFinite(ref) ? ref : 0 });
             }
         }
 
         return fVerified;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function filterLinksTrpVideoComments(comments: any): [] {
-
     if (comments.length === 0) return [];
 
     try {
         const fLinks: any = [];
 
         for (const c of comments) {
-
             try {
-
                 if (urlRegex().test(c.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.cue.simpleText)) {
-                    fLinks.push({ item: c, refIndex: c.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs });
+                    fLinks.push({
+                        item: c,
+                        refIndex: c.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs
+                    });
                 }
-
             } catch (err) {
                 console.error(err);
                 continue;
             }
-            
         }
 
         return fLinks;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function filterAllTrpVideoComments(comments: any): [] {
-
     if (comments.length === 0) return [];
 
     try {
         const fAllTrpVideo: any = [];
 
         for (const c of comments) {
-
             try {
-                
-                fAllTrpVideo.push({ item: c, refIndex: c.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs });
-
+                fAllTrpVideo.push({
+                    item: c,
+                    refIndex: c.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs
+                });
             } catch (err) {
                 console.error(err);
                 continue;
             }
-            
         }
 
         return fAllTrpVideo;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function getPiP(): {
@@ -3406,14 +3782,12 @@ function getPiP(): {
     request: (v: HTMLVideoElement) => Promise<PictureInPictureWindow>;
     exit: (v?: any) => Promise<void>;
     isActive: (v: HTMLVideoElement) => boolean;
-    } {
-
+} {
     try {
-        
         if (typeof document === 'undefined') return { supported: false } as any;
 
         const video = document.createElement('video') as any;
-    
+
         // Chrome
         // https://developers.google.com/web/updates/2018/10/watch-video-using-picture-in-picture
         if (document.pictureInPictureEnabled && !video.disablePictureInPicture) {
@@ -3427,10 +3801,10 @@ function getPiP(): {
                 },
                 isActive: (v: HTMLVideoElement): boolean => {
                     return v === document.pictureInPictureElement;
-                },
+                }
             };
         }
-    
+
         // Safari
         // https://developer.apple.com/documentation/webkitjs/adding_picture_in_picture_to_your_safari_media_controls
         if (typeof video.webkitSetPresentationMode === 'function') {
@@ -3448,70 +3822,55 @@ function getPiP(): {
                 },
                 isActive: (v: any): boolean => {
                     return v.webkitPresentationMode === 'picture-in-picture';
-                },
+                }
             };
         }
-    
+
         // No firefox JS API https://github.com/mozilla/standards-positions/issues/72
         return {
-            supported: false,
+            supported: false
         } as any;
-
     } catch (err) {
         console.error(err);
         return { supported: false } as any;
     }
-
 }
 
 function initShowViewMode(): void {
-
     try {
-
         if (!getPiP().supported) return;
 
         const _initHotKey = (): void => {
-
             try {
-
                 const hPressHotKey = async (e: KeyboardEvent): Promise<void> => {
-
                     try {
-
                         if (e.altKey && e.code === 'Backquote') {
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
                             await hViewMode();
                         }
-                        
                     } catch (err) {
                         console.error(err);
                     }
-
                 };
-                
-                document.addEventListener('keyup', hPressHotKey, false);
 
+                document.addEventListener('keyup', hPressHotKey, false);
             } catch (err) {
                 console.error(err);
             }
-
         };
 
         const hViewMode = async (): Promise<void> => {
-
             try {
-
                 const anchorJump = (id: string): void => {
                     const anchorTop = (document.getElementById(id) as HTMLInputElement).offsetTop as number;
-                    window.scrollTo(0, anchorTop);   
+                    window.scrollTo(0, anchorTop);
                 };
-                
+
                 const elVideo = document.getElementsByTagName('video')[0] as HTMLVideoElement;
-                
+
                 const videoPip = getPiP();
 
                 if (elVideo && videoPip.supported) {
-
                     if (videoPip.isActive(elVideo)) {
                         await videoPip.exit();
                         window.scrollTo(0, 0);
@@ -3522,16 +3881,12 @@ function initShowViewMode(): void {
                         document.getElementById('ycs-input-search')?.focus();
                         anchorJump('ycs_anchor_vmode');
                     }
-
                 }
-
-
             } catch (err) {
                 console.error(err);
             }
-
         };
-        
+
         const elBtnViewMode = document.getElementById('ycs_view_mode');
         elBtnViewMode?.addEventListener('click', hViewMode);
 
@@ -3539,39 +3894,30 @@ function initShowViewMode(): void {
     } catch (err) {
         console.error(err);
     }
-
 }
 
 function getRandomComment(comments: any): [] {
-
     if (comments.length === 0) return [];
 
     try {
-
-        const authors = new Map;
+        const authors = new Map();
 
         for (const [i, cmnt] of comments.entries()) {
-
             if (cmnt?.typeComment === 'C') {
-                
-                if (authors.has(wrapTryCatch(() => cmnt.commentRenderer.authorEndpoint.browseEndpoint.canonicalBaseUrl))) {
-
+                if (
+                    authors.has(wrapTryCatch(() => cmnt.commentRenderer.authorEndpoint.browseEndpoint.canonicalBaseUrl))
+                ) {
                     const cmntsPos = authors.get(cmnt.commentRenderer.authorEndpoint.browseEndpoint.canonicalBaseUrl);
                     cmntsPos.add(i);
-
                 } else if (wrapTryCatch(() => cmnt.commentRenderer.authorEndpoint.browseEndpoint.canonicalBaseUrl)) {
-
-                    authors.set(cmnt.commentRenderer.authorEndpoint.browseEndpoint.canonicalBaseUrl, (new Set).add(i));
+                    authors.set(cmnt.commentRenderer.authorEndpoint.browseEndpoint.canonicalBaseUrl, new Set().add(i));
                 }
-
             }
-
         }
 
         console.log('get Random Comment, Authors: ', authors);
 
         if (authors.size > 0) {
-
             const authorPos = getRandomInt(0, authors.size - 1);
 
             console.log('authorPos: ', authorPos);
@@ -3579,7 +3925,6 @@ function getRandomComment(comments: any): [] {
             let i = 0;
             for (const [, posIndex] of authors.entries()) {
                 if (i === authorPos) {
-                    
                     const authorCommentPos = getRandomInt(0, posIndex.size - 1);
                     console.log('posIndex: ', posIndex);
                     console.log('authorCommentPos: ', authorCommentPos);
@@ -3587,10 +3932,22 @@ function getRandomComment(comments: any): [] {
                     let index = 0;
                     for (const [, authorCommentPosIndex] of posIndex.entries()) {
                         if (index === authorCommentPos) {
-
                             console.log('authorCommentPosIndex: ', authorCommentPosIndex);
-                            console.log('[{ item: comments[authorCommentPosIndex], refIndex: authorCommentPosIndex }]: ', [{ item: comments[authorCommentPosIndex], refIndex: (comments[authorCommentPosIndex] as any)?._index }]);
-                            return [{ item: comments[authorCommentPosIndex], refIndex: (comments[authorCommentPosIndex] as any)?._index }] as any;
+                            console.log(
+                                '[{ item: comments[authorCommentPosIndex], refIndex: authorCommentPosIndex }]: ',
+                                [
+                                    {
+                                        item: comments[authorCommentPosIndex],
+                                        refIndex: (comments[authorCommentPosIndex] as any)?._index
+                                    }
+                                ]
+                            );
+                            return [
+                                {
+                                    item: comments[authorCommentPosIndex],
+                                    refIndex: (comments[authorCommentPosIndex] as any)?._index
+                                }
+                            ] as any;
                         }
 
                         index++;
@@ -3602,106 +3959,80 @@ function getRandomComment(comments: any): [] {
                 i++;
                 continue;
             }
-
         } else {
             return [];
         }
 
         return [];
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function filterNewestFirst(comments: any): ICommentsFuseResult[] | void {
-
     try {
-        
         if (comments && comments.length === 0) return;
 
         const res: ICommentsFuseResult[] = [];
 
         for (const [, comment] of comments.entries()) {
-
             try {
-
                 if (comment?.typeComment === 'C') {
-                    
                     res.push({
                         item: comment as ICommentItem,
                         refIndex: (comment as any)?._index as number
                     });
-
                 }
-
-                
             } catch (err) {
                 console.error(err);
                 continue;
             }
-
         }
 
         if (res.length > 0) {
             return res;
         }
-
     } catch (err) {
         console.error(err);
     }
-
 }
 
 function filterChatNewestFirst(comments: Map<number, object>): ICommentsFuseResult[] | void {
-
     try {
-        
         if (comments.size === 0) return;
 
         const res: ICommentsFuseResult[] = [];
 
         for (const [i, comment] of comments.entries()) {
-
             try {
-
                 res.push({
                     item: comment as ICommentItem,
                     refIndex: i as number
                 });
-
             } catch (err) {
                 console.error(err);
                 continue;
             }
-
         }
 
         if (res?.length > 0) {
             return res;
         }
-
     } catch (err) {
         console.error(err);
     }
-
 }
 
 function markTextComment(sel: string | HTMLElement, text: string): void {
-
     try {
-
         if (!text || !sel || !GlobalStore?.highlightText) return;
 
         const elExtSearch = document.getElementById('ycs_extended_search') as HTMLInputElement;
         if (elExtSearch.checked) return;
 
         const sliceStringForMark = (str: string): string | void => {
-
             try {
-                
                 if (typeof str != 'string') return;
 
                 let query = '';
@@ -3725,20 +4056,15 @@ function markTextComment(sel: string | HTMLElement, text: string): void {
                 }
 
                 return query;
-
             } catch (err) {
                 console.error(err);
                 return str;
             }
-
         };
 
         if (text.split(' ').length === 1) {
-
             text = sliceStringForMark(text) || text;
-
         } else if (text.split(' ').length > 1) {
-
             let query = '';
             for (const str of text.split(' ')) {
                 query += sliceStringForMark(str) + ' ';
@@ -3753,7 +4079,7 @@ function markTextComment(sel: string | HTMLElement, text: string): void {
             element: 'span',
             className: 'ycs-mark-words'
         };
-        
+
         console.log('==================> MARK TEXT');
         console.log('markTextComment params, sel, text: ', sel, text);
         // const markText = new Mark('#ycs-search-result .ycs-render-comment');
@@ -3770,54 +4096,50 @@ function markTextComment(sel: string | HTMLElement, text: string): void {
             markTextTitle.mark(text, opts);
             markTextMain.mark(text, opts);
         }
-
-
     } catch (err) {
         console.error(err);
     }
-
 }
 
 function setCacheToIDB(value: any, url: string, title: string): void {
-
     try {
-
         console.log('setCacheToIDB()', value, url);
-        
-        window.postMessage({ type: 'YCS_CACHE_STORAGE_SET', body: {
-            url: url,
-            videoId: getVideoId(getCleanUrlVideo(url) as string),
-            date: new Date().getTime(),
-            titleVideo: title,
-            comments: value.comments,
-            commentsChat: value.commentsChat,
-            commentsTrVideo: value.commentsTrVideo
-        } }, window.location.origin);
 
+        window.postMessage(
+            {
+                type: 'YCS_CACHE_STORAGE_SET',
+                body: {
+                    url: url,
+                    videoId: getVideoId(getCleanUrlVideo(url) as string),
+                    date: new Date().getTime(),
+                    titleVideo: title,
+                    comments: value.comments,
+                    commentsChat: value.commentsChat,
+                    commentsTrVideo: value.commentsTrVideo
+                }
+            },
+            window.location.origin
+        );
     } catch (err) {
         console.log(err);
     }
-
 }
 
 function sendGetCacheInIDB(url: string): void {
-
     try {
-
         console.log('sendGetCacheInIDB:', url);
-        
-        window.postMessage({ type: 'YCS_CACHE_STORAGE_GET', body: { videoId: getVideoId(getCleanUrlVideo(url) as string) } }, window.location.origin);
 
+        window.postMessage(
+            { type: 'YCS_CACHE_STORAGE_GET', body: { videoId: getVideoId(getCleanUrlVideo(url) as string) } },
+            window.location.origin
+        );
     } catch (err) {
         console.log(err);
     }
-
 }
 
 function formatBytes(bytes: number, decimals = 2): string | void {
-
     try {
-
         if (bytes === 0) return '0 Bytes';
 
         const k = 1024;
@@ -3827,11 +4149,9 @@ function formatBytes(bytes: number, decimals = 2): string | void {
         const i = Math.floor(Math.log(bytes) / Math.log(k));
 
         return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-
     } catch (err) {
         console.error(err);
     }
-    
 }
 
 function getPaginate(
@@ -3889,9 +4209,7 @@ function getPaginate(
     const endIndex = Math.min(startIndex + pageSize - 1, totalItems - 1);
 
     // create an array of pages to ng-repeat in the pager control
-    const pages = Array.from(Array(endPage + 1 - startPage).keys()).map(
-        (i) => startPage + i
-    );
+    const pages = Array.from(Array(endPage + 1 - startPage).keys()).map((i) => startPage + i);
 
     // return object with all pager properties required by the view
     return {
@@ -3903,14 +4221,12 @@ function getPaginate(
         endPage: endPage,
         startIndex: startIndex,
         endIndex: endIndex,
-        pages: pages,
+        pages: pages
     };
 }
 
 function getSheetDetails(cmnts: ISheetDetailsParam): ISheetDetails | void {
-
     try {
-
         if (typeof cmnts !== 'object') return;
 
         return {
@@ -3922,17 +4238,13 @@ function getSheetDetails(cmnts: ISheetDetailsParam): ISheetDetails | void {
             'Total Replies': Number(cmnts?.totalReplies),
             Total: Number(cmnts?.total)
         };
-        
     } catch (err) {
         console.error(err);
     }
-
 }
 
 function getSheetChatDetails(cmnts: ISheetDetailsChatParam): ISheetChatDetails | void {
-
     try {
-
         if (typeof cmnts !== 'object') return;
 
         return {
@@ -3942,17 +4254,13 @@ function getSheetChatDetails(cmnts: ISheetDetailsChatParam): ISheetChatDetails |
             Title: cmnts?.titleVideo,
             Total: Number(cmnts?.total)
         };
-        
     } catch (err) {
         console.error(err);
     }
-
 }
 
 function getSheetComments(cmnts: Array<ISheetCommentsParam>): Array<ISheetComments> | [] {
-
     try {
-
         if (!Array.isArray(cmnts)) return [];
 
         const sheetCmnts: Array<ISheetComments> = [];
@@ -3972,26 +4280,21 @@ function getSheetComments(cmnts: Array<ISheetCommentsParam>): Array<ISheetCommen
         }
 
         return sheetCmnts;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function getSheetChatComments(cmnts: ISheetDetailsChatParam): Array<ISheetChatComments> | [] {
-
     try {
-
         if (typeof cmnts !== 'object') return [];
 
         const sheetCmnts: Array<ISheetChatComments> = [];
 
         for (const cmnt of cmnts.commentsChat) {
-
             const [m, s] = cmnt.timestampText.split(':');
-            const second = (Number(m) * 60) + Number(s);
+            const second = Number(m) * 60 + Number(s);
 
             sheetCmnts.push({
                 'Timestamp Usec': Number(cmnt?.timestampUsec),
@@ -4005,28 +4308,21 @@ function getSheetChatComments(cmnts: ISheetDetailsChatParam): Array<ISheetChatCo
         }
 
         return sheetCmnts;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function getSheetReplies(cmnts: Array<ISheetRepliesParam>): Array<ISheetReplies> | [] {
-
     try {
-
         if (!Array.isArray(cmnts)) return [];
 
         const sheetReplies: Array<ISheetReplies> = [];
 
         for (const cmnt of cmnts) {
-
             if (cmnt?.commentReplies?.replies?.length > 0) {
-
                 for (const reply of cmnt.commentReplies.replies) {
-
                     sheetReplies.push({
                         'Сommented URL': cmnt?.commentUrl,
                         'URL Reply': reply?.commentUrl,
@@ -4037,27 +4333,19 @@ function getSheetReplies(cmnts: Array<ISheetRepliesParam>): Array<ISheetReplies>
                         Published: reply?.publishedTimeText,
                         'Total likes': Number(reply?.totalLikes)
                     });
-
                 }
-                
             }
-            
-            
         }
 
         return sheetReplies;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 function getSheetTrVideoDetails(trVideo: ISheetDetailsTrVideoParam): ISheetTrVideoDetails | void {
-
     try {
-
         if (typeof trVideo !== 'object') return;
 
         return {
@@ -4068,23 +4356,18 @@ function getSheetTrVideoDetails(trVideo: ISheetDetailsTrVideoParam): ISheetTrVid
             'Title transcript': trVideo?.titleTrVideo,
             Total: Number(trVideo?.total)
         };
-        
     } catch (err) {
         console.error(err);
     }
-
 }
 
 function getSheetTrVideo(trVideo: ISheetDetailsTrVideoParam): Array<ISheetTrVideo> | [] {
-
     try {
-
         if (typeof trVideo !== 'object') return [];
 
         const sheetCmnts: Array<ISheetTrVideo> = [];
 
         for (const tr of trVideo.trVideo) {
-
             sheetCmnts.push({
                 URL: tr?.urlShare,
                 'Video timestamp': tr?.formattedStartOffset,
@@ -4095,12 +4378,10 @@ function getSheetTrVideo(trVideo: ISheetDetailsTrVideoParam): Array<ISheetTrVide
         }
 
         return sheetCmnts;
-        
     } catch (err) {
         console.error(err);
         return [];
     }
-
 }
 
 export {

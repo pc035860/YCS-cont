@@ -1,8 +1,7 @@
-
 export interface IStorageEstimate extends StorageEstimate {
     usageDetails: {
         indexedDB: number;
-    }
+    };
 }
 
 export interface ICommentsFuseResult {
@@ -22,19 +21,19 @@ export interface ICommentItem {
         authorIsChannelOwner: boolean;
         authorText: {
             simpleText: string;
-        }
+        };
         authorThumbnail: {
             thumbnails: unknown;
-        }
+        };
         commentId: string;
         contentText: {
             fullText: string;
             renderFullText: string;
             runs: unknown;
-        }
+        };
         isTimeLine: 'timeline' | unknown;
         publishedTimeText: unknown;
-    }
+    };
     typeComment: 'C' | 'R';
 }
 
