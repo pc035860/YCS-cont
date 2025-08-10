@@ -86,7 +86,6 @@ import { insertFileScript, insertFileScriptWithLoad, removeInjectionYCS, removeI
         }, false);
 
         const SCRIPT_SRCS = [
-            'web-resources/htmlEntities.js',
             'web-resources/wresources.js'
         ];
         const fullSrcs = SCRIPT_SRCS.map((src) => chrome.runtime.getURL(src));

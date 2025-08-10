@@ -1,17 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { encode } from 'html-entities';
 import { msToShareVideo, tmUsecToDateTime, wrapTryCatch, markTextComment, randomString, getPiP } from '../utils/assist';
 
-// Basic XSS hardening helpers for rendering dynamic content
+// Use html-entities for proper HTML encoding
+// This ensures special characters and emojis are handled correctly
 function esc(input: unknown): string {
     try {
         const s = String(input ?? '');
-        return s
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+        return encode(s);
     } catch {
         return '';
     }
