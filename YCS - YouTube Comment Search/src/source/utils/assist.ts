@@ -808,9 +808,15 @@ function generateCommentObjectFromFW(params: {
             const hasTimeline =
                 Array.isArray(runs) &&
                 runs.some((r: any) => {
+                    const vId = wrapTryCatch(() => r.navigationEndpoint.watchEndpoint.videoId) as any;
                     const v = wrapTryCatch(() => r.navigationEndpoint.watchEndpoint.startTimeSeconds) as any;
                     const n = typeof v === 'string' ? parseInt(v, 10) : v;
-                    return Number.isFinite(n) && n >= 0;
+                    const currentVideoId = (getVideoId(window.location.href) || '') as string;
+                    return (
+                        Number.isFinite(n) &&
+                        n >= 0 &&
+                        String(vId || '') === String(currentVideoId || '')
+                    );
                 });
             if (hasTimeline) {
                 comment.commentRenderer.isTimeLine = 'timeline';
@@ -1524,9 +1530,13 @@ async function getChatComments(
                                         fullText += msg?.text || '';
 
                                         if (parseInt(msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0) {
-                                            renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${msg?.navigationEndpoint?.watchEndpoint?.videoId}&t=${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}">${msg?.text || ''}</a>`;
+                                            const currentVideoId = (getVideoId(window.location.href) || '') as string;
+                                            const linkVideoId = (wrapTryCatch(() => msg?.navigationEndpoint?.watchEndpoint?.videoId) || '') as string;
+                                            const isSameVideo = String(linkVideoId || '') === String(currentVideoId || '');
 
-                                            if (
+                                            renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${linkVideoId}&t=${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}" data-video-id="${linkVideoId}">${msg?.text || ''}</a>`;
+
+                                            if (isSameVideo &&
                                                 wrapTryCatch(
                                                     () =>
                                                         comment.replayChatItemAction.actions[0].addChatItemAction.item
@@ -1752,16 +1762,21 @@ async function getChatComments(
                                                 ) {
                                                     renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${msg?.navigationEndpoint?.watchEndpoint?.videoId}&t=${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}">${msg?.text || ''}</a>`;
 
-                                                    if (
-                                                        wrapTryCatch(
-                                                            () =>
-                                                                comment.replayChatItemAction.actions[0]
-                                                                    .addChatItemAction.item.liveChatTextMessageRenderer
-                                                        )
-                                                    ) {
-                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
-                                                            'timeline';
-                                                    }
+                                                const currentVideoId = (getVideoId(window.location.href) || '') as string;
+                                                const linkVideoId = (wrapTryCatch(() => msg?.navigationEndpoint?.watchEndpoint?.videoId) || '') as string;
+                                                const isSameVideo = String(linkVideoId || '') === String(currentVideoId || '');
+
+                                                if (
+                                                    isSameVideo &&
+                                                    wrapTryCatch(
+                                                        () =>
+                                                            comment.replayChatItemAction.actions[0]
+                                                                .addChatItemAction.item.liveChatTextMessageRenderer
+                                                    )
+                                                ) {
+                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
+                                                        'timeline';
+                                                }
                                                 } else if (msg?.navigationEndpoint) {
                                                     renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${msg?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || msg?.navigationEndpoint?.urlEndpoint?.url || msg?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || msg?.text || '#'}" target="_blank">${msg?.text || ''}</a>`;
                                                 } else if (wrapTryCatch(() => (msg as any).emoji)) {
@@ -2321,9 +2336,13 @@ async function getAllCommentsModeV2(
                                 if (
                                     parseInt(partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0
                                 ) {
-                                    renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${partTextComment?.navigationEndpoint?.watchEndpoint?.videoId}&t=${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}">${partTextComment?.text || ''}</a>`;
+                                    const currentVideoId = (getVideoId(window.location.href) || '') as string;
+                                    const linkVideoId = (wrapTryCatch(() => partTextComment?.navigationEndpoint?.watchEndpoint?.videoId) || '') as string;
+                                    const isSameVideo = String(linkVideoId || '') === String(currentVideoId || '');
+
+                                    renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${linkVideoId}&t=${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}" data-video-id="${linkVideoId}">${partTextComment?.text || ''}</a>`;
                                     try {
-                                        normalized.commentRenderer.isTimeLine = 'timeline';
+                                        if (isSameVideo) normalized.commentRenderer.isTimeLine = 'timeline';
                                     } catch {}
                                 } else if (partTextComment?.navigationEndpoint) {
                                     renderFullTextComment += `<a class=\"ycs-cpointer ycs-comment-link\" href=\"${partTextComment?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || partTextComment?.navigationEndpoint?.urlEndpoint?.url || partTextComment?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || partTextComment?.text || '#'}\" target=\"_blank\">${partTextComment?.text || ''}</a>`;
@@ -2450,9 +2469,13 @@ async function getAllCommentsModeV2(
                                                     ) as any
                                                 ) >= 0
                                             ) {
-                                                renderFullTextComment += `<a class=\"ycs-cpointer ycs-gotochat-video\" href=\"https://www.youtube.com/watch?v=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.videoId)}&t=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}s\" data-offsetvideo=\"${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}\">${textStr || ''}</a>`;
+                                                const currentVideoId = (getVideoId(window.location.href) || '') as string;
+                                                const linkVideoId = (wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.videoId) || '') as string;
+                                                const isSameVideo = String(linkVideoId || '') === String(currentVideoId || '');
 
-                                                if (comment.commentRenderer) {
+                                                renderFullTextComment += `<a class=\"ycs-cpointer ycs-gotochat-video\" href=\"https://www.youtube.com/watch?v=${linkVideoId}&t=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}s\" data-offsetvideo=\"${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}\" data-video-id=\"${linkVideoId}\">${textStr || ''}</a>`;
+
+                                                if (isSameVideo && comment.commentRenderer) {
                                                     comment.commentRenderer.isTimeLine = 'timeline';
                                                 }
                                             } else if (navigationEndpoint) {
@@ -2592,9 +2615,13 @@ async function getAllCommentsModeV2(
                                                         ) as any
                                                     ) >= 0
                                                 ) {
-                                                    renderFullTextComment += `<a class=\"ycs-cpointer ycs-gotochat-video\" href=\"https://www.youtube.com/watch?v=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.videoId)}&t=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}s\" data-offsetvideo=\"${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}\">${text || ''}</a>`;
+                                                    const currentVideoId = (getVideoId(window.location.href) || '') as string;
+                                                    const linkVideoId = (wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.videoId) || '') as string;
+                                                    const isSameVideo = String(linkVideoId || '') === String(currentVideoId || '');
 
-                                                    if (comment.commentRenderer) {
+                                                    renderFullTextComment += `<a class=\"ycs-cpointer ycs-gotochat-video\" href=\"https://www.youtube.com/watch?v=${linkVideoId}&t=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}s\" data-offsetvideo=\"${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}\" data-video-id=\"${linkVideoId}\">${text || ''}</a>`;
+
+                                                    if (isSameVideo && comment.commentRenderer) {
                                                         comment.commentRenderer.isTimeLine = 'timeline';
                                                     }
                                                 } else if (navigationEndpoint) {
@@ -2924,7 +2951,7 @@ async function getAllCommentsModeV2(
             const totalLen = comments.length;
             for (let idx = 0; idx < totalLen; idx++) {
                 const cm: any = comments[idx];
-                cm._index = totalLen - idx - 1;
+                cm._index = idx;
             }
         }
     } catch (e) {
