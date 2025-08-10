@@ -1256,11 +1256,29 @@ Total: ${c.count}\n${c.html}`;
                             }
                         }
                     } else if (param?.random) {
-                        const randomComment = getRandomComment(comments);
-                        resultSearch = randomComment;
+                        // If there is a query, pick a random comment from the text-matched pool.
+                        if (querySearch && querySearch.trim()) {
+                            const fuseBase = new Fuse(comments, options);
+                            const baseMatches = fuseBase.search(querySearch.trim()) as any[];
+                            const pool = baseMatches.map((r: any) => ({
+                                item: r.item,
+                                refIndex: (r.item as any)?._index
+                            }));
+
+                            if (pool.length > 0) {
+                                const pick = pool[Math.floor(Math.random() * pool.length)];
+                                resultSearch = [pick] as any;
+                            } else {
+                                resultSearch = [] as any;
+                            }
+                        } else {
+                            const randomComment = getRandomComment(comments);
+                            resultSearch = randomComment;
+                        }
+
                         renderComment(selector, resultSearch, true, querySearch);
 
-                        console.log('Get Random COMMENT: ', randomComment);
+                        console.log('Get Random COMMENT: ', resultSearch);
                     } else if (param?.timestamp) {
                         // No second fuse; simply filter those marked as timeline
                         let timeline = comments
@@ -1293,6 +1311,11 @@ Total: ${c.count}\n${c.html}`;
                     } else if (param?.sortFirst) {
                         const firstComments = filterNewestFirst(comments) as ICommentsFuseResult[];
                         resultSearch = firstComments;
+
+                        // If there is a text query, restrict to matched items first
+                        if (textMatchedSet) {
+                            resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
+                        }
 
                         if (resultSearch.length > 0) {
                             const elSortAll = document.getElementById('ycs_btn_sort_first') as HTMLElement;
@@ -1744,6 +1767,18 @@ Total: ${c.count}\n${c.html}`;
                         } else if (param?.sortFirst) {
                             const cmntsChatAll = filterChatNewestFirst(commentsChat) as ICommentsFuseResult[];
                             resultSearch = cmntsChatAll;
+
+                            // If there is a query, restrict to matched chat items
+                            if (querySearch && querySearch.trim()) {
+                                try {
+                                    const fuseBase = new Fuse(cmntsChat, options);
+                                    const baseMatches = fuseBase.search(querySearch.trim()) as any[];
+                                    const matched = new Set(baseMatches.map((r: any) => r.item));
+                                    resultSearch = resultSearch.filter((r: any) => matched.has(r.item));
+                                } catch (err) {
+                                    console.error(err);
+                                }
+                            }
 
                             if (resultSearch?.length > 0) {
                                 console.log('All Chat before: ', resultSearch);
