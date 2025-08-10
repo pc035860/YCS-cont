@@ -105,7 +105,7 @@ function iconExpandShowMore(): string {
         <span class="ycs-icons__coll_exp">
             <svg version="1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" enable-background="new 0 0 48 48">
                 <polygon fill="#2196F3" points="43,17.1 39.9,14 24,29.9 8.1,14 5,17.1 24,36"/>
-            </svg>    
+            </svg>
         </span>
     `;
 }
@@ -130,7 +130,7 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
     const renderLikeCount = (count: string | number): string => {
 
         try {
-            
+
             if (typeof count === 'string' || typeof count === 'number') {
                 return `
                     <div class="ycs-wrap-like">
@@ -261,11 +261,11 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
     }
 
     nodeSelect?.appendChild(wrapper);
-    
+
     // const elResutlSearch = document.createDocumentFragment();
-    
+
     // const t0 = performance.now();
-    
+
     if (nodeSelect) {
 
         // nodeSelect.style.display = 'none';
@@ -275,14 +275,14 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
         let currentPos = 0;
         let countComment = 0;
         // const nodeComment = document.createElement('div');
-    
+
         for (const comment of data) {
-    
+
             // nodeComment.id = `ycs-number-comment-${++countComment}`;
             // nodeComment.className = 'ycs-render-comment';
 
             try {
-                
+
                 arrHtml.push({html: `
                     <div id="ycs-number-comment-${++countComment}" class="ycs-render-comment">
                         <div class="ycs-left">
@@ -324,7 +324,7 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                 console.error(e);
                 continue;
             }
-    
+
         }
 
         try {
@@ -332,7 +332,7 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
             const partSearchRes = arrHtml.slice(currentPos, range);
 
             if (partSearchRes.length > 0) {
-    
+
                 for (const res of partSearchRes) {
                     wrapper.insertAdjacentHTML('beforeend', res.html);
                     currentPos++;
@@ -348,15 +348,15 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                             </div>
                         </div>
                     `);
-    
+
                     const elShowMoreBtn = document.getElementById('ycs_search_show_more');
-    
+
                     elShowMoreBtn?.addEventListener('click', () => {
 
                         const pSearchRes = arrHtml.slice(currentPos, range + currentPos);
 
                         if (pSearchRes.length > 0) {
-                            
+
                             const randomStr = randomString(15);
                             elShowMoreBtn.insertAdjacentHTML('beforebegin', `<div class="${randomStr}"></div>`);
                             const elShowMore = document.getElementsByClassName(randomStr)[0];
@@ -386,13 +386,13 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                                 }
                             }
                         }
-    
+
                     });
-    
+
                 }
-    
+
             }
-            
+
         } catch (e) {
             // if error show all search result
             console.error(e);
@@ -407,7 +407,7 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
         }
 
     }
-    
+
 }
 
 function renderCommentChat(selector: string, data: any, querySearch?: string): void {
@@ -515,12 +515,12 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
         // const nodeComment = document.createElement('div');
 
         for (const comment of data) {
-    
+
             // nodeComment.id = `ycs-number-comment-${++countComment}`;
             // nodeComment.className = 'ycs-render-comment';
 
             try {
-              
+
                 arrHtml.push({html: `
                     <div id="ycs-number-comment-${++countComment}" class="ycs-render-comment">
                         <div class="ycs-left">
@@ -560,25 +560,25 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
                 console.error(e);
                 continue;
             }
-    
-            
-    
+
+
+
             // elResutlSearch.appendChild(nodeComment);
         }
 
         try {
-            
+
             const partSearchRes = arrHtml.slice(currentPos, range);
 
             if (partSearchRes.length > 0) {
-    
+
                 for (const res of partSearchRes) {
                     wrapper.insertAdjacentHTML('beforeend', res.html);
                     currentPos++;
                 }
 
                 if (arrHtml.length > range) {
-    
+
                     wrapper.insertAdjacentHTML('beforeend', `
                         <div id="ycs_search_chat_show_more" class="ycs-render-comment ycs-show_more_block">
                             <div id="ycs__show-more-button"
@@ -587,13 +587,13 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
                             </div>
                         </div>
                     `);
-    
+
                     const elShowMoreBtn = document.getElementById('ycs_search_chat_show_more');
-    
+
                     elShowMoreBtn?.addEventListener('click', () => {
 
                         // const partSearchRes = arrHtml.slice(currentPos, range + currentPos);
-    
+
                         // for (const res of partSearchRes) {
                         //     elShowMoreBtn.insertAdjacentHTML('beforebegin', res.html);
                         //     currentPos++;
@@ -634,9 +634,9 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
                         }
 
                     });
-    
+
                 }
-    
+
             }
 
             if (querySearch) {
@@ -684,10 +684,10 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
         // const nodeComment = document.createElement('div');
 
         for (const comment of data) {
-    
+
             // nodeComment.id = `ycs-number-comment-${++countComment}`;
             // nodeComment.className = 'ycs-render-comment ycs-oc-ml';
-    
+
             try {
 
                 arrHtml.push({html: `
@@ -716,8 +716,8 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
                 console.error(e);
                 continue;
             }
-            
-    
+
+
             // elResutlSearch.appendChild(nodeComment);
         }
 
@@ -726,14 +726,14 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
             const partSearchRes = arrHtml.slice(currentPos, range);
 
             if (partSearchRes.length > 0) {
-    
+
                 for (const res of partSearchRes) {
                     wrapper.insertAdjacentHTML('beforeend', res.html);
                     currentPos++;
                 }
 
                 if (arrHtml.length > range) {
-    
+
                     wrapper.insertAdjacentHTML('beforeend', `
                         <div id="ycs_search_trvideo_show_more" class="ycs-render-comment ycs-show_more_block">
                             <div id="ycs__show-more-button"
@@ -742,13 +742,13 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
                             </div>
                         </div>
                     `);
-    
+
                     const elShowMoreBtn = document.getElementById('ycs_search_trvideo_show_more');
-    
+
                     elShowMoreBtn?.addEventListener('click', () => {
 
                         // const partSearchRes = arrHtml.slice(currentPos, range + currentPos);
-    
+
                         // for (const res of partSearchRes) {
                         //     elShowMoreBtn.insertAdjacentHTML('beforebegin', res.html);
                         //     currentPos++;
@@ -789,15 +789,15 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
                         }
 
                     });
-    
+
                 }
-    
+
             }
 
             if (querySearch) {
                 markTextComment(selector, querySearch);
             }
-            
+
         } catch (e) {
             // if error show all search result
             console.error(e);
@@ -822,9 +822,9 @@ function renderLoadComments(selector: string): void {
             if (getPiP().supported) {
                 return '<button id="ycs_view_mode" class="ycs-btn-search ycs-title ycs_noselect" name="View Mode" type="button" title="⌨ HOTKEY: [ Alt + ~ ] Viewer mode for more easier searches and video watching">V. Mode</button>';
             } else {
-                return '';   
+                return '';
             }
-            
+
         } catch (err) {
             console.error(err);
             return '';
@@ -857,7 +857,7 @@ function renderLoadComments(selector: string): void {
             </div>
             <div class="ycs-title ycs-clear ycs-infobar">
                 <div id="ycs-desc__search">
-                    
+
                     <div>
                         <p class="ycs-infobar-field"><span id="ycs_status_cmnt">${iconReload()}</span> Comments: </p>
                         <div class="ycs-infobar__search">
@@ -918,7 +918,7 @@ function renderLoadComments(selector: string): void {
                         <p class="ycs-infobar-field"><span id="ycs_status_trvideo">${iconReload()}</span> Transcript video: </p>
                         <div class="ycs-infobar__search">
                             <span id="ycs_cmnts_video">0</span>
-                            
+
                             <div class="ycs_infobar_btns ycs_noselect">
                                 <div class="ycs_load_wrap">
                                     <button id="ycs-load-transcript-video" class="ycs-btn-search ycs-title" name="Load transcript video"
@@ -945,7 +945,7 @@ function renderLoadComments(selector: string): void {
                 </div>
 
             </div>
-            
+
             <div id="ycs-search"></div>
             <div><p class="ycs-title ycs_notify_box"><i></i></p></div>
 
@@ -1049,27 +1049,27 @@ function renderSearch(node: HTMLElement): void {
                         </label>
                         <div class="ycs-ext-search-opts">
                             <fieldset>
-                
+
                                 <label for="ycs_extended_search_title" class="ycs_noselect ycs-title" title="Extended search by title">
                                     <input type="radio" id="ycs_extended_search_title" name="ycs_ext_search_opts" value="title" disabled>
                                     <span class="ycs-ext-search_title">Title</span>
                                 </label>
-                    
+
                                 <label for="ycs_extended_search_main" class="ycs_noselect ycs-title" title="Extended search by main text">
                                     <input type="radio" id="ycs_extended_search_main" name="ycs_ext_search_opts" value="main" disabled checked>
                                     <span class="ycs-ext-search_title">Main</span>
                                 </label>
-                    
+
                             </fieldset>
                         </div>
                         <a href="https://github.com/sonigy/YCS#extended-search" class="ycs-title ycs-ext-search_link" target="_blank" rel="noopener noreferrer" title="How to use">?</a>
                     </div>
                 </div>
-                
+
                 <button id="ycs_btn_open_modal" class="ycs_noselect" title="FAQ">?</button>
             </div>
             <div class="ycs-search-result-infobar">
-                
+
                 <div class="ycs-btn-panel ycs_noselect">
                     <button id="ycs_btn_timestamps"
                         data-sort="newest"
