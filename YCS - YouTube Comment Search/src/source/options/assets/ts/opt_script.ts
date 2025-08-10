@@ -35,6 +35,8 @@ window.onload = async (): Promise<void> => {
             if (typeof param !== 'boolean') return;
 
             (document.getElementById('y_opts_highlight') as HTMLInputElement).checked = param;
+            const group = document.getElementById('ycs-highlight-group');
+            group?.classList.toggle('ycs_group--enabled', param);
         };
 
         const optSetHighlightText = async (opt: HTMLInputElement): Promise<void> => {
@@ -46,9 +48,27 @@ window.onload = async (): Promise<void> => {
                     highlightText: opt.checked
                 });
 
-                // const jsonOpts = JSON.stringify(opts);
+                // update UI state immediately
+                setRenderHighlightTextOpt(opt.checked);
 
+                // const jsonOpts = JSON.stringify(opts);
                 // localStorage.setItem('ycs_options', jsonOpts);
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        const setRenderHighlightExact = (param: boolean): void => {
+            if (typeof param !== 'boolean') return;
+
+            (document.getElementById('y_opts_highlight_exact') as HTMLInputElement).checked = param;
+        };
+
+        const optSetHighlightExact = async (opt: HTMLInputElement): Promise<void> => {
+            try {
+                await chrome.storage.local.set({
+                    highlightExact: opt.checked
+                });
             } catch (err) {
                 console.error(err);
             }
@@ -163,6 +183,10 @@ window.onload = async (): Promise<void> => {
                         setRenderHighlightTextOpt(storageOpts[key]);
                         break;
 
+                    case 'highlightExact':
+                        setRenderHighlightExact(storageOpts[key]);
+                        break;
+
                     case 'cache':
                         setRenderCacheOpt(storageOpts[key]);
                         break;
@@ -188,6 +212,10 @@ window.onload = async (): Promise<void> => {
 
                 case 'y_opts_highlight':
                     optSetHighlightText(e.target as HTMLInputElement);
+                    break;
+
+                case 'y_opts_highlight_exact':
+                    optSetHighlightExact(e.target as HTMLInputElement);
                     break;
 
                 case 'y_opts_cache':

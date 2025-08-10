@@ -4062,22 +4062,26 @@ function markTextComment(sel: string | HTMLElement, text: string): void {
             }
         };
 
-        if (text.split(' ').length === 1) {
-            text = sliceStringForMark(text) || text;
-        } else if (text.split(' ').length > 1) {
-            let query = '';
-            for (const str of text.split(' ')) {
-                query += sliceStringForMark(str) + ' ';
-            }
+        const highlightExact: boolean = !!GlobalStore?.highlightExact;
 
-            text = query?.trim();
+        if (!highlightExact) {
+            if (text.split(' ').length === 1) {
+                text = sliceStringForMark(text) || text;
+            } else if (text.split(' ').length > 1) {
+                let query = '';
+                for (const str of text.split(' ')) {
+                    query += sliceStringForMark(str) + ' ';
+                }
+                text = query?.trim();
+            }
         }
 
         console.log('TEXT query for MARK: ', text);
 
         const opts: MarkOptions = {
             element: 'span',
-            className: 'ycs-mark-words'
+            className: 'ycs-mark-words',
+            separateWordSearch: !highlightExact
         };
 
         console.log('==================> MARK TEXT');

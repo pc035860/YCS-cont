@@ -26,12 +26,21 @@
                     </div>
                 </div>
 
-                <div>
-                    <label for="y_opts_highlight">Highlight text:</label>
-                    <input type="checkbox" name="Highlight text" id="y_opts_highlight" class="ycs_opts_checkbox" />
+                <div class="ycs_group" id="ycs-highlight-group">
+                    <div>
+                        <label for="y_opts_highlight">Highlight text:</label>
+                        <input type="checkbox" name="Highlight text" id="y_opts_highlight" class="ycs_opts_checkbox" />
 
-                    <div class="ycs_description_option">
-                        <p>(Highlight text in search results.)</p>
+                        <div class="ycs_description_option">
+                            <p>(Highlight text in search results.)</p>
+                        </div>
+                    </div>
+                    <div class="ycs_group_subgroup">
+                        <label for="y_opts_highlight_exact">Exact:</label>
+                        <input type="checkbox" name="Highlight text exact" id="y_opts_highlight_exact" class="ycs_opts_checkbox" />
+                        <div class="ycs_description_option">
+                            <p>(Highlight, be exact.)</p>
+                        </div>
                     </div>
                 </div>
 

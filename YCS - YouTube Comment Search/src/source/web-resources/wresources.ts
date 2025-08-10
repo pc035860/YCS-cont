@@ -2359,6 +2359,14 @@ Total: ${c.count}\n${c.html}`;
                         }
                     };
 
+                    const optHighlightExact = (value: boolean): void => {
+                        try {
+                            (GlobalStore as any).highlightExact = value;
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    };
+
                     const optCached = (value: boolean): void => {
                         try {
                             if (!value) return;
@@ -2390,6 +2398,9 @@ Total: ${c.count}\n${c.html}`;
 
                                 case 'highlightText':
                                     optHighlightText(opts[key]);
+                                    break;
+                                case 'highlightExact':
+                                    optHighlightExact(opts[key]);
                                     break;
 
                                 case 'cache':

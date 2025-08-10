@@ -53,3 +53,12 @@ export interface IParamSearch {
 }
 
 export type ISelectedSearch = 'comments' | 'chat' | 'video' | 'all';
+
+export interface IYCSOptions {
+    autoload?: boolean;
+    highlightText?: boolean;
+    highlightExact?: boolean;
+    cache?: boolean;
+    autoClear?: number;
+    hiddenByDefault?: boolean;
+}

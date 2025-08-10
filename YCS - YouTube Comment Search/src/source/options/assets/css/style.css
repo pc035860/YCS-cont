@@ -363,3 +363,17 @@ tbody#ycs_all_cache_body_table > tr > td > div {
     align-items: center;
     overflow: hidden;
 }
+
+/* Highlight options grouping */
+
+.ycs_group .ycs_group_subgroup {
+    pointer-events: none;
+    opacity: 0.3;
+    margin-top: 20px;
+    margin-left: 40px;
+}
+
+.ycs_group.ycs_group--enabled .ycs_group_subgroup {
+    pointer-events: auto;
+    opacity: 1;
+}
