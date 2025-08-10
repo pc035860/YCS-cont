@@ -156,7 +156,8 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
 
     const renderSpeechCount = (count: string | number, id: number): string =>  {
 
-        if (typeof count === 'string' || typeof count === 'number') {
+        const numericCount = typeof count === 'string' ? parseInt(count, 10) : count;
+        if (typeof numericCount === 'number' && Number.isFinite(numericCount) && numericCount !== 0) {
             return `
                 <div class="ycs-wrap-like">
                     <span class="ycs-icons__speech">
@@ -286,7 +287,7 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                 arrHtml.push({html: `
                     <div id="ycs-number-comment-${++countComment}" class="ycs-render-comment">
                         <div class="ycs-left">
-                            <a href="${safeUrl(comment.item?.commentRenderer?.authorEndpoint?.commandMetadata?.webCommandMetadata?.url || '')}" target="_blank" rel="noopener noreferrer">
+                            <a href="${safeUrl(wrapTryCatch(() => comment.item.commentRenderer.authorEndpoint.browseEndpoint.canonicalBaseUrl) || comment.item?.commentRenderer?.authorEndpoint?.commandMetadata?.webCommandMetadata?.url || '')}" target="_blank" rel="noopener noreferrer">
                                 <div class="ycs-render-img">
                                     <img alt="${esc(comment.item?.commentRenderer?.authorText?.simpleText || '')}" height="40" width="40"
                                     src="${esc(wrapTryCatch(() => comment.item.commentRenderer.authorThumbnail.thumbnails[0].url) || '')}" loading="lazy">
@@ -296,7 +297,7 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                         <div class="ycs-comment-block">
                             <div class="ycs-head-block__dib ycs-head-block ycs-head__title-main">
                                 <a class="ycs-head__title"
-                                 href="${safeUrl(comment.item?.commentRenderer?.authorEndpoint?.commandMetadata?.webCommandMetadata?.url || '')}" target="_blank" rel="noopener noreferrer">
+                                 href="${safeUrl(wrapTryCatch(() => comment.item.commentRenderer.authorEndpoint.browseEndpoint.canonicalBaseUrl) || comment.item?.commentRenderer?.authorEndpoint?.commandMetadata?.webCommandMetadata?.url || '')}" target="_blank" rel="noopener noreferrer">
                                     <span>
                                          ${esc(comment.item?.commentRenderer?.authorText?.simpleText || '')}
                                     </span>
@@ -1038,7 +1039,7 @@ function renderSearch(node: HTMLElement): void {
                 </select>
                 <button id="ycs_btn_search" class="ycs-btn-search ycs-title ycs_noselect" type="button">
                     Search
-                </button>
+                </button><button id="ycs_btn_search_clear_text" class="ycs-btn-search ycs-title ycs-search-clear" type="button" title="Clear text" style="margin-left:1px;">✕</button>
 
                 <div class="ycs-ext-search_block">
                     <p id="ycs-search-total-result" class="ycs-title"></p>

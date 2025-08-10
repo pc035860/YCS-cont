@@ -831,6 +831,7 @@ import {
 
             const btnSearch = document.getElementById('ycs_btn_search');
             const eInputSearch = document.getElementById('ycs-input-search');
+            const btnSearchClearText = document.getElementById('ycs_btn_search_clear_text');
 
             if (eInputSearch) {
                 eInputSearch.onkeyup = (e): void => {
@@ -838,6 +839,37 @@ import {
                         btnSearch?.click();
                     }
                 };
+                // toggle clear-text button visibility
+                eInputSearch.addEventListener('input', () => {
+                    const hasText = (eInputSearch as HTMLInputElement).value.trim().length > 0;
+                    if (btnSearchClearText) {
+                        (btnSearchClearText as HTMLButtonElement).style.visibility = hasText ? 'visible' : 'hidden';
+                    }
+                });
+            }
+
+            // initialize clear-text button visibility
+            if (btnSearchClearText) {
+                (btnSearchClearText as HTMLButtonElement).style.visibility = (eInputSearch as HTMLInputElement)?.value?.trim()?.length > 0 ? 'visible' : 'hidden';
+                btnSearchClearText.addEventListener('click', () => {
+                    try {
+                        if (eInputSearch) {
+                            (eInputSearch as HTMLInputElement).value = '';
+                        }
+                        // clear active filter state and results
+                        setActiveFilterByElement(null);
+                        const elSearchRes = document.getElementById('ycs-search-result');
+                        const elSearchTotalRes: any = document.getElementById('ycs-search-total-result');
+                        if (elSearchRes) {
+                            elSearchRes.innerText = '';
+                            if (elSearchTotalRes) elSearchTotalRes.innerText = 'Search cleared';
+                        }
+                        // hide clear button after clearing
+                        (btnSearchClearText as HTMLButtonElement).style.visibility = 'hidden';
+                    } catch (err) {
+                        console.error(err);
+                    }
+                });
             }
 
             const btnOpenCommentsNewWindow = document.getElementById('ycs_open_all_comments_window');

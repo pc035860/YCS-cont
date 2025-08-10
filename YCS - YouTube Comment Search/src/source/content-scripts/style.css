@@ -145,6 +145,14 @@ html[dark] .ycs_btn_load-stop:hover {
     outline-offset: 0;
 }
 
+/* clear-text button near the input */
+#ycs_btn_search_clear_text {
+    padding: 0px 7px;
+    height: 32px;
+    line-height: 1;
+    visibility: hidden; /* toggled by script */
+}
+
 .ycs-search__input:focus {
     border: 1px solid #065fd4;
 }
