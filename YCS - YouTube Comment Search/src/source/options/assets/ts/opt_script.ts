@@ -80,6 +80,12 @@ window.onload = async (): Promise<void> => {
             (document.getElementById('y_opts_cache') as HTMLInputElement).checked = param;
         };
 
+        const setRenderHiddenByDefault = (param: boolean): void => {
+            if (typeof param !== 'boolean') return;
+
+            (document.getElementById('y_opts_hidden_by_default') as HTMLInputElement).checked = param;
+        };
+
         const optSetCache = async (opt: HTMLInputElement): Promise<void> => {
             try {
                 // const opts = JSON.parse(localStorage.getItem('ycs_options') as string);
@@ -92,6 +98,16 @@ window.onload = async (): Promise<void> => {
                 // const jsonOpts = JSON.stringify(opts);
 
                 // localStorage.setItem('ycs_options', jsonOpts);
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        const optSetHiddenByDefault = async (opt: HTMLInputElement): Promise<void> => {
+            try {
+                await chrome.storage.local.set({
+                    hiddenByDefault: opt.checked
+                });
             } catch (err) {
                 console.error(err);
             }
@@ -195,6 +211,10 @@ window.onload = async (): Promise<void> => {
                         setRenderAutoClearCacheOpt(storageOpts[key]);
                         break;
 
+                    case 'hiddenByDefault':
+                        setRenderHiddenByDefault(storageOpts[key]);
+                        break;
+
                     default:
                         break;
                 }
@@ -229,6 +249,10 @@ window.onload = async (): Promise<void> => {
 
                     (e.target as HTMLButtonElement).disabled = false;
 
+                    break;
+
+                case 'y_opts_hidden_by_default':
+                    optSetHiddenByDefault(e.target as HTMLInputElement);
                     break;
 
                 default:

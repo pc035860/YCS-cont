@@ -170,8 +170,26 @@ function getVideoId(url: string): string | undefined {
     try {
         if (typeof url !== 'string') return;
 
-        const u = new URL(url);
-        return u.searchParams.get('v') as any;
+        const parsedUrl = new URL(url);
+
+        // Case 1: Standard watch URL with v parameter
+        const vParam = parsedUrl.searchParams.get('v');
+        if (vParam) return vParam;
+
+        // Case 2: /live/<videoId>
+        const host = parsedUrl.hostname;
+        const pathname = parsedUrl.pathname || '';
+        const segments = pathname.split('/').filter(Boolean);
+        if ((host === 'www.youtube.com' || host.endsWith('youtube.com')) && segments[0] === 'live' && segments[1]) {
+            return segments[1];
+        }
+
+        // Case 3: youtu.be/<videoId>
+        if (host === 'youtu.be' && segments[0]) {
+            return segments[0];
+        }
+
+        return;
     } catch (e) {
         console.error(e);
         return;
@@ -179,8 +197,13 @@ function getVideoId(url: string): string | undefined {
 }
 
 function isWatchVideo(): boolean {
-    // return window.location.href.match(/https:\/\/www.youtube.com\/watch\?v=/g);
-    return window.location.href.includes('/watch?');
+    // Treat both classic watch pages and live pages as valid video pages
+    return window.location.href.includes('/watch?') || window.location.href.includes('/live/');
+}
+
+function isVideoPage(): boolean {
+    const href = window.location.href;
+    return href.includes('/watch?') || href.includes('/live/');
 }
 
 function showLoadComments(number: number, showNode: HTMLElement): void {
@@ -189,23 +212,21 @@ function showLoadComments(number: number, showNode: HTMLElement): void {
     showNode.textContent = number.toString();
 }
 
-// https://www.youtube.com/watch?v=cq2Ef6rvL6g&test=sdfasdf&zvzxvczv;afdasdvasdf
+// Normalize various YouTube URL formats to a canonical watch URL
+// Examples:
+//  - https://www.youtube.com/watch?v=<id>&t=10s   -> https://www.youtube.com/watch?v=<id>
+//  - https://www.youtube.com/live/<id>?si=...     -> https://www.youtube.com/watch?v=<id>
+//  - https://youtu.be/<id>?t=10                   -> https://www.youtube.com/watch?v=<id>
 function getCleanUrlVideo(url: string): string | undefined {
     try {
         if (typeof url !== 'string') return;
 
-        const u = new URL(url);
-        const vParam = u.searchParams.get('v');
+        const videoId = getVideoId(url);
+        if (!videoId) return;
 
-        if (vParam) {
-            const cleanUrl = new URL(u.origin);
-            cleanUrl.pathname = '/watch';
-            cleanUrl.searchParams.set('v', vParam);
-
-            return cleanUrl.href;
-        }
-
-        return;
+        const cleanUrl = new URL('https://www.youtube.com/watch');
+        cleanUrl.searchParams.set('v', videoId);
+        return cleanUrl.href;
     } catch (e) {
         console.error(e);
         // throw new Error(e);
@@ -4516,6 +4537,7 @@ function getSheetTrVideo(trVideo: ISheetDetailsTrVideoParam): Array<ISheetTrVide
 
 export {
     isWatchVideo,
+    isVideoPage,
     getCleanUrlVideo,
     removeNodeList,
     getParams,

@@ -354,15 +354,15 @@ html[dark] .ycs-goto-video {
     display: none;
 }
 
+.ycs-app:not(.ycs-collapsed) .ycs-app-toggle { display: none; }
+
 .ycs-app-toggle {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 6px 0;
 }
 
 .ycs-btn-toggle-app {
-    margin-left: 8px;
 }
 
 .ycs-comment-block {
@@ -1032,4 +1032,9 @@ html[dark] .ycs-export-all-comments {
 html[dark="true"] .ycs-ext-search_link,
 html[dark] .ycs-ext-search_link {
     color: white;
+}
+
+#ycs_title_information {
+  position: relative;
+  top: 5px;
 }

@@ -33,7 +33,7 @@ import {
     GlobalStore,
     initShowBarFAQ,
     initShowViewMode,
-    isWatchVideo,
+    isVideoPage,
     openComments,
     openCommentsChat,
     openCommentsTrVideo,
@@ -77,7 +77,7 @@ import {
     }
 
     const intervalCheckLoadDOM = setInterval(() => {
-        if (isWatchVideo() && document.querySelector('#meta.style-scope.ytd-watch-flexy')) {
+        if (isVideoPage() && document.querySelector('#meta.style-scope.ytd-watch-flexy')) {
             clearInterval(intervalCheckLoadDOM);
 
             // eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -91,7 +91,7 @@ import {
         let handleMessageEvent: (ev: MessageEvent<any>) => unknown;
 
         function app(): void {
-            if (!isWatchVideo()) return;
+            if (!isVideoPage()) return;
 
             if (handleMessageEvent) {
                 window.removeEventListener('message', handleMessageEvent);
@@ -2463,7 +2463,8 @@ Total: ${c.count}\n${c.html}`;
                         try {
                             const app = document.querySelector('.ycs-app') as HTMLElement;
                             if (!app) return;
-                            app.style.display = value ? 'none' : '';
+                            // Apply collapsed state instead of fully hiding the app to keep the top toggle visible
+                            app.classList.toggle('ycs-collapsed', value);
                         } catch (err) {
                             console.error(err);
                         }
@@ -2682,7 +2683,7 @@ Total: ${c.count}\n${c.html}`;
 
             setInterval(() => {
                 if (
-                    isWatchVideo() &&
+                    isVideoPage() &&
                     document.querySelector('#meta.style-scope.ytd-watch-flexy') &&
                     prevUrl !== getCleanUrlVideo(window.location.href)
                 ) {
@@ -2698,12 +2699,12 @@ Total: ${c.count}\n${c.html}`;
         startObserve();
 
         try {
-            if (isWatchVideo()) {
+            if (isVideoPage()) {
                 app();
             }
         } catch (e) {
             console.error(e);
-            if (isWatchVideo()) {
+            if (isVideoPage()) {
                 app();
             }
         }
