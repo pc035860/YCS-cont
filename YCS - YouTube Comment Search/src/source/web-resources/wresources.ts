@@ -2502,24 +2502,29 @@ Total: ${c.count}\n${c.html}`;
                     }
                 }
 
-                if (e.data?.type === 'YCS_CACHE_STORAGE_GET_RESPONSE') {
+                    if (e.data?.type === 'YCS_CACHE_STORAGE_GET_RESPONSE') {
                     console.log('YCS_CACHE_STORAGE_GET_RESPONSE:', e.data);
 
                     if (e.data?.body) {
                         try {
-                            // Fix IT. This had to be done for the client side. Because the logic in object is the linked links.
+                            // Rebuild reply-to-origin mapping using a single-pass index to reduce complexity from O(n^2) to O(n)
                             if (e.data.body.comments.length > 0) {
+                                const originById: Record<string, any> = {};
+                                for (const c of e.data.body.comments) {
+                                    if (c?.typeComment === 'C') {
+                                        const id = c?.commentRenderer?.commentId;
+                                        if (typeof id === 'string' && id.length > 0) {
+                                            originById[id] = c;
+                                        }
+                                    }
+                                }
+
                                 for (const cmnt of e.data.body.comments) {
-                                    if (cmnt.typeComment === 'R') {
-                                        for (const c of e.data.body.comments) {
-                                            if (
-                                                c.typeComment === 'C' &&
-                                                c.commentRenderer.commentId ===
-                                                    cmnt.originComment.commentRenderer.commentId
-                                            ) {
-                                                cmnt.originComment = c;
-                                                break;
-                                            }
+                                    if (cmnt?.typeComment === 'R') {
+                                        const refId = cmnt?.originComment?.commentRenderer?.commentId;
+                                        if (typeof refId === 'string' && refId.length > 0) {
+                                            const origin = originById[refId];
+                                            if (origin) cmnt.originComment = origin;
                                         }
                                     }
                                 }

@@ -1,5 +1,5 @@
 const options = {
-    autoload: false,
+    autoload: true,
     highlightText: true,
     highlightExact: false,
     cache: true,
