@@ -208,24 +208,12 @@ import {
                 return res;
             })();
 
-            const getActiveStorageKey = (): string => {
-                try {
-                    const url = getCleanUrlVideo(window.location.href) as string;
-                    const u = new URL(url);
-                    const vid = u.searchParams.get('v') || '';
-                    return `ycs:activeFilter:${vid}`;
-                } catch {
-                    return 'ycs:activeFilter:';
-                }
-            };
+            // Removed persistent storage for active filter; rely on DOM state only
 
             const setActiveFilterByElement = (code: string | null, el?: HTMLElement): void => {
                 try {
                     removeClass(elsBtnPanel, 'ycs_btn_active');
                     if (code && el) el.classList.add('ycs_btn_active');
-                    const key = getActiveStorageKey();
-                    if (code) sessionStorage.setItem(key, code);
-                    else sessionStorage.removeItem(key);
                     // toggle clear-filter button visibility
                     const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
                     if (btnClear) {
@@ -235,107 +223,41 @@ import {
                 } catch {}
             };
 
-            const applyActiveFilterFromStore = (): void => {
-                try {
-                    const key = getActiveStorageKey();
-                    const code = sessionStorage.getItem(key) || '';
-                    const id = codeToId[code];
-                    if (id) {
-                        const el = document.getElementById(id);
-                        if (el) el.classList.add('ycs_btn_active');
-                    }
-                    // sync clear-filter button visibility on init
-                    const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
-                    if (btnClear) {
-                        btnClear.style.visibility = id ? 'visible' : 'hidden';
-                    }
-                } catch {}
-            };
+            // Removed applyActiveFilterFromStore: no restore from storage
 
             const getActiveFilterParam = (): IParamSearch | undefined => {
                 try {
-                    const key = getActiveStorageKey();
-                    const code = sessionStorage.getItem(key) || '';
+                    const active = document.querySelector('.ycs_btn_active') as HTMLElement | null;
+                    const code = active?.id ? (idToCode[active.id] as string) : '';
+                    if (!code) return undefined;
+
                     const param: IParamSearch = {} as IParamSearch;
                     switch (code) {
-                        case 'timestamp':
-                            param.timestamp = true;
-                            break;
-                        case 'author':
-                            param.author = true;
-                            break;
-                        case 'heart':
-                            param.heart = true;
-                            break;
-                        case 'verified':
-                            param.verified = true;
-                            break;
-                        case 'links':
-                            param.links = true;
-                            break;
-                        case 'likes':
-                            param.likes = true;
-                            break;
-                        case 'replied':
-                            param.replied = true;
-                            break;
-                        case 'members':
-                            param.members = true;
-                            break;
-                        case 'donated':
-                            param.donated = true;
-                            break;
-                        case 'random':
-                            param.random = true;
-                            break;
-                        case 'sortFirst':
-                            param.sortFirst = true;
-                            break;
-                        default:
-                            return undefined;
+                        case 'timestamp': param.timestamp = true; break;
+                        case 'author': param.author = true; break;
+                        case 'heart': param.heart = true; break;
+                        case 'verified': param.verified = true; break;
+                        case 'links': param.links = true; break;
+                        case 'likes': param.likes = true; break;
+                        case 'replied': param.replied = true; break;
+                        case 'members': param.members = true; break;
+                        case 'donated': param.donated = true; break;
+                        case 'random': param.random = true; break;
+                        case 'sortFirst': param.sortFirst = true; break;
+                        default: return undefined;
                     }
 
                     // Get sort order from the active button's dataset
-                    const activeButton = document.querySelector('.ycs_btn_active') as HTMLElement | null;
-                    if (activeButton) {
-                        // Check for regular sort dataset
-                        const sortOrder = activeButton.dataset.sort as 'newest' | 'oldest' | undefined;
-                        if (sortOrder) {
-                            param.sortOrder = sortOrder;
-                        }
-                        // Check for chat sort dataset
-                        const sortChatOrder = activeButton.dataset.sortChat as 'newest' | 'oldest' | undefined;
-                        if (sortChatOrder) {
-                            param.sortOrder = sortChatOrder;
-                        }
+                    if (active) {
+                        const sortOrder = active.dataset.sort as 'newest' | 'oldest' | undefined;
+                        if (sortOrder) param.sortOrder = sortOrder;
+                        const sortChatOrder = active.dataset.sortChat as 'newest' | 'oldest' | undefined;
+                        if (sortChatOrder) param.sortOrder = sortChatOrder;
                     }
 
                     return param;
                 } catch {
-                    // Fallback: detect by DOM
-                    try {
-                        const active = document.querySelector('.ycs_btn_active') as HTMLElement | null;
-                        const code = active?.id ? (idToCode[active.id] as string) : '';
-                        if (!code) return undefined;
-                        const param: IParamSearch = {} as IParamSearch;
-                        (param as any)[code] = true;
-
-                        // Get sort order from the active button's dataset (fallback case)
-                        if (active) {
-                            const sortOrder = active.dataset.sort as 'newest' | 'oldest' | undefined;
-                            if (sortOrder) {
-                                param.sortOrder = sortOrder;
-                            }
-                            const sortChatOrder = active.dataset.sortChat as 'newest' | 'oldest' | undefined;
-                            if (sortChatOrder) {
-                                param.sortOrder = sortChatOrder;
-                            }
-                        }
-
-                        return param;
-                    } catch {
-                        return undefined;
-                    }
+                    return undefined;
                 }
             };
 
@@ -599,7 +521,11 @@ import {
             };
 
             handlersBtnPanel(elsBtnPanel);
-            applyActiveFilterFromStore();
+            // No restore from storage; ensure clear button hidden initially
+            try {
+                const btnClearInit = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
+                if (btnClearInit) btnClearInit.style.visibility = 'hidden';
+            } catch {}
 
             const elLiveApp = document.getElementsByClassName('ycs-app')[0];
 
