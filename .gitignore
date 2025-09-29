@@ -1,5 +1,10 @@
-.cursor
-
 node_modules
 .parcel-cache
 dist/
+
+# agents
+.cursor
+.serena
+CLAUDE.md
+CLAUDE_PLANS
+.factory
