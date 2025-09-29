@@ -36,9 +36,10 @@ function sanitizeHtml(html: unknown): string {
         // strip scripts
         s = s.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
         // drop on* event handlers
-        s = s.replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '')
-             .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, '')
-             .replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, '');
+        s = s
+            .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '')
+            .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, '')
+            .replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, '');
         // sanitize href/src protocols
         s = s.replace(/href\s*=\s*"([^"]*)"/gi, (_m, p1) => `href="${esc(safeUrl(p1))}" rel="noopener noreferrer"`);
         s = s.replace(/href\s*=\s*'([^']*)'/gi, (_m, p1) => `href='${esc(safeUrl(p1))}' rel="noopener noreferrer"`);
@@ -128,9 +129,7 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
     if (!el) return;
 
     const renderLikeCount = (count: string | number): string => {
-
         try {
-
             if (typeof count === 'string' || typeof count === 'number') {
                 return `
                     <div class="ycs-wrap-like">
@@ -146,7 +145,6 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                     </div>
                 `;
             }
-
         } catch (err) {
             console.error(err);
         }
@@ -154,8 +152,7 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
         return '';
     };
 
-    const renderSpeechCount = (count: string | number, id: number): string =>  {
-
+    const renderSpeechCount = (count: string | number, id: number): string => {
         const numericCount = typeof count === 'string' ? parseInt(count, 10) : count;
         if (typeof numericCount === 'number' && Number.isFinite(numericCount) && numericCount !== 0) {
             return `
@@ -178,16 +175,18 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
         }
 
         return '';
-
     };
 
     const renderMemberUser = (cmnt: any): string => {
-
         try {
-
             if (cmnt.item?.commentRenderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer?.tooltip) {
                 const tooltip = cmnt.item.commentRenderer.sponsorCommentBadge.sponsorCommentBadgeRenderer.tooltip;
-                const thumbnail = wrapTryCatch(() => cmnt.item.commentRenderer.sponsorCommentBadge.sponsorCommentBadgeRenderer.customBadge.thumbnails[0].url) || '';
+                const thumbnail =
+                    wrapTryCatch(
+                        () =>
+                            cmnt.item.commentRenderer.sponsorCommentBadge.sponsorCommentBadgeRenderer.customBadge
+                                .thumbnails[0].url
+                    ) || '';
 
                 return `
                     <img alt="${esc(tooltip)}" height="14" width="14"
@@ -198,20 +197,15 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
             }
 
             return '';
-
         } catch (err) {
             console.error(err);
             return '';
         }
-
     };
 
     const renderHeart = (cmnt: any): string => {
-
         try {
-
             if (cmnt?.item?.commentRenderer?.creatorHeart) {
-
                 const tooltip = 'Liked by the author: ' + esc(cmnt.item.commentRenderer.creatorHeart.name);
 
                 return `
@@ -220,7 +214,6 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                     </div>
                 `;
             }
-
         } catch (err) {
             console.error(err);
         }
@@ -229,11 +222,8 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
     };
 
     const renderVerified = (cmnt: any): string => {
-
         try {
-
             if (cmnt?.item?.commentRenderer?.verifiedAuthor) {
-
                 const tooltip = 'Verified user';
 
                 return `
@@ -242,7 +232,6 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                     </div>
                 `;
             }
-
         } catch (err) {
             console.error(err);
         }
@@ -268,7 +257,6 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
     // const t0 = performance.now();
 
     if (nodeSelect) {
-
         const buildChatMessageHtml = (cmnt: any): string => {
             try {
                 const r = wrapTryCatch(
@@ -291,7 +279,8 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                             const thumbnails = wrapTryCatch(() => emoji.image.thumbnails) || [];
                             const url = wrapTryCatch(() => thumbnails[thumbnails.length - 1].url) || '';
                             const shortcut = (wrapTryCatch(() => emoji.shortcuts?.[0]) as string) || '';
-                            const label = (wrapTryCatch(() => emoji.image.accessibility.accessibilityData.label) as string) || '';
+                            const label =
+                                (wrapTryCatch(() => emoji.image.accessibility.accessibilityData.label) as string) || '';
                             const alt = shortcut || label || 'emoji';
                             const style = `margin-left: 2px; margin-right: 2px;`;
                             if (url) {
@@ -306,7 +295,8 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                                 ) >= 0
                             ) {
                                 const videoId = wrapTryCatch(() => run.navigationEndpoint.watchEndpoint.videoId) || '';
-                                const t = wrapTryCatch(() => run.navigationEndpoint.watchEndpoint.startTimeSeconds) || 0;
+                                const t =
+                                    wrapTryCatch(() => run.navigationEndpoint.watchEndpoint.startTimeSeconds) || 0;
                                 const text = run?.text || '';
                                 html += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${videoId}&t=${t}s" data-offsetvideo="${t}">${text}</a>`;
                             } else {
@@ -342,13 +332,12 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
         // const nodeComment = document.createElement('div');
 
         for (const comment of data) {
-
             // nodeComment.id = `ycs-number-comment-${++countComment}`;
             // nodeComment.className = 'ycs-render-comment';
 
             try {
-
-                arrHtml.push({html: `
+                arrHtml.push({
+                    html: `
                     <div id="ycs-number-comment-${++countComment}" class="ycs-render-comment">
                         <div class="ycs-left">
                             <a href="${safeUrl(wrapTryCatch(() => comment.item.commentRenderer.authorEndpoint.browseEndpoint.canonicalBaseUrl) || comment.item?.commentRenderer?.authorEndpoint?.commandMetadata?.webCommandMetadata?.url || '')}" target="_blank" rel="noopener noreferrer">
@@ -377,51 +366,48 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                                     ${renderHeart(comment)}
                                     ${renderLikeCount(comment?.item?.commentRenderer?.likeCount || comment?.item?.commentRenderer?.voteCount?.simpleText)}
                                     ${renderSpeechCount(comment?.item?.commentRenderer?.replyCount, comment.item?.commentRenderer?.commentId)}
-                                    ${(comment.item?.typeComment === 'R' && isReply) ? `<span class="ycs-datetime-goto">(reply)</span><button id=${comment.refIndex} title="Open the comment to the reply here." class="ycs-open-comment">${iconExpand()}</button>` : ''}
+                                    ${comment.item?.typeComment === 'R' && isReply ? `<span class="ycs-datetime-goto">(reply)</span><button id=${comment.refIndex} title="Open the comment to the reply here." class="ycs-open-comment">${iconExpand()}</button>` : ''}
                                 </div>
                             </div>
                              <div class="ycs-comment__main-text">${comment.item?.commentRenderer?.contentText?.renderFullText ? sanitizeHtml(comment.item?.commentRenderer?.contentText?.renderFullText) : esc(comment.item?.commentRenderer?.contentText?.fullText || '')}</div>
                         </div>
                     </div>
-                `});
-
+                `
+                });
             } catch (e) {
                 console.error(e);
                 continue;
             }
-
         }
 
         try {
-
             const partSearchRes = arrHtml.slice(currentPos, range);
 
             if (partSearchRes.length > 0) {
-
                 for (const res of partSearchRes) {
                     wrapper.insertAdjacentHTML('beforeend', res.html);
                     currentPos++;
                 }
 
                 if (arrHtml.length > range) {
-
-                    wrapper.insertAdjacentHTML('beforeend', `
+                    wrapper.insertAdjacentHTML(
+                        'beforeend',
+                        `
                         <div id="ycs_search_show_more" class="ycs-render-comment ycs-show_more_block">
                             <div id="ycs__show-more-button"
                                 class="ycs-title">
                                 Show more, found comments (${arrHtml.length - currentPos}) ${iconExpandShowMore()}
                             </div>
                         </div>
-                    `);
+                    `
+                    );
 
                     const elShowMoreBtn = document.getElementById('ycs_search_show_more');
 
                     elShowMoreBtn?.addEventListener('click', () => {
-
                         const pSearchRes = arrHtml.slice(currentPos, range + currentPos);
 
                         if (pSearchRes.length > 0) {
-
                             const randomStr = randomString(15);
                             elShowMoreBtn.insertAdjacentHTML('beforebegin', `<div class="${randomStr}"></div>`);
                             const elShowMore = document.getElementsByClassName(randomStr)[0];
@@ -451,13 +437,9 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
                                 }
                             }
                         }
-
                     });
-
                 }
-
             }
-
         } catch (e) {
             // if error show all search result
             console.error(e);
@@ -470,9 +452,7 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
         if (querySearch) {
             markTextComment(el, querySearch);
         }
-
     }
-
 }
 
 function renderCommentChat(selector: string, data: any, querySearch?: string): void {
@@ -484,9 +464,7 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
     nodeSelect?.appendChild(wrapper);
 
     const _gotoVideo = (comment: any): string => {
-
         try {
-
             if (comment.item?.replayChatItemAction?.videoOffsetTimeMsec) {
                 return `
                     <span class="ycs-cpointer ycs-gotochat-video ycs_goto_chat" data-offsetvideo="${comment.item?.replayChatItemAction?.videoOffsetTimeMsec || 0}"
@@ -497,39 +475,38 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
             }
 
             return '';
-
         } catch (e) {
             console.error(e);
             return '';
         }
-
     };
 
     const renderMemberUser = (cmnt: any): string => {
-
         try {
-
-            const authorBadge: any = wrapTryCatch(() => cmnt.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorBadges);
+            const authorBadge: any = wrapTryCatch(
+                () =>
+                    cmnt.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+                        .authorBadges
+            );
             let member: any;
 
             console.log('authorBadge: ', authorBadge);
 
             if (authorBadge?.length > 0) {
-
                 for (const m of authorBadge) {
                     if (m?.liveChatAuthorBadgeRenderer?.customThumbnail) {
                         member = m;
                         break;
                     }
                 }
-
             }
 
             console.log('member: ', member);
 
             if (authorBadge && member) {
                 const tooltip = member?.liveChatAuthorBadgeRenderer?.tooltip;
-                const thumbnail = wrapTryCatch(() => member.liveChatAuthorBadgeRenderer.customThumbnail.thumbnails[0].url) || '';
+                const thumbnail =
+                    wrapTryCatch(() => member.liveChatAuthorBadgeRenderer.customThumbnail.thumbnails[0].url) || '';
 
                 return `
                     <img alt="${tooltip}" height="14" width="14"
@@ -540,20 +517,21 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
             }
 
             return '';
-
         } catch (err) {
             console.error(err);
             return '';
         }
-
     };
 
     const renderVerified = (cmnt: any): string => {
-
         try {
-
-            if (wrapTryCatch(() => cmnt.item.replayChatItemAction.actions[0].addChatItemAction.item?.liveChatTextMessageRenderer.verifiedAuthor)) {
-
+            if (
+                wrapTryCatch(
+                    () =>
+                        cmnt.item.replayChatItemAction.actions[0].addChatItemAction.item?.liveChatTextMessageRenderer
+                            .verifiedAuthor
+                )
+            ) {
                 const tooltip = 'Verified user';
 
                 return `
@@ -562,7 +540,6 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
                     </div>
                 `;
             }
-
         } catch (err) {
             console.error(err);
         }
@@ -593,7 +570,8 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
                         const thumbnails = wrapTryCatch(() => emoji.image.thumbnails) || [];
                         const url = wrapTryCatch(() => thumbnails[thumbnails.length - 1].url) || '';
                         const shortcut = (wrapTryCatch(() => emoji.shortcuts?.[0]) as string) || '';
-                        const label = (wrapTryCatch(() => emoji.image.accessibility.accessibilityData.label) as string) || '';
+                        const label =
+                            (wrapTryCatch(() => emoji.image.accessibility.accessibilityData.label) as string) || '';
                         const alt = shortcut || label || 'emoji';
                         const style = `margin-left: 2px; margin-right: 2px;`;
                         if (url) {
@@ -636,7 +614,6 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
     };
 
     if (nodeSelect) {
-
         const arrHtml: any[] = [];
         const range = 200;
         let currentPos = 0;
@@ -645,13 +622,12 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
         // const nodeComment = document.createElement('div');
 
         for (const comment of data) {
-
             // nodeComment.id = `ycs-number-comment-${++countComment}`;
             // nodeComment.className = 'ycs-render-comment';
 
             try {
-
-                arrHtml.push({html: `
+                arrHtml.push({
+                    html: `
                     <div id="ycs-number-comment-${++countComment}" class="ycs-render-comment">
                         <div class="ycs-left">
                             <a href="${safeUrl(`/channel/${wrapTryCatch(() => comment.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorExternalChannelId) || ''}`)}" target="_blank" rel="noopener noreferrer">
@@ -682,53 +658,50 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
                                 </div>
                             </div>
                              <div class="ycs-comment__main-text">${((): string => {
-                                try {
-                                    return buildChatMessageHtml(comment);
-                                } catch (e) {
-                                    console.error(e);
-                                    return '';
-                                }
+                                 try {
+                                     return buildChatMessageHtml(comment);
+                                 } catch (e) {
+                                     console.error(e);
+                                     return '';
+                                 }
                              })()}</div>
                         </div>
                     </div>
-                `});
-
+                `
+                });
             } catch (e) {
                 console.error(e);
                 continue;
             }
 
-
-
             // elResutlSearch.appendChild(nodeComment);
         }
 
         try {
-
             const partSearchRes = arrHtml.slice(currentPos, range);
 
             if (partSearchRes.length > 0) {
-
                 for (const res of partSearchRes) {
                     wrapper.insertAdjacentHTML('beforeend', res.html);
                     currentPos++;
                 }
 
                 if (arrHtml.length > range) {
-
-                    wrapper.insertAdjacentHTML('beforeend', `
+                    wrapper.insertAdjacentHTML(
+                        'beforeend',
+                        `
                         <div id="ycs_search_chat_show_more" class="ycs-render-comment ycs-show_more_block">
                             <div id="ycs__show-more-button"
                                 class="ycs-title">
                                 Show more, found chat replay (${arrHtml.length - currentPos}) ${iconExpandShowMore()}
                             </div>
                         </div>
-                    `);
+                    `
+                    );
 
                     const elShowMoreBtn = document.getElementById('ycs_search_chat_show_more');
 
                     elShowMoreBtn?.addEventListener('click', () => {
-
                         // const partSearchRes = arrHtml.slice(currentPos, range + currentPos);
 
                         // for (const res of partSearchRes) {
@@ -739,7 +712,6 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
                         const pSearchRes = arrHtml.slice(currentPos, range + currentPos);
 
                         if (pSearchRes.length > 0) {
-
                             const randomStr = randomString(15);
                             elShowMoreBtn.insertAdjacentHTML('beforebegin', `<div class="${randomStr}"></div>`);
                             const elShowMore = document.getElementsByClassName(randomStr)[0];
@@ -762,24 +734,22 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
                                     showMore.remove();
                                 }
                             } else {
-                                const showMore = document.querySelector('#ycs_search_chat_show_more #ycs__show-more-button');
+                                const showMore = document.querySelector(
+                                    '#ycs_search_chat_show_more #ycs__show-more-button'
+                                );
 
                                 if (showMore) {
                                     showMore.innerHTML = `Show more, found chat replay (${arrHtml.length - currentPos}) ${iconExpandShowMore()}`;
                                 }
                             }
                         }
-
                     });
-
                 }
-
             }
 
             if (querySearch) {
                 markTextComment(selector, querySearch);
             }
-
         } catch (e) {
             // if error show all search result
             console.error(e);
@@ -788,9 +758,7 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
                 wrapper.insertAdjacentHTML('beforeend', res.html);
             }
         }
-
     }
-
 }
 
 function renderCommentTrVideo(selector: string, data: any, querySearch?: string): void {
@@ -813,7 +781,6 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
     // }
 
     if (nodeSelect) {
-
         const arrHtml: any[] = [];
         const range = 200;
         let currentPos = 0;
@@ -821,13 +788,12 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
         // const nodeComment = document.createElement('div');
 
         for (const comment of data) {
-
             // nodeComment.id = `ycs-number-comment-${++countComment}`;
             // nodeComment.className = 'ycs-render-comment ycs-oc-ml';
 
             try {
-
-                arrHtml.push({html: `
+                arrHtml.push({
+                    html: `
                     <div id="ycs-number-comment-${++countComment}" class="ycs-render-comment ycs-oc-ml">
                         <div class="ycs-left">
                             <a class="ycs-goto-video ycs-cpointer"
@@ -847,43 +813,41 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
                         </div>
                         <div class="ycs-comment__main-text ycs-clear">${wrapTryCatch(() => comment.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.cue.simpleText) || ''}</div>
                     </div>
-                `});
-
+                `
+                });
             } catch (e) {
                 console.error(e);
                 continue;
             }
 
-
             // elResutlSearch.appendChild(nodeComment);
         }
 
         try {
-
             const partSearchRes = arrHtml.slice(currentPos, range);
 
             if (partSearchRes.length > 0) {
-
                 for (const res of partSearchRes) {
                     wrapper.insertAdjacentHTML('beforeend', res.html);
                     currentPos++;
                 }
 
                 if (arrHtml.length > range) {
-
-                    wrapper.insertAdjacentHTML('beforeend', `
+                    wrapper.insertAdjacentHTML(
+                        'beforeend',
+                        `
                         <div id="ycs_search_trvideo_show_more" class="ycs-render-comment ycs-show_more_block">
                             <div id="ycs__show-more-button"
                                 class="ycs-title">
                                 Show more, found transcript video (${arrHtml.length - currentPos}) ${iconExpandShowMore()}
                             </div>
                         </div>
-                    `);
+                    `
+                    );
 
                     const elShowMoreBtn = document.getElementById('ycs_search_trvideo_show_more');
 
                     elShowMoreBtn?.addEventListener('click', () => {
-
                         // const partSearchRes = arrHtml.slice(currentPos, range + currentPos);
 
                         // for (const res of partSearchRes) {
@@ -894,7 +858,6 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
                         const pSearchRes = arrHtml.slice(currentPos, range + currentPos);
 
                         if (pSearchRes.length > 0) {
-
                             const randomStr = randomString(15);
                             elShowMoreBtn.insertAdjacentHTML('beforebegin', `<div class="${randomStr}"></div>`);
                             const elShowMore = document.getElementsByClassName(randomStr)[0];
@@ -917,24 +880,22 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
                                     showMore.remove();
                                 }
                             } else {
-                                const showMore = document.querySelector('#ycs_search_trvideo_show_more #ycs__show-more-button');
+                                const showMore = document.querySelector(
+                                    '#ycs_search_trvideo_show_more #ycs__show-more-button'
+                                );
 
                                 if (showMore) {
                                     showMore.innerHTML = `Show more, found transcript video (${arrHtml.length - currentPos}) ${iconExpandShowMore()}`;
                                 }
                             }
                         }
-
                     });
-
                 }
-
             }
 
             if (querySearch) {
                 markTextComment(selector, querySearch);
             }
-
         } catch (e) {
             // if error show all search result
             console.error(e);
@@ -944,29 +905,22 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
             }
         }
     }
-
-
-
 }
 
 function renderLoadComments(selector: string): void {
     if (typeof selector !== 'string') return;
 
     const renderViewMode = (): string => {
-
         try {
-
             if (getPiP().supported) {
                 return '<button id="ycs_view_mode" class="ycs-btn-search ycs-title ycs_noselect" name="View Mode" type="button" title="⌨ HOTKEY: [ Alt + ~ ] Viewer mode for more easier searches and video watching">V. Mode</button>';
             } else {
                 return '';
             }
-
         } catch (err) {
             console.error(err);
             return '';
         }
-
     };
 
     const node = document.querySelector(selector);
@@ -1157,7 +1111,7 @@ function renderLoadComments(selector: string): void {
 }
 
 function renderSearch(node: HTMLElement): void {
-    if ( !node ) return;
+    if (!node) return;
 
     node.innerHTML = `
         <div>
