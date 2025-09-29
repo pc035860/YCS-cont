@@ -260,44 +260,104 @@ function findInitYParams(initData: [object]): string | undefined {
     return;
 }
 
-function getParams(w: any): GetParams {
-    return JSON.parse(
-        JSON.stringify({
-            ctoken: null,
-            continuation: null,
-            itct: null,
-            params: {
-                credentials: 'include',
-                headers: {
-                    accept: '*/*',
-                    'accept-language':
-                        w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                    'cache-control': 'no-cache',
-                    'content-type': 'application/x-www-form-urlencoded',
-                    pragma: 'no-cache',
-                    'sec-fetch-dest': 'empty',
-                    'sec-fetch-mode': 'cors',
-                    'sec-fetch-site': 'same-origin',
-                    'x-spf-previous': getCleanUrlVideo(w.location.href),
-                    'x-spf-referer': getCleanUrlVideo(w.location.href),
-                    'x-youtube-identity-token': w.ytcfg?.data_?.ID_TOKEN,
-                    'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                    'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION,
-                    'x-youtube-device': w.ytcfg?.data_?.DEVICE || 'cbr=Chrome&cplatform=DESKTOP',
-                    'x-youtube-page-cl': w.ytcfg?.data_?.PAGE_CL,
-                    'x-youtube-page-label': w.ytcfg?.data_?.PAGE_BUILD_LABEL,
-                    'x-youtube-time-zone': Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    'x-youtube-utc-offset': Math.abs(new Date().getTimezoneOffset()),
-                    'x-youtube-variants-checksum': w.ytcfg?.data_?.VARIANTS_CHECKSUM
-                },
-                referrer: getCleanUrlVideo(w.location.href),
-                referrerPolicy: 'origin-when-cross-origin',
-                body: `session_token=${w.ytcfg?.data_?.XSRF_TOKEN}`,
-                method: 'POST',
-                mode: 'cors'
-            }
-        })
-    );
+async function _fetchPageCfgData(videoId: string, signal?: AbortSignal): Promise<any | undefined> {
+    try {
+        const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+            method: 'GET',
+            mode: 'no-cors',
+            credentials: 'include',
+            signal,
+            cache: 'default'
+        } as RequestInit);
+
+        const html = await response.text();
+        const splittedHtml = html.split('window.ytplayer={};\nytcfg.set(');
+
+        if (splittedHtml.length <= 1) {
+            throw new Error('Failed to load video html');
+        }
+
+        try {
+            return JSON.parse(splittedHtml[1].split('); window.ytcfg.obfuscatedData_')[0].replace('\n', ''));
+        } catch (error) {
+            console.error(error);
+            return undefined;
+        }
+    } catch (error) {
+        console.error(error);
+        return undefined;
+    }
+}
+
+const pageCfgDataPool: Record<string, Promise<any> | any> = {};
+
+async function getPageCfgData(
+    globalContext: Window & typeof globalThis,
+    signal?: AbortSignal,
+    optUrl?: string
+): Promise<any | undefined> {
+    const existingData = (globalContext as any)?.ytcfg?.data_ ?? null;
+    if (existingData) {
+        return existingData;
+    }
+
+    const url = optUrl ?? globalContext.location?.href ?? window.location.href;
+    const videoId = getVideoId(url);
+
+    if (!videoId) {
+        return undefined;
+    }
+
+    if (!pageCfgDataPool[videoId]) {
+        pageCfgDataPool[videoId] = _fetchPageCfgData(videoId, signal);
+    }
+
+    try {
+        return await pageCfgDataPool[videoId];
+    } catch (error) {
+        console.error(error);
+        return undefined;
+    }
+}
+
+async function getParams(w: Window & typeof globalThis, signal?: AbortSignal): Promise<GetParams> {
+    const ytcfgData = await getPageCfgData(w, signal);
+    const cleanUrl = getCleanUrlVideo(w.location.href) ?? w.location.href;
+
+    return {
+        ctoken: null,
+        continuation: null,
+        itct: null,
+        params: {
+            credentials: 'include',
+            headers: {
+                accept: '*/*',
+                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                'cache-control': 'no-cache',
+                'content-type': 'application/x-www-form-urlencoded',
+                pragma: 'no-cache',
+                'sec-fetch-dest': 'empty',
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-site': 'same-origin',
+                'x-spf-previous': cleanUrl,
+                'x-spf-referer': cleanUrl,
+                'x-youtube-identity-token': ytcfgData?.ID_TOKEN,
+                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION,
+                'x-youtube-device': ytcfgData?.DEVICE || 'cbr=Chrome&cplatform=DESKTOP',
+                'x-youtube-page-cl': ytcfgData?.PAGE_CL,
+                'x-youtube-page-label': ytcfgData?.PAGE_BUILD_LABEL,
+                'x-youtube-time-zone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+                'x-youtube-utc-offset': Math.abs(new Date().getTimezoneOffset()),
+                'x-youtube-variants-checksum': ytcfgData?.VARIANTS_CHECKSUM
+            },
+            referrer: cleanUrl,
+            referrerPolicy: 'origin-when-cross-origin',
+            body: `session_token=${ytcfgData?.XSRF_TOKEN ?? ''}`,
+            method: 'POST',
+            mode: 'cors'
+        }
+    };
 }
 
 /**
@@ -833,11 +893,7 @@ function generateCommentObjectFromFW(params: {
                     const v = wrapTryCatch(() => r.navigationEndpoint.watchEndpoint.startTimeSeconds) as any;
                     const n = typeof v === 'string' ? parseInt(v, 10) : v;
                     const currentVideoId = (getVideoId(window.location.href) || '') as string;
-                    return (
-                        Number.isFinite(n) &&
-                        n >= 0 &&
-                        String(vId || '') === String(currentVideoId || '')
-                    );
+                    return Number.isFinite(n) && n >= 0 && String(vId || '') === String(currentVideoId || '');
                 });
             if (hasTimeline) {
                 comment.commentRenderer.isTimeLine = 'timeline';
@@ -1049,15 +1105,22 @@ async function getInitYtData(url: string, signal: AbortSignal | undefined): Prom
     try {
         if (!url) return;
 
-        const getFirstParam = getParams(window).params as RequestInit;
+        const paramsTemplate = (await getParams(window, signal)).params as RequestInit;
+        const headers = { ...(paramsTemplate.headers as Record<string, string>) };
+        delete headers['content-type'];
 
-        getFirstParam.method = 'GET';
-        delete (getFirstParam.headers as any)['content-type'];
-        delete getFirstParam.body;
+        const requestInit: RequestInit = {
+            ...paramsTemplate,
+            method: 'GET',
+            headers
+        };
 
-        console.log('GET FIRST PARAM: ', getFirstParam);
+        delete (requestInit as any).body;
 
-        const res = await fetch(`${getCleanUrlVideo(url)}&pbj=1`, { ...getFirstParam, signal, cache: 'no-store' });
+        console.log('GET FIRST PARAM: ', requestInit);
+
+        const targetUrl = `${getCleanUrlVideo(url) ?? url}&pbj=1`;
+        const res = await fetch(targetUrl, { ...requestInit, signal, cache: 'no-store' });
 
         const result = await res.json();
         GlobalStore.getInitYtData = result;
@@ -1073,78 +1136,83 @@ async function delayMs(ms: number): Promise<void> {
     return await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function getParamsForChat(w: any, cLiveChat: any, pOffsetMs: number): object | undefined {
+async function getParamsForChat(
+    w: Window & typeof globalThis,
+    cLiveChat: any,
+    pOffsetMs: number,
+    signal?: AbortSignal
+): Promise<object | undefined> {
     if (!cLiveChat) return;
 
     try {
-        return JSON.parse(
-            JSON.stringify({
-                headers: {
-                    accept: '*/*',
-                    'accept-language':
-                        w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                    'content-type': 'application/json',
-                    pragma: 'no-cache',
-                    'cache-control': 'no-store',
-                    'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                    'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
-                },
-                referrerPolicy: 'strict-origin-when-cross-origin',
-                body: JSON.stringify({
-                    context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client },
-                    continuation: cLiveChat.continuation,
-                    currentPlayerState: { playerOffsetMs: pOffsetMs.toString() }
-                }),
-                method: 'POST',
-                mode: 'cors',
-                credentials: 'include'
-            })
-        );
+        const ytcfgData = await getPageCfgData(w, signal);
+
+        return {
+            headers: {
+                accept: '*/*',
+                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                'content-type': 'application/json',
+                pragma: 'no-cache',
+                'cache-control': 'no-store',
+                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION
+            },
+            referrerPolicy: 'strict-origin-when-cross-origin',
+            body: JSON.stringify({
+                context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client },
+                continuation: cLiveChat.continuation,
+                currentPlayerState: { playerOffsetMs: pOffsetMs.toString() }
+            }),
+            method: 'POST',
+            mode: 'cors',
+            credentials: 'include'
+        };
     } catch (e) {
         console.error(e);
         return;
     }
 }
 
-async function getDetailsVideoIDV2(w: any, url: string, signal: AbortSignal): Promise<object | undefined> {
+async function getDetailsVideoIDV2(
+    w: Window & typeof globalThis,
+    url: string,
+    signal: AbortSignal
+): Promise<object | undefined> {
     try {
         if (typeof url !== 'string') return;
 
-        const params = JSON.parse(
-            JSON.stringify({
-                headers: {
-                    accept: '*/*',
-                    'accept-language':
-                        w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                    'content-type': 'application/json',
-                    pragma: 'no-cache',
-                    'cache-control': 'no-store',
-                    'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                    'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
-                },
-                referrer: url,
-                referrerPolicy: 'strict-origin-when-cross-origin',
-                body: JSON.stringify({
-                    context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client },
-                    videoId: getVideoId(url)
-                }),
-                method: 'POST',
-                mode: 'cors',
-                credentials: 'include'
-            })
-        );
+        const ytcfgData = await getPageCfgData(w, signal, url);
+        const videoId = getVideoId(url);
 
-        console.log('getDetailsVideoIDV2 PARAMS: ', params);
+        const params: RequestInit = {
+            headers: {
+                accept: '*/*',
+                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                'content-type': 'application/json',
+                pragma: 'no-cache',
+                'cache-control': 'no-store',
+                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION
+            },
+            referrer: url,
+            referrerPolicy: 'strict-origin-when-cross-origin',
+            body: JSON.stringify({
+                context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client },
+                videoId
+            }),
+            method: 'POST',
+            mode: 'cors',
+            credentials: 'include'
+        };
 
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
         const res = await fetch(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, {
             ...params,
             signal,
             cache: 'no-store'
-        } as RequestInit);
+        });
 
         const data = await res.json();
-        console.log('getDetailsVideoIDV2 DATA: ', data);
 
         return data;
     } catch (err) {
@@ -1153,46 +1221,46 @@ async function getDetailsVideoIDV2(w: any, url: string, signal: AbortSignal): Pr
     }
 }
 
-async function getDetailsCommentsVideoIDV2(w: any, ps: any, signal: AbortSignal): Promise<object | undefined> {
+async function getDetailsCommentsVideoIDV2(
+    w: Window & typeof globalThis,
+    ps: any,
+    signal: AbortSignal
+): Promise<object | undefined> {
     try {
         if (typeof ps !== 'object') return;
 
-        const params = JSON.parse(
-            JSON.stringify({
-                headers: {
-                    accept: '*/*',
-                    'accept-language':
-                        w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                    'content-type': 'application/json',
-                    pragma: 'no-cache',
-                    'cache-control': 'no-store',
-                    'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                    'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
-                },
-                referrer: ps.url,
-                referrerPolicy: 'strict-origin-when-cross-origin',
-                body: JSON.stringify({
-                    context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client },
-                    clickTracking: { clickTrackingParams: '' },
-                    continuation: ps.continue
-                }),
-                method: 'POST',
-                mode: 'cors',
-                credentials: 'include'
-            })
-        );
+        const ytcfgData = await getPageCfgData(w, signal, ps?.url);
 
-        console.log('getDetailsCommentsVideoIDV2 PARAMS: ', params);
+        const params: RequestInit = {
+            headers: {
+                accept: '*/*',
+                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                'content-type': 'application/json',
+                pragma: 'no-cache',
+                'cache-control': 'no-store',
+                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION
+            },
+            referrer: ps.url,
+            referrerPolicy: 'strict-origin-when-cross-origin',
+            body: JSON.stringify({
+                context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client },
+                clickTracking: { clickTrackingParams: '' },
+                continuation: ps.continue
+            }),
+            method: 'POST',
+            mode: 'cors',
+            credentials: 'include'
+        };
 
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
         const res = await fetch(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, {
             ...params,
             signal,
             cache: 'no-store'
-        } as RequestInit);
+        });
 
         const data = await res.json();
-        console.log('getDetailsCommentsVideoIDV2 DATA: ', data);
 
         return data;
     } catch (err) {
@@ -1201,94 +1269,113 @@ async function getDetailsCommentsVideoIDV2(w: any, ps: any, signal: AbortSignal)
     }
 }
 
-function getParamsForComments(w: any, params: any): object | undefined {
+async function getParamsForComments(
+    w: Window & typeof globalThis,
+    params: any,
+    signal?: AbortSignal
+): Promise<object | undefined> {
     try {
-        return JSON.parse(
-            JSON.stringify({
-                headers: {
-                    accept: '*/*',
-                    'accept-language':
-                        w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                    'content-type': 'application/json',
-                    pragma: 'no-cache',
-                    'cache-control': 'no-store',
-                    'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                    'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
-                },
-                referrerPolicy: 'strict-origin-when-cross-origin',
-                body: JSON.stringify({
-                    context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client },
-                    clickTracking: { clickTrackingParams: params.clickTrackingParams },
-                    continuation: params.continue
-                }),
-                method: 'POST',
-                mode: 'cors',
-                credentials: 'include'
-            })
-        );
+        const ytcfgData = await getPageCfgData(w, signal, params?.url);
+        const body: Record<string, unknown> = {
+            context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client },
+            continuation: params?.continue
+        };
+
+        const clickTrackingParams = params?.clickTrackingParams ?? params?.clickTracking;
+        if (clickTrackingParams) {
+            body.clickTracking = { clickTrackingParams };
+        }
+
+        return {
+            headers: {
+                accept: '*/*',
+                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                'content-type': 'application/json',
+                pragma: 'no-cache',
+                'cache-control': 'no-store',
+                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION
+            },
+            referrerPolicy: 'strict-origin-when-cross-origin',
+            body: JSON.stringify(body),
+            method: 'POST',
+            mode: 'cors',
+            credentials: 'include'
+        };
     } catch (e) {
         console.error(e);
         return;
     }
 }
 
-function getParamsForReplies(w: any, params: any): object | undefined {
+async function getParamsForReplies(
+    w: Window & typeof globalThis,
+    params: any,
+    signal?: AbortSignal
+): Promise<object | undefined> {
     try {
-        return JSON.parse(
-            JSON.stringify({
-                headers: {
-                    accept: '*/*',
-                    'accept-language':
-                        w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                    'content-type': 'application/json',
-                    pragma: 'no-cache',
-                    'cache-control': 'no-store',
-                    'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                    'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
-                },
-                referrerPolicy: 'strict-origin-when-cross-origin',
-                body: JSON.stringify({
-                    context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client },
-                    clickTracking: { clickTrackingParams: params.clickTracking },
-                    continuation: params.continue
-                }),
-                method: 'POST',
-                mode: 'cors',
-                credentials: 'include'
-            })
-        );
+        const ytcfgData = await getPageCfgData(w, signal, params?.url);
+        const body: Record<string, unknown> = {
+            context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client },
+            continuation: params?.continue
+        };
+
+        const clickTrackingParams = params?.clickTracking ?? params?.clickTrackingParams;
+        if (clickTrackingParams) {
+            body.clickTracking = { clickTrackingParams };
+        }
+
+        return {
+            headers: {
+                accept: '*/*',
+                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                'content-type': 'application/json',
+                pragma: 'no-cache',
+                'cache-control': 'no-store',
+                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION
+            },
+            referrerPolicy: 'strict-origin-when-cross-origin',
+            body: JSON.stringify(body),
+            method: 'POST',
+            mode: 'cors',
+            credentials: 'include'
+        };
     } catch (e) {
         console.error(e);
         return;
     }
 }
 
-function getParamsForLiveChat(w: any, cLiveChat: any): object | undefined {
+async function getParamsForLiveChat(
+    w: Window & typeof globalThis,
+    cLiveChat: any,
+    signal?: AbortSignal
+): Promise<object | undefined> {
     if (!cLiveChat) return;
 
     try {
-        return JSON.parse(
-            JSON.stringify({
-                headers: {
-                    accept: '*/*',
-                    'accept-language':
-                        w.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                    'content-type': 'application/json',
-                    pragma: 'no-cache',
-                    'cache-control': 'no-store',
-                    'x-youtube-client-name': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                    'x-youtube-client-version': w.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION
-                },
-                referrerPolicy: 'strict-origin-when-cross-origin',
-                body: JSON.stringify({
-                    context: { client: w.ytcfg?.data_?.INNERTUBE_CONTEXT?.client },
-                    continuation: cLiveChat.continuation
-                }),
-                method: 'POST',
-                mode: 'cors',
-                credentials: 'include'
-            })
-        );
+        const ytcfgData = await getPageCfgData(w, signal);
+
+        return {
+            headers: {
+                accept: '*/*',
+                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                'content-type': 'application/json',
+                pragma: 'no-cache',
+                'cache-control': 'no-store',
+                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION
+            },
+            referrerPolicy: 'strict-origin-when-cross-origin',
+            body: JSON.stringify({
+                context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client },
+                continuation: cLiveChat.continuation
+            }),
+            method: 'POST',
+            mode: 'cors',
+            credentials: 'include'
+        };
     } catch (e) {
         console.error(e);
         return;
@@ -1297,20 +1384,23 @@ function getParamsForLiveChat(w: any, cLiveChat: any): object | undefined {
 
 function getInnertubeApiKey(): string | undefined {
     try {
-        return (
-            (window as any)?.ytcfg.data_?.INNERTUBE_API_KEY ||
-            (window as any)?.ytcfg?.data_?.WEB_PLAYER_CONTEXT_CONFIGS?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_WATCH
+        const ytcfgData = (window as any)?.ytcfg?.data_;
+
+        const innertubeApiKey =
+            ytcfgData?.INNERTUBE_API_KEY ||
+            ytcfgData?.WEB_PLAYER_CONTEXT_CONFIGS?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_WATCH?.innertubeApiKey ||
+            ytcfgData?.WEB_PLAYER_CONTEXT_CONFIGS?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_CHANNEL_TRAILER
                 ?.innertubeApiKey ||
-            (window as any)?.ytcfg?.data_?.WEB_PLAYER_CONTEXT_CONFIGS
-                ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_CHANNEL_TRAILER?.innertubeApiKey ||
-            (window as any)?.ytcfg?.data_?.WEB_PLAYER_CONTEXT_CONFIGS
-                ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_PLAYLIST_OVERVIEW?.innertubeApiKey ||
-            (window as any)?.ytcfg?.data_?.WEB_PLAYER_CONTEXT_CONFIGS
-                ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_VERTICAL_LANDING_PAGE_PROMO?.innertubeApiKey ||
-            (window as any)?.ytcfg?.data_?.WEB_PLAYER_CONTEXT_CONFIGS
-                ?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_SPONSORSHIPS_OFFER?.innertubeApiKey ||
-            (window as any)?.ytplayer?.web_player_context_config?.innertubeApiKey
-        );
+            ytcfgData?.WEB_PLAYER_CONTEXT_CONFIGS?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_PLAYLIST_OVERVIEW
+                ?.innertubeApiKey ||
+            ytcfgData?.WEB_PLAYER_CONTEXT_CONFIGS?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_VERTICAL_LANDING_PAGE_PROMO
+                ?.innertubeApiKey ||
+            ytcfgData?.WEB_PLAYER_CONTEXT_CONFIGS?.WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_SPONSORSHIPS_OFFER
+                ?.innertubeApiKey ||
+            (window as any)?.ytplayer?.web_player_context_config?.innertubeApiKey ||
+            (window as any)?.ytcfg?.INNERTUBE_API_KEY;
+
+        return innertubeApiKey;
     } catch (e) {
         console.error(e);
         return;
@@ -1355,7 +1445,7 @@ async function getCDChat(signal: AbortSignal): Promise<object | undefined> {
 async function getLiveChat(signal: AbortSignal): Promise<object[] | undefined> {
     try {
         const cDChat = await getCDChat(signal);
-        const params = getParamsForLiveChat(window, cDChat);
+        const params = await getParamsForLiveChat(window, cDChat, signal);
 
         if (params) {
             const res = await fetch(
@@ -1552,12 +1642,16 @@ async function getChatComments(
 
                                         if (parseInt(msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0) {
                                             const currentVideoId = (getVideoId(window.location.href) || '') as string;
-                                            const linkVideoId = (wrapTryCatch(() => msg?.navigationEndpoint?.watchEndpoint?.videoId) || '') as string;
-                                            const isSameVideo = String(linkVideoId || '') === String(currentVideoId || '');
+                                            const linkVideoId = (wrapTryCatch(
+                                                () => msg?.navigationEndpoint?.watchEndpoint?.videoId
+                                            ) || '') as string;
+                                            const isSameVideo =
+                                                String(linkVideoId || '') === String(currentVideoId || '');
 
                                             renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${linkVideoId}&t=${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}" data-video-id="${linkVideoId}">${msg?.text || ''}</a>`;
 
-                                            if (isSameVideo &&
+                                            if (
+                                                isSameVideo &&
                                                 wrapTryCatch(
                                                     () =>
                                                         comment.replayChatItemAction.actions[0].addChatItemAction.item
@@ -1633,7 +1727,7 @@ async function getChatComments(
 
                 while (next) {
                     console.log('Loop chat comments');
-                    const params = getParamsForChat(window, cDChat, currentOffsetTimeMsec);
+                    const params = await getParamsForChat(window, cDChat, currentOffsetTimeMsec, signal);
                     console.log('currentOffsetTimeMsec: ', currentOffsetTimeMsec);
 
                     if (params) {
@@ -1783,47 +1877,56 @@ async function getChatComments(
                                                 ) {
                                                     renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${msg?.navigationEndpoint?.watchEndpoint?.videoId}&t=${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}">${msg?.text || ''}</a>`;
 
-                                                const currentVideoId = (getVideoId(window.location.href) || '') as string;
-                                                const linkVideoId = (wrapTryCatch(() => msg?.navigationEndpoint?.watchEndpoint?.videoId) || '') as string;
-                                                const isSameVideo = String(linkVideoId || '') === String(currentVideoId || '');
+                                                    const currentVideoId = (getVideoId(window.location.href) ||
+                                                        '') as string;
+                                                    const linkVideoId = (wrapTryCatch(
+                                                        () => msg?.navigationEndpoint?.watchEndpoint?.videoId
+                                                    ) || '') as string;
+                                                    const isSameVideo =
+                                                        String(linkVideoId || '') === String(currentVideoId || '');
 
-                                                if (
-                                                    isSameVideo &&
-                                                    wrapTryCatch(
-                                                        () =>
-                                                            comment.replayChatItemAction.actions[0]
-                                                                .addChatItemAction.item.liveChatTextMessageRenderer
-                                                    )
-                                                ) {
-                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
-                                                        'timeline';
-                                                }
+                                                    if (
+                                                        isSameVideo &&
+                                                        wrapTryCatch(
+                                                            () =>
+                                                                comment.replayChatItemAction.actions[0]
+                                                                    .addChatItemAction.item.liveChatTextMessageRenderer
+                                                        )
+                                                    ) {
+                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
+                                                            'timeline';
+                                                    }
                                                 } else if (msg?.navigationEndpoint) {
                                                     renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${msg?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || msg?.navigationEndpoint?.urlEndpoint?.url || msg?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || msg?.text || '#'}" target="_blank">${msg?.text || ''}</a>`;
-                                            } else if (wrapTryCatch(() => (msg as any).emoji)) {
-                                                const emoji: any = wrapTryCatch(() => (msg as any).emoji) || {};
-                                                const thumbnails = wrapTryCatch(() => emoji.image.thumbnails) || [];
-                                                const url = wrapTryCatch(() => thumbnails[thumbnails.length - 1].url) || '';
-                                                const shortcut = (wrapTryCatch(() => emoji.shortcuts?.[0]) as string) || '';
-                                                const label = (wrapTryCatch(() => emoji.image.accessibility.accessibilityData.label) as string) || '';
+                                                } else if (wrapTryCatch(() => (msg as any).emoji)) {
+                                                    const emoji: any = wrapTryCatch(() => (msg as any).emoji) || {};
+                                                    const thumbnails = wrapTryCatch(() => emoji.image.thumbnails) || [];
+                                                    const url =
+                                                        wrapTryCatch(() => thumbnails[thumbnails.length - 1].url) || '';
+                                                    const shortcut =
+                                                        (wrapTryCatch(() => emoji.shortcuts?.[0]) as string) || '';
+                                                    const label =
+                                                        (wrapTryCatch(
+                                                            () => emoji.image.accessibility.accessibilityData.label
+                                                        ) as string) || '';
 
-                                                // Always add a textual placeholder into fullText for exports/search
-                                                if (shortcut) {
-                                                    fullText += shortcut;
-                                                } else if (label) {
-                                                    fullText += `:${label}:`;
-                                                } else {
-                                                    fullText += ':emoji:';
-                                                }
+                                                    // Always add a textual placeholder into fullText for exports/search
+                                                    if (shortcut) {
+                                                        fullText += shortcut;
+                                                    } else if (label) {
+                                                        fullText += `:${label}:`;
+                                                    } else {
+                                                        fullText += ':emoji:';
+                                                    }
 
-                                                // Prefer image in rich HTML, fallback to shortcut text if no image URL
-                                                const alt = shortcut || label || 'emoji';
-                                                const style = `margin-left: 2px; margin-right: 2px;`;
-                                                if (url) {
-                                                    renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
-                                                } else {
-                                                    renderFullTextComment += alt;
-                                                }
+                                                    // Prefer image in rich HTML, fallback to shortcut text if no image URL
+                                                    const alt = shortcut || label || 'emoji';
+                                                    const style = `margin-left: 2px; margin-right: 2px;`;
+                                                    if (url) {
+                                                        renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
+                                                    } else {
+                                                        renderFullTextComment += alt;
+                                                    }
                                                 } else if (wrapTryCatch(() => (msg as any).attachment?.image)) {
                                                     const image: any = wrapTryCatch(
                                                         () => (msg as any).attachment.image
@@ -1894,28 +1997,32 @@ async function getChatComments(
     return;
 }
 
-function getParamsForTranscript(w: any, param: string): object | undefined {
+async function getParamsForTranscript(
+    w: Window & typeof globalThis,
+    param: string,
+    signal?: AbortSignal
+): Promise<object | undefined> {
     try {
-        return JSON.parse(
-            JSON.stringify({
-                headers: {
-                    accept: '*/*',
-                    'accept-language':
-                        w?.ytcfg?.data_?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                    'content-type': 'application/json',
-                    pragma: 'no-cache',
-                    'cache-control': 'no-store',
-                    'x-youtube-client-name': w?.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                    'x-youtube-client-version': w?.ytcfg?.data_?.INNERTUBE_CONTEXT_CLIENT_VERSION || ''
-                },
-                referrer: getCleanUrlVideo(w.location.href),
-                referrerPolicy: 'origin-when-cross-origin',
-                body: JSON.stringify({ context: { client: w?.ytcfg?.data_?.INNERTUBE_CONTEXT?.client || {} }, params: param }),
-                method: 'POST',
-                mode: 'cors',
-                credentials: 'include'
-            })
-        );
+        const ytcfgData = await getPageCfgData(w, signal);
+        const cleanUrl = getCleanUrlVideo(w.location.href) ?? w.location.href;
+
+        return {
+            headers: {
+                accept: '*/*',
+                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                'content-type': 'application/json',
+                pragma: 'no-cache',
+                'cache-control': 'no-store',
+                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION || ''
+            },
+            referrer: cleanUrl,
+            referrerPolicy: 'origin-when-cross-origin',
+            body: JSON.stringify({ context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client || {} }, params: param }),
+            method: 'POST',
+            mode: 'cors',
+            credentials: 'include'
+        };
     } catch (e) {
         console.error(e);
         return;
@@ -2096,7 +2203,7 @@ async function getTranscriptVideo(signal: AbortSignal): Promise<object | undefin
             if (initData) {
                 const ytInitParam = findInitYParams(initData) as string;
                 if (ytInitParam) {
-                    const params = getParamsForTranscript(window, ytInitParam);
+                    const params = await getParamsForTranscript(window, ytInitParam, signal);
                     console.log('PARAMS for TRANSCRIPT', params);
                     const resp = await fetch(
                         `https://www.youtube.com/youtubei/v1/get_transcript?key=${getInnertubeApiKey()}`,
@@ -2104,7 +2211,9 @@ async function getTranscriptVideo(signal: AbortSignal): Promise<object | undefin
                     );
                     const json = await resp.json();
                     const ok = wrapTryCatch(
-                        () => json.actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length > 0
+                        () =>
+                            json.actions[0].updateEngagementPanelAction.content.transcriptRenderer.body
+                                .transcriptBodyRenderer.cueGroups.length > 0
                     );
                     if (ok) return json;
                 }
@@ -2127,7 +2236,9 @@ async function getTranscriptVideo(signal: AbortSignal): Promise<object | undefin
                 const text = await viaTimedText.text();
                 const built = buildTranscriptFromTimedText(text);
                 const ok = wrapTryCatch(
-                    () => (built as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length > 0
+                    () =>
+                        (built as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body
+                            .transcriptBodyRenderer.cueGroups.length > 0
                 );
                 if (ok) return built;
             }
@@ -2487,7 +2598,9 @@ async function getAllCommentsModeV2(
                                     parseInt(partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0
                                 ) {
                                     const currentVideoId = (getVideoId(window.location.href) || '') as string;
-                                    const linkVideoId = (wrapTryCatch(() => partTextComment?.navigationEndpoint?.watchEndpoint?.videoId) || '') as string;
+                                    const linkVideoId = (wrapTryCatch(
+                                        () => partTextComment?.navigationEndpoint?.watchEndpoint?.videoId
+                                    ) || '') as string;
                                     const isSameVideo = String(linkVideoId || '') === String(currentVideoId || '');
 
                                     renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${linkVideoId}&t=${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}" data-video-id="${linkVideoId}">${partTextComment?.text || ''}</a>`;
@@ -2541,10 +2654,14 @@ async function getAllCommentsModeV2(
                 if (nextComments.token) {
                     replyQueue.add(async () => {
                         try {
-                            const paramsCmnts = getParamsForReplies(window, {
-                                continue: nextComments.token,
-                                clickTracking: nextComments.cTrParams
-                            });
+                            const paramsCmnts = await getParamsForReplies(
+                                window,
+                                {
+                                    continue: nextComments.token,
+                                    clickTracking: nextComments.cTrParams
+                                },
+                                signal
+                            );
                             const res = await fetchR(
                                 `https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`,
                                 { ...paramsCmnts, signal, cache: 'no-store' } as RequestInit
@@ -2619,9 +2736,13 @@ async function getAllCommentsModeV2(
                                                     ) as any
                                                 ) >= 0
                                             ) {
-                                                const currentVideoId = (getVideoId(window.location.href) || '') as string;
-                                                const linkVideoId = (wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.videoId) || '') as string;
-                                                const isSameVideo = String(linkVideoId || '') === String(currentVideoId || '');
+                                                const currentVideoId = (getVideoId(window.location.href) ||
+                                                    '') as string;
+                                                const linkVideoId = (wrapTryCatch(
+                                                    () => navigationEndpoint?.watchEndpoint?.videoId
+                                                ) || '') as string;
+                                                const isSameVideo =
+                                                    String(linkVideoId || '') === String(currentVideoId || '');
 
                                                 renderFullTextComment += `<a class=\"ycs-cpointer ycs-gotochat-video\" href=\"https://www.youtube.com/watch?v=${linkVideoId}&t=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}s\" data-offsetvideo=\"${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}\" data-video-id=\"${linkVideoId}\">${textStr || ''}</a>`;
 
@@ -2691,7 +2812,7 @@ async function getAllCommentsModeV2(
                                 if (!rToken) break;
                                 const rPrms = { continue: rToken, clickTracking: rClick };
 
-                                const rParamsCmnts = getParamsForReplies(window, rPrms);
+                                const rParamsCmnts = await getParamsForReplies(window, rPrms, signal);
 
                                 const resReplies = await fetchR(
                                     `https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`,
@@ -2765,9 +2886,13 @@ async function getAllCommentsModeV2(
                                                         ) as any
                                                     ) >= 0
                                                 ) {
-                                                    const currentVideoId = (getVideoId(window.location.href) || '') as string;
-                                                    const linkVideoId = (wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.videoId) || '') as string;
-                                                    const isSameVideo = String(linkVideoId || '') === String(currentVideoId || '');
+                                                    const currentVideoId = (getVideoId(window.location.href) ||
+                                                        '') as string;
+                                                    const linkVideoId = (wrapTryCatch(
+                                                        () => navigationEndpoint?.watchEndpoint?.videoId
+                                                    ) || '') as string;
+                                                    const isSameVideo =
+                                                        String(linkVideoId || '') === String(currentVideoId || '');
 
                                                     renderFullTextComment += `<a class=\"ycs-cpointer ycs-gotochat-video\" href=\"https://www.youtube.com/watch?v=${linkVideoId}&t=${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}s\" data-offsetvideo=\"${wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds)}\" data-video-id=\"${linkVideoId}\">${text || ''}</a>`;
 
@@ -2853,31 +2978,39 @@ async function getAllCommentsModeV2(
 
             let paramsCmnts;
             if (tokensComments.clickTrackingParams) {
-                paramsCmnts = getParamsForComments(window, {
-                    continue: tokensComments.continue,
-                    clickTrackingParams: tokensComments.clickTrackingParams
-                });
+                paramsCmnts = await getParamsForComments(
+                    window,
+                    {
+                        continue: tokensComments.continue,
+                        clickTrackingParams: tokensComments.clickTrackingParams
+                    },
+                    signal
+                );
 
                 console.log('WITHOUT REFRESH!');
             } else {
-                paramsCmnts = getParamsForComments(window, {
-                    continue: wrapTryCatch(() =>
-                        objectScan(
-                            [
-                                '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'
-                            ],
-                            { joined: true, rtn: 'value', abort: true }
-                        )((window as any).ytInitialData)
-                    ),
-                    clickTrackingParams: wrapTryCatch(() =>
-                        objectScan(
-                            [
-                                '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.clickTrackingParams'
-                            ],
-                            { joined: true, rtn: 'value', abort: true }
-                        )((window as any).ytInitialData)
-                    )
-                });
+                paramsCmnts = await getParamsForComments(
+                    window,
+                    {
+                        continue: wrapTryCatch(() =>
+                            objectScan(
+                                [
+                                    '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'
+                                ],
+                                { joined: true, rtn: 'value', abort: true }
+                            )((window as any).ytInitialData)
+                        ),
+                        clickTrackingParams: wrapTryCatch(() =>
+                            objectScan(
+                                [
+                                    '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.clickTrackingParams'
+                                ],
+                                { joined: true, rtn: 'value', abort: true }
+                            )((window as any).ytInitialData)
+                        )
+                    },
+                    signal
+                );
 
                 console.log(
                     'objectScan REFRESH: ',
@@ -2989,7 +3122,7 @@ async function getAllCommentsModeV2(
             if (nextToken) {
                 console.log('Comment next Token: ', nextToken);
 
-                const paramsCmnts = getParamsForComments(window, { continue: nextToken });
+                const paramsCmnts = await getParamsForComments(window, { continue: nextToken }, signal);
                 const res = await fetchR(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, {
                     ...paramsCmnts,
                     signal,
