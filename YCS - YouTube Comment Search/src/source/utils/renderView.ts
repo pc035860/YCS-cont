@@ -845,7 +845,7 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
                                 </a>
                             </div>
                         </div>
-                        <div class="ycs-comment__main-text ycs-clear">${esc(wrapTryCatch(() => comment.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.cue.simpleText) || '')}</div>
+                        <div class="ycs-comment__main-text ycs-clear">${wrapTryCatch(() => comment.item.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.cue.simpleText) || ''}</div>
                     </div>
                 `});
 

@@ -2048,10 +2048,40 @@ function buildTranscriptFromTimedText(xmlText: string): object | undefined {
 
 function toFormatted(sec: number): string {
     try {
-        const m = Math.floor(sec / 60);
-        const s = Math.floor(sec % 60);
-        const sStr = s < 10 ? `0${s}` : String(s);
-        return `${m}:${sStr}`;
+        let left = sec;
+        const h = Math.floor(left / 3600);
+        left -= h * 3600;
+        const m = Math.floor(left / 60);
+        left -= m * 60;
+        const s = Math.floor(left);
+
+        let output = `${s}`.padStart(2, '0');
+
+        if (m || h) {
+            let seg: string;
+
+            if (!m) {
+                seg = '00';
+            } else {
+                if (h) {
+                    seg = `${m}`.padStart(2, '0');
+                } else {
+                    seg = m.toString();
+                }
+            }
+
+            output = `${seg}:${output}`;
+        }
+
+        if (h) {
+            output = `${h}:${output}`;
+        }
+
+        if (!m && !h) {
+            output = `0:${output}`;
+        }
+
+        return output;
     } catch {
         return '0:00';
     }
