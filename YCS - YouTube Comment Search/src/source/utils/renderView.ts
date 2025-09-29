@@ -928,7 +928,7 @@ function renderLoadComments(selector: string): void {
     const nodeTag = document.createElement('div');
     nodeTag.className = 'ycs-app';
     nodeTag.innerHTML = `
-        <div class="ycs-app-toggle"><p class="ycs-title ycs-left">YouTube Comment Search</p><div class="ycs-right"><button class="ycs-btn-toggle-app ycs-btn-search ycs_noselect" type="button">Show YCS</button></div></div>
+        <div class="ycs-app-toggle"><p class="ycs-title ycs-left">YouTube Comment Search <span id="ycs-count-load-collapsed"></span></p><div class="ycs-right"><button class="ycs-btn-toggle-app ycs-btn-search ycs_noselect" type="button">Show YCS</button></div></div>
         <div class="ycs-app-main">
             <div class="ycs-head-search">
                 <p class="ycs-title ycs-left" id="ycs_title_information">

@@ -65,7 +65,8 @@ html[dark] .ycs-app {
     clear: both;
 }
 
-#ycs-count-load {
+#ycs-count-load,
+#ycs-count-load-collapsed {
     font-weight: 600;
     font-size  : 10px;
 }
@@ -361,8 +362,15 @@ html[dark] .ycs-goto-video {
     justify-content: space-between;
     align-items: center;
 }
+.ycs-app-toggle .ycs-title {
+  margin-top: -3px;
+}
 
 .ycs-btn-toggle-app {
+    margin-bottom: 1px;
+}
+.ycs-app.ycs-collapsed .ycs-btn-toggle-app {
+    margin-bottom: 0;
 }
 
 .ycs-comment-block {

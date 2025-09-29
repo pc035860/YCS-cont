@@ -529,7 +529,37 @@ import {
 
             const elLiveApp = document.getElementsByClassName('ycs-app')[0];
 
-            const elCountComments = document.getElementById('ycs-count-load');
+            const elCountComments = document.getElementById('ycs-count-load') as HTMLElement | null;
+            const elCountCommentsCollapsed = document.getElementById('ycs-count-load-collapsed') as HTMLElement | null;
+
+            const updateTitleCount = (value: number): void => {
+                const formattedCount = `(${value})`;
+
+                if (elCountComments) {
+                    elCountComments.textContent = formattedCount;
+                }
+
+                if (elCountCommentsCollapsed) {
+                    elCountCommentsCollapsed.textContent = formattedCount;
+                }
+            };
+
+            const appendCachedInfo = (timestamp: number | string | null | undefined): void => {
+                const cacheTitle = new Date(timestamp as number | string);
+                const targets: (HTMLElement | null)[] = [elCountComments, elCountCommentsCollapsed];
+
+                for (const target of targets) {
+                    if (!target) continue;
+
+                    target.querySelector('.ycs-title-cache-info')?.remove();
+                    target.insertAdjacentHTML(
+                        'beforeend',
+                        `
+            <span class="ycs-title-cache-info" title="${cacheTitle}">Cached</span>
+        `
+                    );
+                }
+            };
 
             const elLoadComments = document.getElementById('ycs-load-cmnts');
             if (elLoadComments) {
@@ -582,9 +612,7 @@ import {
                         elLoadCmnts.textContent = `${comments.length}`;
                     }
 
-                    if (elCountComments) {
-                        elCountComments.textContent = `(${totalCount})`;
-                    }
+                    updateTitleCount(totalCount);
 
                     currentTarget.disabled = false;
                 });
@@ -637,9 +665,7 @@ import {
                         countComments.comments + countComments.commentsChat + countComments.commentsTrVideo;
                     sendMsgToBadge('NUMBER_COMMENTS', totalCount);
 
-                    if (elCountComments) {
-                        elCountComments.textContent = `(${totalCount})`;
-                    }
+                    updateTitleCount(totalCount);
 
                     currentTarget.disabled = false;
                 });
@@ -737,9 +763,7 @@ import {
                         countComments.comments + countComments.commentsChat + countComments.commentsTrVideo;
                     sendMsgToBadge('NUMBER_COMMENTS', totalCount);
 
-                    if (elCountComments) {
-                        elCountComments.textContent = `(${totalCount})`;
-                    }
+                    updateTitleCount(totalCount);
 
                     currentTarget.disabled = false;
                 });
@@ -2542,18 +2566,8 @@ Total: ${c.count}\n${c.html}`;
                             countComments.comments + countComments.commentsChat + countComments.commentsTrVideo;
                         sendMsgToBadge('NUMBER_COMMENTS', totalCount);
 
-                        if (elCountComments) {
-                            elCountComments.textContent = `(${totalCount})`;
-                        }
-
-                        const elTitleInfo = document.getElementById('ycs-count-load') as HTMLElement;
-
-                        elTitleInfo.insertAdjacentHTML(
-                            'beforeend',
-                            `
-                            <span class="ycs-title-cache-info" title="${new Date(crdate)}">Cached</span>
-                        `
-                        );
+                        updateTitleCount(totalCount);
+                        appendCachedInfo(crdate);
                     } else {
                         window.postMessage({ type: 'YCS_AUTOLOAD' }, window.location.origin);
                     }
