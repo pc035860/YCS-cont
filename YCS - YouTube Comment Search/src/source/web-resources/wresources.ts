@@ -893,14 +893,21 @@ import {
                         if (eInputSearch) {
                             (eInputSearch as HTMLInputElement).value = '';
                         }
-                        // clear active filter state and results
-                        setActiveFilterByElement(null);
+
+                        const activeParam = getActiveFilterParam();
                         const elSearchRes = document.getElementById('ycs-search-result');
                         const elSearchTotalRes: any = document.getElementById('ycs-search-total-result');
-                        if (elSearchRes) {
+
+                        if (activeParam) {
+                            // Reapply current filter while only clearing the text query
+                            requestAnimationFrame(() => {
+                                btnSearch?.click();
+                            });
+                        } else if (elSearchRes) {
                             elSearchRes.innerText = '';
                             if (elSearchTotalRes) elSearchTotalRes.innerText = 'Search cleared';
                         }
+
                         // hide clear button after clearing
                         (btnSearchClearText as HTMLButtonElement).style.visibility = 'hidden';
                     } catch (err) {
