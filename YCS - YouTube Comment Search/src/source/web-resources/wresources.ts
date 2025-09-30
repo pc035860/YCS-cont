@@ -2239,6 +2239,7 @@ Total: ${c.count}\n${c.html}`;
             const searchCommentsAll = (selector: string, param?: IParamSearch): void => {
                 const elSearchAll = document.querySelector(selector);
                 const nodeTotalSearchResult = document.getElementById('ycs-search-total-result');
+                const shouldRenderAllSources = !param || param.sortFirst === true;
 
                 if (nodeTotalSearchResult) {
                     nodeTotalSearchResult?.classList.add('ycs-hidden');
@@ -2257,6 +2258,11 @@ Total: ${c.count}\n${c.html}`;
 
                 console.log('searchCommentsAll selector, param: ', selector, param);
 
+                // Reset counters before re-rendering grouped results
+                countSearchComments.comments = 0;
+                countSearchComments.commentsChat = 0;
+                countSearchComments.commentsTrVideo = 0;
+
                 try {
                     if (comments.length > 0) {
                         console.log('comments!!!!!!', comments);
@@ -2264,12 +2270,13 @@ Total: ${c.count}\n${c.html}`;
                         searchComments('#ycs_allsearch__wrap_comments', param);
                     }
 
-                    if (commentsChat && commentsChat.size > 0) {
+                    if (shouldRenderAllSources && commentsChat && commentsChat.size > 0) {
                         elSearchAll?.appendChild(elWrapCommentsChat);
                         searchCommentsChat('#ycs_allsearch__wrap_comments_chat', param);
                     }
 
                     if (
+                        shouldRenderAllSources &&
                         commentsTrVideo &&
                         (wrapTryCatch(
                             () =>
@@ -2453,7 +2460,7 @@ Total: ${c.count}\n${c.html}`;
                     }
                 }
 
-                    if (e.data?.type === 'YCS_CACHE_STORAGE_GET_RESPONSE') {
+                if (e.data?.type === 'YCS_CACHE_STORAGE_GET_RESPONSE') {
                     console.log('YCS_CACHE_STORAGE_GET_RESPONSE:', e.data);
 
                     if (e.data?.body) {
