@@ -2028,6 +2028,14 @@ Total: ${c.count}\n${c.html}`;
 
                         let resultSearch: any[] = [];
 
+                        let textMatchedSet: Set<any> | null = null;
+
+                        if (querySearch && querySearch.trim()) {
+                            const fuseBase = new Fuse(cmntsTrVideo, options);
+                            const baseMatches = fuseBase.search(querySearch.trim()) as any[];
+                            textMatchedSet = new Set(baseMatches.map((r: any) => r.item));
+                        }
+
                         if (param) {
                             if (param?.links) {
                                 const trpVideo = filterLinksTrpVideoComments(cmntsTrVideo) as ICommentsFuseResult[];
@@ -2085,6 +2093,10 @@ Total: ${c.count}\n${c.html}`;
                                 const trpVideo = filterAllTrpVideoComments(cmntsTrVideo) as ICommentsFuseResult[];
                                 resultSearch = trpVideo;
 
+                                if (textMatchedSet) {
+                                    resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
+                                }
+
                                 console.log('filterAllTrpVideoComments resultSearch: ', resultSearch);
 
                                 if (resultSearch?.length > 0) {
@@ -2099,40 +2111,24 @@ Total: ${c.count}\n${c.html}`;
                                     const elSortAllTrpVideo = document.getElementById(
                                         'ycs_btn_sort_first'
                                     ) as HTMLElement;
-                                    const sortType = elSortAllTrpVideo.dataset.sortTrp as 'newest' | 'oldest';
+                                    const sortType =
+                                        param?.sortOrder || (elSortAllTrpVideo.dataset.sortTrp as 'newest' | 'oldest');
 
                                     if (sortType === 'newest') {
-                                        // Apply search text filter if present
-                                        if (querySearch && querySearch.trim()) {
-                                            const base = resultSearch.map((r: any) => r.item);
-                                            const fuse = new Fuse(base, options);
-                                            const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                                            renderCommentTrVideo(selector, filtered, querySearch);
-                                            resultSearch = filtered;
-                                        } else {
-                                            renderCommentTrVideo(selector, resultSearch, querySearch);
-                                        }
-
+                                        renderCommentTrVideo(selector, resultSearch, querySearch);
                                         elSortAllTrpVideo.innerHTML = `All ${iconSortDown()}`;
                                         elSortAllTrpVideo.title =
                                             'Show all comments, chat, video transcript sorted by date (Newest)';
                                     } else if (sortType === 'oldest') {
-                                        // Apply search text filter if present
-                                        if (querySearch && querySearch.trim()) {
-                                            const base = resultSearch.map((r: any) => r.item).reverse();
-                                            const fuse = new Fuse(base, options);
-                                            const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
-                                            renderCommentTrVideo(selector, filtered, querySearch);
-                                            resultSearch = filtered;
-                                        } else {
-                                            renderCommentTrVideo(selector, resultSearch?.reverse(), querySearch);
-                                        }
-
+                                        renderCommentTrVideo(selector, resultSearch?.reverse(), querySearch);
                                         elSortAllTrpVideo.innerHTML = `All ${iconSortUp()}`;
                                         elSortAllTrpVideo.title =
                                             'Show all comments, chat, video transcript sorted by date (Oldest)';
                                     } else {
                                         renderCommentTrVideo(selector, resultSearch, querySearch);
+                                        elSortAllTrpVideo.innerHTML = `All ${iconSortDown()}`;
+                                        elSortAllTrpVideo.title =
+                                            'Show all comments, chat, video transcript sorted by date (Newest)';
                                     }
                                 }
                             } else if (param?.timestamp) {
