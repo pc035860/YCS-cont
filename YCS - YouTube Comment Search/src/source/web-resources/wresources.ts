@@ -310,9 +310,18 @@ import {
 
                     hElms?.elPTimeStamps?.addEventListener('click', (e: Event) => {
                         try {
-                            const currentTarget = e.currentTarget;
+                            const currentTarget = e.currentTarget as HTMLElement;
+                            const wasActive = currentTarget.classList.contains('ycs_btn_active');
 
-                            setActiveFilterByElement('timestamp', currentTarget as HTMLElement);
+                            // Toggle sort only if button was already active
+                            if (wasActive) {
+                                const currentSort = currentTarget.dataset.sort;
+                                currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
+                                const currentSortChat = currentTarget.dataset.sortChat;
+                                currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
+                            }
+
+                            setActiveFilterByElement('timestamp', currentTarget);
                             clearCountComments();
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -326,9 +335,18 @@ import {
 
                     hElms?.elPAuthor?.addEventListener('click', (e: Event) => {
                         try {
-                            const currentTarget = e.currentTarget;
+                            const currentTarget = e.currentTarget as HTMLElement;
+                            const wasActive = currentTarget.classList.contains('ycs_btn_active');
 
-                            setActiveFilterByElement('author', currentTarget as HTMLElement);
+                            // Toggle sort only if button was already active
+                            if (wasActive) {
+                                const currentSort = currentTarget.dataset.sort;
+                                currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
+                                const currentSortChat = currentTarget.dataset.sortChat;
+                                currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
+                            }
+
+                            setActiveFilterByElement('author', currentTarget);
                             clearCountComments();
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -342,9 +360,16 @@ import {
 
                     hElms?.elPHeart?.addEventListener('click', (e: Event) => {
                         try {
-                            const currentTarget = e.currentTarget;
+                            const currentTarget = e.currentTarget as HTMLElement;
+                            const wasActive = currentTarget.classList.contains('ycs_btn_active');
 
-                            setActiveFilterByElement('heart', currentTarget as HTMLElement);
+                            // Toggle sort only if button was already active
+                            if (wasActive) {
+                                const currentSort = currentTarget.dataset.sort;
+                                currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
+                            }
+
+                            setActiveFilterByElement('heart', currentTarget);
                             clearCountComments();
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -358,9 +383,18 @@ import {
 
                     hElms?.elPVerified?.addEventListener('click', (e: Event) => {
                         try {
-                            const currentTarget = e.currentTarget;
+                            const currentTarget = e.currentTarget as HTMLElement;
+                            const wasActive = currentTarget.classList.contains('ycs_btn_active');
 
-                            setActiveFilterByElement('verified', currentTarget as HTMLElement);
+                            // Toggle sort only if button was already active
+                            if (wasActive) {
+                                const currentSort = currentTarget.dataset.sort;
+                                currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
+                                const currentSortChat = currentTarget.dataset.sortChat;
+                                currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
+                            }
+
+                            setActiveFilterByElement('verified', currentTarget);
                             clearCountComments();
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -374,9 +408,20 @@ import {
 
                     hElms?.elPLinks?.addEventListener('click', (e: Event) => {
                         try {
-                            const currentTarget = e.currentTarget;
+                            const currentTarget = e.currentTarget as HTMLElement;
+                            const wasActive = currentTarget.classList.contains('ycs_btn_active');
 
-                            setActiveFilterByElement('links', currentTarget as HTMLElement);
+                            // Toggle sort only if button was already active
+                            if (wasActive) {
+                                const currentSort = currentTarget.dataset.sort;
+                                currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
+                                const currentSortChat = currentTarget.dataset.sortChat;
+                                currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
+                                const currentSortTrp = currentTarget.dataset.sortTrp;
+                                currentTarget.dataset.sortTrp = currentSortTrp === 'newest' ? 'oldest' : 'newest';
+                            }
+
+                            setActiveFilterByElement('links', currentTarget);
                             clearCountComments();
 
                             // eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -420,9 +465,18 @@ import {
 
                     hElms?.elPMembers?.addEventListener('click', (e: Event) => {
                         try {
-                            const currentTarget = e.currentTarget;
+                            const currentTarget = e.currentTarget as HTMLElement;
+                            const wasActive = currentTarget.classList.contains('ycs_btn_active');
 
-                            setActiveFilterByElement('members', currentTarget as HTMLElement);
+                            // Toggle sort only if button was already active
+                            if (wasActive) {
+                                const currentSort = currentTarget.dataset.sort;
+                                currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
+                                const currentSortChat = currentTarget.dataset.sortChat;
+                                currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
+                            }
+
+                            setActiveFilterByElement('members', currentTarget);
                             clearCountComments();
 
                             executeSearchBasedOnType({
@@ -435,9 +489,16 @@ import {
 
                     hElms?.elPDonated?.addEventListener('click', (e: Event) => {
                         try {
-                            const currentTarget = e.currentTarget;
+                            const currentTarget = e.currentTarget as HTMLElement;
+                            const wasActive = currentTarget.classList.contains('ycs_btn_active');
 
-                            setActiveFilterByElement('donated', currentTarget as HTMLElement);
+                            // Toggle sort only if button was already active
+                            if (wasActive) {
+                                const currentSortChat = currentTarget.dataset.sortChat;
+                                currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
+                            }
+
+                            setActiveFilterByElement('donated', currentTarget);
                             clearCountComments();
 
                             executeSearchBasedOnType({
@@ -505,9 +566,20 @@ import {
 
                     hElms?.elFirstComments?.addEventListener('click', (e: Event) => {
                         try {
-                            const currentTarget = e.currentTarget;
+                            const currentTarget = e.currentTarget as HTMLElement;
+                            const wasActive = currentTarget.classList.contains('ycs_btn_active');
 
-                            setActiveFilterByElement('sortFirst', currentTarget as HTMLElement);
+                            // Toggle sort only if button was already active
+                            if (wasActive) {
+                                const currentSort = currentTarget.dataset.sort;
+                                currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
+                                const currentSortChat = currentTarget.dataset.sortChat;
+                                currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
+                                const currentSortTrp = currentTarget.dataset.sortTrp;
+                                currentTarget.dataset.sortTrp = currentSortTrp === 'newest' ? 'oldest' : 'newest';
+                            }
+
+                            setActiveFilterByElement('sortFirst', currentTarget);
                             clearCountComments();
 
                             executeSearchBasedOnType({
@@ -1040,14 +1112,10 @@ Total: ${c.count}\n${c.html}`;
 
                             if (sortType === 'newest') {
                                 renderComment(selector, resultSearch, true, querySearch);
-
-                                elSortLinks.dataset.sort = 'oldest';
                                 elSortLinks.innerHTML = `Links ${iconSortDown()}`;
                                 elSortLinks.title = 'Shows links in comments, replies, chat, video transcript (Newest)';
                             } else if (sortType === 'oldest') {
                                 renderComment(selector, resultSearch?.reverse(), true, querySearch);
-
-                                elSortLinks.dataset.sort = 'newest';
                                 elSortLinks.innerHTML = `Links ${iconSortUp()}`;
                                 elSortLinks.title = 'Shows links in comments, replies, chat, video transcript (Oldest)';
                             } else {
@@ -1083,14 +1151,10 @@ Total: ${c.count}\n${c.html}`;
 
                             if (sortType === 'newest') {
                                 renderComment(selector, resultSearch, true, querySearch);
-
-                                elSortMembers.dataset.sort = 'oldest';
                                 elSortMembers.innerHTML = `Members ${iconSortDown()}`;
                                 elSortMembers.title = 'Show comments, replies, chat from channel members (Newest)';
                             } else if (sortType === 'oldest') {
                                 renderComment(selector, resultSearch?.reverse(), true, querySearch);
-
-                                elSortMembers.dataset.sort = 'newest';
                                 elSortMembers.innerHTML = `Members ${iconSortUp()}`;
                                 elSortMembers.title = 'Show comments, replies, chat from channel members (Oldest)';
                             } else {
@@ -1133,14 +1197,10 @@ Total: ${c.count}\n${c.html}`;
 
                             if (sortType === 'newest') {
                                 renderComment(selector, resultSearch, true, querySearch);
-
-                                elSortAuthor.dataset.sort = 'oldest';
                                 elSortAuthor.innerHTML = `Author ${iconSortDown()}`;
                                 elSortAuthor.title = 'Show comments, replies, chat from the author (Newest)';
                             } else if (sortType === 'oldest') {
                                 renderComment(selector, resultSearch?.reverse(), true, querySearch);
-
-                                elSortAuthor.dataset.sort = 'newest';
                                 elSortAuthor.innerHTML = `Author ${iconSortUp()}`;
                                 elSortAuthor.title = 'Show comments, replies, chat from the author (Oldest)';
                             } else {
@@ -1168,14 +1228,10 @@ Total: ${c.count}\n${c.html}`;
 
                             if (sortType === 'newest') {
                                 renderComment(selector, resultSearch, true, querySearch);
-
-                                elSortHeart.dataset.sort = 'oldest';
                                 elSortHeart.innerHTML = `<span class="ycs-creator-heart_icon">❤</span> ${iconSortDown()}`;
                                 elSortHeart.title = 'Show comments and replies that the author likes (Newest)';
                             } else if (sortType === 'oldest') {
                                 renderComment(selector, resultSearch?.reverse(), true, querySearch);
-
-                                elSortHeart.dataset.sort = 'newest';
                                 elSortHeart.innerHTML = `<span class="ycs-creator-heart_icon">❤</span> ${iconSortUp()}`;
                                 elSortHeart.title = 'Show comments and replies that the author likes (Oldest)';
                             } else {
@@ -1203,15 +1259,11 @@ Total: ${c.count}\n${c.html}`;
 
                             if (sortType === 'newest') {
                                 renderComment(selector, resultSearch, true, querySearch);
-
-                                elSortVerified.dataset.sort = 'oldest';
                                 elSortVerified.innerHTML = `<span class="ycs-creator-verified_icon">✔</span> ${iconSortDown()}`;
                                 elSortVerified.title =
                                     'Show comments,  replies and chat from a verified authors (Newest)';
                             } else if (sortType === 'oldest') {
                                 renderComment(selector, resultSearch?.reverse(), true, querySearch);
-
-                                elSortVerified.dataset.sort = 'newest';
                                 elSortVerified.innerHTML = `<span class="ycs-creator-verified_icon">✔</span> ${iconSortUp()}`;
                                 elSortVerified.title =
                                     'Show comments,  replies and chat from a verified authors (Oldest)';
@@ -1260,12 +1312,10 @@ Total: ${c.count}\n${c.html}`;
 
                             if (sortType === 'newest') {
                                 renderComment(selector, resultSearch, true, querySearch);
-                                elSortTimeStamp.dataset.sort = 'oldest';
                                 elSortTimeStamp.innerHTML = `Time stamps ${iconSortDown()}`;
                                 elSortTimeStamp.title = 'Show comments, replies, chat with time stamps (Newest)';
                             } else if (sortType === 'oldest') {
                                 renderComment(selector, resultSearch?.reverse(), true, querySearch);
-                                elSortTimeStamp.dataset.sort = 'newest';
                                 elSortTimeStamp.innerHTML = `Time stamps ${iconSortUp()}`;
                                 elSortTimeStamp.title = 'Show comments, replies, chat with time stamps (Oldest)';
                             } else {
@@ -1289,16 +1339,12 @@ Total: ${c.count}\n${c.html}`;
 
                             if (sortType === 'newest') {
                                 renderComment(selector, resultSearch, true, querySearch);
-
-                                elSortAll.dataset.sort = 'oldest';
                                 elSortAll.innerHTML = `All ${iconSortDown()}`;
                                 elSortAll.title = 'Show all comments, chat, video transcript sorted by date (Newest)';
 
                                 // markTextComment(selector, querySearch);
                             } else if (sortType === 'oldest') {
                                 renderComment(selector, resultSearch?.reverse(), true, querySearch);
-
-                                elSortAll.dataset.sort = 'newest';
                                 elSortAll.innerHTML = `All ${iconSortUp()}`;
                                 elSortAll.title = 'Show all comments, chat, video transcript sorted by date (Oldest)';
                             } else {
@@ -1601,13 +1647,11 @@ Total: ${c.count}\n${c.html}`;
                                 if (sortType === 'newest') {
                                     renderCommentChat(selector, resultSearch, querySearch);
 
-                                    elSortAuthor.dataset.sortChat = 'oldest';
                                     elSortAuthor.innerHTML = `Author ${iconSortDown()}`;
                                     elSortAuthor.title = 'Show comments, replies, chat from the author (Newest)';
                                 } else if (sortType === 'oldest') {
                                     renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
-                                    elSortAuthor.dataset.sortChat = 'newest';
                                     elSortAuthor.innerHTML = `Author ${iconSortUp()}`;
                                     elSortAuthor.title = 'Show comments, replies, chat from the author (Oldest)';
                                 } else {
@@ -1637,13 +1681,11 @@ Total: ${c.count}\n${c.html}`;
                                 if (sortType === 'newest') {
                                     renderCommentChat(selector, resultSearch, querySearch);
 
-                                    elSortDonated.dataset.sortChat = 'oldest';
                                     elSortDonated.innerHTML = `Donated ${iconSortDown()}`;
                                     elSortDonated.title = 'Show chat comments from users who have donated (Newest)';
                                 } else if (sortType === 'oldest') {
                                     renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
-                                    elSortDonated.dataset.sortChat = 'newest';
                                     elSortDonated.innerHTML = `Donated ${iconSortUp()}`;
                                     elSortDonated.title = 'Show chat comments from users who have donated (Oldest)';
                                 } else {
@@ -1674,13 +1716,11 @@ Total: ${c.count}\n${c.html}`;
                                 if (sortType === 'newest') {
                                     renderCommentChat(selector, resultSearch, querySearch);
 
-                                    elSortMember.dataset.sortChat = 'oldest';
                                     elSortMember.innerHTML = `Members ${iconSortDown()}`;
                                     elSortMember.title = 'Show comments, replies, chat from channel members (Newest)';
                                 } else if (sortType === 'oldest') {
                                     renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
-                                    elSortMember.dataset.sortChat = 'newest';
                                     elSortMember.innerHTML = `Members ${iconSortUp()}`;
                                     elSortMember.title = 'Show comments, replies, chat from channel members (Oldest)';
                                 } else {
@@ -1716,13 +1756,11 @@ Total: ${c.count}\n${c.html}`;
                                 if (sortType === 'newest') {
                                     renderCommentChat(selector, resultSearch, querySearch);
 
-                                    elSortTimeStamp.dataset.sortChat = 'oldest';
                                     elSortTimeStamp.innerHTML = `Time stamps ${iconSortDown()}`;
                                     elSortTimeStamp.title = 'Show comments, replies, chat with time stamps (Newest)';
                                 } else if (sortType === 'oldest') {
                                     renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
-                                    elSortTimeStamp.dataset.sortChat = 'newest';
                                     elSortTimeStamp.innerHTML = `Time stamps ${iconSortUp()}`;
                                     elSortTimeStamp.title = 'Show comments, replies, chat with time stamps (Oldest)';
                                 } else {
@@ -1762,14 +1800,12 @@ Total: ${c.count}\n${c.html}`;
                                 if (sortType === 'newest') {
                                     renderCommentChat(selector, resultSearch, querySearch);
 
-                                    elSortChatAll.dataset.sortChat = 'oldest';
                                     elSortChatAll.innerHTML = `All ${iconSortDown()}`;
                                     elSortChatAll.title =
                                         'Show all comments, chat, video transcript sorted by date (Newest)';
                                 } else if (sortType === 'oldest') {
                                     renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
-                                    elSortChatAll.dataset.sortChat = 'newest';
                                     elSortChatAll.innerHTML = `All ${iconSortUp()}`;
                                     elSortChatAll.title =
                                         'Show all comments, chat, video transcript sorted by date (Oldest)';
@@ -1800,14 +1836,12 @@ Total: ${c.count}\n${c.html}`;
                                 if (sortType === 'newest') {
                                     renderCommentChat(selector, resultSearch, querySearch);
 
-                                    elSortVerified.dataset.sortChat = 'oldest';
                                     elSortVerified.innerHTML = `<span class="ycs-creator-verified_icon">✔</span> ${iconSortDown()}`;
                                     elSortVerified.title =
                                         'Show comments,  replies and chat from a verified authors (Newest)';
                                 } else if (sortType === 'oldest') {
                                     renderCommentChat(selector, resultSearch?.reverse(), querySearch);
 
-                                    elSortVerified.dataset.sortChat = 'newest';
                                     elSortVerified.innerHTML = `<span class="ycs-creator-verified_icon">✔</span> ${iconSortUp()}`;
                                     elSortVerified.title =
                                         'Show comments,  replies and chat from a verified authors (Oldest)';
@@ -1847,7 +1881,6 @@ Total: ${c.count}\n${c.html}`;
                                         renderCommentChat(selector, resultSearch, querySearch);
                                     }
 
-                                    elSortVerified.dataset.sortChat = 'oldest';
                                     elSortVerified.innerHTML = `Links ${iconSortDown()}`;
                                     elSortVerified.title =
                                         'Shows links in comments, replies, chat, video transcript (Newest)';
@@ -1863,7 +1896,6 @@ Total: ${c.count}\n${c.html}`;
                                         renderCommentChat(selector, resultSearch?.reverse(), querySearch);
                                     }
 
-                                    elSortVerified.dataset.sortChat = 'newest';
                                     elSortVerified.innerHTML = `Links ${iconSortUp()}`;
                                     elSortVerified.title =
                                         'Shows links in comments, replies, chat, video transcript (Oldest)';
@@ -2020,7 +2052,6 @@ Total: ${c.count}\n${c.html}`;
                                             renderCommentTrVideo(selector, resultSearch, querySearch);
                                         }
 
-                                        elSortLinksTrpVideo.dataset.sortTrp = 'oldest';
                                         elSortLinksTrpVideo.innerHTML = `Links ${iconSortDown()}`;
                                         elSortLinksTrpVideo.title =
                                             'Shows links in comments, replies, chat, video transcript (Newest)';
@@ -2036,7 +2067,6 @@ Total: ${c.count}\n${c.html}`;
                                             renderCommentTrVideo(selector, resultSearch?.reverse(), querySearch);
                                         }
 
-                                        elSortLinksTrpVideo.dataset.sortTrp = 'newest';
                                         elSortLinksTrpVideo.innerHTML = `Links ${iconSortUp()}`;
                                         elSortLinksTrpVideo.title =
                                             'Shows links in comments, replies, chat, video transcript (Oldest)';
@@ -2076,7 +2106,6 @@ Total: ${c.count}\n${c.html}`;
                                             renderCommentTrVideo(selector, resultSearch, querySearch);
                                         }
 
-                                        elSortAllTrpVideo.dataset.sortTrp = 'oldest';
                                         elSortAllTrpVideo.innerHTML = `All ${iconSortDown()}`;
                                         elSortAllTrpVideo.title =
                                             'Show all comments, chat, video transcript sorted by date (Newest)';
@@ -2092,7 +2121,6 @@ Total: ${c.count}\n${c.html}`;
                                             renderCommentTrVideo(selector, resultSearch?.reverse(), querySearch);
                                         }
 
-                                        elSortAllTrpVideo.dataset.sortTrp = 'newest';
                                         elSortAllTrpVideo.innerHTML = `All ${iconSortUp()}`;
                                         elSortAllTrpVideo.title =
                                             'Show all comments, chat, video transcript sorted by date (Oldest)';
