@@ -907,6 +907,34 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
     }
 }
 
+/**
+ * 檢查元素是否可見（混合式方案）
+ * - Chrome 105+: 使用 checkVisibility() API
+ * - Chrome 88-104: 使用傳統方法 fallback
+ */
+function isElementVisible(element: Element | null): boolean {
+    if (!element || !(element instanceof HTMLElement)) return false;
+
+    // Chrome 105+: 優先使用 checkVisibility() API
+    if (typeof (element as any).checkVisibility === 'function') {
+        try {
+            return (element as any).checkVisibility({
+                checkOpacity: true,
+                checkVisibilityCSS: true
+            });
+        } catch (e) {
+            console.warn('YCS: checkVisibility() failed, using fallback', e);
+        }
+    }
+
+    // Chrome 88-104: 傳統方法 fallback
+    const style = window.getComputedStyle(element);
+    return style.display !== 'none' &&
+           style.visibility !== 'hidden' &&
+           Number(style.opacity) !== 0 &&
+           element.offsetParent !== null;
+}
+
 function renderLoadComments(selector: string): void {
     if (typeof selector !== 'string') return;
 
@@ -924,6 +952,29 @@ function renderLoadComments(selector: string): void {
     };
 
     const node = document.querySelector(selector);
+
+    // 可見性檢查與 fallback 機制
+    let targetElement: HTMLElement | null = node as HTMLElement | null;
+    let insertionMode: 'appendChild' | 'insertAfter' = 'appendChild';
+
+    if (targetElement && !isElementVisible(targetElement)) {
+        console.log('YCS: Original insertion point is hidden, trying fallback');
+
+        const fallbackElement = document.querySelector('ytd-watch-metadata');
+        if (fallbackElement && isElementVisible(fallbackElement)) {
+            targetElement = fallbackElement as HTMLElement;
+            insertionMode = 'insertAfter';
+            console.log('YCS: Using fallback insertion point (ytd-watch-metadata)');
+        } else {
+            console.warn('YCS: Fallback element not found or hidden');
+            return;
+        }
+    }
+
+    if (!targetElement) {
+        console.warn('YCS: No valid insertion point found');
+        return;
+    }
 
     const nodeTag = document.createElement('div');
     nodeTag.className = 'ycs-app';
@@ -1107,7 +1158,18 @@ function renderLoadComments(selector: string): void {
         </div>
     `;
 
-    node?.appendChild(nodeTag);
+    // 根據插入模式執行
+    if (insertionMode === 'appendChild') {
+        targetElement.appendChild(nodeTag);
+    } else if (insertionMode === 'insertAfter') {
+        // insertAfter 實作：檢查 parentNode 避免 TypeError
+        if (targetElement.parentNode) {
+            targetElement.parentNode.insertBefore(nodeTag, targetElement.nextSibling);
+        } else {
+            console.error('YCS: Cannot insertAfter - parent node not found');
+            return;
+        }
+    }
 }
 
 function renderSearch(node: HTMLElement): void {
