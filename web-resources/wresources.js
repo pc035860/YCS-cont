@@ -10221,6 +10221,7 @@
       Yt() &&
         document.querySelector('#meta.style-scope.ytd-watch-flexy') &&
         (clearInterval(t),
+        document.querySelector('#meta.style-scope.ytd-watch-flexy')?.parentElement.removeAttribute('hidden'),
         (function () {
           let t, n;
           function o() {
