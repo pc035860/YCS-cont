@@ -76,12 +76,89 @@ import {
         // noop: Trusted Types not available or policy creation failed
     }
 
-    const intervalCheckLoadDOM = setInterval(() => {
-        if (isVideoPage() && document.querySelector('#meta.style-scope.ytd-watch-flexy')) {
-            clearInterval(intervalCheckLoadDOM);
+    // Debug mode configuration
+    // Set to true for detailed diagnostic logs during development
+    // Set to false for production to reduce console noise
+    const DEBUG = false;
 
+    // Track if initApp() has been called to prevent duplicate initialization
+    // Store app() function reference to allow retry without re-initializing
+    let isInitAppCalled = false;
+    let appFunction: (() => void) | null = null;
+
+    // Store startObserve() interval ID to allow cleanup on re-initialization
+    // This prevents memory leaks when initApp() is called multiple times
+    let observeIntervalId: ReturnType<typeof setInterval> | null = null;
+
+    // Listen for YouTube's native SPA navigation events
+    // This provides instant response (< 50ms) when navigating from homepage to video page
+    window.addEventListener('yt-navigate-finish', function handleYtNavigate() {
+        if (DEBUG) {
+            console.log('YCS: yt-navigate-finish detected');
+            console.log('isInitAppCalled: ', isInitAppCalled);
+            console.log('isVideoPage: ', isVideoPage());
+            console.log('document.querySelector(#meta.style-scope.ytd-watch-flexy): ', document.querySelector('#meta.style-scope.ytd-watch-flexy'));
+        }
+
+        // Only trigger initial call to initApp()
+        // Once called, startObserve() inside initApp() handles all subsequent navigations
+        if (!isInitAppCalled && isVideoPage() && document.querySelector('#meta.style-scope.ytd-watch-flexy')) {
+            console.log('YCS: Initializing app via yt-navigate-finish');
+            isInitAppCalled = true;
             // eslint-disable-next-line @typescript-eslint/no-use-before-define
             initApp();
+        }
+    });
+
+    // Handle browser back/forward navigation
+    window.addEventListener('popstate', function handlePopState() {
+        if (DEBUG) {
+            console.log('YCS: popstate detected');
+            console.log('isInitAppCalled: ', isInitAppCalled);
+            console.log('isVideoPage: ', isVideoPage());
+            console.log('document.querySelector(#meta.style-scope.ytd-watch-flexy): ', document.querySelector('#meta.style-scope.ytd-watch-flexy'));
+        }
+
+        // Small delay to let YouTube update DOM after history navigation
+        setTimeout(() => {
+            if (!isInitAppCalled && isVideoPage() && document.querySelector('#meta.style-scope.ytd-watch-flexy')) {
+                console.log('YCS: Initializing app via popstate');
+                isInitAppCalled = true;
+                // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                initApp();
+            }
+        }, 100);
+    });
+
+    // Fallback polling mechanism with retry capability
+    // 1. If initApp() not called: call it (fallback)
+    // 2. If initApp() called but UI not created: retry app() (DOM might not be ready yet)
+    // 3. If UI created: stop polling (success)
+    const intervalCheckLoadDOM = setInterval(() => {
+        if (isVideoPage() && document.querySelector('#meta.style-scope.ytd-watch-flexy')) {
+            if (!document.querySelector('.ycs-app')) {
+                if (!isInitAppCalled) {
+                    // First call: initialize the app
+                    console.log('YCS: Initializing app via polling fallback');
+                    isInitAppCalled = true;
+                    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                    initApp();
+                } else if (appFunction) {
+                    // initApp() was called but UI not created yet - retry rendering
+                    if (DEBUG) {
+                        console.log('YCS: Retrying app() - DOM might not be ready yet');
+                    }
+                    try {
+                        appFunction();
+                    } catch (e) {
+                        console.error('YCS: app() retry failed', e);
+                    }
+                }
+            } else {
+                // Check if UI was successfully created - if yes, stop polling
+                console.log('YCS: UI successfully created, stopping polling');
+                clearInterval(intervalCheckLoadDOM);
+            }
         }
     }, 1000);
 
@@ -2655,11 +2732,25 @@ Total: ${c.count}\n${c.html}`;
             }
         }
 
+        // Store app() reference for retry mechanism in polling
+        // This allows retrying rendering without re-initializing listeners/intervals
+        appFunction = app;
+
         function startObserve(): void {
+            // Clean up old interval if it exists (prevents memory leaks on re-initialization)
+            if (observeIntervalId !== null) {
+                if (DEBUG) {
+                    console.log('YCS: Clearing old startObserve interval, ID:', observeIntervalId);
+                }
+                clearInterval(observeIntervalId);
+                observeIntervalId = null;
+            }
+
             let prevUrl = getCleanUrlVideo(window.location.href);
             // console.log('prevUrl First init: ', prevUrl);
 
-            setInterval(() => {
+            // Store interval ID for cleanup on next initApp() call
+            observeIntervalId = setInterval(() => {
                 if (
                     isVideoPage() &&
                     document.querySelector('#meta.style-scope.ytd-watch-flexy') &&
@@ -2672,6 +2763,10 @@ Total: ${c.count}\n${c.html}`;
                     app();
                 }
             }, 1000);
+
+            if (DEBUG) {
+                console.log('YCS: startObserve interval created, ID:', observeIntervalId);
+            }
         }
 
         startObserve();

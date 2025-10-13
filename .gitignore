@@ -1,6 +1,7 @@
 node_modules
 .parcel-cache
 dist/
+dev/
 
 # agents
 .cursor

@@ -3,6 +3,11 @@
 import { encode } from 'html-entities';
 import { msToShareVideo, tmUsecToDateTime, wrapTryCatch, markTextComment, randomString, getPiP } from '../utils/assist';
 
+// Debug mode configuration
+// Set to true for detailed diagnostic logs during development
+// Set to false for production to reduce console noise
+const DEBUG = false;
+
 // Use html-entities for proper HTML encoding
 // This ensures special characters and emojis are handled correctly
 function esc(input: unknown): string {
@@ -908,26 +913,14 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
 }
 
 /**
- * 檢查元素是否可見（混合式方案）
- * - Chrome 105+: 使用 checkVisibility() API
- * - Chrome 88-104: 使用傳統方法 fallback
+ * Check if element is visible (CSS properties only)
+ * - Not affected by Page Visibility API state
+ * - Supports extension loading in background tabs
  */
 function isElementVisible(element: Element | null): boolean {
     if (!element || !(element instanceof HTMLElement)) return false;
 
-    // Chrome 105+: 優先使用 checkVisibility() API
-    if (typeof (element as any).checkVisibility === 'function') {
-        try {
-            return (element as any).checkVisibility({
-                checkOpacity: true,
-                checkVisibilityCSS: true
-            });
-        } catch (e) {
-            console.warn('YCS: checkVisibility() failed, using fallback', e);
-        }
-    }
-
-    // Chrome 88-104: 傳統方法 fallback
+    // Only check CSS properties, not affected by page visibility state
     const style = window.getComputedStyle(element);
     return style.display !== 'none' &&
            style.visibility !== 'hidden' &&
@@ -937,6 +930,10 @@ function isElementVisible(element: Element | null): boolean {
 
 function renderLoadComments(selector: string): void {
     if (typeof selector !== 'string') return;
+
+    if (DEBUG) {
+        console.log('YCS: renderLoadComments', selector);
+    }
 
     const renderViewMode = (): string => {
         try {
@@ -953,7 +950,7 @@ function renderLoadComments(selector: string): void {
 
     const node = document.querySelector(selector);
 
-    // 可見性檢查與 fallback 機制
+    // Visibility check and fallback mechanism
     let targetElement: HTMLElement | null = node as HTMLElement | null;
     let insertionMode: 'appendChild' | 'insertAfter' = 'appendChild';
 
@@ -961,12 +958,20 @@ function renderLoadComments(selector: string): void {
         console.log('YCS: Original insertion point is hidden, trying fallback');
 
         const fallbackElement = document.querySelector('ytd-watch-metadata');
-        if (fallbackElement && isElementVisible(fallbackElement)) {
+
+        if (DEBUG) {
+            console.log('YCS: fallbackElement', fallbackElement);
+            console.log('YCS: isElementVisible(fallbackElement)', isElementVisible(fallbackElement));
+        }
+
+        // Fallback element: only check existence, not visibility
+        // Reason: During SPA navigation, element may be temporarily hidden but will become visible soon
+        if (fallbackElement) {
             targetElement = fallbackElement as HTMLElement;
             insertionMode = 'insertAfter';
-            console.log('YCS: Using fallback insertion point (ytd-watch-metadata)');
+            console.log('YCS: Using fallback insertion point (ytd-watch-metadata)', isElementVisible(fallbackElement) ? '(visible)' : '(not visible yet, will be visible soon)');
         } else {
-            console.warn('YCS: Fallback element not found or hidden');
+            console.warn('YCS: Fallback element not found');
             return;
         }
     }
@@ -1158,11 +1163,11 @@ function renderLoadComments(selector: string): void {
         </div>
     `;
 
-    // 根據插入模式執行
+    // Execute based on insertion mode
     if (insertionMode === 'appendChild') {
         targetElement.appendChild(nodeTag);
     } else if (insertionMode === 'insertAfter') {
-        // insertAfter 實作：檢查 parentNode 避免 TypeError
+        // insertAfter implementation: check parentNode to avoid TypeError
         if (targetElement.parentNode) {
             targetElement.parentNode.insertBefore(nodeTag, targetElement.nextSibling);
         } else {
