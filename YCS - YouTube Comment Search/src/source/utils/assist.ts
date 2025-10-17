@@ -8,6 +8,7 @@ import Queue from 'p-queue';
 import urlRegex from 'url-regex';
 
 import {
+    ChatContinuationResult,
     GetParams,
     ISheetChatComments,
     ISheetChatDetails,
@@ -1139,13 +1140,26 @@ async function delayMs(ms: number): Promise<void> {
 async function getParamsForChat(
     w: Window & typeof globalThis,
     cLiveChat: any,
-    pOffsetMs: number,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    useLegacyApi: boolean = false,
+    playerOffsetMs: number = 0
 ): Promise<object | undefined> {
     if (!cLiveChat) return;
 
     try {
         const ytcfgData = await getPageCfgData(w, signal);
+
+        const bodyPayload: any = {
+            context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client },
+            continuation: cLiveChat.continuation
+        };
+
+        // Old API requires currentPlayerState with playerOffsetMs
+        if (useLegacyApi) {
+            bodyPayload.currentPlayerState = {
+                playerOffsetMs: playerOffsetMs.toString()
+            };
+        }
 
         return {
             headers: {
@@ -1158,11 +1172,7 @@ async function getParamsForChat(
                 'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION
             },
             referrerPolicy: 'strict-origin-when-cross-origin',
-            body: JSON.stringify({
-                context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client },
-                continuation: cLiveChat.continuation,
-                currentPlayerState: { playerOffsetMs: pOffsetMs.toString() }
-            }),
+            body: JSON.stringify(bodyPayload),
             method: 'POST',
             mode: 'cors',
             credentials: 'include'
@@ -1407,45 +1417,81 @@ function getInnertubeApiKey(): string | undefined {
     }
 }
 
-async function getCDChat(signal: AbortSignal): Promise<object | undefined> {
+async function getCDChat(signal: AbortSignal): Promise<ChatContinuationResult> {
     try {
         const ytData = (await getInitYtData(window.location.href, signal)) as any;
 
         if (ytData) {
-            if (
-                wrapTryCatch(
-                    () =>
-                        ytData[3].response.contents.twoColumnWatchNextResults.conversationBar.liveChatRenderer.header
-                            .liveChatHeaderRenderer.viewSelector.sortFilterSubMenuRenderer.subMenuItems[1].continuation
-                            .reloadContinuationData
-                )
-            ) {
-                return wrapTryCatch(
-                    () =>
-                        ytData[3].response.contents.twoColumnWatchNextResults.conversationBar.liveChatRenderer.header
-                            .liveChatHeaderRenderer.viewSelector.sortFilterSubMenuRenderer.subMenuItems[1].continuation
-                            .reloadContinuationData
-                );
+            // Priority 1: New API path (continuations array)
+            const newApiData = wrapTryCatch(
+                () =>
+                    ytData.response.contents.twoColumnWatchNextResults.conversationBar.liveChatRenderer
+                        .continuations[0].reloadContinuationData
+            );
+
+            if (newApiData) {
+                return {
+                    continuationData: newApiData,
+                    apiVersion: 'new',
+                    sourcePath: 'continuations[0].reloadContinuationData'
+                };
             }
 
+            // Priority 2: Old API path (header.viewSelector) - uses array format ytData[3]
+            const oldApiData = wrapTryCatch(
+                () =>
+                    ytData[3].response.contents.twoColumnWatchNextResults.conversationBar.liveChatRenderer.header
+                        .liveChatHeaderRenderer.viewSelector.sortFilterSubMenuRenderer.subMenuItems[1].continuation
+                        .reloadContinuationData
+            );
+
+            if (oldApiData) {
+                return {
+                    continuationData: oldApiData,
+                    apiVersion: 'old',
+                    sourcePath: '[3].response.header.viewSelector.sortFilterSubMenuRenderer.subMenuItems[1].continuation.reloadContinuationData'
+                };
+            }
+
+            // Fallback: Deep search for any reloadContinuationData
             const rCData = deepFindObjKey(ytData, 'reloadContinuationData');
             if (rCData.length > 0) {
                 // @ts-expect-error [ES2017]
-                return Object.values(rCData[rCData.length - 1])[0] as object;
+                const fallbackData = Object.values(rCData[rCData.length - 1])[0] as object;
+                return {
+                    continuationData: fallbackData,
+                    apiVersion: 'fallback',
+                    sourcePath: 'deepSearch(reloadContinuationData)'
+                };
             }
         }
 
-        return;
+        // No continuation data found
+        return {
+            continuationData: null,
+            apiVersion: 'fallback',
+            sourcePath: undefined
+        };
     } catch (e) {
         console.error(e);
-        return;
+        return {
+            continuationData: null,
+            apiVersion: 'fallback',
+            sourcePath: undefined
+        };
     }
 }
 
 async function getLiveChat(signal: AbortSignal): Promise<object[] | undefined> {
     try {
-        const cDChat = await getCDChat(signal);
-        const params = await getParamsForLiveChat(window, cDChat, signal);
+        const result = await getCDChat(signal);
+
+        if (!result.continuationData) {
+            console.log('No continuation data available for live chat');
+            return;
+        }
+
+        const params = await getParamsForLiveChat(window, result.continuationData, signal);
 
         if (params) {
             const res = await fetch(
@@ -1507,11 +1553,18 @@ async function getChatComments(
             }
         };
 
-        const cDChat = await getCDChat(signal);
-        if (!cDChat) {
-            console.log('STOP CHAT CD!!!!');
+        const result = await getCDChat(signal);
+        if (!result.continuationData) {
+            console.log('STOP CHAT CD!!!! No continuation data available');
             return;
         }
+
+        const cDChat = result.continuationData;
+        const useLegacyApi = result.apiVersion === 'old';
+
+        // Log detected API version
+        console.log(`[getChatComments] Detected API version: ${result.apiVersion}`);
+        console.log(`[getChatComments] Source path: ${result.sourcePath}`);
 
         const chatCmnts = container || new Map<number, object>();
 
@@ -1721,41 +1774,45 @@ async function getChatComments(
                 return chatCmnts;
             }
         } else {
-            try {
-                let currentOffsetTimeMsec = 0;
-                let next = true;
+            // Chat Replay branch - handle both legacy and new API
+            if (useLegacyApi) {
+                // ========== Legacy API Logic ==========
+                try {
+                    let currentOffsetTimeMsec = 0;
+                    let next = true;
 
-                while (next) {
-                    console.log('Loop chat comments');
-                    const params = await getParamsForChat(window, cDChat, currentOffsetTimeMsec, signal);
-                    console.log('currentOffsetTimeMsec: ', currentOffsetTimeMsec);
+                    while (next) {
+                        console.log('Loop chat comments (Legacy API)');
+                        const params = await getParamsForChat(window, cDChat, signal, true, currentOffsetTimeMsec);
 
-                    if (params) {
-                        const res = await fetchR(
-                            `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?key=${getInnertubeApiKey()}`,
-                            { ...params, signal, cache: 'no-store' }
-                        );
+                        if (params) {
+                            const res = await fetchR(
+                                `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?key=${getInnertubeApiKey()}`,
+                                { ...params, signal, cache: 'no-store' }
+                            );
 
-                        let cmnts = await res.json();
-                        cmnts = cmnts?.continuationContents?.liveChatContinuation?.actions;
-                        console.log('Chat comments: ', cmnts);
+                            let response = await res.json();
+                            let cmnts = response?.continuationContents?.liveChatContinuation?.actions;
+                            console.log('Chat comments (Legacy): ', cmnts);
 
-                        if (cmnts && cmnts.length > 0) {
-                            const [, lastOffsetTimeInCmnts] = (Object as any).entries(
-                                deepFindObjKey(cmnts[cmnts.length - 1], 'videoOffsetTimeMsec')[0]
-                            )[0];
+                            if (cmnts && cmnts.length > 0) {
+                                // Extract videoOffsetTimeMsec from last comment
+                                const lastOffsetTimeInCmnts = wrapTryCatch(() => {
+                                    const offsetData = deepFindObjKey(cmnts[cmnts.length - 1], 'videoOffsetTimeMsec')[0];
+                                    return (Object as any).entries(offsetData)[0][1];
+                                }) as number | undefined;
 
-                            console.log('lastOffsetTimeInCmnts: ', lastOffsetTimeInCmnts);
-
-                            if (currentOffsetTimeMsec === lastOffsetTimeInCmnts) {
-                                console.log('BREAK!');
-                                console.log('currentOffsetTimeMsec: ', currentOffsetTimeMsec);
                                 console.log('lastOffsetTimeInCmnts: ', lastOffsetTimeInCmnts);
-                                next = false;
-                                break;
-                            }
 
-                            for (const comment of cmnts) {
+                                // Check if we've reached the end
+                                if (currentOffsetTimeMsec === lastOffsetTimeInCmnts) {
+                                    console.log('BREAK! Reached end of chat replay (Legacy API)');
+                                    next = false;
+                                    break;
+                                }
+
+                                // Process all comments
+                                for (const comment of cmnts) {
                                 try {
                                     if (
                                         !wrapTryCatch(
@@ -1975,18 +2032,281 @@ async function getChatComments(
                                 }
                             }
 
-                            currentOffsetTimeMsec = lastOffsetTimeInCmnts;
+                            // Update playerOffsetMs for next iteration
+                            if (lastOffsetTimeInCmnts !== undefined) {
+                                currentOffsetTimeMsec = lastOffsetTimeInCmnts;
+                            }
+                        } else {
+                            next = false;
                         }
                     } else {
                         next = false;
-                        return chatCmnts;
                     }
                 }
 
                 return chatCmnts;
             } catch (e) {
-                console.error(e);
+                console.error('Legacy API error:', e);
                 return chatCmnts;
+            }
+            } else {
+                // ========== New API Logic ==========
+                try {
+                    let nextContinuation = cDChat;
+
+                    while (nextContinuation) {
+                        console.log('Loop chat comments (New API)');
+                        const params = await getParamsForChat(window, nextContinuation, signal, false);
+
+                        if (params) {
+                            const res = await fetchR(
+                                `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay`,
+                                { ...params, signal, cache: 'no-store' }
+                            );
+
+                            let response = await res.json();
+                            let cmnts = response?.continuationContents?.liveChatContinuation?.actions;
+                            console.log('Chat comments (New): ', cmnts);
+
+                            // Extract next continuation token
+                            const continuations = response?.continuationContents?.liveChatContinuation?.continuations;
+                            const continuationToken = continuations?.[0]?.liveChatReplayContinuationData?.continuation;
+                            nextContinuation = continuationToken ? { continuation: continuationToken } : null;
+
+                            if (cmnts && cmnts.length > 0) {
+                                for (const comment of cmnts) {
+                                    try {
+                                        if (
+                                            !wrapTryCatch(
+                                                () =>
+                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                        .liveChatTextMessageRenderer.timestampUsec
+                                            )
+                                        ) {
+                                            if (
+                                                wrapTryCatch(
+                                                    () =>
+                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                            .liveChatPaidMessageRenderer
+                                                )
+                                            ) {
+                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
+                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatPaidMessageRenderer;
+                                                console.log('Done! Added liveChatPaidMessageRenderer: ', comment);
+                                            } else if (
+                                                wrapTryCatch(
+                                                    () =>
+                                                        comment.replayChatItemAction.actions[0].addBannerToLiveChatCommand
+                                                            .bannerRenderer.liveChatBannerRenderer.contents
+                                                            .liveChatTextMessageRenderer
+                                                )
+                                            ) {
+                                                comment.replayChatItemAction.actions[0].addChatItemAction = {
+                                                    item: { liveChatTextMessageRenderer: {} }
+                                                };
+                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
+                                                    comment.replayChatItemAction.actions[0].addBannerToLiveChatCommand.bannerRenderer.liveChatBannerRenderer.contents.liveChatTextMessageRenderer;
+                                                console.log('Done! Added liveChatBannerRenderer: ', comment);
+                                            } else if (
+                                                wrapTryCatch(
+                                                    () =>
+                                                        comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction
+                                                            .item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint
+                                                            .showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer
+                                                )
+                                            ) {
+                                                comment.replayChatItemAction.actions[0].addChatItemAction = {
+                                                    item: { liveChatTextMessageRenderer: {} }
+                                                };
+                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
+                                                    comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint.showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer;
+                                                console.log('Done! Added LiveChatTickerItemAction: ', comment);
+                                            } else {
+                                                const pathComment = wrapTryCatch(() =>
+                                                    Object.keys(deepFindObjKey(comment, 'timestampUsec')[0])[0]
+                                                        .split('.')
+                                                        .slice(0, -1)
+                                                        .join('.')
+                                                ) as string | undefined;
+
+                                                if (pathComment) {
+                                                    const findedComment = getObj(comment, pathComment, undefined) as any;
+                                                    console.log(
+                                                        '-----------------> GET OBJECT CHAT COMMENT: ',
+                                                        findedComment
+                                                    );
+
+                                                    if (
+                                                        findedComment &&
+                                                        findedComment?.authorName &&
+                                                        findedComment?.message
+                                                    ) {
+                                                        console.log(
+                                                            '-----------------> FINDED CHAT COMMENT: ',
+                                                            findedComment
+                                                        );
+                                                        comment.replayChatItemAction.actions[0].addChatItemAction = {
+                                                            item: { liveChatTextMessageRenderer: {} }
+                                                        };
+                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
+                                                            findedComment;
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        const timestampUsec: string | undefined = wrapTryCatch(
+                                            () =>
+                                                comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                    .liveChatTextMessageRenderer.timestampUsec
+                                        ) as any;
+
+                                        if (timestampUsec && !chatCmnts.has(parseInt(timestampUsec, 10))) {
+                                            const chatMsgs =
+                                                (wrapTryCatch(
+                                                    () =>
+                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                            .liveChatTextMessageRenderer.message.runs
+                                                ) as any) || [];
+
+                                            let fullText = '';
+                                            let renderFullTextComment = '';
+
+                                            if (
+                                                wrapTryCatch(
+                                                    () =>
+                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                            .liveChatTextMessageRenderer.purchaseAmountText.simpleText
+                                                )
+                                            ) {
+                                                console.log('Added purchaseAmountText for chat');
+                                                renderFullTextComment += `<span class="ycs-chat_donation ycs-chat_donation__title">Donated: </span><span class="ycs-chat_donation ycs-chat_donation__bg">${comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText}</span><br><br>`;
+                                                fullText += `${comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText} `;
+                                            }
+
+                                            for (const msg of chatMsgs) {
+                                                try {
+                                                    fullText += msg?.text || '';
+
+                                                    if (
+                                                        parseInt(
+                                                            msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds
+                                                        ) >= 0
+                                                    ) {
+                                                        renderFullTextComment += `<a class="ycs-cpointer ycs-gotochat-video" href="https://www.youtube.com/watch?v=${msg?.navigationEndpoint?.watchEndpoint?.videoId}&t=${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}">${msg?.text || ''}</a>`;
+
+                                                        const currentVideoId = (getVideoId(window.location.href) ||
+                                                            '') as string;
+                                                        const linkVideoId = (wrapTryCatch(
+                                                            () => msg?.navigationEndpoint?.watchEndpoint?.videoId
+                                                        ) || '') as string;
+                                                        const isSameVideo =
+                                                            String(linkVideoId || '') === String(currentVideoId || '');
+
+                                                        if (
+                                                            isSameVideo &&
+                                                            wrapTryCatch(
+                                                                () =>
+                                                                    comment.replayChatItemAction.actions[0]
+                                                                        .addChatItemAction.item.liveChatTextMessageRenderer
+                                                            )
+                                                        ) {
+                                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
+                                                                'timeline';
+                                                        }
+                                                    } else if (msg?.navigationEndpoint) {
+                                                        renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${msg?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || msg?.navigationEndpoint?.urlEndpoint?.url || msg?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || msg?.text || '#'}" target="_blank">${msg?.text || ''}</a>`;
+                                                    } else if (wrapTryCatch(() => (msg as any).emoji)) {
+                                                        const emoji: any = wrapTryCatch(() => (msg as any).emoji) || {};
+                                                        const thumbnails = wrapTryCatch(() => emoji.image.thumbnails) || [];
+                                                        const url =
+                                                            wrapTryCatch(() => thumbnails[thumbnails.length - 1].url) || '';
+                                                        const shortcut =
+                                                            (wrapTryCatch(() => emoji.shortcuts?.[0]) as string) || '';
+                                                        const label =
+                                                            (wrapTryCatch(
+                                                                () => emoji.image.accessibility.accessibilityData.label
+                                                            ) as string) || '';
+
+                                                        if (shortcut) {
+                                                            fullText += shortcut;
+                                                        } else if (label) {
+                                                            fullText += `:${label}:`;
+                                                        } else {
+                                                            fullText += ':emoji:';
+                                                        }
+
+                                                        const alt = shortcut || label || 'emoji';
+                                                        const style = `margin-left: 2px; margin-right: 2px;`;
+                                                        if (url) {
+                                                            renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
+                                                        } else {
+                                                            renderFullTextComment += alt;
+                                                        }
+                                                    } else if (wrapTryCatch(() => (msg as any).attachment?.image)) {
+                                                        const image: any = wrapTryCatch(
+                                                            () => (msg as any).attachment.image
+                                                        );
+                                                        const url = image?.url || '';
+                                                        const width = image?.width || 24;
+                                                        const height = image?.height || 24;
+                                                        const margin = image?.margin || { left: 0, right: 0 };
+                                                        const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
+                                                        const alt = (msg as any)?.text || '';
+                                                        renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
+                                                    } else {
+                                                        renderFullTextComment += msg?.text || '';
+                                                    }
+                                                } catch (e) {
+                                                    console.error(e);
+                                                    renderFullTextComment += msg?.text || '';
+                                                }
+                                            }
+
+                                            if (fullText) {
+                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText =
+                                                    fullText;
+
+                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText =
+                                                    renderFullTextComment || fullText;
+                                            }
+
+                                            if (
+                                                wrapTryCatch(
+                                                    () =>
+                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                            .liveChatTextMessageRenderer.authorName
+                                                )
+                                            ) {
+                                                chatCmnts.set(
+                                                    parseInt(timestampUsec, 10),
+                                                    _prepareFieldsChatComments(comment)
+                                                );
+                                                showLoadComments(chatCmnts.size, elShowLoading);
+                                            }
+                                        }
+                                    } catch (err) {
+                                        console.error(err);
+                                        continue;
+                                    }
+                                }
+                            }
+
+                            // Check if there are more messages
+                            if (!nextContinuation) {
+                                console.log('No more continuation, finished loading chat');
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+
+                    return chatCmnts;
+                } catch (e) {
+                    console.error('New API error:', e);
+                    return chatCmnts;
+                }
             }
         }
     } catch (e) {

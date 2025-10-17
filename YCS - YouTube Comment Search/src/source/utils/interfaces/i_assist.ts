@@ -153,3 +153,33 @@ export interface ISheetTrVideo {
     'Duration Ms.': number;
     Message: string;
 }
+
+
+/**
+ * API version type for chat continuation data
+ */
+export type ChatApiVersion = 'new' | 'old' | 'fallback';
+
+/**
+ * Result structure for getCDChat function
+ */
+export interface ChatContinuationResult {
+    /**
+     * The continuation data object from YouTube API
+     */
+    continuationData: object | null;
+
+    /**
+     * API version detected based on the continuation token source path
+     * - 'new': From continuations[0].reloadContinuationData
+     * - 'old': From header.viewSelector path
+     * - 'fallback': From deep search
+     */
+    apiVersion: ChatApiVersion;
+
+    /**
+     * The JSON path where the continuation data was found
+     * Useful for debugging and logging
+     */
+    sourcePath?: string;
+}
