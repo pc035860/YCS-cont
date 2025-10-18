@@ -5,6 +5,9 @@ dev/
 packing/
 .DS_Store
 
+# Generated manifest (copied by prebuild hook)
+app/src/static/manifest.json
+
 # agents
 .cursor
 .serena

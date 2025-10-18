@@ -15,6 +15,9 @@
     "src/source/content-scripts/style.css"
   ],
   "scripts": {
+    "prepare-manifest": "node scripts/prepare-manifest.cjs",
+    "prebuild": "npm run prepare-manifest",
+    "predev": "npm run prepare-manifest",
     "rm": "rimraf dist && rimraf .parcel-cache && rimraf dev",
     "lint": "eslint src/source/ --ext .ts",
     "dev": "parcel serve --dist-dir dev --no-hmr",
