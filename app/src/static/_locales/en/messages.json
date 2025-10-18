@@ -1,0 +1,8 @@
+{
+  "ycs_name": {
+    "message": "YCS - YouTube Comment Search"
+  },
+  "ycs_description": {
+    "message": "Search comments, replies, chat replay, video transcript for the current video on YouTube by contents, authors, time."
+  }
+}

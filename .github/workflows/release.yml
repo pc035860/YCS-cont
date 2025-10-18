@@ -1,0 +1,51 @@
+name: Build & Attach Release
+
+on:
+  push:
+    tags:
+      - 'v2.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: 'app/.nvmrc'
+
+      # Extract version from tag (remove 'v' prefix)
+      - name: Extract version from tag
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
+      # Install dependencies (in app/ directory)
+      - name: Install dependencies
+        run: |
+          cd app
+          npm ci
+
+      # Build and package Chrome version
+      - name: Build Chrome extension
+        run: ./scripts/build-extension.sh chrome
+
+      - name: Package Chrome extension
+        run: ./scripts/package-extension.sh chrome ${{ env.VERSION }} app/dist
+
+      # Build and package Firefox version
+      - name: Build Firefox extension
+        run: ./scripts/build-extension.sh firefox
+
+      - name: Package Firefox extension
+        run: ./scripts/package-extension.sh firefox ${{ env.VERSION }} app/dist
+
+      # Upload to GitHub Release
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packing/*.zip

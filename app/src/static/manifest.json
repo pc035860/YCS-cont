@@ -1,0 +1,47 @@
+{
+  "action": {
+    "default_icon": {
+      "128": "assets/images/icons/logo-ycs-128.png",
+      "16": "assets/images/icons/logo-ycs-16.png",
+      "24": "assets/images/icons/logo-ycs-24.png",
+      "32": "assets/images/icons/logo-ycs-32.png",
+      "48": "assets/images/icons/logo-ycs-48.png"
+    },
+    "default_popup": "browser-action/baction.html",
+    "default_title": "YouTube Comment Search"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "css": ["content-scripts/style.css"],
+      "js": ["content-scripts/cscripts.js"],
+      "matches": ["*://*.youtube.com/*"],
+      "run_at": "document_idle"
+    }
+  ],
+  "default_locale": "en",
+  "description": "__MSG_ycs_description__",
+  "host_permissions": ["*://*.youtube.com/*"],
+  "icons": {
+    "128": "assets/images/icons/logo-ycs-128.png",
+    "16": "assets/images/icons/logo-ycs-16.png",
+    "24": "assets/images/icons/logo-ycs-24.png",
+    "32": "assets/images/icons/logo-ycs-32.png",
+    "48": "assets/images/icons/logo-ycs-48.png"
+  },
+  "manifest_version": 3,
+  "minimum_chrome_version": "88",
+  "name": "__MSG_ycs_name__",
+  "options_page": "options/options.html",
+  "permissions": ["storage", "scripting"],
+  "short_name": "YCS (Cont.)",
+  "version": "1.4.0",
+  "web_accessible_resources": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "resources": ["web-resources/*.js"]
+    }
+  ]
+}
