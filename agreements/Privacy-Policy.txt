@@ -1,6 +1,15 @@
-Privacy Policy
+Privacy Policy for YCS (YouTube Comment Search)
 
-If you choose to use the "YCS" extension, then you agree that your Personal Information will not be collected, used, or disclosed. This rule applies to absolutely all users.
+This extension is a continuation of the original YCS project.
+
+- Original author: Eugene Gubar (sonigy)
+- Current maintainer: pc035860
+
+If you choose to use this extension, your Personal Information will NOT be collected,
+used, or disclosed. This policy applies to all users without exception.
 
 Contact
-ycs.ext@gmail.com
+For privacy-related questions or concerns, please visit:
+https://github.com/pc035860/YCS-cont/issues
+
+Last updated: 2025-10-18
