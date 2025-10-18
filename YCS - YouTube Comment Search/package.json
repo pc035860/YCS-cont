@@ -1,55 +1,55 @@
 {
-    "name": "ycs",
-    "version": "1.0.0",
-    "description": "",
-    "keywords": [],
-    "author": "Eugene Gubar",
-    "license": "ISC",
-    "source": [
-        "src/source/options/options.html",
-        "src/source/options/export.html",
-        "src/source/browser-action/baction.html",
-        "src/source/content-scripts/cscripts.ts",
-        "src/source/web-resources/wresources.ts",
-        "src/source/background.ts",
-        "src/source/content-scripts/style.css"
-    ],
-    "scripts": {
-        "rm": "rimraf dist && rimraf .parcel-cache && rimraf dev",
-        "lint": "eslint src/source/ --ext .ts",
-        "dev": "parcel serve --dist-dir dev --no-hmr",
-        "build": "parcel build --no-source-maps",
-        "rebuild": "rimraf dist && rimraf .parcel-cache && npm run build"
-    },
-    "dependencies": {
-        "abort-controller": "^3.0.0",
-        "fetch-retry": "^5.0.3",
-        "fuse.js": "^6.6.2",
-        "html-entities": "^2.6.0",
-        "idb": "^7.0.2",
-        "mark.js": "^8.11.1",
-        "object-scan": "^18.3.4",
-        "p-queue": "^6.6.2",
-        "url-regex": "^5.0.0",
-        "xlsx": "^0.18.2"
-    },
-    "type": "module",
-    "devDependencies": {
-        "@types/chrome": "^0.0.193",
-        "@types/mark.js": "^8.11.6",
-        "@typescript-eslint/eslint-plugin": "^5.6.0",
-        "@typescript-eslint/parser": "^5.6.0",
-        "assert": "^2.0.0",
-        "eslint": "^8.4.1",
-        "parcel": "^2.0.1",
-        "parcel-reporter-static-files-copy": "^1.3.4",
-        "process": "^0.11.10",
-        "rimraf": "^3.0.2"
-    },
-    "browserslist": [
-        "chrome >= 88"
-    ],
-    "staticFiles": {
-        "staticPath": "src/static"
-    }
+  "name": "ycs",
+  "version": "1.0.0",
+  "description": "",
+  "keywords": [],
+  "author": "Eugene Gubar",
+  "license": "ISC",
+  "source": [
+    "src/source/options/options.html",
+    "src/source/options/export.html",
+    "src/source/browser-action/baction.html",
+    "src/source/content-scripts/cscripts.ts",
+    "src/source/web-resources/wresources.ts",
+    "src/source/background.ts",
+    "src/source/content-scripts/style.css"
+  ],
+  "scripts": {
+    "rm": "rimraf dist && rimraf .parcel-cache && rimraf dev",
+    "lint": "eslint src/source/ --ext .ts",
+    "dev": "parcel serve --dist-dir dev --no-hmr",
+    "build": "parcel build --no-source-maps",
+    "rebuild": "rimraf dist && rimraf .parcel-cache && npm run build"
+  },
+  "dependencies": {
+    "abort-controller": "^3.0.0",
+    "fetch-retry": "^5.0.3",
+    "fuse.js": "^6.6.2",
+    "html-entities": "^2.6.0",
+    "idb": "^7.0.2",
+    "mark.js": "^8.11.1",
+    "object-scan": "^18.3.4",
+    "p-queue": "^6.6.2",
+    "url-regex": "^5.0.0",
+    "xlsx": "^0.18.2"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/chrome": "^0.0.193",
+    "@types/mark.js": "^8.11.6",
+    "@typescript-eslint/eslint-plugin": "^5.6.0",
+    "@typescript-eslint/parser": "^5.6.0",
+    "assert": "^2.0.0",
+    "eslint": "^8.4.1",
+    "parcel": "^2.0.1",
+    "parcel-reporter-static-files-copy": "^1.3.4",
+    "process": "^0.11.10",
+    "rimraf": "^3.0.2"
+  },
+  "browserslist": [
+    "chrome >= 88"
+  ],
+  "staticFiles": {
+    "staticPath": "src/static"
+  }
 }

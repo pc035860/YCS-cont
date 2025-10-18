@@ -25,6 +25,7 @@ YouTube has migrated its Chat Replay API from a **legacy playerOffsetMs-based pa
 ### Request Structure
 
 #### Legacy API (Old)
+
 ```http
 POST /youtubei/v1/live_chat/get_live_chat_replay?key=${apiKey}
 Content-Type: application/json
@@ -39,6 +40,7 @@ Content-Type: application/json
 ```
 
 #### New API
+
 ```http
 POST /youtubei/v1/live_chat/get_live_chat_replay
 Content-Type: application/json
@@ -52,11 +54,13 @@ Content-Type: application/json
 ### Response Structure
 
 #### Legacy API
+
 - **Continuation Location**: `header.liveChatHeaderRenderer.viewSelector.sortFilterSubMenuRenderer.subMenuItems[1].continuation.reloadContinuationData`
 - **Continuation Count**: 1 token (fixed)
 - **Termination**: Compare `videoOffsetTimeMsec` values
 
 #### New API
+
 - **Continuation Location**: `continuations[0].reloadContinuationData` (initial) or `continuations[0].liveChatReplayContinuationData` (subsequent)
 - **Continuation Count**: 2 tokens (replay + seek)
 - **Termination**: `continuation` is null or missing
@@ -91,13 +95,13 @@ Content-Type: application/json
 ### Modified Files
 
 1. **`src/source/utils/interfaces/i_assist.ts`** (Lines 160-185)
-   - Added `ChatApiVersion` type
-   - Added `ChatContinuationResult` interface
+    - Added `ChatApiVersion` type
+    - Added `ChatContinuationResult` interface
 
 2. **`src/source/utils/assist.ts`**
-   - `getCDChat()` function (Lines 1420-1483): Three-tier fallback mechanism
-   - `getParamsForChat()` function (Lines 1140-1177): Conditional request body
-   - `getChatComments()` function (Lines 1514-2318): Dual-track processing logic
+    - `getCDChat()` function (Lines 1420-1483): Three-tier fallback mechanism
+    - `getParamsForChat()` function (Lines 1140-1177): Conditional request body
+    - `getChatComments()` function (Lines 1514-2318): Dual-track processing logic
 
 ### Code Changes Details
 
@@ -126,8 +130,9 @@ async function getCDChat(signal: AbortSignal): Promise<ChatContinuationResult> {
     const ytData = await getInitYtData(window.location.href, signal);
 
     // Priority 1: New API path
-    const newApiData = ytData.response.contents.twoColumnWatchNextResults
-        .conversationBar.liveChatRenderer.continuations[0].reloadContinuationData;
+    const newApiData =
+        ytData.response.contents.twoColumnWatchNextResults.conversationBar.liveChatRenderer.continuations[0]
+            .reloadContinuationData;
     if (newApiData) {
         return {
             continuationData: newApiData,
@@ -137,9 +142,10 @@ async function getCDChat(signal: AbortSignal): Promise<ChatContinuationResult> {
     }
 
     // Priority 2: Legacy API path
-    const oldApiData = ytData.response.contents.twoColumnWatchNextResults
-        .conversationBar.liveChatRenderer.header.liveChatHeaderRenderer.viewSelector
-        .sortFilterSubMenuRenderer.subMenuItems[1].continuation.reloadContinuationData;
+    const oldApiData =
+        ytData.response.contents.twoColumnWatchNextResults.conversationBar.liveChatRenderer.header
+            .liveChatHeaderRenderer.viewSelector.sortFilterSubMenuRenderer.subMenuItems[1].continuation
+            .reloadContinuationData;
     if (oldApiData) {
         return {
             continuationData: oldApiData,
@@ -163,6 +169,7 @@ async function getCDChat(signal: AbortSignal): Promise<ChatContinuationResult> {
 ```
 
 **Key Features**:
+
 - Automatically detects which API version YouTube is using
 - Provides fallback mechanism for API structure changes
 - Returns both data and version information for downstream logic
@@ -213,6 +220,7 @@ async function getParamsForChat(
 ```
 
 **Key Changes**:
+
 - Added `useLegacyApi` parameter to control request structure
 - Conditionally includes `currentPlayerState` only for legacy API
 - New API has simpler request body with just `context` and `continuation`
@@ -226,6 +234,7 @@ async function getParamsForChat(
 This function now contains two complete parallel implementations:
 
 ##### Version Detection (Lines 1556-1567)
+
 ```typescript
 const result = await getCDChat(signal);
 if (!result.continuationData) {
@@ -241,6 +250,7 @@ console.log(`[getChatComments] Source path: ${result.sourcePath}`);
 ```
 
 ##### Legacy API Loop (Lines 1570-1901)
+
 ```typescript
 if (useLegacyApi) {
     console.log('Loop chat comments (Legacy API)');
@@ -252,7 +262,7 @@ if (useLegacyApi) {
             window,
             cDChat,
             signal,
-            true,  // useLegacyApi = true
+            true, // useLegacyApi = true
             currentOffsetTimeMsec
         );
 
@@ -265,10 +275,7 @@ if (useLegacyApi) {
         let cmnts = response?.continuationContents?.liveChatContinuation?.actions;
 
         // Extract videoOffsetTimeMsec for termination check
-        const lastOffsetTimeInCmnts = deepFindObjKey(
-            cmnts[cmnts.length - 1],
-            'videoOffsetTimeMsec'
-        );
+        const lastOffsetTimeInCmnts = deepFindObjKey(cmnts[cmnts.length - 1], 'videoOffsetTimeMsec');
 
         // Termination: Same timestamp indicates no more messages
         if (currentOffsetTimeMsec === lastOffsetTimeInCmnts) {
@@ -287,6 +294,7 @@ if (useLegacyApi) {
 ```
 
 ##### New API Loop (Lines 1904-2318)
+
 ```typescript
 else {
     console.log('Loop chat comments (New API)');
@@ -332,6 +340,7 @@ else {
 ## Continuation Token Flow
 
 ### New API Flow Diagram
+
 ```
 Initial Token (from getCDChat)
   ↓
@@ -349,6 +358,7 @@ End (no more messages)
 **Note**: The test data shows response3.json still contains a valid continuation token, indicating the chat replay continues beyond the captured samples. The loop terminates only when the API returns no continuation token.
 
 ### Legacy API Flow Diagram
+
 ```
 Initial Token (from getCDChat) + playerOffsetMs = 0
   ↓
@@ -369,13 +379,14 @@ End (no more messages)
 
 Based on actual API response analysis during implementation:
 
-| Response | Message Count | Time Range (ms) | Duration |
-|----------|---------------|-----------------|----------|
-| Response 1 | 49 messages | 11,425,842 - 11,914,642 | ~8 minutes |
-| Response 2 | 48 messages | 11,934,546 - 12,461,579 | ~8.8 minutes |
-| Response 3 | 46 messages | 12,462,618 - 12,652,191 | ~3.2 minutes |
+| Response   | Message Count | Time Range (ms)         | Duration     |
+| ---------- | ------------- | ----------------------- | ------------ |
+| Response 1 | 49 messages   | 11,425,842 - 11,914,642 | ~8 minutes   |
+| Response 2 | 48 messages   | 11,934,546 - 12,461,579 | ~8.8 minutes |
+| Response 3 | 46 messages   | 12,462,618 - 12,652,191 | ~3.2 minutes |
 
 **Key Observations**:
+
 - Batch duration varies from ~3 to ~9 minutes of chat replay
 - Message count varies between 46-49 per batch
 - Average message density: ~1 message per 8 seconds (varies by batch: Response 1-2 ~10s/msg, Response 3 ~4s/msg)
@@ -388,6 +399,7 @@ Based on actual API response analysis during implementation:
 ### 1. Backward Compatibility Strategy
 
 ✅ **Dual-Track Implementation**
+
 - Maintain complete legacy API support (~270 lines)
 - Implement parallel new API support (~260 lines)
 - Automatic version detection at runtime
@@ -396,11 +408,13 @@ Based on actual API response analysis during implementation:
 ### 2. Error Handling
 
 ✅ **Three-Tier Fallback** in `getCDChat()`
+
 1. Try new API path
 2. Fallback to legacy API path
 3. Deep search for `reloadContinuationData`
 
 ✅ **Graceful Degradation**
+
 ```typescript
 if (!result.continuationData) {
     console.log('STOP CHAT CD!!!! No continuation data available');
@@ -410,22 +424,24 @@ if (!result.continuationData) {
 
 ### 3. Termination Logic
 
-| API Version | Termination Condition | Implementation |
-|-------------|----------------------|----------------|
-| **Legacy** | `currentOffsetTimeMsec === lastOffsetTimeInCmnts` | Timestamp comparison |
-| **New** | `nextContinuation === null` | Token existence check |
+| API Version | Termination Condition                             | Implementation        |
+| ----------- | ------------------------------------------------- | --------------------- |
+| **Legacy**  | `currentOffsetTimeMsec === lastOffsetTimeInCmnts` | Timestamp comparison  |
+| **New**     | `nextContinuation === null`                       | Token existence check |
 
 ### 4. Debugging & Logging
 
 **Version Detection Logs**:
+
 ```typescript
 console.log(`[getChatComments] Detected API version: ${result.apiVersion}`);
 console.log(`[getChatComments] Source path: ${result.sourcePath}`);
 ```
 
 **Processing Logs**:
+
 ```typescript
-console.log('Loop chat comments (New API)');  // or 'Legacy API'
+console.log('Loop chat comments (New API)'); // or 'Legacy API'
 console.log('No more continuation, finished loading chat');
 ```
 
@@ -451,16 +467,19 @@ Implementation verification checklist:
 ### JQ Commands for Response Analysis
 
 Extract continuation token:
+
 ```bash
 jq '.continuationContents.liveChatContinuation.continuations[0].liveChatReplayContinuationData.continuation' response1.json
 ```
 
 Count messages:
+
 ```bash
 jq '.continuationContents.liveChatContinuation.actions | length' response1.json
 ```
 
 Extract time range (using videoOffsetTimeMsec):
+
 ```bash
 jq '[.continuationContents.liveChatContinuation.actions[].replayChatItemAction.videoOffsetTimeMsec | tonumber] | [min, max]' response1.json
 ```
@@ -472,13 +491,13 @@ jq '[.continuationContents.liveChatContinuation.actions[].replayChatItemAction.v
 This implementation modifies the following files:
 
 - **`src/source/utils/assist.ts`**
-  - `getCDChat()`: Three-tier fallback mechanism for continuation token extraction
-  - `getParamsForChat()`: Conditional request body based on API version
-  - `getChatComments()`: Dual-track processing logic for new and legacy APIs
+    - `getCDChat()`: Three-tier fallback mechanism for continuation token extraction
+    - `getParamsForChat()`: Conditional request body based on API version
+    - `getChatComments()`: Dual-track processing logic for new and legacy APIs
 
 - **`src/source/utils/interfaces/i_assist.ts`**
-  - `ChatApiVersion` type: API version identification
-  - `ChatContinuationResult` interface: Continuation data with metadata
+    - `ChatApiVersion` type: API version identification
+    - `ChatContinuationResult` interface: Continuation data with metadata
 
 ---
 
