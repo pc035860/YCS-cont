@@ -1,4 +1,3 @@
-
 import Fetch from 'fetch-retry';
 import { openDB } from 'idb';
 
@@ -17,13 +16,13 @@ const fetchR = Fetch(fetch, {
         }
         // return Math.pow(2, attempt) * 1000; // 1000, 2000, 4000
     },
-    
+
     retryOn: (attempt: number, error: Error, response: Response) => {
         if (error?.name === 'AbortError') return false;
 
         // retry on any network error, or 4xx or 5xx status codes
         if (error !== null || response.status >= 400) {
-        //   console.log(`retrying, attempt number ${attempt + 1}`);
+            //   console.log(`retrying, attempt number ${attempt + 1}`);
             if (attempt > 100) return false;
             return true;
         }
@@ -39,8 +38,4 @@ const idb = openDB(IDB_YCS, 1, {
     }
 });
 
-
-export {
-    fetchR,
-    idb
-};
+export { fetchR, idb };

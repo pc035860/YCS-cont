@@ -922,10 +922,12 @@ function isElementVisible(element: Element | null): boolean {
 
     // Only check CSS properties, not affected by page visibility state
     const style = window.getComputedStyle(element);
-    return style.display !== 'none' &&
-           style.visibility !== 'hidden' &&
-           Number(style.opacity) !== 0 &&
-           element.offsetParent !== null;
+    return (
+        style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        Number(style.opacity) !== 0 &&
+        element.offsetParent !== null
+    );
 }
 
 function renderLoadComments(selector: string): void {
@@ -969,7 +971,10 @@ function renderLoadComments(selector: string): void {
         if (fallbackElement) {
             targetElement = fallbackElement as HTMLElement;
             insertionMode = 'insertAfter';
-            console.log('YCS: Using fallback insertion point (ytd-watch-metadata)', isElementVisible(fallbackElement) ? '(visible)' : '(not visible yet, will be visible soon)');
+            console.log(
+                'YCS: Using fallback insertion point (ytd-watch-metadata)',
+                isElementVisible(fallbackElement) ? '(visible)' : '(not visible yet, will be visible soon)'
+            );
         } else {
             console.warn('YCS: Fallback element not found');
             return;

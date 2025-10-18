@@ -1,5 +1,3 @@
-
-
 export interface ICommentFind {
     item: {
         commentRenderer: {
@@ -14,25 +12,31 @@ export interface ICommentFind {
                 simpleText: string;
             };
             authorThumbnail: {
-                thumbnails: [{
-                    url: string;
-                }, {
-                    url: string;
-                }, {
-                    url: string;
-                }];
+                thumbnails: [
+                    {
+                        url: string;
+                    },
+                    {
+                        url: string;
+                    },
+                    {
+                        url: string;
+                    }
+                ];
             };
             publishedTimeText: {
-                runs: [{
-                    text: string;
-                    navigationEndpoint: {
-                        commandMetadata: {
-                            webCommandMetadata: {
-                                url: string;
+                runs: [
+                    {
+                        text: string;
+                        navigationEndpoint: {
+                            commandMetadata: {
+                                webCommandMetadata: {
+                                    url: string;
+                                };
                             };
                         };
-                    };
-                }];
+                    }
+                ];
             };
             contentText: {
                 fullText: string;

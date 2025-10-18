@@ -14,18 +14,18 @@
 }
 
 .ycs-app {
-    padding      : 15px;
+    padding: 15px;
     margin-bottom: 30px;
-    border       : 1px solid #e0e0e0;
-    font-family  : Roboto, Arial, sans-serif;
+    border: 1px solid #e0e0e0;
+    font-family: Roboto, Arial, sans-serif;
 }
 
-html[dark="true"] .ycs-app,
+html[dark='true'] .ycs-app,
 html[dark] .ycs-app {
     color: #fff;
 }
 
-html[dark="true"] .ycs-app,
+html[dark='true'] .ycs-app,
 html[dark] .ycs-app {
     border: 1px solid #303030;
 }
@@ -35,9 +35,9 @@ html[dark] .ycs-app {
 }
 
 .ycs-render-comment {
-    min-height   : 40px;
+    min-height: 40px;
     margin-bottom: 20px;
-    clear        : both;
+    clear: both;
 }
 
 .ycs-render-comment #ycs__show-more-button {
@@ -45,7 +45,7 @@ html[dark] .ycs-app {
 }
 
 #ycs-search {
-    clear     : both;
+    clear: both;
     margin-top: 25px;
 }
 
@@ -68,54 +68,54 @@ html[dark] .ycs-app {
 #ycs-count-load,
 #ycs-count-load-collapsed {
     font-weight: 600;
-    font-size  : 10px;
+    font-size: 10px;
 }
 
 .ycs-search-len {
-    font-size  : 13px;
-    float      : left;
-    clear      : both;
+    font-size: 13px;
+    float: left;
+    clear: both;
     margin-left: 5px;
-    margin-top : 5px;
+    margin-top: 5px;
 }
 
 #ycs-search-total-result {
-    font-size  : 13px;
-    width      : 245px;
-    margin     : 0;
-    padding    : 0;
-    display    : inline-block;
+    font-size: 13px;
+    width: 245px;
+    margin: 0;
+    padding: 0;
+    display: inline-block;
     margin-left: 15px;
-    word-break : break-word;
+    word-break: break-word;
 }
 
 .ycs-searchbox {
-    width   : 55%;
-    float   : left;
+    width: 55%;
+    float: left;
     overflow: hidden;
 }
 
 .ycs-btn-search {
-    padding         : 6px;
-    margin          : 0;
-    border          : 1px solid #ececec;
+    padding: 6px;
+    margin: 0;
+    border: 1px solid #ececec;
     background-color: #f8f8f8;
-    cursor          : pointer;
+    cursor: pointer;
 }
 
-html[dark="true"] .ycs-btn-search,
-html[dark="true"] #ycs_btn_open_modal,
-html[dark="true"] .ycs_btn_load-stop,
+html[dark='true'] .ycs-btn-search,
+html[dark='true'] #ycs_btn_open_modal,
+html[dark='true'] .ycs_btn_load-stop,
 html[dark] .ycs-btn-search,
 html[dark] #ycs_btn_open_modal,
 html[dark] .ycs_btn_load-stop {
-    border          : 1px solid #303030;
+    border: 1px solid #303030;
     background-color: #313131;
-    color           : #fff;
+    color: #fff;
 }
 
 #ycs_btn_search {
-    padding    : 7px;
+    padding: 7px;
     border-left: 0;
 }
 
@@ -125,9 +125,9 @@ html[dark] .ycs_btn_load-stop {
     background-color: #f0f0f0;
 }
 
-html[dark="true"] .ycs-btn-search:hover,
-html[dark="true"] #ycs_btn_open_modal:hover,
-html[dark="true"] .ycs_btn_load-stop:hover,
+html[dark='true'] .ycs-btn-search:hover,
+html[dark='true'] #ycs_btn_open_modal:hover,
+html[dark='true'] .ycs_btn_load-stop:hover,
 html[dark] .ycs-btn-search:hover,
 html[dark] #ycs_btn_open_modal:hover,
 html[dark] .ycs_btn_load-stop:hover {
@@ -142,7 +142,7 @@ html[dark] .ycs_btn_load-stop:hover {
 } */
 
 .ycs-search__input {
-    outline       : 0;
+    outline: 0;
     outline-offset: 0;
 }
 
@@ -158,7 +158,7 @@ html[dark] .ycs_btn_load-stop:hover {
     border: 1px solid #065fd4;
 }
 
-html[dark="true"] .ycs-search__input:focus,
+html[dark='true'] .ycs-search__input:focus,
 html[dark] .ycs-search__input:focus {
     border: 1px solid #065fd4;
 }
@@ -167,46 +167,46 @@ html[dark] .ycs-search__input:focus {
     background-color: #e8e8e8;
 }
 
-html[dark="true"] .ycs_btn_active,
+html[dark='true'] .ycs_btn_active,
 html[dark] .ycs_btn_active {
     background-color: #181818;
-    color           : #ccc;
+    color: #ccc;
 }
 
 .ycs-render-img {
-    width           : 40px;
-    height          : 40px;
-    margin-right    : 16px;
-    border-radius   : 50%;
+    width: 40px;
+    height: 40px;
+    margin-right: 16px;
+    border-radius: 50%;
     background-color: transparent;
-    overflow        : hidden;
+    overflow: hidden;
 }
 
 #ycs-search-result {
-    margin       : 15px 0px 0px 15px;
-    word-wrap    : break-word;
+    margin: 15px 0px 0px 15px;
+    word-wrap: break-word;
     padding-right: 30px;
-    overflow-y   : auto;
-    overflow-x   : hidden;
-    max-height   : 700px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: 700px;
 }
 
 .ycs-infobar__search button:disabled {
-    color : #888;
+    color: #888;
     cursor: default;
 }
 
 .ycs-open-reply {
-    font-weight     : 500;
-    padding         : 0;
-    line-height     : 0;
-    width           : 18px;
-    height          : 18px;
-    margin          : 0;
-    font-size       : 21px;
-    border          : 0;
+    font-weight: 500;
+    padding: 0;
+    line-height: 0;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    font-size: 21px;
+    border: 0;
     background-color: #34495e1c;
-    vertical-align  : text-bottom;
+    vertical-align: text-bottom;
 }
 
 .ycs-open-reply * {
@@ -214,7 +214,7 @@ html[dark] .ycs_btn_active {
     pointer-events: none;
 }
 
-html[dark="true"] .ycs-open-reply,
+html[dark='true'] .ycs-open-reply,
 html[dark] .ycs-open-reply {
     background-color: #34495e7a;
 }
@@ -228,8 +228,8 @@ html[dark] .ycs-open-reply {
 .ycs-open-comment,
 .ycs-gotochat-video,
 .ycs-goto-video {
-    cursor         : pointer;
-    color          : #065fd4;
+    cursor: pointer;
+    color: #065fd4;
     text-decoration: none;
 }
 
@@ -239,15 +239,15 @@ html[dark] .ycs-open-reply {
 }
 
 .ycs-open-comment {
-    font-weight     : 500;
-    line-height     : 0;
-    padding         : 0;
-    margin          : 0;
-    height          : 18px;
-    width           : 18px;
-    border          : 0;
+    font-weight: 500;
+    line-height: 0;
+    padding: 0;
+    margin: 0;
+    height: 18px;
+    width: 18px;
+    border: 0;
     background-color: #34495e1c;
-    vertical-align  : text-top;
+    vertical-align: text-top;
 }
 
 .ycs-open-comment * {
@@ -255,16 +255,16 @@ html[dark] .ycs-open-reply {
     pointer-events: none;
 }
 
-html[dark="true"] .ycs-open-comment,
+html[dark='true'] .ycs-open-comment,
 html[dark] .ycs-open-comment {
     background-color: #34495e7a;
 }
 
-html[dark="true"] .ycs-open-reply,
-html[dark="true"] .ycs-comment-link,
-html[dark="true"] .ycs-open-comment,
-html[dark="true"] .ycs-gotochat-video,
-html[dark="true"] .ycs-goto-video,
+html[dark='true'] .ycs-open-reply,
+html[dark='true'] .ycs-comment-link,
+html[dark='true'] .ycs-open-comment,
+html[dark='true'] .ycs-gotochat-video,
+html[dark='true'] .ycs-goto-video,
 html[dark] .ycs-open-reply,
 html[dark] .ycs-comment-link,
 html[dark] .ycs-open-comment,
@@ -296,30 +296,30 @@ html[dark] .ycs-goto-video {
 #ycs_cmnts,
 #ycs_cmnts_chat,
 #ycs_cmnts_video {
-    width  : 130px;
+    width: 130px;
     display: inline-block;
 }
 
 .ycs-search-select {
-    float : left;
-    width : 107px;
+    float: left;
+    width: 107px;
     height: 32px;
 }
 
 .ycs-search-select option {
     background-color: #f9f9f9;
-    color           : black;
+    color: black;
 }
 
 .ycs-icon-like,
 .ycs-icons__speech {
-    display : inline-block;
-    padding : 0;
-    margin  : 0;
-    width   : 14px;
-    height  : 14px;
+    display: inline-block;
+    padding: 0;
+    margin: 0;
+    width: 14px;
+    height: 14px;
     position: relative;
-    top     : 2px;
+    top: 2px;
 }
 
 .ycs-icon-like svg,
@@ -333,13 +333,13 @@ html[dark] .ycs-goto-video {
 }
 
 .ycs-wrap-like {
-    display    : inline;
+    display: inline;
     margin-left: 2px;
 }
 
 .ycs-like-count {
     font-size: 12px;
-    color    : #909090;
+    color: #909090;
 }
 
 .ycs-time-size {
@@ -355,7 +355,9 @@ html[dark] .ycs-goto-video {
     display: none;
 }
 
-.ycs-app:not(.ycs-collapsed) .ycs-app-toggle { display: none; }
+.ycs-app:not(.ycs-collapsed) .ycs-app-toggle {
+    display: none;
+}
 
 .ycs-app-toggle {
     display: flex;
@@ -363,7 +365,7 @@ html[dark] .ycs-goto-video {
     align-items: center;
 }
 .ycs-app-toggle .ycs-title {
-  margin-top: -3px;
+    margin-top: -3px;
 }
 
 .ycs-btn-toggle-app {
@@ -375,15 +377,15 @@ html[dark] .ycs-goto-video {
 
 .ycs-comment-block {
     padding-left: 56px;
-    font-size   : 14px;
+    font-size: 14px;
 }
 
 .ycs-goto-video {
-    margin-right   : 4px;
-    margin-bottom  : 2px;
-    font-size      : 13px;
-    font-weight    : 500;
-    line-height    : 1;
+    margin-right: 4px;
+    margin-bottom: 2px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
     text-decoration: none !important;
 }
 
@@ -407,36 +409,36 @@ a.ycs-goto-video:visited {
 }
 
 .ycs-icons svg {
-    display : inline-block;
-    height  : 15px;
-    width   : 15px;
+    display: inline-block;
+    height: 15px;
+    width: 15px;
     position: relative;
-    top     : 3px;
+    top: 3px;
 }
 
 #ycs__show-more-button .ycs-icons__coll_exp {
-    display       : inline-block;
-    width         : 17px;
-    height        : 17px;
+    display: inline-block;
+    width: 17px;
+    height: 17px;
     vertical-align: middle;
-    margin-left   : 7px;
+    margin-left: 7px;
 }
 
 .ycs-icons__play {
-    display     : inline-block;
+    display: inline-block;
     margin-right: 5px;
 }
 
 #ycs_wrap_comments_chat .ycs-icons__play {
     display: inline-block;
-    width  : 19px;
-    height : 19px;
+    width: 19px;
+    height: 19px;
 }
 
 #ycs_wrap_comments_trvideo .ycs-icons__play {
-    display     : inline-block;
-    width       : 22px;
-    height      : 22px;
+    display: inline-block;
+    width: 22px;
+    height: 22px;
     margin-right: 5px;
 }
 
@@ -447,10 +449,10 @@ a.ycs-goto-video:visited {
 }
 
 .ycs-infobar__search button {
-    padding  : 1px 4px;
-    margin   : 1px 0;
+    padding: 1px 4px;
+    margin: 1px 0;
     font-size: 14px;
-    border   : 1px solid #ececec;
+    border: 1px solid #ececec;
 }
 
 #ycs-desc__search {
@@ -458,34 +460,34 @@ a.ycs-goto-video:visited {
 }
 
 .ycs-search__input {
-    width       : 100%;
-    padding     : 0;
-    margin      : 0;
-    border      : 1px solid #ececec;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    border: 1px solid #ececec;
     border-right: 0;
-    height      : 30px;
+    height: 30px;
     padding-left: 15px;
-    font-family : Roboto, Arial, sans-serif;
-    font-size   : 14px;
+    font-family: Roboto, Arial, sans-serif;
+    font-size: 14px;
 }
 
-html[dark="true"] .ycs-search__input,
+html[dark='true'] .ycs-search__input,
 html[dark] .ycs-search__input {
-    border          : 1px solid #303030;
-    border-right    : 0;
+    border: 1px solid #303030;
+    border-right: 0;
     background-color: #313131;
-    color           : #fff;
+    color: #fff;
 }
 
 .ycs-head__title {
-    color          : #030303;
-    font-size      : 13px;
-    font-weight    : 500;
+    color: #030303;
+    font-size: 13px;
+    font-weight: 500;
     text-decoration: none;
-    margin-right   : 5px;
+    margin-right: 5px;
 }
 
-html[dark="true"] .ycs-head__title,
+html[dark='true'] .ycs-head__title,
 html[dark] .ycs-head__title {
     color: #fff;
 }
@@ -501,9 +503,9 @@ html[dark] .ycs-head__title {
 .ycs-datetime-goto,
 .ycs_chat_info {
     text-decoration: none;
-    color          : #606060;
-    font-size      : 13px;
-    margin-right   : 5px;
+    color: #606060;
+    font-size: 13px;
+    margin-right: 5px;
 }
 
 .ycs-datetime-goto:hover,
@@ -511,8 +513,8 @@ html[dark] .ycs-head__title {
     color: #030300;
 }
 
-html[dark="true"] .ycs-datetime-goto,
-html[dark="true"] .ycs_chat_info,
+html[dark='true'] .ycs-datetime-goto,
+html[dark='true'] .ycs_chat_info,
 html[dark] .ycs-datetime-goto,
 html[dark] .ycs_chat_info {
     color: #aaa;
@@ -520,16 +522,16 @@ html[dark] .ycs_chat_info {
 
 .ycs-head-block__lh {
     line-height: 1;
-    height     : 15px;
+    height: 15px;
 }
 
 .ycs-comment__main-text {
-    color      : #030303;
-    font-size  : 14px;
+    color: #030303;
+    font-size: 14px;
     white-space: pre-wrap;
 }
 
-html[dark="true"] .ycs-comment__main-text,
+html[dark='true'] .ycs-comment__main-text,
 html[dark] .ycs-comment__main-text {
     color: #fff;
 }
@@ -543,40 +545,39 @@ html[dark] .ycs-comment__main-text {
     margin-bottom: 25px;
 }
 
-html[dark="true"] .ycs-com-replies,
+html[dark='true'] .ycs-com-replies,
 html[dark] .ycs-com-replies {
     border-bottom: 4px solid #303030;
 }
 
 .ycs-show_more_block {
     border-bottom: 4px solid #e0e0e0;
-    cursor       : pointer;
-    margin       : 0 0 25px 0;
-    padding      : 0;
-    text-align   : center;
+    cursor: pointer;
+    margin: 0 0 25px 0;
+    padding: 0;
+    text-align: center;
 }
 
 .ycs-show_more_block:hover {
     background-color: #ececec;
 }
 
-html[dark="true"] .ycs-show_more_block,
+html[dark='true'] .ycs-show_more_block,
 html[dark] .ycs-show_more_block {
     background-color: #181818;
-    border-bottom   : 4px solid #303030;
-    color           : rgb(238, 238, 238);
+    border-bottom: 4px solid #303030;
+    color: rgb(238, 238, 238);
 }
 
-html[dark="true"] .ycs-show_more_block:hover,
+html[dark='true'] .ycs-show_more_block:hover,
 html[dark] .ycs-show_more_block:hover {
     background-color: #303030;
-    color           : #fff;
+    color: #fff;
 }
 
 #ycs_search_select {
     border-radius: 0;
 }
-
 
 #ycs-input-search,
 #ycs_search_select,
@@ -585,10 +586,10 @@ html[dark] .ycs-show_more_block:hover {
 }
 
 .ycs-chat_donation {
-    font-size  : 15px;
+    font-size: 15px;
     font-weight: bold;
-    padding    : 4px;
-    display    : inline-block;
+    padding: 4px;
+    display: inline-block;
 }
 
 .ycs-chat_donation__bg {
@@ -600,20 +601,20 @@ html[dark] .ycs-show_more_block:hover {
 }
 
 .ycs-search-result-infobar {
-    display        : flex;
+    display: flex;
     justify-content: space-between;
-    align-items    : baseline;
-    max-width      : 990px;
-    margin         : 8px 0px 8px 8px;
+    align-items: baseline;
+    max-width: 990px;
+    margin: 8px 0px 8px 8px;
 }
 
-.ycs-btn-panel>button {
-    display       : inline-block;
-    height        : 24px;
+.ycs-btn-panel > button {
+    display: inline-block;
+    height: 24px;
     vertical-align: middle;
-    margin        : 1px;
-    font-size     : 14px;
-    padding       : 2px 4px;
+    margin: 1px;
+    font-size: 14px;
+    padding: 2px 4px;
 }
 
 .ycs-creator-heart_icon,
@@ -626,33 +627,33 @@ html[dark] .ycs-show_more_block:hover {
 }
 
 .ycs-heart-wrap {
-    display     : inline-block;
-    cursor      : pointer;
+    display: inline-block;
+    cursor: pointer;
     margin-right: 3px;
 }
 
 .ycs-heart-icon {
-    position      : relative;
-    display       : inline-block;
-    color         : red;
-    font-size     : 15px;
+    position: relative;
+    display: inline-block;
+    color: red;
+    font-size: 15px;
     vertical-align: text-bottom;
 }
 
 .ycs-verified-wrap {
-    display     : inline-block;
+    display: inline-block;
     margin-right: 4px;
-    cursor      : pointer;
+    cursor: pointer;
 }
 
 .ycs-verified-icon {
-    font-size  : 13px;
+    font-size: 13px;
     font-weight: bold;
 }
 
 .ycs-user-member {
     vertical-align: bottom;
-    margin-right  : 4px;
+    margin-right: 4px;
 }
 
 .ycs-search-clear {
@@ -660,44 +661,35 @@ html[dark] .ycs-show_more_block:hover {
 }
 
 @media only screen and (min-width: 900px) {
-
     #ycs-search-result {
         padding-right: 30px;
-        overflow-y   : auto;
-        max-height   : 470px;
+        overflow-y: auto;
+        max-height: 470px;
     }
 
     @media only screen and (min-height: 768px) and (max-height: 900px) {
-
         #ycs-search-result {
             padding-right: 30px;
-            overflow-y   : auto;
-            max-height   : 550px;
+            overflow-y: auto;
+            max-height: 550px;
         }
-
     }
 
     @media only screen and (min-height: 900px) {
-
         #ycs-search-result {
             padding-right: 30px;
-            overflow-y   : auto;
-            max-height   : 700px;
+            overflow-y: auto;
+            max-height: 700px;
         }
-
     }
-
 }
 
-@media only screen and (max-height: 600px),
-(max-width: 900px) {
-
+@media only screen and (max-height: 600px), (max-width: 900px) {
     #ycs-search-result {
         padding-right: 0;
-        overflow     : hidden;
-        max-height   : none;
+        overflow: hidden;
+        max-height: none;
     }
-
 }
 
 /* width */
@@ -720,27 +712,26 @@ html[dark] .ycs-show_more_block:hover {
     background: #555;
 }
 
-
 /* width */
-html[dark="true"] #ycs-search-result::-webkit-scrollbar,
+html[dark='true'] #ycs-search-result::-webkit-scrollbar,
 html[dark] #ycs-search-result::-webkit-scrollbar {
     width: 10px;
 }
 
 /* Track */
-html[dark="true"] #ycs-search-result::-webkit-scrollbar-track,
+html[dark='true'] #ycs-search-result::-webkit-scrollbar-track,
 html[dark] #ycs-search-result::-webkit-scrollbar-track {
     background: #404040;
 }
 
 /* Handle */
-html[dark="true"] #ycs-search-result::-webkit-scrollbar-thumb,
+html[dark='true'] #ycs-search-result::-webkit-scrollbar-thumb,
 html[dark] #ycs-search-result::-webkit-scrollbar-thumb {
     background: #aaa;
 }
 
 /* Handle on hover */
-html[dark="true"] #ycs-search-result::-webkit-scrollbar-thumb:hover,
+html[dark='true'] #ycs-search-result::-webkit-scrollbar-thumb:hover,
 html[dark] #ycs-search-result::-webkit-scrollbar-thumb:hover {
     background: #7b7b7b;
 }
@@ -748,11 +739,11 @@ html[dark] #ycs-search-result::-webkit-scrollbar-thumb:hover {
 .ycs_load_wrap,
 .ycs_open_wrap,
 .ycs_save_wrap {
-    display     : inline-block;
+    display: inline-block;
     margin-right: 2px;
 }
 
-html[dark="true"] .ycs-infobar__search button,
+html[dark='true'] .ycs-infobar__search button,
 html[dark] .ycs-infobar__search button {
     border: 0;
 }
@@ -762,9 +753,9 @@ html[dark] .ycs-infobar__search button {
 }
 
 .ycs_infobar_btns:after {
-    content: "";
+    content: '';
     display: table;
-    clear  : both;
+    clear: both;
 }
 
 .ycs_load_wrap,
@@ -777,60 +768,59 @@ html[dark] .ycs-infobar__search button {
 }
 
 .ycs_notify_box {
-    font-size  : 12px;
+    font-size: 12px;
     margin-left: 15px;
 }
 
 .ycs_noselect {
     -webkit-touch-callout: none;
     /* iOS Safari */
-    -webkit-user-select  : none;
+    -webkit-user-select: none;
     /* Safari */
     /* Konqueror HTML */
-    -moz-user-select     : none;
+    -moz-user-select: none;
     /* Old versions of Firefox */
-    -ms-user-select      : none;
+    -ms-user-select: none;
     /* Internet Explorer/Edge */
-    user-select          : none;
+    user-select: none;
     /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
 }
 
 #ycs_btn_open_modal {
-    color           : #383838;
-    font-size       : 25px;
-    border          : 1px solid #ececec;
+    color: #383838;
+    font-size: 25px;
+    border: 1px solid #ececec;
     background-color: #f9f9f9;
-    padding         : 0px 7px;
-    float           : right;
-    font-weight     : bolder;
-    cursor          : pointer;
+    padding: 0px 7px;
+    float: right;
+    font-weight: bolder;
+    cursor: pointer;
 }
 
-html[dark="true"] #ycs_btn_open_modal,
+html[dark='true'] #ycs_btn_open_modal,
 html[dark] #ycs_btn_open_modal {
     border-color: #303030;
 }
-
 
 /* MODAL */
 
 /* The Modal (background) */
 .ycs_modal {
-    display         : none;
+    display: none;
     /* Hidden by default */
-    position        : fixed;
+    position: fixed;
     /* Stay in place */
-    z-index         : 9999;
+    z-index: 9999;
     /* Sit on top */
-    padding-top     : 20px;
+    padding-top: 20px;
     /* Location of the box */
-    left            : 0;
-    top             : 0;
-    width           : 100%;
+    left: 0;
+    top: 0;
+    width: 100%;
     /* Full width */
-    height          : 100%;
+    height: 100%;
     /* Full height */
-    overflow        : auto;
+    overflow: auto;
     /* Enable scroll if needed */
     background-color: rgb(0, 0, 0);
     /* Fallback color */
@@ -840,45 +830,44 @@ html[dark] #ycs_btn_open_modal {
 
 /* Modal Content */
 .ycs_modal-content {
-    font-family     : Roboto, Arial, sans-serif;
-    font-size       : 2vh;
+    font-family: Roboto, Arial, sans-serif;
+    font-size: 2vh;
     background-color: #fff;
-    margin          : auto;
-    padding         : 20px;
-    border          : 1px solid #888;
-    width           : 80%;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
 }
 
 /* The Close Button */
 .ycs_btn_close {
-    border       : 0;
-    background   : none;
-    padding      : 10px;
+    border: 0;
+    background: none;
+    padding: 10px;
     margin-bottom: -35px;
-    line-height  : 15px;
-    color        : #aaaaaa;
-    float        : right;
-    font-size    : 28px;
-    font-weight  : bold;
+    line-height: 15px;
+    color: #aaaaaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
 }
 
 .ycs_btn_close:hover,
 .ycs_btn_close:focus {
-    color          : #000;
+    color: #000;
     text-decoration: none;
-    cursor         : pointer;
+    cursor: pointer;
 }
 
 .ycs_modal_body {
-    clear  : both;
+    clear: both;
     padding: 14px 40px;
-    color  : #1f1f1f;
-    ;
+    color: #1f1f1f;
 }
 
 .ycs_modal_body code {
     background-color: #f3f4f4;
-    padding         : 1px 6px;
+    padding: 1px 6px;
 }
 
 .ycs_modal_body h2 {
@@ -894,17 +883,17 @@ html[dark] #ycs_btn_open_modal {
     padding-bottom: 10px;
 }
 
-html[dark="true"] .ycs_modal-content,
+html[dark='true'] .ycs_modal-content,
 html[dark] .ycs_modal-content {
     background-color: #303030;
 }
 
-html[dark="true"] .ycs_modal_body,
+html[dark='true'] .ycs_modal_body,
 html[dark] .ycs_modal_body {
     color: #fff;
 }
 
-html[dark="true"] .ycs_modal_body code,
+html[dark='true'] .ycs_modal_body code,
 html[dark] .ycs_modal_body code {
     color: #303030;
 }
@@ -922,9 +911,9 @@ html[dark] .ycs_modal_body code {
 }
 
 .ycs_icons_tm svg {
-    display       : inline-block;
-    width         : 3.5vh;
-    height        : auto;
+    display: inline-block;
+    width: 3.5vh;
+    height: auto;
     vertical-align: bottom;
 }
 
@@ -933,33 +922,33 @@ html[dark] .ycs_modal_body code {
 }
 
 #ycs_anchor_vmode {
-    height : 1px;
+    height: 1px;
     display: block;
 }
 
 .ycs_donate_patreon {
-    float      : right;
+    float: right;
     margin-left: 20px;
 }
 
 #ycs-load-all {
-    display  : block;
+    display: block;
     min-width: 64px;
 }
 
 .ycs_btn_load-stop {
-    border          : 1px solid #ececec;
-    position        : absolute;
-    min-width       : 64px;
-    border-top      : 0;
+    border: 1px solid #ececec;
+    position: absolute;
+    min-width: 64px;
+    border-top: 0;
     background-color: #f9f9f9;
-    font-size       : 12px;
-    cursor          : pointer;
-    padding         : 0px;
-    margin          : 0;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0px;
+    margin: 0;
 }
 
-html[dark="true"] .ycs_btn_load-stop,
+html[dark='true'] .ycs_btn_load-stop,
 html[dark] .ycs_btn_load-stop {
     border-top: 1px solid #181818;
 }
@@ -969,58 +958,58 @@ html[dark] .ycs_btn_load-stop {
 }
 
 span.ycs-mark-words {
-    display         : inline;
-    color           : black;
+    display: inline;
+    color: black;
     background-color: #ffff48;
 }
 
-html[dark="true"] span.ycs-mark-words,
+html[dark='true'] span.ycs-mark-words,
 html[dark] span.ycs-mark-words {
     background-color: #fff9c4;
 }
 
 .ycs-title-cache-info {
-    color : #007200;
+    color: #007200;
     cursor: help;
 }
 
-html[dark="true"] .ycs-title-cache-info,
+html[dark='true'] .ycs-title-cache-info,
 html[dark] .ycs-title-cache-info {
     color: #0fab58;
 }
 
 .ycs-save-select {
     font-size: 13px;
-    height   : 20px;
-    padding  : 0;
-    margin   : 1px 0px 0px 0px;
+    height: 20px;
+    padding: 0;
+    margin: 1px 0px 0px 0px;
 }
 
-html[dark="true"] .ycs-save-select,
+html[dark='true'] .ycs-save-select,
 html[dark] .ycs-save-select {
     height: 18px;
 }
 
 .ycs-export-all-comments {
-    position  : absolute;
+    position: absolute;
     margin-top: 37px;
-    width     : 64px;
+    width: 64px;
 }
 
-html[dark="true"] .ycs-export-all-comments,
+html[dark='true'] .ycs-export-all-comments,
 html[dark] .ycs-export-all-comments {
     margin-top: 32px;
 }
 
 .ycs-ext-search_block {
-    display        : flex;
+    display: flex;
     justify-content: flex-start;
-    align-items    : baseline;
-    margin-top     : 5px;
+    align-items: baseline;
+    margin-top: 5px;
 }
 
 .ycs-ext-search_option {
-    display    : inline-block;
+    display: inline-block;
     margin-left: 15%;
 }
 
@@ -1029,20 +1018,20 @@ html[dark] .ycs-export-all-comments {
 }
 
 .ycs-ext-search_link {
-    font-size      : 11px;
-    font-weight    : bold;
+    font-size: 11px;
+    font-weight: bold;
     text-decoration: none;
-    color          : black;
-    padding        : 0px 3px;
-    display        : inline-block;
+    color: black;
+    padding: 0px 3px;
+    display: inline-block;
 }
 
-html[dark="true"] .ycs-ext-search_link,
+html[dark='true'] .ycs-ext-search_link,
 html[dark] .ycs-ext-search_link {
     color: white;
 }
 
 #ycs_title_information {
-  position: relative;
-  top: 5px;
+    position: relative;
+    top: 5px;
 }

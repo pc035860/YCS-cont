@@ -11,7 +11,7 @@
   "bracketSameLine": false,
   "arrowParens": "always",
   "proseWrap": "preserve",
-  "endOfLine": "auto",
+  "endOfLine": "lf",
   "embeddedLanguageFormatting": "auto"
 }
 

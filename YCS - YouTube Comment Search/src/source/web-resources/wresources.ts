@@ -97,7 +97,10 @@ import {
             console.log('YCS: yt-navigate-finish detected');
             console.log('isInitAppCalled: ', isInitAppCalled);
             console.log('isVideoPage: ', isVideoPage());
-            console.log('document.querySelector(#meta.style-scope.ytd-watch-flexy): ', document.querySelector('#meta.style-scope.ytd-watch-flexy'));
+            console.log(
+                'document.querySelector(#meta.style-scope.ytd-watch-flexy): ',
+                document.querySelector('#meta.style-scope.ytd-watch-flexy')
+            );
         }
 
         // Only trigger initial call to initApp()
@@ -116,7 +119,10 @@ import {
             console.log('YCS: popstate detected');
             console.log('isInitAppCalled: ', isInitAppCalled);
             console.log('isVideoPage: ', isVideoPage());
-            console.log('document.querySelector(#meta.style-scope.ytd-watch-flexy): ', document.querySelector('#meta.style-scope.ytd-watch-flexy'));
+            console.log(
+                'document.querySelector(#meta.style-scope.ytd-watch-flexy): ',
+                document.querySelector('#meta.style-scope.ytd-watch-flexy')
+            );
         }
 
         // Small delay to let YouTube update DOM after history navigation
@@ -310,18 +316,41 @@ import {
 
                     const param: IParamSearch = {} as IParamSearch;
                     switch (code) {
-                        case 'timestamp': param.timestamp = true; break;
-                        case 'author': param.author = true; break;
-                        case 'heart': param.heart = true; break;
-                        case 'verified': param.verified = true; break;
-                        case 'links': param.links = true; break;
-                        case 'likes': param.likes = true; break;
-                        case 'replied': param.replied = true; break;
-                        case 'members': param.members = true; break;
-                        case 'donated': param.donated = true; break;
-                        case 'random': param.random = true; break;
-                        case 'sortFirst': param.sortFirst = true; break;
-                        default: return undefined;
+                        case 'timestamp':
+                            param.timestamp = true;
+                            break;
+                        case 'author':
+                            param.author = true;
+                            break;
+                        case 'heart':
+                            param.heart = true;
+                            break;
+                        case 'verified':
+                            param.verified = true;
+                            break;
+                        case 'links':
+                            param.links = true;
+                            break;
+                        case 'likes':
+                            param.likes = true;
+                            break;
+                        case 'replied':
+                            param.replied = true;
+                            break;
+                        case 'members':
+                            param.members = true;
+                            break;
+                        case 'donated':
+                            param.donated = true;
+                            break;
+                        case 'random':
+                            param.random = true;
+                            break;
+                        case 'sortFirst':
+                            param.sortFirst = true;
+                            break;
+                        default:
+                            return undefined;
                     }
 
                     // Get sort order from the active button's dataset
@@ -964,7 +993,8 @@ import {
 
             // initialize clear-text button visibility
             if (btnSearchClearText) {
-                (btnSearchClearText as HTMLButtonElement).style.visibility = (eInputSearch as HTMLInputElement)?.value?.trim()?.length > 0 ? 'visible' : 'hidden';
+                (btnSearchClearText as HTMLButtonElement).style.visibility =
+                    (eInputSearch as HTMLInputElement)?.value?.trim()?.length > 0 ? 'visible' : 'hidden';
                 btnSearchClearText.addEventListener('click', () => {
                     try {
                         if (eInputSearch) {

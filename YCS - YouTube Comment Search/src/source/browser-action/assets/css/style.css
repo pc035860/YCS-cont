@@ -1,16 +1,16 @@
 * {
-    box-sizing : border-box;
+    box-sizing: border-box;
     font-family: 'Ubuntu Mono', monospace;
 }
 
 body {
     background-color: #2f3640;
-    color           : white;
+    color: white;
 }
 
 .ycs-main {
-    width    : 370px;
-    padding  : 8px;
+    width: 370px;
+    padding: 8px;
     font-size: 16px;
 }
 
@@ -19,13 +19,13 @@ p.ycs-info-title {
 }
 
 .ycs-info-author {
-    float     : left;
-    margin    : 0px;
+    float: left;
+    margin: 0px;
     margin-top: 12px;
 }
 
 .ycs-info-email {
-    margin : 15px 0px 5px 0px;
+    margin: 15px 0px 5px 0px;
     padding: 0px;
 }
 
@@ -34,18 +34,18 @@ p.ycs-info-title {
 }
 
 .ycs_opts_btn {
-    margin          : 0;
-    padding         : 5px;
-    font-size       : 14px;
+    margin: 0;
+    padding: 5px;
+    font-size: 14px;
     background-color: #2f3640;
-    border          : 2px solid #adadad;
-    cursor          : pointer;
-    color           : #fff;
+    border: 2px solid #adadad;
+    cursor: pointer;
+    color: #fff;
 }
 
 .ycs_opts_btn:hover {
     background-color: #262626;
-    color           : #fff;
+    color: #fff;
 }
 
 .ycs_opt_mark {
@@ -57,8 +57,8 @@ p.ycs-info-title {
 }
 
 .ycs_opt_desc_head {
-    border       : 2px solid #adadad;
-    padding      : 12px;
+    border: 2px solid #adadad;
+    padding: 12px;
     margin-bottom: 10px;
 }
 
@@ -80,7 +80,7 @@ p.ycs-info-title {
 
 .ycs_btns_remove_cache {
     background-color: #8a0000;
-    color           : #fff;
+    color: #fff;
 }
 
 .ycs_btns_remove_cache:hover {

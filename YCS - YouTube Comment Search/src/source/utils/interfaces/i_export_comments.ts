@@ -2,8 +2,8 @@ export interface IReplyComment {
     originComment: {
         commentRenderer: {
             commentId: string;
-        }
-    }
+        };
+    };
 }
 
 export interface IReply {

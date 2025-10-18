@@ -32,33 +32,18 @@
     },
     "content_scripts": [
         {
-            "matches": [
-                "*://*.youtube.com/*"
-            ],
+            "matches": ["*://*.youtube.com/*"],
             "run_at": "document_idle",
-            "js": [
-                "content-scripts/cscripts.js"
-            ],
-            "css": [
-                "content-scripts/style.css"
-            ]
+            "js": ["content-scripts/cscripts.js"],
+            "css": ["content-scripts/style.css"]
         }
     ],
     "web_accessible_resources": [
         {
-            "resources": [
-                "web-resources/*.js"
-            ],
-            "matches": [
-                "*://*.youtube.com/*"
-            ]
+            "resources": ["web-resources/*.js"],
+            "matches": ["*://*.youtube.com/*"]
         }
     ],
-    "permissions": [
-        "storage",
-        "scripting"
-    ],
-    "host_permissions": [
-        "*://*.youtube.com/*"
-    ]
+    "permissions": ["storage", "scripting"],
+    "host_permissions": ["*://*.youtube.com/*"]
 }

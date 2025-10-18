@@ -13,7 +13,6 @@ export interface GetParams {
     };
 }
 
-
 export interface ISheetDetails {
     'Cache timestamp': number;
     URL: string;
@@ -34,23 +33,21 @@ export interface ISheetDetailsParam {
     total: number;
 }
 
-
 export interface ISheetCommentsParam {
     author: {
         nameAuthor: string;
         authorIsChannelOwner: boolean;
         channel: string;
-    }
+    };
     commentReplies: {
-        replies: Array<ISheetCommentsParam>
-    }
+        replies: Array<ISheetCommentsParam>;
+    };
     commentMessage: string;
     commentUrl: string;
     member: string;
     publishedTimeText: string;
     totalLikes: number;
 }
-
 
 export interface ISheetComments {
     URL: string;
@@ -64,8 +61,7 @@ export interface ISheetComments {
     Replies: number;
 }
 
-export type ISheetRepliesParam = ISheetCommentsParam
-
+export type ISheetRepliesParam = ISheetCommentsParam;
 
 export interface ISheetReplies {
     'Сommented URL': string;
@@ -78,16 +74,14 @@ export interface ISheetReplies {
     'Total likes': number;
 }
 
-
 export interface ISheetDetailsChatParam {
     cachedDate: number;
     urlVideo: string;
     videoId: string;
     titleVideo: string;
     total: number;
-    commentsChat: Array<ISheetChatCommentsParam>
+    commentsChat: Array<ISheetChatCommentsParam>;
 }
-
 
 export interface ISheetChatDetails {
     'Cache timestamp': number;
@@ -103,7 +97,7 @@ export interface ISheetChatCommentsParam {
         nameAuthor: string;
         channel: string;
         member: string;
-    }
+    };
     commentMessage: string;
     timestampText: string;
 }
@@ -125,7 +119,7 @@ export interface ISheetDetailsTrVideoParam {
     videoId: string;
     titleTrVideo: string;
     total: number;
-    trVideo: Array<ISheetTrVideoParam>
+    trVideo: Array<ISheetTrVideoParam>;
 }
 
 export interface ISheetTrVideoDetails {
@@ -145,7 +139,6 @@ export interface ISheetTrVideoParam {
     message: string;
 }
 
-
 export interface ISheetTrVideo {
     URL: string;
     'Video timestamp': string;
@@ -153,7 +146,6 @@ export interface ISheetTrVideo {
     'Duration Ms.': number;
     Message: string;
 }
-
 
 /**
  * API version type for chat continuation data

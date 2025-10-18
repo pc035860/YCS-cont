@@ -1,21 +1,16 @@
-
 function insertFileScript(pathFile: string, selector: string): void {
-
     try {
-
         const node: HTMLElement | null = document.querySelector(selector);
         const script = document.createElement('script');
 
         script.setAttribute('type', 'text/javascript');
         script.setAttribute('src', pathFile);
-        
-        node?.appendChild(script);
 
+        node?.appendChild(script);
     } catch (e) {
         console.error('Error. Unable to inject script.', e);
         throw e;
     }
-
 }
 
 async function insertFileScriptWithLoad(pathFile: string, selector: string): Promise<void> {
@@ -28,13 +23,34 @@ async function insertFileScriptWithLoad(pathFile: string, selector: string): Pro
                 script.removeEventListener('load', onLoad);
                 script.removeEventListener('error', onError);
             };
-            const onLoad = (): void => { cleanup(); resolve(); };
-            const onError = (): void => { cleanup(); resolve(); };
+            const onLoad = (): void => {
+                cleanup();
+                resolve();
+            };
+            const onError = (): void => {
+                cleanup();
+                resolve();
+            };
             // Fallback: resolve even if neither load/error fires (rare), after 1500ms
-            const t = setTimeout(() => { cleanup(); resolve(); }, 1500);
-            const clearAll = (): void => { try { clearTimeout(t); } catch { /* noop */ } };
-            script.addEventListener('load', () => { clearAll(); onLoad(); });
-            script.addEventListener('error', () => { clearAll(); onError(); });
+            const t = setTimeout(() => {
+                cleanup();
+                resolve();
+            }, 1500);
+            const clearAll = (): void => {
+                try {
+                    clearTimeout(t);
+                } catch {
+                    /* noop */
+                }
+            };
+            script.addEventListener('load', () => {
+                clearAll();
+                onLoad();
+            });
+            script.addEventListener('error', () => {
+                clearAll();
+                onError();
+            });
             script.setAttribute('type', 'text/javascript');
             script.setAttribute('src', pathFile);
             node.appendChild(script);
@@ -46,7 +62,9 @@ async function insertFileScriptWithLoad(pathFile: string, selector: string): Pro
 }
 
 function removeInjectionYCS(): void {
-    const scripts = document.querySelectorAll(`script[src="chrome-extension://${chrome.runtime.id}/web-resources/wresources.js"]`);
+    const scripts = document.querySelectorAll(
+        `script[src="chrome-extension://${chrome.runtime.id}/web-resources/wresources.js"]`
+    );
     for (const script of scripts) {
         script.remove();
     }
@@ -65,10 +83,4 @@ function removeInjections(srcs: string[]): void {
     }
 }
 
-
-export {
-    insertFileScript,
-    insertFileScriptWithLoad,
-    removeInjectionYCS,
-    removeInjections
-};
+export { insertFileScript, insertFileScriptWithLoad, removeInjectionYCS, removeInjections };
