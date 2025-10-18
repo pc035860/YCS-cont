@@ -4,36 +4,12 @@ import 'abort-controller/polyfill';
 
 import Fuse from '../../../node_modules/fuse.js/dist/fuse';
 
+import { GlobalStore, wrapTryCatch, getCleanUrlVideo, isVideoPage } from '../utils/common';
 import {
     downloadFile,
-    filterAuthorChat,
-    filterAuthorComments,
-    filterHeartComments,
-    filterChatNewestFirst,
-    filterDonatedChat,
-    filterVerifiedComments,
-    filterVerifiedChatComments,
-    filterLikesComments,
-    filterLinksTrpVideoComments,
-    filterMemberComments,
-    filterMembersChat,
-    filterNewestFirst,
-    filterRepliedComments,
-    filterLinksChatComments,
-    getAllCommentsModeV2,
-    getChatComments,
-    getCleanUrlVideo,
-    filterLinksComments,
-    getCommentsChatHtmlText,
-    getCommentsHtmlText,
-    getCommentsTrVideoHtmlText,
     getRandomComment,
-    filterAllTrpVideoComments,
-    getTranscriptVideo,
-    GlobalStore,
     initShowBarFAQ,
     initShowViewMode,
-    isVideoPage,
     openComments,
     openCommentsChat,
     openCommentsTrVideo,
@@ -42,9 +18,34 @@ import {
     sendGetCacheInIDB,
     sendMsgToBadge,
     setCacheToIDB,
-    showLoadComments,
-    wrapTryCatch
-} from '../utils/assist';
+    showLoadComments
+} from '../utils/dom';
+import {
+    filterAuthorComments,
+    filterHeartComments,
+    filterVerifiedComments,
+    filterLikesComments,
+    filterLinksTrpVideoComments,
+    filterMemberComments,
+    filterNewestFirst,
+    filterRepliedComments,
+    filterLinksComments,
+    filterAllTrpVideoComments
+} from '../utils/filters/comments';
+import {
+    filterAuthorChat,
+    filterMembersChat,
+    filterDonatedChat,
+    filterVerifiedChatComments,
+    filterLinksChatComments,
+    filterChatNewestFirst
+} from '../utils/filters/chat';
+import { getAllCommentsModeV2, getChatComments, getTranscriptVideo } from '../utils/innertube';
+import {
+    getCommentsChatHtmlText,
+    getCommentsHtmlText,
+    getCommentsTrVideoHtmlText
+} from '../utils/formatting';
 
 import { ICommentsFuseResult, IParamSearch, ISelectedSearch } from '../utils/interfaces/i_types';
 

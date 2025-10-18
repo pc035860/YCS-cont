@@ -1,5 +1,6 @@
 import { options } from '../../../config/options';
-import { formatBytes, isNumeric } from '../../../utils/assist';
+import { formatBytes } from '../../../utils/formatting';
+import { isNumeric } from '../../../utils/common';
 import { idb } from '../../../utils/libs';
 
 import { IStorageEstimate } from '../../../utils/interfaces/i_types';
