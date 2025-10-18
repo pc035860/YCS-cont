@@ -2,6 +2,8 @@ node_modules
 .parcel-cache
 dist/
 dev/
+packing/
+.DS_Store
 
 # agents
 .cursor
