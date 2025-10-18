@@ -1,94 +1,124 @@
-[![YCS - logo](images/logo-ycs-128.png)](https://chrome.google.com/webstore/detail/pmfhcilikeembgbiadjiojgfgcfbcoaa)
+# YCS-Continued
 
-# YCS - YouTube Comment Search
+> Source-based development repository. Main branch: **v2-source**
 
-[<img src="images/YCS%20-%201280%20x%20640.jpg" alt="YouTube Comment Search" width="1280"/>](https://chrome.google.com/webstore/detail/pmfhcilikeembgbiadjiojgfgcfbcoaa)
+## Project Background
 
-### Search comments, replies, chat replay, video transcript for the current video on YouTube by contents, authors, time.
-## Features
-✅ Quick search by timestamp, author, content<br>
-✅ Export comments, replies, chat replay, video transcript<br>
-✅ Flexible (fuzzy) search<br>
-✅ Multilingual search<br>
-✅ Search by Emoji<br>
-✅ Works in incognito mode<br>
-✅ Unlimited load comments<br>
-✅ Time stamps - show comments, replies with time stamps<br>
-✅ Author - show comments, replies and chat comments from the author<br>
-✅ Likes - show comments, replies by number of likes<br>
-✅ Replied - show comments by number of replies<br>
-✅ Members - show comments, replies and chat comments from channel members<br>
-✅ Donated - show chat comments from users who have donated<br>
-✅ Small size, low use CPU and memory
+This repository is the source-based continuation of **YCS (YouTube Comment Search)** extension.
 
-## Instructions
+**Status**:
+- Main development branch: `v2-source`
+- Supported browsers: Chrome 88+ (Manifest V3), Firefox
+- Original project: [sonigy/YCS](https://github.com/sonigy/YCS)
+- Migrated from `ycs_cont_migration` branch to single-repo structure
 
-1) Open video on YouTube
-2) Find the YCS extension under the current video and click the button "Load all" or choose to load the categories
-3) Write the search query, press Enter or click the button Search
+The extension enables searching, filtering, and exporting YouTube comments, replies, chat replays, and video transcripts, with continuous fixes for YouTube API changes (2024-2025).
 
-## Extended Search
+## Development Setup
 
-[<img src="images/ycs-ext-search.png" alt="YCS. Extended search"/>](https://chrome.google.com/webstore/detail/pmfhcilikeembgbiadjiojgfgcfbcoaa)
+### Prerequisites
+- Node.js 16+
+- npm
 
-This form of advanced searching allows you to fine-tune results.
+### Installation & Build
 
-White space acts as an **AND** operator, while a single pipe (`|`) character acts as an **OR** operator. To escape white space, use double quote ex. `="scheme language"` for exact match.
+All development commands run from the **`app/`** directory:
 
-| Token       | Match type                 | Description                            |
-| ----------- | -------------------------- | -------------------------------------- |
-| `jscript`   | fuzzy-match                | Items that fuzzy match `jscript`       |
-| `=scheme`   | exact-match                | Items that are `scheme`                |
-| `'python`   | include-match              | Items that include `python`            |
-| `!ruby`     | inverse-exact-match        | Items that do not include `ruby`       |
-| `^java`     | prefix-exact-match         | Items that start with `java`           |
-| `!^earlang` | inverse-prefix-exact-match | Items that do not start with `earlang` |
-| `.js$`      | suffix-exact-match         | Items that end with `.js`              |
-| `!.go$`     | inverse-suffix-exact-match | Items that do not end with `.go`       |
+```bash
+# Install dependencies
+cd app
+npm ci
 
-White space acts as an **AND** operator, while a single pipe (`|`) character acts as an **OR** operator.
+# Development build (watch mode, HMR disabled)
+npm run dev
 
-## FAQ
-1) **How to like, reply to a comment?**<br>
-    In the search results, click on the date (like, "2 months ago") of the comment and will open a new window with an active comment or reply under the video, where you can do any action.
+# Production build → app/dist/
+npm run build
 
-2) **How do I find all timestamped comments and replies on a video?**<br>
-    Click on the "Time stamps" button under the search bar.
+# Clean cache and rebuild
+npm run rebuild
 
-3) **How can I find addressed to user's comments, replies?**<br>
-    Write `@` in the input field.
+# Lint check
+npm run lint
 
-4) **How can I view the contents of the video transcript at a specific minute?**<br>
-    You can write a search query for Trp. Video, in the `mm:ss` format. For example:<br>
-    `:` - all the text of the video transcript.<br>
-    `15:` - all the text in the 15th minute.<br>
-And etc.
+# Clean all build artifacts
+npm run rm
+```
 
-5) **How can I view the comment for a found reply?**<br>
-    Click on the **▼** button.
+### Load Extension in Browser
 
-6) **How can I see the all replies to the found comment?**<br>
-    In the header of the found comment, you can find the reply icon and the count, to see the replies click on the **+** button.
+1. Build the extension: `cd app && npm run build`
+2. Open browser extension page:
+   - Chrome: `chrome://extensions`
+   - Firefox: `about:debugging#/runtime/this-firefox`
+3. Enable "Developer mode"
+4. Click "Load unpacked" and select **`app/dist/`** directory
 
-7) **How to use search in YouTube shorts?**<br>
-    Open a YouTube video short. Click badge **YCS** (right of the address bar) and click on the button **Open YT short**.
+## Release Workflow
 
+From project root, use the Makefile:
 
-## Requirements specification:
-Chrome: minimum version 88
+```bash
+make release TYPE=patch   # Auto bump, commit, tag, build, package
+make release TYPE=minor
+make release TYPE=major
+```
 
-## Install
-[![Chrome Web Store](images/ChromeWebStore_Badge_v2_206x58.png)](https://chrome.google.com/webstore/detail/pmfhcilikeembgbiadjiojgfgcfbcoaa)\
-Install: [YCS - YouTube Comment Search](https://chrome.google.com/webstore/detail/pmfhcilikeembgbiadjiojgfgcfbcoaa)
+This will:
+- Update version in `app/manifest.json` and `app/manifest.firefox.json`
+- Create git commit and tag
+- Build both Chrome and Firefox versions
+- Package as `.zip` files in `packing/` directory
 
-## Permissions
-youtube.com
+**Manual build** (if needed):
+```bash
+./scripts/build-extension.sh chrome    # or firefox
+./scripts/package-extension.sh chrome  # or firefox
+```
 
-## Privacy
-[Privacy Policy](agreements/Privacy-Policy.txt)
+## Technical Documentation
 
-## Author
-Was created by [Eugene Gubar](https://github.com/sonigy)
+### Architecture Overview
 
-## License
-This project is licensed under the MIT [License](LICENSE)
+**Three-layer communication model**:
+```
+YouTube.com Page
+  ├─ web-resources.ts (Web Page Layer)
+  │  └─ Search logic, UI rendering, Fuse.js integration
+  │  └─ window.postMessage() ↕️
+  ├─ content-scripts.ts (Content Script Layer)
+  │  └─ Message relay, script injection management
+  │  └─ chrome.runtime.sendMessage() ↕️
+  └─ background.ts (Service Worker)
+     └─ IndexedDB cache, storage monitoring, badge updates
+```
+
+**Why this structure?** Manifest V3 security restrictions require web page code to run in isolated context. The content script acts as a secure bridge between web page and extension background.
+
+**Build system**: Parcel 2.0.1 with TypeScript (ES6 target, strict mode)
+
+**Storage**: IndexedDB cache with auto-cleanup (200 MB quota limit, configurable in options)
+
+### YouTube Innertube API Integration
+
+The extension integrates with YouTube's internal Innertube API for comments, chat replays, and transcripts.
+
+**Documentation** (in `app/docs/`):
+- `innertube-comments-integration.md` - **Start here** for comment integration
+- `innertube-migration-guide.md` - frameworkUpdates migration guide
+- `innertube-chat-replay-api-changes.md` - Chat replay API changes
+- `continuation-processing.md` - Implementation reference
+
+**Key directories**:
+- `app/src/source/` - TypeScript source code
+  - `utils/assist.ts` - Core Innertube API logic
+  - `web-resources/` - Search UI and Fuse.js integration
+  - `content-scripts/` - Message relay layer
+  - `background.ts` - Service Worker, IndexedDB cache
+- `app/src/static/` - Static assets (manifest, icons, i18n)
+- `scripts/` - Build automation
+- `packing/` - Release artifacts
+
+## Credits
+- Original YCS by **sonigy**
+- YCS-Continued maintained by **pc035860**
