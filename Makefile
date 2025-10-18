@@ -35,18 +35,19 @@ release:
 	\
 	echo "📦 Step 2: Committing changes..." && \
 	git add app/manifest.json app/manifest.firefox.json && \
-	git commit -m "Bump version $$VERSION" && \
-	git tag -a "$$VERSION" -m "Release $$VERSION" && \
+	git commit -m "Bump version to $$VERSION" && \
+	git tag -a "v$$VERSION" -m "Release v$$VERSION" && \
 	echo "" && \
 	\
 	echo "🏗️  Step 3: Building extensions..." && \
 	$(MAKE) build-all VERSION=$$VERSION && \
 	echo "" && \
 	\
-	echo "✅ Release $$VERSION completed!" && \
+	echo "✅ Release v$$VERSION completed!" && \
 	echo "" && \
 	echo "📋 Summary:" && \
-	echo "   - Version: $$VERSION" && \
+	echo "   - Version: v$$VERSION" && \
+	echo "   - Git tag: v$$VERSION" && \
 	echo "   - Chrome: packing/chrome-$$VERSION.zip" && \
 	echo "   - Firefox: packing/firefox-$$VERSION.zip" && \
 	echo "" && \
