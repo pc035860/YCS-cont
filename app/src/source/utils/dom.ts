@@ -1,6 +1,6 @@
 import Mark, { MarkOptions } from 'mark.js';
 
-import { GlobalStore, getCleanUrlVideo, getRandomInt, oIsEmpty, wrapTryCatch } from './common';
+import { GlobalStore, getCleanUrlVideo, getRandomInt, getVideoId, oIsEmpty, wrapTryCatch } from './common';
 
 function removeClass(elms: object, s: string): void {
     try {
@@ -233,12 +233,18 @@ function setCacheToIDB(value: any, url: string, title: string): void {
 
         window.postMessage(
             {
-                type: 'YCS_CACHE',
-                value: JSON.stringify(value),
-                url: getCleanUrlVideo(url),
-                title
+                type: 'YCS_CACHE_STORAGE_SET',
+                body: {
+                    url,
+                    videoId: getVideoId(getCleanUrlVideo(url) as string),
+                    date: new Date().getTime(),
+                    titleVideo: title,
+                    comments: value.comments,
+                    commentsChat: value.commentsChat,
+                    commentsTrVideo: value.commentsTrVideo
+                }
             },
-            '*'
+            window.location.origin
         );
     } catch (err) {
         console.error(err);
@@ -251,10 +257,12 @@ function sendGetCacheInIDB(url: string): void {
 
         window.postMessage(
             {
-                type: 'YCS_GET_CACHE',
-                value: getCleanUrlVideo(url)
+                type: 'YCS_CACHE_STORAGE_GET',
+                body: {
+                    videoId: getVideoId(getCleanUrlVideo(url) as string)
+                }
             },
-            '*'
+            window.location.origin
         );
     } catch (err) {
         console.error(err);
