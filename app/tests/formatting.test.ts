@@ -6,7 +6,13 @@ import { esc, safeUrl, sanitizeHtml } from '../src/source/utils/formatting';
 test('esc converts special characters into HTML entities', () => {
     const raw = "<div>&'\"";
     const encoded = esc(raw);
-    assert.equal(encoded, '&lt;div&gt;&amp;&apos;&quot;');
+    assert.equal(encoded, '&lt;div&gt;&amp;&#39;&quot;');
+});
+
+test('esc preserves existing HTML entities', () => {
+    const raw = 'Fish &amp; Chips &copy; 2024 &#62;';
+    const encoded = esc(raw);
+    assert.equal(encoded, 'Fish &amp; Chips &copy; 2024 &#62;');
 });
 
 test('safeUrl normalizes common URLs and blocks non-http/https schemes', () => {

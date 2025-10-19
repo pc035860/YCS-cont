@@ -1,3 +1,5 @@
+import { decode } from 'html-entities';
+
 const GlobalStore = ((): any => {
     const store = {};
 
@@ -76,12 +78,22 @@ function wrapTryCatch<T>(fn: () => T): T | undefined {
 function escapeHtml(input: unknown): string {
     try {
         const s = String(input ?? '');
-        return s
-            .replace(/&/g, '&amp;')
+        const encodedAmpersands = s.replace(/&(?!#\d+;|#x[0-9a-fA-F]+;|[a-zA-Z][a-zA-Z0-9]+;)/g, '&amp;');
+
+        return encodedAmpersands
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    } catch {
+        return '';
+    }
+}
+
+function decodeHtml(input: unknown): string {
+    try {
+        const s = String(input ?? '');
+        return decode(s);
     } catch {
         return '';
     }
@@ -248,6 +260,7 @@ export {
     getObj,
     wrapTryCatch,
     escapeHtml,
+    decodeHtml,
     deepFindObjKey,
     delayMs,
     getVideoId,

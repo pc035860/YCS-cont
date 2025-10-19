@@ -1,10 +1,9 @@
-import { encode } from 'html-entities';
-import { wrapTryCatch } from './common';
+import { escapeHtml, wrapTryCatch } from './common';
 
 function esc(input: unknown): string {
     try {
         const s = String(input ?? '');
-        return encode(s);
+        return escapeHtml(s);
     } catch {
         return '';
     }
