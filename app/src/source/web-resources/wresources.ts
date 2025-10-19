@@ -595,6 +595,8 @@ import {
 
                             // Toggle sort only if button was already active
                             if (wasActive) {
+                                const currentSort = currentTarget.dataset.sort;
+                                currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
                                 const currentSortChat = currentTarget.dataset.sortChat;
                                 currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
                             }

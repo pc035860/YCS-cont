@@ -1023,6 +1023,7 @@ function renderSearch(node: HTMLElement): void {
                         ${iconSortDown()}
                     </button>
                     <button id="ycs_btn_donated"
+                        data-sort="newest"
                         data-sort-chat="newest"
                         class="ycs-btn-search ycs-title"
                         name="donated" type="button"
