@@ -10,6 +10,7 @@ const createMockFrameworkUpdate = (options: {
     commentId: string;
     sponsorBadgeUrl?: string;
     sponsorBadgeA11y?: string;
+    heartActiveTooltip?: string;
 }) => ({
     properties: {
         commentId: options.commentId,
@@ -20,6 +21,9 @@ const createMockFrameworkUpdate = (options: {
         channelId: 'UCTestChannel123',
         ...(options.sponsorBadgeUrl && { sponsorBadgeUrl: options.sponsorBadgeUrl }),
         ...(options.sponsorBadgeA11y && { sponsorBadgeA11y: options.sponsorBadgeA11y })
+    },
+    toolbar: {
+        ...(options.heartActiveTooltip && { heartActiveTooltip: options.heartActiveTooltip })
     }
 });
 
@@ -28,6 +32,16 @@ const createMockFrameworkUpdate = (options: {
  */
 const createFwById = (commentId: string, update: any) => ({
     [commentId]: update
+});
+
+/**
+ * Helper: Create toolbar state for testing heart functionality
+ */
+const createMockToolbarState = (options: {
+    heartState: 'TOOLBAR_HEART_STATE_HEARTED' | 'TOOLBAR_HEART_STATE_UNHEARTED';
+}) => ({
+    heartState: options.heartState,
+    likeState: 'TOOLBAR_LIKE_STATE_INDIFFERENT'
 });
 
 test('applyFrameworkUpdatesToComment extracts sponsorBadgeA11y to tooltip', () => {
@@ -187,4 +201,200 @@ test('generateCommentObjectFromFW extracts sponsorBadgeA11y to tooltip', () => {
     // Verify tooltip is extracted from sponsorBadgeA11y
     assert.ok(badge?.tooltip, 'Expected tooltip to be set');
     assert.equal(badge.tooltip, '會員 (2 年 3 個月)', 'Expected tooltip to match sponsorBadgeA11y from mock data');
+});
+
+test('applyFrameworkUpdatesToComment extracts heartActiveTooltip to creatorHeart.tooltip', () => {
+    // Setup: Create mock data with heart
+    const commentId = 'test-hearted-comment';
+    const toolbarStateKey = 'test-toolbar-state-key';
+
+    const mockUpdate = createMockFrameworkUpdate({
+        commentId,
+        heartActiveTooltip: '@yuzu_zuyuzu給了 ❤'
+    });
+
+    const mockToolbarState = createMockToolbarState({
+        heartState: 'TOOLBAR_HEART_STATE_HEARTED'
+    });
+
+    const fwById = {
+        [commentId]: mockUpdate,
+        [toolbarStateKey]: mockToolbarState
+    };
+
+    const commentObj: any = {
+        commentRenderer: {
+            commentId
+        }
+    };
+
+    const vmSource = {
+        commentViewModel: {
+            commentId,
+            toolbarStateKey
+        }
+    };
+
+    // Execute: Apply frameworkUpdates
+    applyFrameworkUpdatesToComment(commentObj, vmSource, fwById);
+
+    // Assert: Verify creatorHeart structure
+    assert.ok(commentObj.commentRenderer?.creatorHeart, 'Expected creatorHeart to be created');
+    assert.ok(commentObj.commentRenderer.creatorHeart?.tooltip, 'Expected creatorHeart.tooltip to be set');
+    assert.equal(
+        commentObj.commentRenderer.creatorHeart.tooltip,
+        '@yuzu_zuyuzu給了 ❤',
+        'Expected tooltip to match heartActiveTooltip from mock data'
+    );
+});
+
+test('applyFrameworkUpdatesToComment uses fallback when heartActiveTooltip missing', () => {
+    // Setup: Create mock data with heartState but no heartActiveTooltip
+    const commentId = 'test-hearted-no-tooltip';
+    const toolbarStateKey = 'test-toolbar-state-key-2';
+
+    const mockUpdate = createMockFrameworkUpdate({
+        commentId
+        // Note: No heartActiveTooltip provided
+    });
+
+    const mockToolbarState = createMockToolbarState({
+        heartState: 'TOOLBAR_HEART_STATE_HEARTED'
+    });
+
+    const fwById = {
+        [commentId]: mockUpdate,
+        [toolbarStateKey]: mockToolbarState
+    };
+
+    const commentObj: any = {
+        commentRenderer: {
+            commentId
+        }
+    };
+
+    const vmSource = {
+        commentViewModel: {
+            commentId,
+            toolbarStateKey
+        }
+    };
+
+    // Execute: Apply frameworkUpdates
+    applyFrameworkUpdatesToComment(commentObj, vmSource, fwById);
+
+    // Assert: Verify creatorHeart uses fallback value
+    assert.ok(commentObj.commentRenderer?.creatorHeart, 'Expected creatorHeart to be created');
+    assert.equal(
+        commentObj.commentRenderer.creatorHeart.tooltip,
+        'hearted',
+        'Expected tooltip to use fallback value "hearted"'
+    );
+});
+
+test('applyFrameworkUpdatesToComment does not create creatorHeart when not hearted', () => {
+    // Setup: Create mock data with UNHEARTED state
+    const commentId = 'test-unhearted-comment';
+    const toolbarStateKey = 'test-toolbar-state-key-3';
+
+    const mockUpdate = createMockFrameworkUpdate({
+        commentId,
+        heartActiveTooltip: '@author gave ❤'
+    });
+
+    const mockToolbarState = createMockToolbarState({
+        heartState: 'TOOLBAR_HEART_STATE_UNHEARTED'
+    });
+
+    const fwById = {
+        [commentId]: mockUpdate,
+        [toolbarStateKey]: mockToolbarState
+    };
+
+    const commentObj: any = {
+        commentRenderer: {
+            commentId
+        }
+    };
+
+    const vmSource = {
+        commentViewModel: {
+            commentId,
+            toolbarStateKey
+        }
+    };
+
+    // Execute: Apply frameworkUpdates
+    applyFrameworkUpdatesToComment(commentObj, vmSource, fwById);
+
+    // Assert: Verify creatorHeart is not created
+    assert.equal(
+        commentObj.commentRenderer?.creatorHeart,
+        undefined,
+        'Expected creatorHeart to not be created when not hearted'
+    );
+});
+
+test('generateCommentObjectFromFW extracts heartActiveTooltip to creatorHeart.tooltip', () => {
+    // Setup: Create mock data with heart
+    const commentId = 'test-generate-heart';
+    const toolbarStateKey = 'test-toolbar-state-key-4';
+
+    const mockUpdate = createMockFrameworkUpdate({
+        commentId,
+        heartActiveTooltip: '@author gave ❤'
+    });
+
+    const mockToolbarState = createMockToolbarState({
+        heartState: 'TOOLBAR_HEART_STATE_HEARTED'
+    });
+
+    const fwById = {
+        [toolbarStateKey]: mockToolbarState
+    };
+
+    // Execute: Generate comment object from frameworkUpdates
+    const comment = generateCommentObjectFromFW({
+        update: mockUpdate,
+        commentId,
+        toolbarStateUpdate: mockToolbarState
+    });
+
+    // Assert: Verify creatorHeart structure
+    assert.ok(comment?.commentRenderer?.creatorHeart, 'Expected creatorHeart to be created');
+    assert.ok(comment.commentRenderer.creatorHeart?.tooltip, 'Expected creatorHeart.tooltip to be set');
+    assert.equal(
+        comment.commentRenderer.creatorHeart.tooltip,
+        '@author gave ❤',
+        'Expected tooltip to match heartActiveTooltip from mock data'
+    );
+});
+
+test('generateCommentObjectFromFW does not create creatorHeart when not hearted', () => {
+    // Setup: Create mock data with UNHEARTED state
+    const commentId = 'test-generate-unhearted';
+    const toolbarStateKey = 'test-toolbar-state-key-5';
+
+    const mockUpdate = createMockFrameworkUpdate({
+        commentId,
+        heartActiveTooltip: '@author gave ❤'
+    });
+
+    const mockToolbarState = createMockToolbarState({
+        heartState: 'TOOLBAR_HEART_STATE_UNHEARTED'
+    });
+
+    // Execute: Generate comment object from frameworkUpdates
+    const comment = generateCommentObjectFromFW({
+        update: mockUpdate,
+        commentId,
+        toolbarStateUpdate: mockToolbarState
+    });
+
+    // Assert: Verify creatorHeart is not created
+    assert.equal(
+        comment?.commentRenderer?.creatorHeart,
+        undefined,
+        'Expected creatorHeart to not be created when not hearted'
+    );
 });
