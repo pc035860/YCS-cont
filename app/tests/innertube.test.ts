@@ -39,9 +39,11 @@ const createFwById = (commentId: string, update: any) => ({
  */
 const createMockToolbarState = (options: {
     heartState: 'TOOLBAR_HEART_STATE_HEARTED' | 'TOOLBAR_HEART_STATE_UNHEARTED';
+    heartActiveTooltip?: string;
 }) => ({
     heartState: options.heartState,
-    likeState: 'TOOLBAR_LIKE_STATE_INDIFFERENT'
+    likeState: 'TOOLBAR_LIKE_STATE_INDIFFERENT',
+    ...(options.heartActiveTooltip && { toolbar: { heartActiveTooltip: options.heartActiveTooltip } })
 });
 
 test('applyFrameworkUpdatesToComment extracts sponsorBadgeA11y to tooltip', () => {
@@ -324,6 +326,38 @@ test('applyFrameworkUpdatesToComment creates creatorHeart when only toolbar upda
         commentObj.commentRenderer.creatorHeart.tooltip,
         'hearted',
         'Expected tooltip to fall back to default when no tooltip provided'
+    );
+});
+
+test('applyFrameworkUpdatesToComment creates creatorHeart when commentId missing but toolbar hearted', () => {
+    const toolbarStateKey = 'test-toolbar-state-key-missing-comment-id';
+
+    const mockToolbarState = createMockToolbarState({
+        heartState: 'TOOLBAR_HEART_STATE_HEARTED',
+        heartActiveTooltip: 'Autor hat ❤ vergeben'
+    });
+
+    const fwById = {
+        [toolbarStateKey]: mockToolbarState
+    };
+
+    const commentObj: any = {
+        commentRenderer: {}
+    };
+
+    const vmSource = {
+        commentViewModel: {
+            toolbarStateKey
+        }
+    };
+
+    applyFrameworkUpdatesToComment(commentObj, vmSource, fwById);
+
+    assert.ok(commentObj.commentRenderer?.creatorHeart, 'Expected creatorHeart to be created');
+    assert.equal(
+        commentObj.commentRenderer.creatorHeart.tooltip,
+        'Autor hat ❤ vergeben',
+        'Expected tooltip to use toolbar heartActiveTooltip when commentId missing'
     );
 });
 

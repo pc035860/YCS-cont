@@ -333,44 +333,43 @@ function applyFrameworkUpdatesToComment(commentObj: any, vmSource: any, fwById: 
 
         const commentId =
             wrapTryCatch(() => vm.commentId) || wrapTryCatch(() => commentObj?.commentRenderer?.commentId);
-        if (commentId) {
-            const update = fwById[commentId];
-            if (update) {
-                const isVerified = wrapTryCatch(() => update.author?.isVerified);
-                const isCreator = wrapTryCatch(() => update.author?.isCreator);
-                if (isVerified) {
-                    commentObj.commentRenderer = commentObj.commentRenderer || {};
-                    commentObj.commentRenderer.verifiedAuthor = true;
-                }
-                if (isCreator) {
-                    commentObj.commentRenderer = commentObj.commentRenderer || {};
-                    commentObj.commentRenderer.authorIsChannelOwner = true;
-                }
-                const sponsorBadge = buildSponsorBadge({
-                    sponsorBadgeUrl: wrapTryCatch(() => update.author?.sponsorBadgeUrl),
-                    sponsorBadgeA11y: wrapTryCatch(() => update.author?.sponsorBadgeA11y),
-                    existingTooltip: wrapTryCatch(
-                        () => commentObj.commentRenderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer?.tooltip
-                    )
-                });
-                if (sponsorBadge) {
-                    commentObj.commentRenderer = commentObj.commentRenderer || {};
-                    commentObj.commentRenderer.sponsorCommentBadge = sponsorBadge;
-                }
-            }
-
-            const toolbarKey = wrapTryCatch(() => vm.toolbarStateKey);
-            const toolbarUpdate = toolbarKey ? fwById[toolbarKey] : undefined;
-            if (toolbarUpdate && wrapTryCatch(() => toolbarUpdate.heartState) === 'TOOLBAR_HEART_STATE_HEARTED') {
+        const update = commentId ? fwById[commentId] : undefined;
+        if (commentId && update) {
+            const isVerified = wrapTryCatch(() => update.author?.isVerified);
+            const isCreator = wrapTryCatch(() => update.author?.isCreator);
+            if (isVerified) {
                 commentObj.commentRenderer = commentObj.commentRenderer || {};
-
-                // Preserve existing tooltip if frameworkUpdates doesn't provide one
-                const existingHeartTooltip = wrapTryCatch(() => commentObj.commentRenderer?.creatorHeart?.tooltip);
-                const heartTooltip = wrapTryCatch(() => update?.toolbar?.heartActiveTooltip);
-                const finalTooltip = heartTooltip || existingHeartTooltip || 'hearted';
-
-                commentObj.commentRenderer.creatorHeart = { tooltip: finalTooltip } as any;
+                commentObj.commentRenderer.verifiedAuthor = true;
             }
+            if (isCreator) {
+                commentObj.commentRenderer = commentObj.commentRenderer || {};
+                commentObj.commentRenderer.authorIsChannelOwner = true;
+            }
+            const sponsorBadge = buildSponsorBadge({
+                sponsorBadgeUrl: wrapTryCatch(() => update.author?.sponsorBadgeUrl),
+                sponsorBadgeA11y: wrapTryCatch(() => update.author?.sponsorBadgeA11y),
+                existingTooltip: wrapTryCatch(
+                    () => commentObj.commentRenderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer?.tooltip
+                )
+            });
+            if (sponsorBadge) {
+                commentObj.commentRenderer = commentObj.commentRenderer || {};
+                commentObj.commentRenderer.sponsorCommentBadge = sponsorBadge;
+            }
+        }
+
+        const toolbarKey = wrapTryCatch(() => vm.toolbarStateKey);
+        const toolbarUpdate = toolbarKey ? fwById[toolbarKey] : undefined;
+        if (toolbarUpdate && wrapTryCatch(() => toolbarUpdate.heartState) === 'TOOLBAR_HEART_STATE_HEARTED') {
+            commentObj.commentRenderer = commentObj.commentRenderer || {};
+
+            // Preserve existing tooltip if frameworkUpdates doesn't provide one
+            const existingHeartTooltip = wrapTryCatch(() => commentObj.commentRenderer?.creatorHeart?.tooltip);
+            const toolbarHeartTooltip = wrapTryCatch(() => toolbarUpdate?.toolbar?.heartActiveTooltip);
+            const commentHeartTooltip = wrapTryCatch(() => update?.toolbar?.heartActiveTooltip);
+            const finalTooltip = toolbarHeartTooltip || commentHeartTooltip || existingHeartTooltip || 'hearted';
+
+            commentObj.commentRenderer.creatorHeart = { tooltip: finalTooltip } as any;
         }
     } catch (e) {
         console.error(e);
