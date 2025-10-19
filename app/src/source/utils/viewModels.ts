@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { encode } from 'html-entities';
-import { wrapTryCatch } from './common';
+import { decodeHtml, escapeHtml, wrapTryCatch } from './common';
 import { msToShareVideo, tmUsecToDateTime } from './formatting';
 
 export interface MemberBadgeViewModel {
@@ -45,14 +44,6 @@ export interface TranscriptViewModel {
     gotoOffset?: string;
     formattedOffset: string;
     cueText: string;
-}
-
-function escapeHtml(value: unknown): string {
-    try {
-        return encode(String(value ?? ''));
-    } catch {
-        return '';
-    }
 }
 
 function coerceString(value: unknown): string {
@@ -117,6 +108,25 @@ function sanitizeHtml(html: unknown): string {
             return safe ? `src='${escapeHtml(safe)}'` : "src=''";
         });
 
+        const allowedTags = new Set(['a', 'br', 'img']);
+        value = value.replace(/<(\/)?([a-z0-9-]+)([^>]*)>/gi, (match, closingSlash, tag, attrs) => {
+            const lower = tag.toLowerCase();
+            if (!allowedTags.has(lower)) {
+                return match.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            }
+
+            if (lower === 'br') {
+                return '<br />';
+            }
+
+            if (lower === 'img') {
+                return `<img${attrs}>`;
+            }
+
+            const slash = closingSlash ? '/' : '';
+            return `<${slash}${lower}${attrs}>`;
+        });
+
         return value;
     } catch {
         return '';
@@ -176,8 +186,10 @@ function buildChatRunsHtml(runs: any[]): string {
             if (emoji) {
                 const thumbnails: any[] = wrapTryCatch(() => emoji.image?.thumbnails) || [];
                 const url = normalizeUrl(wrapTryCatch(() => thumbnails[thumbnails.length - 1]?.url));
-                const shortcut = coerceString(wrapTryCatch(() => emoji.shortcuts?.[0]));
-                const label = coerceString(wrapTryCatch(() => emoji.image?.accessibility?.accessibilityData?.label));
+                const shortcut = decodeHtml(coerceString(wrapTryCatch(() => emoji.shortcuts?.[0])));
+                const label = decodeHtml(
+                    coerceString(wrapTryCatch(() => emoji.image?.accessibility?.accessibilityData?.label))
+                );
                 const alt = shortcut || label || 'emoji';
                 if (url) {
                     parts.push(
@@ -199,7 +211,7 @@ function buildChatRunsHtml(runs: any[]): string {
                         videoId && Number.isFinite(startSeconds)
                             ? `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}&t=${encodeURIComponent(String(startSeconds))}s`
                             : '';
-                    const text = coerceString(run.text);
+                    const text = decodeHtml(coerceString(run.text));
                     const offsetAttr = Number.isFinite(startSeconds)
                         ? ` data-offsetvideo="${escapeHtml(String(startSeconds))}"`
                         : '';
@@ -214,7 +226,7 @@ function buildChatRunsHtml(runs: any[]): string {
                                 wrapTryCatch(() => navigation.urlEndpoint?.url) ??
                                 wrapTryCatch(() => navigation.commandMetadata?.webCommandMetadata?.url)
                         ) || '';
-                    const text = coerceString(run.text);
+                    const text = decodeHtml(coerceString(run.text));
                     if (href) {
                         parts.push(
                             `<a class="ycs-cpointer ycs-comment-link" href="${escapeHtml(
@@ -228,9 +240,9 @@ function buildChatRunsHtml(runs: any[]): string {
                 continue;
             }
 
-            parts.push(escapeHtml(run.text));
+            parts.push(escapeHtml(decodeHtml(coerceString(run.text))));
         } catch {
-            parts.push(escapeHtml(run?.text));
+            parts.push(escapeHtml(decodeHtml(coerceString(run?.text))));
         }
     }
 
@@ -241,14 +253,14 @@ function buildChatMessageHtml(renderer: any): string {
     const message = wrapTryCatch(() => renderer?.message);
     if (!message) return '';
 
-    const renderFullText = wrapTryCatch(() => message.renderFullText);
+    const renderFullText = coerceString(wrapTryCatch(() => message.renderFullText));
     if (renderFullText) {
-        return sanitizeHtml(renderFullText);
+        return sanitizeHtml(decodeHtml(renderFullText));
     }
 
-    const fullText = wrapTryCatch(() => message.fullText);
+    const fullText = coerceString(wrapTryCatch(() => message.fullText));
     if (fullText) {
-        return escapeHtml(fullText);
+        return escapeHtml(decodeHtml(fullText));
     }
 
     const runs: any[] = wrapTryCatch(() => message.runs) || [];
@@ -294,7 +306,7 @@ export function buildCommentViewModels(items: any[], options: { isReply?: boolea
 
         const commentId = coerceString(wrapTryCatch(() => renderer.commentId));
         const heartName = coerceString(wrapTryCatch(() => renderer.creatorHeart?.name));
-        const renderFullText = wrapTryCatch(() => renderer.contentText?.renderFullText);
+        const renderFullText = coerceString(wrapTryCatch(() => renderer.contentText?.renderFullText));
         const fallbackText =
             coerceString(wrapTryCatch(() => renderer.contentText?.simpleText)) ||
             coerceString(wrapTryCatch(() => renderer.contentText?.text)) ||
@@ -320,7 +332,9 @@ export function buildCommentViewModels(items: any[], options: { isReply?: boolea
             isReply,
             isReplyType: coerceString(wrapTryCatch(() => item?.item?.typeComment)).toUpperCase() === 'R',
             refIndex: coerceString(wrapTryCatch(() => item?.refIndex)) || undefined,
-            contentHtml: renderFullText ? sanitizeHtml(renderFullText) : escapeHtml(fallbackText)
+            contentHtml: renderFullText
+                ? sanitizeHtml(decodeHtml(renderFullText))
+                : escapeHtml(decodeHtml(fallbackText))
         });
     }
 
@@ -387,7 +401,7 @@ export function buildTranscriptViewModels(items: any[]): TranscriptViewModel[] {
             shareUrl,
             gotoOffset: startOffset !== undefined ? coerceString(startOffset) : undefined,
             formattedOffset,
-            cueText: coerceString(wrapTryCatch(() => cue.cue?.simpleText))
+            cueText: decodeHtml(coerceString(wrapTryCatch(() => cue.cue?.simpleText)))
         });
     }
 
