@@ -24,7 +24,8 @@ function filterAuthorChat(comments: any): [] {
                                 c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
                                     .timestampUsec
                         );
-                        const ref = typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
+                        const ref =
+                            typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
                         fAuthor.push({ item: c, refIndex: Number.isFinite(ref) ? ref : 0 });
                     }
                 } catch (err) {
@@ -67,7 +68,8 @@ function filterMembersChat(comments: any): [] {
             if (member) {
                 const ts = wrapTryCatch(
                     () =>
-                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec
+                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+                            .timestampUsec
                 );
                 const ref = typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
                 fMembers.push({ item: c, refIndex: Number.isFinite(ref) ? ref : 0 });
@@ -97,7 +99,8 @@ function filterDonatedChat(comments: any): [] {
             ) {
                 const ts = wrapTryCatch(
                     () =>
-                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec
+                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+                            .timestampUsec
                 );
                 const ref = typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
                 fDonated.push({ item: c, refIndex: Number.isFinite(ref) ? ref : 0 });
@@ -121,12 +124,14 @@ function filterVerifiedChatComments(comments: any): [] {
             if (
                 wrapTryCatch(
                     () =>
-                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.verifiedAuthor
+                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+                            .verifiedAuthor
                 )
             ) {
                 const ts = wrapTryCatch(
                     () =>
-                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec
+                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+                            .timestampUsec
                 );
                 const ref = typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
                 fVerified.push({ item: c, refIndex: Number.isFinite(ref) ? ref : 0 });
@@ -150,13 +155,15 @@ function filterLinksChatComments(comments: any): [] {
             if (
                 wrapTryCatch(() =>
                     urlRegex().test(
-                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText
+                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message
+                            .fullText
                     )
                 )
             ) {
                 const ts = wrapTryCatch(
                     () =>
-                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.timestampUsec
+                        c.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer
+                            .timestampUsec
                 );
                 const ref = typeof ts === 'string' || typeof ts === 'number' ? parseInt(ts as any, 10) : undefined;
                 fLinks.push({ item: c, refIndex: Number.isFinite(ref) ? ref : 0 });
