@@ -44,7 +44,6 @@ export interface ISheetCommentsParam {
     };
     commentMessage: string;
     commentUrl: string;
-    url?: string;
     member: string;
     publishedTimeText: string;
     totalLikes: number;
@@ -65,9 +64,10 @@ export interface ISheetComments {
 export type ISheetRepliesParam = ISheetCommentsParam;
 
 export interface ISheetReplies {
-    URL: string | undefined;
+    'Сommented URL': string;
+    'URL Reply': string;
     'Author name': string;
-    'Author Channel': string;
+    Channel: string;
     'Reply message': string;
     Member: string;
     Published: string;
@@ -100,10 +100,6 @@ export interface ISheetChatCommentsParam {
     };
     commentMessage: string;
     timestampText: string;
-    message?: string;
-    purchaseAmount?: string;
-    amountCurrency?: string;
-    videoOffsetTimeMsec?: number;
 }
 
 export interface ISheetChatComments {
@@ -112,10 +108,8 @@ export interface ISheetChatComments {
     'Author name': string;
     'Author Channel': string;
     Member: string;
-    Message: any;
-    'Purchase amount'?: any;
-    'Amount currency'?: any;
-    'Video Offset Time Ms': number;
+    'Comment message': string;
+    'Timestamp comment': string;
 }
 
 export interface ISheetDetailsTrVideoParam {

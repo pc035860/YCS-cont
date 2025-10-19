@@ -90,10 +90,8 @@ function getSheetChatComments(cmnts: ISheetDetailsChatParam): Array<ISheetChatCo
                 'Author name': cmnt?.author?.nameAuthor,
                 'Author Channel': cmnt?.author?.channel,
                 Member: cmnt?.author?.member,
-                Message: cmnt?.message,
-                'Purchase amount': cmnt?.purchaseAmount,
-                'Amount currency': cmnt?.amountCurrency,
-                'Video Offset Time Ms': Number(cmnt?.videoOffsetTimeMsec)
+                'Comment message': cmnt?.commentMessage,
+                'Timestamp comment': cmnt?.timestampText
             });
         }
 
@@ -114,9 +112,10 @@ function getSheetReplies(cmnts: Array<ISheetRepliesParam>): Array<ISheetReplies>
             for (const reply of cmnt?.commentReplies?.replies || []) {
                 if (reply) {
                     sheetReplies.push({
-                        URL: reply?.url,
+                        'Сommented URL': cmnt?.commentUrl,
+                        'URL Reply': reply?.commentUrl,
                         'Author name': reply?.author?.nameAuthor,
-                        'Author Channel': reply?.author?.channel,
+                        Channel: reply?.author?.channel,
                         'Reply message': reply?.commentMessage,
                         Member: reply?.member,
                         Published: reply?.publishedTimeText,
