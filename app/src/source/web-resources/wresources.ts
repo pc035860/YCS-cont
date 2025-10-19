@@ -2409,7 +2409,26 @@ Total: ${c.count}\n${c.html}`;
             const searchCommentsAll = (selector: string, param?: IParamSearch): void => {
                 const elSearchAll = document.querySelector(selector);
                 const nodeTotalSearchResult = document.getElementById('ycs-search-total-result');
-                const shouldRenderAllSources = !param || param.sortFirst === true;
+
+                /**
+                 * Filter support matrix:
+                 * - Comments: All filters supported (author, donated, members, verified, heart, likes, replied, links, timestamp, random)
+                 * - Chat: Supports author, donated, members, verified, links, timestamp, sortFirst
+                 * - Transcript: Only supports links, timestamp, sortFirst
+                 *
+                 * This conditional rendering ensures:
+                 * 1. Chat is hidden when using filters it doesn't support (heart, likes, replied, random)
+                 * 2. Transcript is hidden when using filters it doesn't support (all except links, timestamp)
+                 * 3. All sources are shown when no filter is applied or when using sortFirst
+                 */
+
+                // Chat doesn't support: heart, likes, replied, random
+                const chatUnsupportedFilters = param?.heart || param?.likes || param?.replied || param?.random;
+                const shouldRenderChat = !param || param.sortFirst === true || !chatUnsupportedFilters;
+
+                // Transcript only supports: links, timestamp, sortFirst
+                const transcriptSupportedFilters = param?.links || param?.timestamp || param?.sortFirst;
+                const shouldRenderTranscript = !param || transcriptSupportedFilters;
 
                 if (nodeTotalSearchResult) {
                     nodeTotalSearchResult?.classList.add('ycs-hidden');
@@ -2440,13 +2459,13 @@ Total: ${c.count}\n${c.html}`;
                         searchComments('#ycs_allsearch__wrap_comments', param);
                     }
 
-                    if (shouldRenderAllSources && commentsChat && commentsChat.size > 0) {
+                    if (shouldRenderChat && commentsChat && commentsChat.size > 0) {
                         elSearchAll?.appendChild(elWrapCommentsChat);
                         searchCommentsChat('#ycs_allsearch__wrap_comments_chat', param);
                     }
 
                     if (
-                        shouldRenderAllSources &&
+                        shouldRenderTranscript &&
                         commentsTrVideo &&
                         (wrapTryCatch(
                             () =>
