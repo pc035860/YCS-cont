@@ -1,4 +1,4 @@
-import { insertFileScript, insertFileScriptWithLoad, removeInjectionYCS, removeInjections } from '../utils/injections';
+import { insertFileScriptWithLoad, removeInjectionYCS, removeInjections } from '../utils/injections';
 
 (function (): void {
     removeInjectionYCS();

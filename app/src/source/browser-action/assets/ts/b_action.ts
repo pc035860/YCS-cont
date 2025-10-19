@@ -1,5 +1,5 @@
 import { idb } from '../../../utils/libs';
-import { formatBytes } from '../../../utils/assist';
+import { formatBytes } from '../../../utils/formatting';
 import { IStorageEstimate } from '../../../utils/interfaces/i_types';
 
 const STORE_CACHE_YCS = 'STORE_CACHE_YCS';

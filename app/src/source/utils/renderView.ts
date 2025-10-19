@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { encode } from 'html-entities';
-import { msToShareVideo, tmUsecToDateTime, wrapTryCatch, markTextComment, randomString, getPiP } from '../utils/assist';
+import { msToShareVideo, tmUsecToDateTime } from '../utils/formatting';
+import { wrapTryCatch, randomString } from '../utils/common';
+import { markTextComment, getPiP } from '../utils/dom';
 
 // Debug mode configuration
 // Set to true for detailed diagnostic logs during development
@@ -262,7 +264,7 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
     // const t0 = performance.now();
 
     if (nodeSelect) {
-        const buildChatMessageHtml = (cmnt: any): string => {
+        const _buildChatMessageHtml = (cmnt: any): string => {
             try {
                 const r = wrapTryCatch(
                     () => cmnt.item.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer

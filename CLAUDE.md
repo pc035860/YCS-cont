@@ -20,6 +20,7 @@ npm run dev       # Start Parcel dev server (HMR disabled)
 npm run build     # Production build → app/dist/
 npm run rebuild   # Clean cache and rebuild
 npm run lint      # Run ESLint
+npm run typecheck # Run TypeScript type checking
 npm run rm        # Clean all build artifacts
 
 # Release workflow (from project root)
@@ -59,11 +60,17 @@ MV3 security restrictions require web page code to run in isolated context. The 
   - `background.ts`: Service Worker, manages cache and storage
   - `content-scripts/`: Content script bridge
   - `web-resources/`: Main search and UI logic
-  - `utils/assist.ts`: Core business logic, API calls, filtering
-  - `utils/renderView.ts`: HTML template rendering
+  - `utils/`: Modular utility system
+    - `innertube.ts`: YouTube Innertube API integration
+    - `filters/`: Comment and chat filtering modules
+    - `formatting.ts`: Data transformation and HTML output
+    - `dom.ts`: DOM manipulation and UI interactions
+    - `sheets.ts`: Excel export functionality
+    - `common.ts`: Shared utilities and GlobalStore
+    - `renderView.ts`: HTML template rendering
+    - `interfaces/`: TypeScript type definitions
   - `options/`: Extension settings page and comment export
   - `browser-action/`: Extension popup UI
-  - `utils/interfaces/`: TypeScript type definitions
 
 - **`app/src/static/`**: Static assets copied by Parcel
   - `manifest.json`: Chrome manifest
@@ -165,7 +172,7 @@ See the Architecture section above for communication flow details.
 
 ### Retry Mechanism
 
-Uses `fetch-retry` with exponential backoff (2s → 10s → 60s, max 100 retries) to handle YouTube API instability. Implemented in `utils/assist.ts`.
+Uses `fetch-retry` with exponential backoff (2s → 10s → 60s, max 100 retries) to handle YouTube API instability. Implemented in `utils/innertube.ts`.
 
 ## TypeScript Configuration
 
@@ -248,7 +255,7 @@ The extension integrates with YouTube's internal Innertube API for fetching comm
 - **Legacy**: Direct `runs` arrays for comment content
 - **New (frameworkUpdates)**: Entity-based updates via `frameworkUpdates.entityBatchUpdate.mutations`
 
-All Innertube API logic is implemented in `app/src/source/utils/assist.ts` with type definitions in `utils/interfaces/i_assist.ts`.
+All Innertube API logic is implemented in `app/src/source/utils/innertube.ts` with type definitions in `utils/interfaces/i_assist.ts`.
 
 ### Core Functionality
 
