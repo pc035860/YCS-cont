@@ -27,6 +27,7 @@ import {
     filterLikesComments,
     filterLinksTrpVideoComments,
     filterMemberComments,
+    filterDonatedComments,
     filterNewestFirst,
     filterRepliedComments,
     filterLinksComments,
@@ -1144,7 +1145,7 @@ Total: ${c.count}\n${c.html}`;
 
             const searchComments = (selector: string, param?: IParamSearch): void => {
                 try {
-                    if (comments.length === 0 || param?.donated) return;
+                    if (comments.length === 0) return;
 
                     const inputSearch = document.getElementById('ycs-input-search') as HTMLInputElement;
                     const querySearch: string = inputSearch?.value;
@@ -1273,6 +1274,39 @@ Total: ${c.count}\n${c.html}`;
                             }
 
                             console.log('cmntsMembers: ', cmntsMembers);
+                        }
+                    } else if (param?.donated) {
+                        const cmntsDonated = filterDonatedComments(comments);
+                        resultSearch = cmntsDonated;
+                        if (textMatchedSet) resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
+
+                        if (resultSearch.length > 0) {
+                            console.log('donated before: ', resultSearch);
+
+                            resultSearch?.sort((firstItem, secondItem) => {
+                                return firstItem.refIndex - secondItem.refIndex;
+                            });
+
+                            console.log('donated after: ', resultSearch);
+
+                            const elSortDonated = document.getElementById('ycs_btn_donated') as HTMLElement;
+                            // Use sortOrder from param if provided (from text search), otherwise use button's dataset
+                            const sortType = param?.sortOrder || (elSortDonated.dataset.sort as 'newest' | 'oldest');
+
+                            if (sortType === 'newest') {
+                                renderComment(selector, resultSearch, true, querySearch);
+                                elSortDonated.innerHTML = `Donated ${iconSortDown()}`;
+                                elSortDonated.title = 'Show comments from users who have donated (Newest)';
+                            } else if (sortType === 'oldest') {
+                                renderComment(selector, resultSearch?.reverse(), true, querySearch);
+                                elSortDonated.innerHTML = `Donated ${iconSortUp()}`;
+                                elSortDonated.title = 'Show comments from users who have donated (Oldest)';
+                            } else {
+                                renderComment(selector, resultSearch, true, querySearch);
+                                elSortDonated.innerHTML = `Donated ${iconSortDown()}`;
+                            }
+
+                            console.log('cmntsDonated: ', cmntsDonated);
                         }
                     } else if (param?.replied) {
                         const cmntsReplied = filterRepliedComments(comments);

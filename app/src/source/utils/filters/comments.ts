@@ -119,6 +119,27 @@ function filterMemberComments(comments: any): [] {
     }
 }
 
+function filterDonatedComments(comments: any): [] {
+    if (comments.length === 0) return [];
+
+    try {
+        const fDonated: any = [];
+
+        for (const [, c] of comments.entries()) {
+            const donated = c?.commentRenderer?.donatedChip;
+
+            if (donated) {
+                fDonated.push({ item: c, refIndex: (c as any)._index });
+            }
+        }
+
+        return fDonated;
+    } catch (err) {
+        console.error(err);
+        return [];
+    }
+}
+
 function filterHeartComments(comments: any): [] {
     if (comments.length === 0) return [];
 
@@ -266,6 +287,7 @@ export {
     filterLikesComments,
     filterRepliedComments,
     filterMemberComments,
+    filterDonatedComments,
     filterHeartComments,
     filterVerifiedComments,
     filterLinksComments,
