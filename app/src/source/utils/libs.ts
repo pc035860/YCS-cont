@@ -30,10 +30,16 @@ const fetchR = Fetch(fetch, {
 const IDB_YCS = 'IDB_YCS';
 const STORE_CACHE_YCS = 'STORE_CACHE_YCS';
 
-const idb = openDB(IDB_YCS, 1, {
-    upgrade(db) {
-        db.createObjectStore(STORE_CACHE_YCS);
-    }
-});
+// Only initialize idb if indexedDB is available (browser environment)
+// This allows tests to run in Node.js without indexedDB
+// In non-browser environments, idb will be null and should not be awaited
+const idb =
+    typeof indexedDB !== 'undefined'
+        ? openDB(IDB_YCS, 1, {
+              upgrade(db) {
+                  db.createObjectStore(STORE_CACHE_YCS);
+              }
+          })
+        : (null as any);
 
 export { fetchR, idb };
