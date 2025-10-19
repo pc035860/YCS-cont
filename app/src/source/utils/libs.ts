@@ -3,10 +3,7 @@ import { openDB } from 'idb';
 
 const fetchR = Fetch(fetch, {
     retries: 100,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    retryDelay: (attempt: number, error: Error, response: unknown) => {
-        if (error?.name === 'AbortError') return false;
-
+    retryDelay: (attempt: number, _error: Error | null, _response: unknown) => {
         if (attempt > 50) {
             return 1000 * 60;
         } else if (attempt > 20) {
@@ -17,15 +14,16 @@ const fetchR = Fetch(fetch, {
         // return Math.pow(2, attempt) * 1000; // 1000, 2000, 4000
     },
 
-    retryOn: (attempt: number, error: Error, response: Response) => {
+    retryOn: (attempt: number, error: Error | null, response: Response | null) => {
         if (error?.name === 'AbortError') return false;
 
         // retry on any network error, or 4xx or 5xx status codes
-        if (error !== null || response.status >= 400) {
+        if (error !== null || (response !== null && response.status >= 400)) {
             //   console.log(`retrying, attempt number ${attempt + 1}`);
             if (attempt > 100) return false;
             return true;
         }
+        return false;
     }
 });
 
