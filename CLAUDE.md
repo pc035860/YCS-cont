@@ -10,6 +10,8 @@ YCS (YouTube Comment Search) is a browser extension for Chrome and Firefox that 
 - **Extension type**: Manifest V3 (MV3)
 - **Build system**: Parcel 2.0.1
 - **Target browsers**: Chrome 88+, Firefox
+- **Main branch**: `v2-source` (default branch for development and releases)
+- **Node.js version**: 22+ (defined in `app/.nvmrc`)
 
 ## Development Commands
 
@@ -220,6 +222,41 @@ Uses `fetch-retry` with exponential backoff (2s → 10s → 60s, max 100 retries
   - TS/JS: 4 spaces (enforced by `.editorconfig`)
   - JSON/HTML/CSS: 2 spaces
   - Makefile: Tabs
+
+## Git Workflow
+
+### Branch Strategy
+
+- **Main branch**: `v2-source` (default branch)
+  - All development work should be based on this branch
+  - Protected branch (pull requests required for merging)
+  - Receives all feature branches and bug fixes
+
+- **Feature branches**: `feature/description` or `feat/description`
+  - Created from `v2-source`
+  - Merged back to `v2-source` via pull request
+
+- **Bug fix branches**: `fix/description` or `bugfix/description`
+  - Created from `v2-source`
+  - Merged back to `v2-source` via pull request
+
+- **Refactor branches**: `refactor/description`
+  - Created from `v2-source`
+  - Merged back to `v2-source` via pull request
+
+### Creating Pull Requests
+
+When creating PRs, always set the base branch to `v2-source`:
+
+```bash
+# Example workflow
+git checkout v2-source
+git pull origin v2-source
+git checkout -b feature/my-feature
+# ... make changes ...
+git push origin feature/my-feature
+# Create PR targeting v2-source
+```
 
 ## Repository Structure History
 

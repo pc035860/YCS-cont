@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 'v2-source'
+
+jobs:
+  quality-check:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: 'app/.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: 'app/package-lock.json'
+
+      - name: Install dependencies
+        run: cd app && npm ci
+
+      - name: Run ESLint
+        run: cd app && npm run lint
+
+      - name: Run TypeScript type check
+        run: cd app && npm run typecheck
+
+      - name: Check Prettier formatting
+        run: cd app && npm run format:check
