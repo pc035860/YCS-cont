@@ -66,13 +66,4 @@ function iconPlay(): string {
     `;
 }
 
-export {
-    iconCollapse,
-    iconExpand,
-    iconExpandShowMore,
-    iconOk,
-    iconPlay,
-    iconReload,
-    iconSortDown,
-    iconSortUp
-};
+export { iconCollapse, iconExpand, iconExpandShowMore, iconOk, iconPlay, iconReload, iconSortDown, iconSortUp };

@@ -45,14 +45,7 @@ import { getCommentsChatHtmlText, getCommentsHtmlText, getCommentsTrVideoHtmlTex
 
 import { ICommentsFuseResult, IParamSearch, ISelectedSearch } from '../utils/interfaces/i_types';
 
-import {
-    iconCollapse,
-    iconExpand,
-    iconOk,
-    iconReload,
-    iconSortDown,
-    iconSortUp
-} from '../utils/icons';
+import { iconCollapse, iconExpand, iconOk, iconReload, iconSortDown, iconSortUp } from '../utils/icons';
 import {
     renderComment,
     renderCommentChat,
