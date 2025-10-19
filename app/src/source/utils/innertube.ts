@@ -2,7 +2,7 @@
 import objectScan from 'object-scan';
 import Queue from 'p-queue';
 
-import { ChatContinuationResult, GetParams } from './interfaces/i_assist';
+import type { ChatContinuationResult, GetParams } from './interfaces/i_assist';
 import { fetchR } from './libs';
 import { GlobalStore, deepFindObjKey, getCleanUrlVideo, getObj, getVideoId, wrapTryCatch } from './common';
 import { parseFormattedNumber } from './formatting';
@@ -321,13 +321,27 @@ function applyFrameworkUpdatesToComment(commentObj: any, vmSource: any, fwById: 
                     commentObj.commentRenderer.authorIsChannelOwner = true;
                 }
                 const sponsorBadgeUrl = wrapTryCatch(() => update.author?.sponsorBadgeUrl);
+                const sponsorBadgeA11y = wrapTryCatch(() => update.author?.sponsorBadgeA11y);
                 if (sponsorBadgeUrl) {
                     commentObj.commentRenderer = commentObj.commentRenderer || {};
-                    commentObj.commentRenderer.sponsorCommentBadge = {
+
+                    // Preserve existing tooltip if frameworkUpdates doesn't provide one
+                    const existingTooltip = wrapTryCatch(
+                        () => commentObj.commentRenderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer?.tooltip
+                    );
+
+                    const badge: any = {
                         sponsorCommentBadgeRenderer: {
                             customBadge: { thumbnails: [{ url: sponsorBadgeUrl }] }
                         }
                     };
+
+                    const tooltip = sponsorBadgeA11y || existingTooltip;
+                    if (tooltip) {
+                        badge.sponsorCommentBadgeRenderer.tooltip = tooltip;
+                    }
+
+                    commentObj.commentRenderer.sponsorCommentBadge = badge;
                 }
             }
         }
@@ -543,10 +557,18 @@ function generateCommentObjectFromFW(params: {
             } as any;
         }
 
-        if (wrapTryCatch(() => author.sponsorBadgeUrl)) {
-            comment.commentRenderer.sponsorCommentBadge = {
-                sponsorCommentBadgeRenderer: { customBadge: { thumbnails: [{ url: author.sponsorBadgeUrl }] } }
+        const sponsorBadgeUrl = wrapTryCatch(() => author.sponsorBadgeUrl);
+        const sponsorBadgeA11y = wrapTryCatch(() => author.sponsorBadgeA11y);
+        if (sponsorBadgeUrl) {
+            const badge: any = {
+                sponsorCommentBadgeRenderer: {
+                    customBadge: { thumbnails: [{ url: sponsorBadgeUrl }] }
+                }
             };
+            if (sponsorBadgeA11y) {
+                badge.sponsorCommentBadgeRenderer.tooltip = sponsorBadgeA11y;
+            }
+            comment.commentRenderer.sponsorCommentBadge = badge;
         }
         if (wrapTryCatch(() => author.isVerified)) {
             comment.commentRenderer.verifiedAuthor = true;
@@ -3185,5 +3207,8 @@ export {
     getParamsForChat,
     getChatComments,
     getInitYtData,
-    extractNextContinuation
+    extractNextContinuation,
+    // Test exports
+    applyFrameworkUpdatesToComment,
+    generateCommentObjectFromFW
 };

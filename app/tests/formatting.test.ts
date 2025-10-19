@@ -4,7 +4,7 @@ import test from 'node:test';
 import { esc, safeUrl, sanitizeHtml } from '../src/source/utils/formatting';
 
 test('esc converts special characters into HTML entities', () => {
-    const raw = "<div>&'\"";
+    const raw = '<div>&\'"';
     const encoded = esc(raw);
     assert.equal(encoded, '&lt;div&gt;&amp;&#39;&quot;');
 });
@@ -23,7 +23,8 @@ test('safeUrl normalizes common URLs and blocks non-http/https schemes', () => {
 });
 
 test('sanitizeHtml removes dangerous tags and normalizes href/src schemes', () => {
-    const raw = '<div onclick="alert(1)"><a href="javascript:alert(1)">link</a><img src="/image.png" /></div><script>alert(1)</script>';
+    const raw =
+        '<div onclick="alert(1)"><a href="javascript:alert(1)">link</a><img src="/image.png" /></div><script>alert(1)</script>';
     const sanitized = sanitizeHtml(raw);
     assert.equal(
         sanitized,

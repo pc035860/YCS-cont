@@ -1,4 +1,5 @@
-import Mark, { MarkOptions } from 'mark.js';
+import Mark from 'mark.js';
+import type { MarkOptions } from 'mark.js';
 
 import { GlobalStore, getCleanUrlVideo, getRandomInt, getVideoId, oIsEmpty, wrapTryCatch } from './common';
 
