@@ -16,10 +16,15 @@ app/
 │   │   │   └── wresources.ts # Fuse.js integration, UI rendering
 │   │   ├── browser-action/  # Extension popup UI
 │   │   ├── options/         # Settings page and comment export
-│   │   └── utils/           # Core business logic
-│   │       ├── assist.ts    # YouTube API calls, filtering logic
+│   │   └── utils/           # Modular utility system
+│   │       ├── innertube.ts  # YouTube Innertube API integration
+│   │       ├── filters/      # Comment and chat filtering
+│   │       ├── formatting.ts # Data transformation
+│   │       ├── dom.ts        # UI interactions
+│   │       ├── sheets.ts     # Excel export
+│   │       ├── common.ts     # Shared utilities
 │   │       ├── renderView.ts # HTML template rendering
-│   │       └── interfaces/  # TypeScript type definitions
+│   │       └── interfaces/   # TypeScript type definitions
 │   └── static/              # Static assets (copied by Parcel)
 │       ├── manifest.json    # Chrome MV3 manifest
 │       ├── _locales/        # Internationalization files
@@ -54,6 +59,7 @@ npm ci
 | `npm run build` | Production build (no source maps) → `dist/` |
 | `npm run rebuild` | Clean cache and rebuild |
 | `npm run lint` | Run ESLint on TypeScript files |
+| `npm run typecheck` | Run TypeScript type checking (no build) |
 | `npm run rm` | Clean all build artifacts (dist, cache, dev) |
 
 ## Building the Extension
@@ -143,7 +149,11 @@ YouTube.com Page
 | Service Worker | `background.ts` | Cache management, badge updates, message listening |
 | Web Resources | `wresources.ts` | Main UI, search logic, GlobalStore state management |
 | Content Script | `cscripts.ts` | Bridge layer, script injection |
-| YouTube API | `assist.ts` | API calls, comment filtering, export logic |
+| YouTube API | `innertube.ts` | Innertube API integration, request handling |
+| Filtering | `filters/*.ts` | Comment and chat filtering logic |
+| Data Export | `sheets.ts` | Excel export functionality |
+| Formatting | `formatting.ts` | Data transformation and HTML generation |
+| UI Interactions | `dom.ts` | DOM manipulation and browser APIs |
 | Template Renderer | `renderView.ts` | HTML template rendering |
 | Popup UI | `b_action.ts` | Extension popup interface |
 

@@ -41,6 +41,9 @@ npm run rebuild
 # Lint check
 npm run lint
 
+# Type checking
+npm run typecheck
+
 # Clean all build artifacts
 npm run rm
 ```
@@ -111,7 +114,13 @@ The extension integrates with YouTube's internal Innertube API for comments, cha
 
 **Key directories**:
 - `app/src/source/` - TypeScript source code
-  - `utils/assist.ts` - Core Innertube API logic
+  - `utils/` - Modular utility system
+    - `innertube.ts` - YouTube Innertube API integration
+    - `filters/` - Comment and chat filtering modules
+    - `formatting.ts` - Data transformation and HTML output
+    - `dom.ts` - DOM manipulation and UI interactions
+    - `sheets.ts` - Excel export functionality
+    - `common.ts` - Shared utilities and GlobalStore
   - `web-resources/` - Search UI and Fuse.js integration
   - `content-scripts/` - Message relay layer
   - `background.ts` - Service Worker, IndexedDB cache
