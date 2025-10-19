@@ -297,6 +297,32 @@ function getFrameworkUpdatesById(response: any): Record<string, any> {
     }
 }
 
+/**
+ * Build sponsor badge object from frameworkUpdates data
+ * @param options - Badge configuration with optional existing tooltip preservation
+ * @returns Sponsor badge object or undefined if no badge URL provided
+ */
+function buildSponsorBadge(options: {
+    sponsorBadgeUrl: string | undefined;
+    sponsorBadgeA11y: string | undefined;
+    existingTooltip?: string | undefined;
+}): any | undefined {
+    if (!options.sponsorBadgeUrl) return undefined;
+
+    const badge: any = {
+        sponsorCommentBadgeRenderer: {
+            customBadge: { thumbnails: [{ url: options.sponsorBadgeUrl }] }
+        }
+    };
+
+    const tooltip = options.sponsorBadgeA11y || options.existingTooltip;
+    if (tooltip) {
+        badge.sponsorCommentBadgeRenderer.tooltip = tooltip;
+    }
+
+    return badge;
+}
+
 function applyFrameworkUpdatesToComment(commentObj: any, vmSource: any, fwById: Record<string, any>): void {
     try {
         if (!commentObj || !fwById) return;
@@ -307,42 +333,28 @@ function applyFrameworkUpdatesToComment(commentObj: any, vmSource: any, fwById: 
 
         const commentId =
             wrapTryCatch(() => vm.commentId) || wrapTryCatch(() => commentObj?.commentRenderer?.commentId);
-        if (commentId) {
-            const update = fwById[commentId];
-            if (update) {
-                const isVerified = wrapTryCatch(() => update.author?.isVerified);
-                const isCreator = wrapTryCatch(() => update.author?.isCreator);
-                if (isVerified) {
-                    commentObj.commentRenderer = commentObj.commentRenderer || {};
-                    commentObj.commentRenderer.verifiedAuthor = true;
-                }
-                if (isCreator) {
-                    commentObj.commentRenderer = commentObj.commentRenderer || {};
-                    commentObj.commentRenderer.authorIsChannelOwner = true;
-                }
-                const sponsorBadgeUrl = wrapTryCatch(() => update.author?.sponsorBadgeUrl);
-                const sponsorBadgeA11y = wrapTryCatch(() => update.author?.sponsorBadgeA11y);
-                if (sponsorBadgeUrl) {
-                    commentObj.commentRenderer = commentObj.commentRenderer || {};
-
-                    // Preserve existing tooltip if frameworkUpdates doesn't provide one
-                    const existingTooltip = wrapTryCatch(
-                        () => commentObj.commentRenderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer?.tooltip
-                    );
-
-                    const badge: any = {
-                        sponsorCommentBadgeRenderer: {
-                            customBadge: { thumbnails: [{ url: sponsorBadgeUrl }] }
-                        }
-                    };
-
-                    const tooltip = sponsorBadgeA11y || existingTooltip;
-                    if (tooltip) {
-                        badge.sponsorCommentBadgeRenderer.tooltip = tooltip;
-                    }
-
-                    commentObj.commentRenderer.sponsorCommentBadge = badge;
-                }
+        const update = commentId ? fwById[commentId] : undefined;
+        if (commentId && update) {
+            const isVerified = wrapTryCatch(() => update.author?.isVerified);
+            const isCreator = wrapTryCatch(() => update.author?.isCreator);
+            if (isVerified) {
+                commentObj.commentRenderer = commentObj.commentRenderer || {};
+                commentObj.commentRenderer.verifiedAuthor = true;
+            }
+            if (isCreator) {
+                commentObj.commentRenderer = commentObj.commentRenderer || {};
+                commentObj.commentRenderer.authorIsChannelOwner = true;
+            }
+            const sponsorBadge = buildSponsorBadge({
+                sponsorBadgeUrl: wrapTryCatch(() => update.author?.sponsorBadgeUrl),
+                sponsorBadgeA11y: wrapTryCatch(() => update.author?.sponsorBadgeA11y),
+                existingTooltip: wrapTryCatch(
+                    () => commentObj.commentRenderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer?.tooltip
+                )
+            });
+            if (sponsorBadge) {
+                commentObj.commentRenderer = commentObj.commentRenderer || {};
+                commentObj.commentRenderer.sponsorCommentBadge = sponsorBadge;
             }
         }
 
@@ -350,7 +362,14 @@ function applyFrameworkUpdatesToComment(commentObj: any, vmSource: any, fwById: 
         const toolbarUpdate = toolbarKey ? fwById[toolbarKey] : undefined;
         if (toolbarUpdate && wrapTryCatch(() => toolbarUpdate.heartState) === 'TOOLBAR_HEART_STATE_HEARTED') {
             commentObj.commentRenderer = commentObj.commentRenderer || {};
-            commentObj.commentRenderer.creatorHeart = { tooltip: 'hearted' } as any;
+
+            // Preserve existing tooltip if frameworkUpdates doesn't provide one
+            const existingHeartTooltip = wrapTryCatch(() => commentObj.commentRenderer?.creatorHeart?.tooltip);
+            const toolbarHeartTooltip = wrapTryCatch(() => toolbarUpdate?.toolbar?.heartActiveTooltip);
+            const commentHeartTooltip = wrapTryCatch(() => update?.toolbar?.heartActiveTooltip);
+            const finalTooltip = toolbarHeartTooltip || commentHeartTooltip || existingHeartTooltip || 'hearted';
+
+            commentObj.commentRenderer.creatorHeart = { tooltip: finalTooltip } as any;
         }
     } catch (e) {
         console.error(e);
@@ -557,18 +576,12 @@ function generateCommentObjectFromFW(params: {
             } as any;
         }
 
-        const sponsorBadgeUrl = wrapTryCatch(() => author.sponsorBadgeUrl);
-        const sponsorBadgeA11y = wrapTryCatch(() => author.sponsorBadgeA11y);
-        if (sponsorBadgeUrl) {
-            const badge: any = {
-                sponsorCommentBadgeRenderer: {
-                    customBadge: { thumbnails: [{ url: sponsorBadgeUrl }] }
-                }
-            };
-            if (sponsorBadgeA11y) {
-                badge.sponsorCommentBadgeRenderer.tooltip = sponsorBadgeA11y;
-            }
-            comment.commentRenderer.sponsorCommentBadge = badge;
+        const sponsorBadge = buildSponsorBadge({
+            sponsorBadgeUrl: wrapTryCatch(() => author.sponsorBadgeUrl),
+            sponsorBadgeA11y: wrapTryCatch(() => author.sponsorBadgeA11y)
+        });
+        if (sponsorBadge) {
+            comment.commentRenderer.sponsorCommentBadge = sponsorBadge;
         }
         if (wrapTryCatch(() => author.isVerified)) {
             comment.commentRenderer.verifiedAuthor = true;
@@ -2303,7 +2316,7 @@ async function getAllCommentsModeV2(
             if (wrapTryCatch(() => cmnt.commentRenderer.actionButtons.commentActionButtonsRenderer.creatorHeart)) {
                 try {
                     cmnt.commentRenderer.creatorHeart = {
-                        name: wrapTryCatch(
+                        tooltip: wrapTryCatch(
                             () =>
                                 cmnt.commentRenderer.actionButtons.commentActionButtonsRenderer.creatorHeart
                                     .creatorHeartRenderer.creatorThumbnail.accessibility.accessibilityData.label

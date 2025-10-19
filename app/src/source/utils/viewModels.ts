@@ -305,7 +305,7 @@ export function buildCommentViewModels(items: any[], options: { isReply?: boolea
         const replyCount = Number.isFinite(replyCountValue) && replyCountValue > 0 ? replyCountValue : undefined;
 
         const commentId = coerceString(wrapTryCatch(() => renderer.commentId));
-        const heartName = coerceString(wrapTryCatch(() => renderer.creatorHeart?.name));
+        const heartTooltip = coerceString(wrapTryCatch(() => renderer.creatorHeart?.tooltip));
         const renderFullText = coerceString(wrapTryCatch(() => renderer.contentText?.renderFullText));
         const fallbackText =
             coerceString(wrapTryCatch(() => renderer.contentText?.simpleText)) ||
@@ -328,7 +328,7 @@ export function buildCommentViewModels(items: any[], options: { isReply?: boolea
             likeCountText: likeCountText || undefined,
             replyCount,
             commentId: commentId || undefined,
-            heartTooltip: heartName ? `Liked by the author: ${heartName}` : undefined,
+            heartTooltip: heartTooltip || undefined,
             isReply,
             isReplyType: coerceString(wrapTryCatch(() => item?.item?.typeComment)).toUpperCase() === 'R',
             refIndex: coerceString(wrapTryCatch(() => item?.refIndex)) || undefined,
