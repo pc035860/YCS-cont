@@ -186,11 +186,36 @@ Uses `fetch-retry` with exponential backoff (2s → 10s → 60s, max 100 retries
 ## Code Style
 
 - **Language**: All code documentation, comments, commit messages, and technical documents must be written in English
+
 - **Formatter**: Prettier
-  - Line width: 120 chars
-  - No trailing commas
-  - LF line endings
+  - **Config file**: `app/.prettierrc.json`
+  - **Key settings**:
+    - Line width: 120 chars
+    - Single quotes: true
+    - No trailing commas
+    - LF line endings
+    - Semi-colons: true
+  - **Usage**:
+    ```bash
+    # Format specific files
+    npx prettier --write path/to/file.ts
+
+    # Format entire source directory
+    npx prettier --write "src/**/*.{ts,js,json,css,html}"
+
+    # Check formatting without modifying files
+    npx prettier --check "src/**/*.{ts,js,json,css,html}"
+    ```
+  - **When to format**:
+    - Before committing code changes
+    - After completing a feature or bug fix
+    - When resolving merge conflicts
+  - **Note**: Most IDEs can auto-format on save using the Prettier config
+
 - **Linter**: ESLint with TypeScript parser
+  - Run with `npm run lint` from `app/` directory
+  - Config: `app/.eslintrc.cjs`
+
 - **Indentation**:
   - TS/JS: 4 spaces (enforced by `.editorconfig`)
   - JSON/HTML/CSS: 2 spaces
