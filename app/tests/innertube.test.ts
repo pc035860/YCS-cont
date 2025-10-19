@@ -292,6 +292,41 @@ test('applyFrameworkUpdatesToComment uses fallback when heartActiveTooltip missi
     );
 });
 
+test('applyFrameworkUpdatesToComment creates creatorHeart when only toolbar update present', () => {
+    const commentId = 'test-hearted-toolbar-only';
+    const toolbarStateKey = 'test-toolbar-state-key-4';
+
+    const mockToolbarState = createMockToolbarState({
+        heartState: 'TOOLBAR_HEART_STATE_HEARTED'
+    });
+
+    const fwById = {
+        [toolbarStateKey]: mockToolbarState
+    };
+
+    const commentObj: any = {
+        commentRenderer: {
+            commentId
+        }
+    };
+
+    const vmSource = {
+        commentViewModel: {
+            commentId,
+            toolbarStateKey
+        }
+    };
+
+    applyFrameworkUpdatesToComment(commentObj, vmSource, fwById);
+
+    assert.ok(commentObj.commentRenderer?.creatorHeart, 'Expected creatorHeart to be created');
+    assert.equal(
+        commentObj.commentRenderer.creatorHeart.tooltip,
+        'hearted',
+        'Expected tooltip to fall back to default when no tooltip provided'
+    );
+});
+
 test('applyFrameworkUpdatesToComment does not create creatorHeart when not hearted', () => {
     // Setup: Create mock data with UNHEARTED state
     const commentId = 'test-unhearted-comment';
