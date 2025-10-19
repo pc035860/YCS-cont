@@ -989,6 +989,38 @@ async function getParamsForLiveChat(
     }
 }
 
+async function getParamsForTranscript(
+    w: Window & typeof globalThis,
+    param: string,
+    signal?: AbortSignal
+): Promise<object | undefined> {
+    try {
+        const ytcfgData = await getPageCfgData(w, signal);
+        const cleanUrl = getCleanUrlVideo(w.location.href) ?? w.location.href;
+
+        return {
+            headers: {
+                accept: '*/*',
+                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
+                'content-type': 'application/json',
+                pragma: 'no-cache',
+                'cache-control': 'no-store',
+                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION || ''
+            },
+            referrer: cleanUrl,
+            referrerPolicy: 'origin-when-cross-origin',
+            body: JSON.stringify({ context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client || {} }, params: param }),
+            method: 'POST',
+            mode: 'cors',
+            credentials: 'include'
+        };
+    } catch (e) {
+        console.error(e);
+        return;
+    }
+}
+
 function getInnertubeApiKey(): string | undefined {
     try {
         const ytcfgData = (window as any)?.ytcfg?.data_;
@@ -1008,6 +1040,40 @@ function getInnertubeApiKey(): string | undefined {
             (window as any)?.ytcfg?.INNERTUBE_API_KEY;
 
         return innertubeApiKey;
+    } catch (e) {
+        console.error(e);
+        return;
+    }
+}
+
+function getTranscriptPot(): string | undefined {
+    try {
+        const visited = new WeakSet<object>();
+        const urls: string[] = [];
+
+        const walk = (obj: unknown): void => {
+            if (!obj || typeof obj !== 'object') return;
+            if (visited.has(obj as object)) return;
+            visited.add(obj as object);
+            for (const key in obj as any) {
+                if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
+                try {
+                    const value: any = (obj as any)[key];
+                    if (typeof value === 'string' && value.includes('pot=')) {
+                        urls.push(value);
+                    } else if (value && typeof value === 'object') {
+                        walk(value);
+                    }
+                } catch {
+                    continue;
+                }
+            }
+        };
+
+        walk(window as any);
+        if (urls.length === 0) return;
+        const buf = new URL(urls[0]).searchParams.get('pot');
+        return buf ? encodeURIComponent(buf) : undefined;
     } catch (e) {
         console.error(e);
         return;
@@ -1676,7 +1742,11 @@ async function getChatComments(
                             // Extract next continuation token
                             const continuations = response?.continuationContents?.liveChatContinuation?.continuations;
                             const continuationToken = continuations?.[0]?.liveChatReplayContinuationData?.continuation;
-                            nextContinuation = continuationToken ? { continuation: continuationToken } : null;
+                            if (continuationToken) {
+                                nextContinuation = { continuation: continuationToken };
+                            } else {
+                                break;
+                            }
 
                             if (cmnts && cmnts.length > 0) {
                                 for (const comment of cmnts) {
@@ -2069,7 +2139,7 @@ async function getTranscriptVideo(signal: AbortSignal): Promise<object | undefin
         // Try youtubei get_transcript first
         try {
             if (initData) {
-                const ytInitParam = findInitYParams(initData) as string;
+                const ytInitParam = await findInitYParams(initData);
                 if (ytInitParam) {
                     const params = await getParamsForTranscript(window, ytInitParam, signal);
                     console.log('PARAMS for TRANSCRIPT', params);

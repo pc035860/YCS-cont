@@ -20,6 +20,7 @@
     "predev": "npm run prepare-manifest",
     "rm": "rimraf dist && rimraf .parcel-cache && rimraf dev",
     "lint": "eslint src/source/ --ext .ts",
+    "typecheck": "tsc --noEmit",
     "dev": "parcel serve --dist-dir dev --no-hmr",
     "build": "parcel build --no-source-maps",
     "rebuild": "rimraf dist && rimraf .parcel-cache && npm run build"
