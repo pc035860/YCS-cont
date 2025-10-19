@@ -117,7 +117,7 @@ function sanitizeHtml(html: unknown): string {
             return safe ? `src='${escapeHtml(safe)}'` : "src=''";
         });
 
-        const allowedTags = new Set(['a', 'br', 'img']);
+        const allowedTags = new Set(['a', 'br', 'img', 'span']);
         value = value.replace(/<(\/)?([a-z0-9-]+)([^>]*)>/gi, (match, closingSlash, tag, attrs) => {
             const lower = tag.toLowerCase();
             if (!allowedTags.has(lower)) {
