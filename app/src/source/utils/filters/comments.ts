@@ -1,6 +1,6 @@
 import urlRegex from 'url-regex';
 
-import { isNumeric, wrapTryCatch } from '../common';
+import { isNumeric } from '../common';
 import { ICommentItem, ICommentsFuseResult } from '../interfaces/i_types';
 
 function filterAuthorComments(comments: any): [] {

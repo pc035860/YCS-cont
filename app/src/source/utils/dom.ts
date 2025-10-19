@@ -191,7 +191,7 @@ function markTextComment(sel: string | HTMLElement, text: string): void {
             }
         };
 
-        const highlightExact: boolean = !!GlobalStore?.highlightExact;
+        const highlightExact = !!GlobalStore?.highlightExact;
 
         if (!highlightExact) {
             if (text.split(' ').length === 1) {
@@ -454,7 +454,9 @@ function getRandomComment(comments: any): [] {
 
         for (const [i, cmnt] of comments.entries()) {
             if (cmnt?.typeComment === 'C') {
-                if (authors.has(wrapTryCatch(() => cmnt.commentRenderer.authorEndpoint.browseEndpoint.canonicalBaseUrl))) {
+                if (
+                    authors.has(wrapTryCatch(() => cmnt.commentRenderer.authorEndpoint.browseEndpoint.canonicalBaseUrl))
+                ) {
                     const cmntsPos = authors.get(cmnt.commentRenderer.authorEndpoint.browseEndpoint.canonicalBaseUrl);
                     cmntsPos.add(i);
                 } else if (wrapTryCatch(() => cmnt.commentRenderer.authorEndpoint.browseEndpoint.canonicalBaseUrl)) {

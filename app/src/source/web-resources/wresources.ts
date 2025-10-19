@@ -41,11 +41,7 @@ import {
     filterChatNewestFirst
 } from '../utils/filters/chat';
 import { getAllCommentsModeV2, getChatComments, getTranscriptVideo } from '../utils/innertube';
-import {
-    getCommentsChatHtmlText,
-    getCommentsHtmlText,
-    getCommentsTrVideoHtmlText
-} from '../utils/formatting';
+import { getCommentsChatHtmlText, getCommentsHtmlText, getCommentsTrVideoHtmlText } from '../utils/formatting';
 
 import { ICommentsFuseResult, IParamSearch, ISelectedSearch } from '../utils/interfaces/i_types';
 
@@ -304,7 +300,9 @@ import {
                         const hasActive = !!code;
                         btnClear.style.visibility = hasActive ? 'visible' : 'hidden';
                     }
-                } catch {}
+                } catch {
+                    // Silently ignore DOM manipulation errors
+                }
             };
 
             // Removed applyActiveFilterFromStore: no restore from storage
@@ -704,7 +702,9 @@ import {
             try {
                 const btnClearInit = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
                 if (btnClearInit) btnClearInit.style.visibility = 'hidden';
-            } catch {}
+            } catch {
+                // Silently ignore DOM initialization errors
+            }
 
             const elLiveApp = document.getElementsByClassName('ycs-app')[0];
 

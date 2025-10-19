@@ -98,7 +98,7 @@ function deepFindObjKey(obj: object, key: string): Array<any> {
                 return path ? (path as string) + '.' + add : add;
             };
 
-            if (object?.hasOwnProperty(key)) {
+            if (Object.prototype.hasOwnProperty.call(object, key)) {
                 match = {};
 
                 match[newPath(key) as string] = object[key];
@@ -107,7 +107,7 @@ function deepFindObjKey(obj: object, key: string): Array<any> {
             }
 
             for (item in object) {
-                if (object?.hasOwnProperty(item) && typeof (object as any)[item] === 'object') {
+                if (Object.prototype.hasOwnProperty.call(object, item) && typeof (object as any)[item] === 'object') {
                     iterate(object[item], newPath(item));
                 }
             }
