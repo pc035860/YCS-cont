@@ -1,4 +1,53 @@
+import { encode } from 'html-entities';
 import { wrapTryCatch } from './common';
+
+function esc(input: unknown): string {
+    try {
+        const s = String(input ?? '');
+        return encode(s);
+    } catch {
+        return '';
+    }
+}
+
+function safeUrl(raw: unknown): string {
+    try {
+        let url = String(raw || '');
+        if (!url) return '#';
+        if (url.startsWith('/')) url = `https://www.youtube.com${url}`;
+        if (url.startsWith('www.')) url = `https://${url}`;
+        const lower = url.toLowerCase();
+        if (lower.startsWith('http://') || lower.startsWith('https://')) return url;
+        return '#';
+    } catch {
+        return '#';
+    }
+}
+
+function sanitizeHtml(html: unknown): string {
+    try {
+        let s = String(html || '');
+        if (!s) return '';
+        s = s.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+        s = s
+            .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '')
+            .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, '')
+            .replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, '');
+        s = s.replace(/href\s*=\s*"([^"]*)"/gi, (_m, p1) => `href="${esc(safeUrl(p1))}" rel="noopener noreferrer"`);
+        s = s.replace(/href\s*=\s*'([^']*)'/gi, (_m, p1) => `href='${esc(safeUrl(p1))}' rel="noopener noreferrer"`);
+        s = s.replace(/src\s*=\s*"([^"]*)"/gi, (_m, p1) => {
+            const u = safeUrl(p1);
+            return u === '#' ? 'src=""' : `src="${esc(u)}"`;
+        });
+        s = s.replace(/src\s*=\s*'([^']*)'/gi, (_m, p1) => {
+            const u = safeUrl(p1);
+            return u === '#' ? "src=''" : `src='${esc(u)}'`;
+        });
+        return s;
+    } catch {
+        return '';
+    }
+}
 
 function parseFormattedNumber(value?: string): { number: number; multiply: number } {
     try {
@@ -344,6 +393,9 @@ start offset: ${wrapTryCatch(() => c.transcriptCueGroupRenderer.cues[0].transcri
 }
 
 export {
+    esc,
+    safeUrl,
+    sanitizeHtml,
     parseFormattedNumber,
     parseFormattedNumberToInt,
     msToRoundSec,

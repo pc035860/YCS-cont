@@ -51,7 +51,9 @@ import {
     iconOk,
     iconReload,
     iconSortDown,
-    iconSortUp,
+    iconSortUp
+} from '../utils/icons';
+import {
     renderComment,
     renderCommentChat,
     renderCommentTrVideo,

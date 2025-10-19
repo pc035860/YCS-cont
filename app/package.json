@@ -29,7 +29,8 @@
     "rebuild": "rimraf dist && rimraf .parcel-cache && npm run build",
     "format": "prettier --write \"src/**/*.{ts,js,json,css,html}\"",
     "format:check": "prettier --check \"src/**/*.{ts,js,json,css,html}\"",
-    "prepare": "cd .. && husky app/.husky"
+    "prepare": "cd .. && husky app/.husky",
+    "test": "node --experimental-strip-types --experimental-loader ./tests/ts-loader.mjs --test tests/**/*.test.ts"
   },
   "lint-staged": {
     "src/**/*.{ts,js}": [
