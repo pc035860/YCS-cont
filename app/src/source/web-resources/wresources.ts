@@ -1840,12 +1840,30 @@ Total: ${c.count}\n${c.html}`;
                                     param?.sortOrder || (elSortDonated.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
-                                    renderCommentChat(selector, resultSearch, querySearch);
+                                    // Apply search text filter if present
+                                    if (querySearch && querySearch.trim()) {
+                                        const base = resultSearch.map((r: any) => r.item);
+                                        const fuse = new Fuse(base, options);
+                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                        renderCommentChat(selector, filtered, querySearch);
+                                        resultSearch = filtered;
+                                    } else {
+                                        renderCommentChat(selector, resultSearch, querySearch);
+                                    }
 
                                     elSortDonated.innerHTML = `Donated ${iconSortDown()}`;
                                     elSortDonated.title = 'Show chat comments from users who have donated (Newest)';
                                 } else if (sortType === 'oldest') {
-                                    renderCommentChat(selector, resultSearch?.reverse(), querySearch);
+                                    // Apply search text filter if present
+                                    if (querySearch && querySearch.trim()) {
+                                        const base = resultSearch.map((r: any) => r.item).reverse();
+                                        const fuse = new Fuse(base, options);
+                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                        renderCommentChat(selector, filtered, querySearch);
+                                        resultSearch = filtered;
+                                    } else {
+                                        renderCommentChat(selector, resultSearch?.reverse(), querySearch);
+                                    }
 
                                     elSortDonated.innerHTML = `Donated ${iconSortUp()}`;
                                     elSortDonated.title = 'Show chat comments from users who have donated (Oldest)';
@@ -1875,12 +1893,30 @@ Total: ${c.count}\n${c.html}`;
                                     param?.sortOrder || (elSortMember.dataset.sortChat as 'newest' | 'oldest');
 
                                 if (sortType === 'newest') {
-                                    renderCommentChat(selector, resultSearch, querySearch);
+                                    // Apply search text filter if present
+                                    if (querySearch && querySearch.trim()) {
+                                        const base = resultSearch.map((r: any) => r.item);
+                                        const fuse = new Fuse(base, options);
+                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                        renderCommentChat(selector, filtered, querySearch);
+                                        resultSearch = filtered;
+                                    } else {
+                                        renderCommentChat(selector, resultSearch, querySearch);
+                                    }
 
                                     elSortMember.innerHTML = `Members ${iconSortDown()}`;
                                     elSortMember.title = 'Show comments, replies, chat from channel members (Newest)';
                                 } else if (sortType === 'oldest') {
-                                    renderCommentChat(selector, resultSearch?.reverse(), querySearch);
+                                    // Apply search text filter if present
+                                    if (querySearch && querySearch.trim()) {
+                                        const base = resultSearch.map((r: any) => r.item).reverse();
+                                        const fuse = new Fuse(base, options);
+                                        const filtered = fuse.search(querySearch.trim()) as ICommentsFuseResult[];
+                                        renderCommentChat(selector, filtered, querySearch);
+                                        resultSearch = filtered;
+                                    } else {
+                                        renderCommentChat(selector, resultSearch?.reverse(), querySearch);
+                                    }
 
                                     elSortMember.innerHTML = `Members ${iconSortUp()}`;
                                     elSortMember.title = 'Show comments, replies, chat from channel members (Oldest)';
