@@ -4,7 +4,7 @@ import 'abort-controller/polyfill';
 
 import Fuse from '../../../node_modules/fuse.js/dist/fuse';
 
-import { GlobalStore, wrapTryCatch, getCleanUrlVideo, isVideoPage } from '../utils/common';
+import { GlobalStore, extractChannelId, wrapTryCatch, getCleanUrlVideo, isVideoPage } from '../utils/common';
 import {
     downloadFile,
     getRandomComment,
@@ -803,7 +803,7 @@ import {
                                     comments,
                                     commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
                                     commentsTrVideo,
-                                    channelId: GlobalStore.getInitYtData?.playerResponse?.videoDetails?.channelId
+                                    channelId: extractChannelId()
                                 },
                                 window.location.href,
                                 document.title
@@ -861,7 +861,7 @@ import {
                                     comments,
                                     commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
                                     commentsTrVideo,
-                                    channelId: GlobalStore.getInitYtData?.playerResponse?.videoDetails?.channelId
+                                    channelId: extractChannelId()
                                 },
                                 window.location.href,
                                 document.title
@@ -933,7 +933,7 @@ import {
                                         comments,
                                         commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
                                         commentsTrVideo,
-                                        channelId: GlobalStore.getInitYtData?.playerResponse?.videoDetails?.channelId
+                                        channelId: extractChannelId()
                                     },
                                     window.location.href,
                                     document.title

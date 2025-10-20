@@ -1,6 +1,6 @@
 import urlRegex from 'url-regex';
 
-import { GlobalStore, wrapTryCatch } from '../common';
+import { extractChannelId, wrapTryCatch } from '../common';
 import { ICommentItem, ICommentsFuseResult } from '../interfaces/i_types';
 
 function filterAuthorChat(comments: any): [] {
@@ -8,25 +8,7 @@ function filterAuthorChat(comments: any): [] {
 
     try {
         const fAuthor: any = [];
-        // Support multiple data structures: direct object (new API/cached) and array (legacy API)
-        const channelID = wrapTryCatch(() => {
-            const ytData = GlobalStore.getInitYtData;
-
-            // Priority 1: Direct object access (new API or cached)
-            if (ytData?.playerResponse?.videoDetails?.channelId) {
-                return ytData.playerResponse.videoDetails.channelId;
-            }
-
-            // Priority 2: Array access (legacy API)
-            if (Array.isArray(ytData)) {
-                for (let i = 0; i < ytData.length; i++) {
-                    const channelId = ytData[i]?.playerResponse?.videoDetails?.channelId;
-                    if (channelId) return channelId;
-                }
-            }
-
-            return undefined;
-        });
+        const channelID = extractChannelId();
 
         if (channelID) {
             for (const [, c] of comments.entries()) {
