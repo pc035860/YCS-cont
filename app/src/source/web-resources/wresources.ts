@@ -75,9 +75,9 @@ import {
     const DEBUG = false;
 
     // Filter support matrix for different content types
-    // Chat doesn't support: heart, likes, replied, random
-    // Transcript doesn't support: all filters except links, timestamp, sortFirst
-    const CHAT_UNSUPPORTED_FILTERS = ['heart', 'likes', 'replied', 'random'] as const;
+    // Chat doesn't support: heart, likes, replied, random, timestamp
+    // Transcript doesn't support: all filters except links, sortFirst
+    const CHAT_UNSUPPORTED_FILTERS = ['timestamp', 'heart', 'likes', 'replied', 'random'] as const;
     const TRANSCRIPT_UNSUPPORTED_FILTERS = [
         ...CHAT_UNSUPPORTED_FILTERS,
         'author',
