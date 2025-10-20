@@ -3247,6 +3247,51 @@ async function getAllCommentsModeV2(
     // console.log('reply Queue: ', replyQueue);
 
     await replyQueue.onIdle();
+
+    // ========== Deduplicate parent comments (keep first occurrence) ==========
+    // Phase 1: Build map of commentId -> first parent comment object
+    const parentByCommentId = new Map<string, any>();
+    for (const cm of comments) {
+        if ((cm as any)?.typeComment === 'C') {
+            const id = (cm as any)?.commentRenderer?.commentId;
+            if (id && !parentByCommentId.has(id)) {
+                parentByCommentId.set(id, cm); // Only record first occurrence
+            }
+        }
+    }
+
+    // Phase 2: Filter array - keep first occurrence of each parent, all replies
+    const deduplicated: typeof comments = [];
+    for (const cm of comments) {
+        if ((cm as any)?.typeComment === 'C') {
+            // Parent comment: only keep the first occurrence
+            const id = (cm as any)?.commentRenderer?.commentId;
+            if (id && parentByCommentId.get(id) === cm) {
+                deduplicated.push(cm);
+            } else if (!id) {
+                // Keep parent comments without ID (safety fallback)
+                deduplicated.push(cm);
+            }
+            // Later duplicate parent comments are filtered out
+        } else if ((cm as any)?.typeComment === 'R') {
+            // Reply: update originComment to point to kept first parent
+            // (replies may have been fetched via duplicate parent's continuation)
+            const originId = (cm as any)?.originComment?.commentRenderer?.commentId;
+            if (originId && parentByCommentId.has(originId)) {
+                (cm as any).originComment = parentByCommentId.get(originId);
+            }
+            deduplicated.push(cm);
+        } else {
+            // Other types: keep as-is
+            deduplicated.push(cm);
+        }
+    }
+
+    // Phase 3: Replace original array in-place
+    comments.length = 0;
+    comments.push(...deduplicated);
+    // ========== End deduplication ==========
+
     // Assign stable original index for all loaded comments (newest-first ascending)
     try {
         if (Array.isArray(comments) && comments.length > 0) {
