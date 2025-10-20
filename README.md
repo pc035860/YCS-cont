@@ -2,6 +2,12 @@
 
 > Source-based development repository. Main branch: **v2-source**
 
+## Installation
+
+Download the extension from official stores:
+- **Chrome Web Store**: https://chromewebstore.google.com/detail/mfobjniokjbcldieppimekoibpocahed
+- **Firefox Add-ons**: https://addons.mozilla.org/zh-TW/firefox/addon/ycs-continued/
+
 ## Project Background
 
 This repository is the source-based continuation of **YCS (YouTube Comment Search)** extension.
@@ -17,7 +23,7 @@ The extension enables searching, filtering, and exporting YouTube comments, repl
 ## Development Setup
 
 ### Prerequisites
-- Node.js 16+
+- Node.js 22+ (defined in `app/.nvmrc`)
 - npm
 
 ### Installation & Build
@@ -43,6 +49,10 @@ npm run lint
 
 # Type checking
 npm run typecheck
+
+# Format code with Prettier
+npm run format
+npm run format:check
 
 # Clean all build artifacts
 npm run rm
@@ -106,11 +116,11 @@ YouTube.com Page
 
 The extension integrates with YouTube's internal Innertube API for comments, chat replays, and transcripts.
 
-**Documentation** (in `app/docs/`):
-- `innertube-comments-integration.md` - **Start here** for comment integration
-- `innertube-migration-guide.md` - frameworkUpdates migration guide
-- `innertube-chat-replay-api-changes.md` - Chat replay API changes
-- `continuation-processing.md` - Implementation reference
+**Documentation**:
+- [innertube-comments-integration.md](app/docs/innertube-comments-integration.md) - **Start here** for comment integration
+- [innertube-migration-guide.md](app/docs/innertube-migration-guide.md) - frameworkUpdates migration guide
+- [innertube-chat-replay-api-changes.md](app/docs/innertube-chat-replay-api-changes.md) - Chat replay API changes
+- [continuation-processing.md](app/docs/continuation-processing.md) - Implementation reference
 
 **Key directories**:
 - `app/src/source/` - TypeScript source code

@@ -17,13 +17,18 @@ app/
 │   │   ├── browser-action/  # Extension popup UI
 │   │   ├── options/         # Settings page and comment export
 │   │   └── utils/           # Modular utility system
+│   │       ├── assist.ts     # Module facade and unified export point
+│   │       ├── common.ts     # Shared utilities and GlobalStore
+│   │       ├── libs.ts       # External library wrappers (fetchR, IndexedDB)
 │   │       ├── innertube.ts  # YouTube Innertube API integration
-│   │       ├── filters/      # Comment and chat filtering
-│   │       ├── formatting.ts # Data transformation
-│   │       ├── dom.ts        # UI interactions
-│   │       ├── sheets.ts     # Excel export
-│   │       ├── common.ts     # Shared utilities
+│   │       ├── filters/      # Comment and chat filtering modules
+│   │       ├── formatting.ts # Data transformation and HTML output
+│   │       ├── dom.ts        # DOM manipulation and UI interactions
+│   │       ├── sheets.ts     # Excel export functionality
 │   │       ├── renderView.ts # HTML template rendering
+│   │       ├── viewModels.ts # View model interfaces and builders
+│   │       ├── icons.ts      # SVG icon constants
+│   │       ├── injections.ts # Script injection utilities (MV3)
 │   │       └── interfaces/   # TypeScript type definitions
 │   └── static/              # Static assets (copied by Parcel)
 │       ├── manifest.json    # Chrome MV3 manifest
@@ -42,7 +47,7 @@ app/
 ## Development Setup
 
 ### Prerequisites
-- Node.js 16+
+- Node.js 22+ (defined in `.nvmrc`)
 - npm
 
 ### Install Dependencies
@@ -60,6 +65,8 @@ npm ci
 | `npm run rebuild` | Clean cache and rebuild |
 | `npm run lint` | Run ESLint on TypeScript files |
 | `npm run typecheck` | Run TypeScript type checking (no build) |
+| `npm run format` | Format code with Prettier |
+| `npm run format:check` | Check code formatting without modifying |
 | `npm run rm` | Clean all build artifacts (dist, cache, dev) |
 
 ## Building the Extension
