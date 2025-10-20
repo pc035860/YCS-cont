@@ -76,10 +76,14 @@ import {
 
     // Filter support matrix for different content types
     // Chat doesn't support: heart, likes, replied, random, timestamp
-    // Transcript doesn't support: all filters except links, sortFirst
+    // Transcript doesn't support: all filters except links, sortFirst, timestamp
+    // Note: Transcript's timestamp works differently - it parses mm:ss search input to find cues at specific time
     const CHAT_UNSUPPORTED_FILTERS = ['timestamp', 'heart', 'likes', 'replied', 'random'] as const;
     const TRANSCRIPT_UNSUPPORTED_FILTERS = [
-        ...CHAT_UNSUPPORTED_FILTERS,
+        'heart',
+        'likes',
+        'replied',
+        'random',
         'author',
         'donated',
         'members',
