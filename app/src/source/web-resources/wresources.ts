@@ -27,7 +27,6 @@ import {
     filterLikesComments,
     filterLinksTrpVideoComments,
     filterMemberComments,
-    filterDonatedComments,
     filterNewestFirst,
     filterRepliedComments,
     filterLinksComments,
@@ -595,8 +594,6 @@ import {
 
                             // Toggle sort only if button was already active
                             if (wasActive) {
-                                const currentSort = currentTarget.dataset.sort;
-                                currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
                                 const currentSortChat = currentTarget.dataset.sortChat;
                                 currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
                             }
@@ -1147,7 +1144,7 @@ Total: ${c.count}\n${c.html}`;
 
             const searchComments = (selector: string, param?: IParamSearch): void => {
                 try {
-                    if (comments.length === 0) return;
+                    if (comments.length === 0 || param?.donated) return;
 
                     const inputSearch = document.getElementById('ycs-input-search') as HTMLInputElement;
                     const querySearch: string = inputSearch?.value;
@@ -1276,39 +1273,6 @@ Total: ${c.count}\n${c.html}`;
                             }
 
                             console.log('cmntsMembers: ', cmntsMembers);
-                        }
-                    } else if (param?.donated) {
-                        const cmntsDonated = filterDonatedComments(comments);
-                        resultSearch = cmntsDonated;
-                        if (textMatchedSet) resultSearch = resultSearch.filter((r: any) => textMatchedSet?.has(r.item));
-
-                        if (resultSearch.length > 0) {
-                            console.log('donated before: ', resultSearch);
-
-                            resultSearch?.sort((firstItem, secondItem) => {
-                                return firstItem.refIndex - secondItem.refIndex;
-                            });
-
-                            console.log('donated after: ', resultSearch);
-
-                            const elSortDonated = document.getElementById('ycs_btn_donated') as HTMLElement;
-                            // Use sortOrder from param if provided (from text search), otherwise use button's dataset
-                            const sortType = param?.sortOrder || (elSortDonated.dataset.sort as 'newest' | 'oldest');
-
-                            if (sortType === 'newest') {
-                                renderComment(selector, resultSearch, true, querySearch);
-                                elSortDonated.innerHTML = `Donated ${iconSortDown()}`;
-                                elSortDonated.title = 'Show comments from users who have donated (Newest)';
-                            } else if (sortType === 'oldest') {
-                                renderComment(selector, resultSearch?.reverse(), true, querySearch);
-                                elSortDonated.innerHTML = `Donated ${iconSortUp()}`;
-                                elSortDonated.title = 'Show comments from users who have donated (Oldest)';
-                            } else {
-                                renderComment(selector, resultSearch, true, querySearch);
-                                elSortDonated.innerHTML = `Donated ${iconSortDown()}`;
-                            }
-
-                            console.log('cmntsDonated: ', cmntsDonated);
                         }
                     } else if (param?.replied) {
                         const cmntsReplied = filterRepliedComments(comments);
@@ -2409,26 +2373,7 @@ Total: ${c.count}\n${c.html}`;
             const searchCommentsAll = (selector: string, param?: IParamSearch): void => {
                 const elSearchAll = document.querySelector(selector);
                 const nodeTotalSearchResult = document.getElementById('ycs-search-total-result');
-
-                /**
-                 * Filter support matrix:
-                 * - Comments: All filters supported (author, donated, members, verified, heart, likes, replied, links, timestamp, random)
-                 * - Chat: Supports author, donated, members, verified, links, timestamp, sortFirst
-                 * - Transcript: Only supports links, timestamp, sortFirst
-                 *
-                 * This conditional rendering ensures:
-                 * 1. Chat is hidden when using filters it doesn't support (heart, likes, replied, random)
-                 * 2. Transcript is hidden when using filters it doesn't support (all except links, timestamp)
-                 * 3. All sources are shown when no filter is applied or when using sortFirst
-                 */
-
-                // Chat doesn't support: heart, likes, replied, random
-                const chatUnsupportedFilters = param?.heart || param?.likes || param?.replied || param?.random;
-                const shouldRenderChat = !param || param.sortFirst === true || !chatUnsupportedFilters;
-
-                // Transcript only supports: links, timestamp, sortFirst
-                const transcriptSupportedFilters = param?.links || param?.timestamp || param?.sortFirst;
-                const shouldRenderTranscript = !param || transcriptSupportedFilters;
+                const shouldRenderAllSources = !param || param.sortFirst === true;
 
                 if (nodeTotalSearchResult) {
                     nodeTotalSearchResult?.classList.add('ycs-hidden');
@@ -2459,13 +2404,13 @@ Total: ${c.count}\n${c.html}`;
                         searchComments('#ycs_allsearch__wrap_comments', param);
                     }
 
-                    if (shouldRenderChat && commentsChat && commentsChat.size > 0) {
+                    if (shouldRenderAllSources && commentsChat && commentsChat.size > 0) {
                         elSearchAll?.appendChild(elWrapCommentsChat);
                         searchCommentsChat('#ycs_allsearch__wrap_comments_chat', param);
                     }
 
                     if (
-                        shouldRenderTranscript &&
+                        shouldRenderAllSources &&
                         commentsTrVideo &&
                         (wrapTryCatch(
                             () =>

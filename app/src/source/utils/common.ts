@@ -251,35 +251,6 @@ async function delayMs(ms: number): Promise<void> {
     return await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Converts YouTube's 32-bit RGBA integer color to CSS rgba() string
- * Format: 0xRRGGBBAA (Red, Green, Blue, Alpha in hex)
- *
- * @param color - 32-bit unsigned integer representing RGBA color
- * @returns CSS rgba() string, e.g., "rgba(255,229,0,0.694)"
- *
- * @example
- * convertColorToRgba(4293296689) // returns "rgba(255,229,0,0.694)"
- * convertColorToRgba(4294967295) // returns "rgba(255,255,255,1.000)"
- */
-function convertColorToRgba(color: number): string {
-    const r = (color & 0xff0000) >>> 16; // Red channel
-    const g = (color & 0x00ff00) >>> 8; // Green channel
-    const b = color & 0x0000ff; // Blue channel
-    const a = (color & 0xff000000) >>> 24; // Alpha channel
-
-    // Validate that all components are in valid range (0-255)
-    const components = [r, g, b, a];
-    if (!components.every((c) => c === (c & 0xff))) {
-        throw new Error(`Invalid color value: ${color} (components: ${components.join(',')})`);
-    }
-
-    // Convert alpha from 0-255 to 0-1 range with 3 decimal places
-    const alphaDecimal = (a / 255).toFixed(3);
-
-    return `rgba(${r},${g},${b},${alphaDecimal})`;
-}
-
 export {
     GlobalStore,
     randomString,
@@ -296,6 +267,5 @@ export {
     getCleanUrlVideo,
     isWatchVideo,
     isVideoPage,
-    getPaginate,
-    convertColorToRgba
+    getPaginate
 };

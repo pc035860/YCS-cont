@@ -10,8 +10,7 @@ import {
     CommentViewModel,
     ChatMessageViewModel,
     TranscriptViewModel,
-    MemberBadgeViewModel,
-    DonatedChipViewModel
+    MemberBadgeViewModel
 } from './viewModels';
 import { iconExpand, iconExpandShowMore, iconReload, iconSortDown } from './icons';
 
@@ -54,62 +53,6 @@ function createMemberBadgeElement(badge?: MemberBadgeViewModel): HTMLElement | n
     img.loading = 'lazy';
     img.src = badge.thumbnailUrl;
     return img;
-}
-
-function createDonatedChipElement(chip?: DonatedChipViewModel): HTMLElement | null {
-    if (!chip) return null;
-
-    // Create outer wrapper (YouTube Web Component structure)
-    const wrapper = document.createElement('span');
-    wrapper.id = 'paid-comment-chip';
-    wrapper.slot = 'content';
-    wrapper.className = 'style-scope ycs-chip ytd-comment-view-model';
-    wrapper.setAttribute('role', 'button');
-    wrapper.setAttribute('tabindex', '0');
-
-    // Set CSS Variables for dynamic colors
-    if (chip.backgroundColor) {
-        wrapper.style.setProperty('--yt-pdg-comment-chip-background-color', chip.backgroundColor);
-    }
-    if (chip.foregroundColor) {
-        wrapper.style.setProperty('--yt-pdg-comment-chip-font-color', chip.foregroundColor);
-    }
-    wrapper.style.setProperty('--yt-pdg-comment-chip-cursor', 'pointer');
-
-    // Create inner container
-    const container = document.createElement('div');
-    container.id = 'comment-chip-container';
-    container.className = 'style-scope yt-pdg-comment-chip-renderer';
-
-    // Create icon container
-    const iconContainer = document.createElement('span');
-    iconContainer.className = 'style-scope ycs-yt-icon yt-pdg-comment-chip-renderer';
-
-    const iconShape = document.createElement('span');
-    iconShape.className = 'yt-icon-shape style-scope yt-icon ytSpecIconShapeHost';
-
-    const iconDiv = document.createElement('div');
-    iconDiv.style.cssText = 'width: 100%; height: 100%; display: block; fill: currentcolor;';
-
-    // SVG icon for donated chip (heart + dollar sign)
-    iconDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" height="12" viewBox="0 0 12 12" width="12" focusable="false" aria-hidden="true" style="pointer-events: none; display: inherit; width: 100%; height: 100%;"><path d="M8.125 1C7.35 1 6.599 1.267 6 1.758 5.4 1.268 4.65.999 3.875 1c-.895 0-1.754.356-2.386.989C.856 2.62.5 3.479.5 4.375c0 2.249 1.392 3.908 2.604 4.935.74.62 1.551 1.148 2.419 1.571l.048.022.015.007.004.003h.002L6 10l-.407.914.407.18.406-.18L6 10c.134.305.27.61.407.913l.002-.001.005-.002.014-.007.048-.023c.868-.422 1.68-.95 2.42-1.57C10.107 8.283 11.5 6.624 11.5 4.375c0-.895-.356-1.754-.989-2.386C9.88 1.356 9.021 1 8.125 1ZM6 3.25c.133 0 .26.053.354.146.093.094.146.221.146.354v.327c.284.087.54.247.744.464l.008.009.003.004.001.003c.078.102.114.23.1.357-.014.128-.077.245-.175.327-.099.083-.225.124-.353.115-.128-.009-.248-.067-.334-.162l.002.004-.017-.016c-.13-.12-.302-.186-.48-.185-.199 0-.315.052-.37.096-.043.034-.07.078-.07.157 0 .015.002.03.005.046l.002.004.008.009c.013.01.028.02.044.028.113.06.287.098.571.153.237.047.582.111.86.269.15.085.3.207.41.385.112.18.163.386.163.606 0 .621-.477 1.048-1.122 1.192v.308c0 .133-.053.26-.146.354-.094.093-.221.146-.354.146-.133 0-.26-.053-.354-.146-.093-.094-.146-.221-.146-.354v-.306c-.272-.052-.526-.17-.739-.347-.139-.119-.251-.265-.33-.43l-.017-.043-.007-.017-.002-.006-.002-.004v-.002c-.04-.124-.03-.26.028-.376.059-.117.16-.207.284-.249.124-.042.26-.033.377.024.118.057.208.158.252.281l-.001-.004-.005-.014c.019.032.043.06.072.084.066.056.23.162.59.162.295 0 .463-.075.545-.136.078-.058.083-.105.083-.117 0-.061-.015-.08-.015-.081-.003-.004-.014-.022-.057-.046-.108-.062-.281-.102-.558-.157-.232-.045-.574-.105-.847-.25-.167-.085-.31-.211-.415-.367-.115-.178-.175-.387-.171-.599-.003-.18.036-.358.113-.52.077-.162.19-.305.332-.416.145-.114.311-.194.49-.244v-.32c0-.133.053-.26.146-.354.094-.093.221-.146.354-.146Z"></path></svg>`;
-
-    iconShape.appendChild(iconDiv);
-    iconContainer.appendChild(iconShape);
-
-    // Create price text
-    const priceSpan = document.createElement('span');
-    priceSpan.id = 'comment-chip-price';
-    priceSpan.className = 'style-scope yt-pdg-comment-chip-renderer';
-    priceSpan.textContent = ` ${chip.amount} `;
-
-    container.appendChild(iconContainer);
-    container.appendChild(priceSpan);
-
-    // Nest container inside wrapper
-    wrapper.appendChild(container);
-
-    return wrapper;
 }
 
 function createHeartElement(tooltip?: string): HTMLElement | null {
@@ -241,11 +184,6 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
         meta.appendChild(badge);
     }
 
-    const donatedChip = createDonatedChipElement(model.donatedChip);
-    if (donatedChip) {
-        meta.appendChild(donatedChip);
-    }
-
     const publishedLink = document.createElement('a');
     publishedLink.className = 'ycs-datetime-goto';
     publishedLink.href = safeUrl(model.publishedUrl);
@@ -346,11 +284,6 @@ function createChatElement(model: ChatMessageViewModel, index: number): HTMLElem
     const badge = createMemberBadgeElement(model.memberBadge);
     if (badge) {
         meta.appendChild(badge);
-    }
-
-    const donatedChip = createDonatedChipElement(model.donatedChip);
-    if (donatedChip) {
-        meta.appendChild(donatedChip);
     }
 
     const timestampLink = document.createElement('a');
@@ -1023,7 +956,6 @@ function renderSearch(node: HTMLElement): void {
                         ${iconSortDown()}
                     </button>
                     <button id="ycs_btn_donated"
-                        data-sort="newest"
                         data-sort-chat="newest"
                         class="ycs-btn-search ycs-title"
                         name="donated" type="button"
