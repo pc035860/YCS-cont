@@ -228,8 +228,8 @@ import {
             removeNodeList('.ycs-app');
 
             // Try new insertion points first (between expandable-metadata and ticket-shelf)
-            if (document.querySelector('#expandable-metadata')) {
-                renderLoadComments('#expandable-metadata', 'insertAfter');
+            if (document.querySelector('#expandable-metadata.ytd-watch-flexy')) {
+                renderLoadComments('#expandable-metadata.ytd-watch-flexy', 'insertAfter');
             } else if (document.querySelector('#ticket-shelf')) {
                 renderLoadComments('#ticket-shelf', 'insertAfter');
             } else if (document.querySelector('#meta.style-scope.ytd-watch-flexy')) {
