@@ -74,6 +74,18 @@ import {
     // Set to false for production to reduce console noise
     const DEBUG = false;
 
+    // Filter support matrix for different content types
+    // Chat doesn't support: heart, likes, replied, random
+    // Transcript doesn't support: all filters except links, timestamp, sortFirst
+    const CHAT_UNSUPPORTED_FILTERS = ['heart', 'likes', 'replied', 'random'] as const;
+    const TRANSCRIPT_UNSUPPORTED_FILTERS = [
+        ...CHAT_UNSUPPORTED_FILTERS,
+        'author',
+        'donated',
+        'members',
+        'verified'
+    ] as const;
+
     // Track if initApp() has been called to prevent duplicate initialization
     // Store app() function reference to allow retry without re-initializing
     let isInitAppCalled = false;
@@ -1718,7 +1730,7 @@ Total: ${c.count}\n${c.html}`;
 
             const searchCommentsChat = (selector: string, param?: IParamSearch): void => {
                 try {
-                    if (param?.likes || param?.replied || param?.random || param?.heart) return;
+                    if (CHAT_UNSUPPORTED_FILTERS.some((filter) => param?.[filter])) return;
 
                     if (commentsChat && commentsChat.size > 0) {
                         const elSearchRes = document.querySelector(selector);
@@ -2111,6 +2123,16 @@ Total: ${c.count}\n${c.html}`;
 
             const searchCommentsTrVideo = (selector: string, param?: IParamSearch): void => {
                 try {
+                    if (TRANSCRIPT_UNSUPPORTED_FILTERS.some((filter) => param?.[filter])) {
+                        // Clear UI elements before returning to avoid showing stale data
+                        const elSearchRes = document.querySelector(selector);
+                        const nodeTotalSearchResult = document.getElementById('ycs-search-total-result');
+                        if (elSearchRes) elSearchRes.textContent = '';
+                        if (nodeTotalSearchResult) nodeTotalSearchResult.classList.add('ycs-hidden');
+                        countSearchComments.commentsTrVideo = 0;
+                        return;
+                    }
+
                     if (
                         commentsTrVideo &&
                         wrapTryCatch(
@@ -2418,17 +2440,17 @@ Total: ${c.count}\n${c.html}`;
                  *
                  * This conditional rendering ensures:
                  * 1. Chat is hidden when using filters it doesn't support (heart, likes, replied, random)
-                 * 2. Transcript is hidden when using filters it doesn't support (all except links, timestamp)
+                 * 2. Transcript is hidden when using filters it doesn't support (all except links, timestamp, sortFirst)
                  * 3. All sources are shown when no filter is applied or when using sortFirst
                  */
 
                 // Chat doesn't support: heart, likes, replied, random
-                const chatUnsupportedFilters = param?.heart || param?.likes || param?.replied || param?.random;
-                const shouldRenderChat = !param || param.sortFirst === true || !chatUnsupportedFilters;
+                const hasChatUnsupportedFilter = CHAT_UNSUPPORTED_FILTERS.some((filter) => param?.[filter]);
+                const shouldRenderChat = !param || param.sortFirst === true || !hasChatUnsupportedFilter;
 
-                // Transcript only supports: links, timestamp, sortFirst
-                const transcriptSupportedFilters = param?.links || param?.timestamp || param?.sortFirst;
-                const shouldRenderTranscript = !param || transcriptSupportedFilters;
+                // Transcript doesn't support: author, donated, members, verified, heart, likes, replied, random
+                const hasTranscriptUnsupportedFilter = TRANSCRIPT_UNSUPPORTED_FILTERS.some((filter) => param?.[filter]);
+                const shouldRenderTranscript = !param || param.sortFirst === true || !hasTranscriptUnsupportedFilter;
 
                 if (nodeTotalSearchResult) {
                     nodeTotalSearchResult?.classList.add('ycs-hidden');
