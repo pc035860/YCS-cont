@@ -1,11 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { decodeHtml, escapeHtml, wrapTryCatch } from './common';
+import { decodeHtml, escapeHtml, wrapTryCatch, convertColorToRgba } from './common';
 import { msToShareVideo, tmUsecToDateTime } from './formatting';
 
 export interface MemberBadgeViewModel {
     tooltip: string;
     thumbnailUrl: string;
+}
+
+export interface DonatedChipViewModel {
+    amount: string;
+    backgroundColor?: string;
+    foregroundColor?: string;
+    iconType?: string;
 }
 
 export interface CommentViewModel {
@@ -14,6 +21,7 @@ export interface CommentViewModel {
     authorAvatarUrl: string;
     isVerified: boolean;
     memberBadge?: MemberBadgeViewModel;
+    donatedChip?: DonatedChipViewModel;
     publishedText: string;
     publishedUrl: string;
     likeCountText?: string;
@@ -32,6 +40,7 @@ export interface ChatMessageViewModel {
     authorAvatarUrl: string;
     isVerified: boolean;
     memberBadge?: MemberBadgeViewModel;
+    donatedChip?: DonatedChipViewModel;
     timestampGmtText: string;
     timestampLabel: string;
     gotoVideoUrl?: string;
@@ -108,7 +117,7 @@ function sanitizeHtml(html: unknown): string {
             return safe ? `src='${escapeHtml(safe)}'` : "src=''";
         });
 
-        const allowedTags = new Set(['a', 'br', 'img']);
+        const allowedTags = new Set(['a', 'br', 'img', 'span']);
         value = value.replace(/<(\/)?([a-z0-9-]+)([^>]*)>/gi, (match, closingSlash, tag, attrs) => {
             const lower = tag.toLowerCase();
             if (!allowedTags.has(lower)) {
@@ -173,6 +182,47 @@ function resolveChatBadge(renderer: any): MemberBadgeViewModel | undefined {
     }
 
     return undefined;
+}
+
+function resolveDonatedChip(renderer: any): DonatedChipViewModel | undefined {
+    const chip = wrapTryCatch(() => renderer?.donatedChip?.pdgCommentChipRenderer);
+    if (!chip) return undefined;
+
+    const amount = coerceString(wrapTryCatch(() => chip.chipText?.simpleText));
+    if (!amount) return undefined;
+
+    // Extract color palette
+    const bgColorInt = wrapTryCatch(() => chip.chipColorPalette?.backgroundColor);
+    const fgColorInt = wrapTryCatch(() => chip.chipColorPalette?.foregroundTitleColor);
+
+    let backgroundColor: string | undefined;
+    let foregroundColor: string | undefined;
+
+    try {
+        if (typeof bgColorInt === 'number') {
+            backgroundColor = convertColorToRgba(bgColorInt);
+        }
+    } catch (err) {
+        console.error('Failed to convert backgroundColor:', bgColorInt, err);
+    }
+
+    try {
+        if (typeof fgColorInt === 'number') {
+            foregroundColor = convertColorToRgba(fgColorInt);
+        }
+    } catch (err) {
+        console.error('Failed to convert foregroundColor:', fgColorInt, err);
+    }
+
+    // Extract icon type
+    const iconType = coerceString(wrapTryCatch(() => chip.chipIcon?.iconType));
+
+    return {
+        amount,
+        backgroundColor,
+        foregroundColor,
+        iconType: iconType || undefined
+    };
 }
 
 function buildChatRunsHtml(runs: any[]): string {
@@ -323,6 +373,7 @@ export function buildCommentViewModels(items: any[], options: { isReply?: boolea
             authorAvatarUrl,
             isVerified: Boolean(wrapTryCatch(() => renderer.verifiedAuthor)),
             memberBadge: resolveCommentBadge(renderer),
+            donatedChip: resolveDonatedChip(renderer),
             publishedText,
             publishedUrl,
             likeCountText: likeCountText || undefined,
@@ -372,6 +423,7 @@ export function buildChatMessageViewModels(items: any[]): ChatMessageViewModel[]
             authorAvatarUrl,
             isVerified: Boolean(wrapTryCatch(() => renderer.verifiedAuthor)),
             memberBadge: resolveChatBadge(renderer),
+            donatedChip: resolveDonatedChip(renderer),
             timestampGmtText,
             timestampLabel,
             gotoVideoUrl: gotoVideoUrl || undefined,
