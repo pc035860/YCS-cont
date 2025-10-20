@@ -75,10 +75,13 @@ import {
     const DEBUG = false;
 
     // Filter support matrix for different content types
-    // Chat doesn't support: heart, likes, replied, random, timestamp
+    // Chat doesn't support: heart, likes, replied, random
     // Transcript doesn't support: all filters except links, sortFirst, timestamp
-    // Note: Transcript's timestamp works differently - it parses mm:ss search input to find cues at specific time
-    const CHAT_UNSUPPORTED_FILTERS = ['timestamp', 'heart', 'likes', 'replied', 'random'] as const;
+    // Note: Timestamp filter has different semantics for each content type:
+    //   - Comments: filters comments containing video timestamp LINKS
+    //   - Chat: filters chat messages containing video timestamp LINKS
+    //   - Transcript: parses mm:ss search input to find cues at specific time
+    const CHAT_UNSUPPORTED_FILTERS = ['heart', 'likes', 'replied', 'random'] as const;
     const TRANSCRIPT_UNSUPPORTED_FILTERS = [
         'heart',
         'likes',
