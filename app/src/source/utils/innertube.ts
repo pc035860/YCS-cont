@@ -262,6 +262,30 @@ function normalizeCommentFromViewModel(item: any): any | undefined {
     }
 }
 
+/**
+ * Extracts donate chip information from liveChatPaidMessageRenderer
+ * and adds it to the renderer as donatedChip structure for unified chip badge rendering
+ */
+function addDonatedChipFromPaidRenderer(renderer: any): void {
+    const purchaseAmount =
+        wrapTryCatch(() => renderer.purchaseAmountText?.simpleText) ??
+        wrapTryCatch(() => (renderer.purchaseAmountText?.runs || []).map((run: any) => run?.text || '').join(''));
+
+    if (!purchaseAmount) return;
+
+    renderer.donatedChip = {
+        pdgCommentChipRenderer: {
+            chipText: {
+                simpleText: purchaseAmount
+            },
+            chipColorPalette: {
+                backgroundColor: renderer.headerBackgroundColor ?? renderer.bodyBackgroundColor,
+                foregroundTitleColor: renderer.headerTextColor ?? renderer.bodyTextColor
+            }
+        }
+    };
+}
+
 function getFrameworkUpdatesById(response: any): Record<string, any> {
     try {
         const mutations: any[] = wrapTryCatch(() => response.frameworkUpdates.entityBatchUpdate.mutations) || [];
@@ -1318,6 +1342,12 @@ async function getChatComments(
                                     comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
                                         comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatPaidMessageRenderer;
                                     console.log('Done! Added liveChatPaidMessageRenderer: ', comment);
+
+                                    // Extract donate chip information from liveChatPaidMessageRenderer
+                                    addDonatedChipFromPaidRenderer(
+                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                            .liveChatTextMessageRenderer
+                                    );
                                 } else if (
                                     wrapTryCatch(
                                         () =>
@@ -1346,6 +1376,12 @@ async function getChatComments(
                                     comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
                                         comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint.showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer;
                                     console.log('Done! Added LiveChatTickerItemAction: ', comment);
+
+                                    // Extract donate chip information from liveChatPaidMessageRenderer
+                                    addDonatedChipFromPaidRenderer(
+                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                            .liveChatTextMessageRenderer
+                                    );
                                 } else {
                                     // console.log('deepFindObjKey: ', deepFindObjKey(comment, 'timestampUsec'));
                                     const pathComment = wrapTryCatch(() =>
@@ -1388,17 +1424,8 @@ async function getChatComments(
                                 let fullText = '';
                                 let renderFullTextComment = '';
 
-                                if (
-                                    wrapTryCatch(
-                                        () =>
-                                            comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                .liveChatTextMessageRenderer.purchaseAmountText.simpleText
-                                    )
-                                ) {
-                                    console.log('Added purchaseAmountText for chat');
-                                    renderFullTextComment += `<span class="ycs-chat_donation ycs-chat_donation__title">Donated: </span><span class="ycs-chat_donation ycs-chat_donation__bg">${comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText}</span><br><br>`;
-                                    fullText += `${comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText} `;
-                                }
+                                // Removed hardcoded HTML for purchaseAmountText
+                                // Now handled by donatedChip structure and chip badge rendering
 
                                 for (const msg of chatMsgs) {
                                     try {
@@ -1545,6 +1572,12 @@ async function getChatComments(
                                                 comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
                                                     comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatPaidMessageRenderer;
                                                 console.log('Done! Added liveChatPaidMessageRenderer: ', comment);
+
+                                                // Extract donate chip information from liveChatPaidMessageRenderer
+                                                addDonatedChipFromPaidRenderer(
+                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                        .liveChatTextMessageRenderer
+                                                );
                                             } else if (
                                                 wrapTryCatch(
                                                     () =>
@@ -1575,6 +1608,12 @@ async function getChatComments(
                                                 comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
                                                     comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint.showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer;
                                                 console.log('Done! Added LiveChatTickerItemAction: ', comment);
+
+                                                // Extract donate chip information from liveChatPaidMessageRenderer
+                                                addDonatedChipFromPaidRenderer(
+                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                        .liveChatTextMessageRenderer
+                                                );
                                             } else {
                                                 // console.log('deepFindObjKey: ', deepFindObjKey(comment, 'timestampUsec'));
                                                 const pathComment = wrapTryCatch(() =>
@@ -1631,17 +1670,8 @@ async function getChatComments(
                                             let fullText = '';
                                             let renderFullTextComment = '';
 
-                                            if (
-                                                wrapTryCatch(
-                                                    () =>
-                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                            .liveChatTextMessageRenderer.purchaseAmountText.simpleText
-                                                )
-                                            ) {
-                                                console.log('Added purchaseAmountText for chat');
-                                                renderFullTextComment += `<span class="ycs-chat_donation ycs-chat_donation__title">Donated: </span><span class="ycs-chat_donation ycs-chat_donation__bg">${comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText}</span><br><br>`;
-                                                fullText += `${comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText} `;
-                                            }
+                                            // Removed hardcoded HTML for purchaseAmountText
+                                            // Now handled by donatedChip structure and chip badge rendering
 
                                             for (const msg of chatMsgs) {
                                                 try {
@@ -1820,6 +1850,12 @@ async function getChatComments(
                                                 comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
                                                     comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatPaidMessageRenderer;
                                                 console.log('Done! Added liveChatPaidMessageRenderer: ', comment);
+
+                                                // Extract donate chip information from liveChatPaidMessageRenderer
+                                                addDonatedChipFromPaidRenderer(
+                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                        .liveChatTextMessageRenderer
+                                                );
                                             } else if (
                                                 wrapTryCatch(
                                                     () =>
@@ -1850,6 +1886,12 @@ async function getChatComments(
                                                 comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
                                                     comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint.showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer;
                                                 console.log('Done! Added LiveChatTickerItemAction: ', comment);
+
+                                                // Extract donate chip information from liveChatPaidMessageRenderer
+                                                addDonatedChipFromPaidRenderer(
+                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
+                                                        .liveChatTextMessageRenderer
+                                                );
                                             } else {
                                                 const pathComment = wrapTryCatch(() =>
                                                     Object.keys(deepFindObjKey(comment, 'timestampUsec')[0])[0]
@@ -1905,17 +1947,8 @@ async function getChatComments(
                                             let fullText = '';
                                             let renderFullTextComment = '';
 
-                                            if (
-                                                wrapTryCatch(
-                                                    () =>
-                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                            .liveChatTextMessageRenderer.purchaseAmountText.simpleText
-                                                )
-                                            ) {
-                                                console.log('Added purchaseAmountText for chat');
-                                                renderFullTextComment += `<span class="ycs-chat_donation ycs-chat_donation__title">Donated: </span><span class="ycs-chat_donation ycs-chat_donation__bg">${comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText}</span><br><br>`;
-                                                fullText += `${comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.purchaseAmountText.simpleText} `;
-                                            }
+                                            // Removed hardcoded HTML for purchaseAmountText
+                                            // Now handled by donatedChip structure and chip badge rendering
 
                                             for (const msg of chatMsgs) {
                                                 try {
