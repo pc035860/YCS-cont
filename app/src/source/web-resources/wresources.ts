@@ -227,10 +227,17 @@ import {
 
             removeNodeList('.ycs-app');
 
-            if (document.querySelector('#meta.style-scope.ytd-watch-flexy')) {
+            // Try new insertion points first (between expandable-metadata and ticket-shelf)
+            if (document.querySelector('#expandable-metadata')) {
+                renderLoadComments('#expandable-metadata', 'insertAfter');
+            } else if (document.querySelector('#ticket-shelf')) {
+                renderLoadComments('#ticket-shelf', 'insertAfter');
+            } else if (document.querySelector('#meta.style-scope.ytd-watch-flexy')) {
                 renderLoadComments('#meta.style-scope.ytd-watch-flexy');
             } else if (document.querySelector('#meta.style-scope')) {
                 renderLoadComments('#meta.style-scope');
+            } else if (document.querySelector('ytd-watch-metadata')) {
+                renderLoadComments('ytd-watch-metadata', 'insertAfter');
             } else {
                 return;
             }
