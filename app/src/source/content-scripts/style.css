@@ -207,7 +207,6 @@ html[dark] .ycs_btn_active {
   border: 0;
   background-color: #34495e1c;
   vertical-align: text-bottom;
-  margin-left: 6px;
 }
 
 .ycs-open-reply * {
@@ -248,8 +247,7 @@ html[dark] .ycs-open-reply {
   width: 18px;
   border: 0;
   background-color: #34495e1c;
-  vertical-align: text-bottom;
-  margin-left: 6px;
+  vertical-align: text-top;
 }
 
 .ycs-open-comment * {
@@ -1036,20 +1034,4 @@ html[dark] .ycs-ext-search_link {
 #ycs_title_information {
   position: relative;
   top: 5px;
-}
-
-.ycs-chip.ytd-comment-view-model {
-  display: inline-block;
-}
-.ycs-chip .ycs-yt-icon {
-  display: inline-block;
-  vertical-align: text-top;
-
-  color: var(--yt-pdg-comment-chip-font-color);
-  height: 12px;
-  padding-bottom: 2px;
-  width: 12px;
-}
-.ycs-chip .ycs-yt-icon > .yt-icon {
-  height: 12px;
 }
