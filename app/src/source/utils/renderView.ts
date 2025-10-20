@@ -652,11 +652,11 @@ function isElementVisible(element: Element | null): boolean {
     );
 }
 
-function renderLoadComments(selector: string): void {
+function renderLoadComments(selector: string, preferredInsertionMode?: 'appendChild' | 'insertAfter'): void {
     if (typeof selector !== 'string') return;
 
     if (DEBUG) {
-        console.log('YCS: renderLoadComments', selector);
+        console.log('YCS: renderLoadComments', selector, preferredInsertionMode);
     }
 
     const renderViewMode = (): string => {
@@ -676,10 +676,14 @@ function renderLoadComments(selector: string): void {
 
     // Visibility check and fallback mechanism
     let targetElement: HTMLElement | null = node as HTMLElement | null;
-    let insertionMode: 'appendChild' | 'insertAfter' = 'appendChild';
+    let insertionMode: 'appendChild' | 'insertAfter' = preferredInsertionMode || 'appendChild';
 
-    if (targetElement && !isElementVisible(targetElement)) {
-        console.log('YCS: Original insertion point is hidden, trying fallback');
+    // Only check visibility and fallback when using appendChild mode
+    // insertAfter mode skips visibility check (element may be temporarily hidden during SPA navigation)
+    if (insertionMode === 'appendChild' && targetElement && !isElementVisible(targetElement)) {
+        if (DEBUG) {
+            console.log('YCS: Original insertion point is hidden, trying fallback');
+        }
 
         const fallbackElement = document.querySelector('ytd-watch-metadata');
 
@@ -693,10 +697,12 @@ function renderLoadComments(selector: string): void {
         if (fallbackElement) {
             targetElement = fallbackElement as HTMLElement;
             insertionMode = 'insertAfter';
-            console.log(
-                'YCS: Using fallback insertion point (ytd-watch-metadata)',
-                isElementVisible(fallbackElement) ? '(visible)' : '(not visible yet, will be visible soon)'
-            );
+            if (DEBUG) {
+                console.log(
+                    'YCS: Using fallback insertion point (ytd-watch-metadata)',
+                    isElementVisible(fallbackElement) ? '(visible)' : '(not visible yet, will be visible soon)'
+                );
+            }
         } else {
             console.warn('YCS: Fallback element not found');
             return;
