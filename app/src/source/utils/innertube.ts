@@ -334,7 +334,7 @@ function applyFrameworkUpdatesToComment(commentObj: any, vmSource: any, fwById: 
         const commentId =
             wrapTryCatch(() => vm.commentId) || wrapTryCatch(() => commentObj?.commentRenderer?.commentId);
         const update = commentId ? fwById[commentId] : undefined;
-        if (commentId && update) {
+        if (update) {
             const isVerified = wrapTryCatch(() => update.author?.isVerified);
             const isCreator = wrapTryCatch(() => update.author?.isCreator);
             if (isVerified) {
@@ -365,11 +365,21 @@ function applyFrameworkUpdatesToComment(commentObj: any, vmSource: any, fwById: 
 
             // Preserve existing tooltip if frameworkUpdates doesn't provide one
             const existingHeartTooltip = wrapTryCatch(() => commentObj.commentRenderer?.creatorHeart?.tooltip);
-            const toolbarHeartTooltip = wrapTryCatch(() => toolbarUpdate?.toolbar?.heartActiveTooltip);
-            const commentHeartTooltip = wrapTryCatch(() => update?.toolbar?.heartActiveTooltip);
-            const finalTooltip = toolbarHeartTooltip || commentHeartTooltip || existingHeartTooltip || 'hearted';
+            const heartTooltip =
+                wrapTryCatch(() => toolbarUpdate.toolbar?.heartActiveTooltip) ||
+                wrapTryCatch(() => update?.toolbar?.heartActiveTooltip);
+            const finalTooltip = heartTooltip || existingHeartTooltip || 'hearted';
 
             commentObj.commentRenderer.creatorHeart = { tooltip: finalTooltip } as any;
+        }
+
+        // Extract donated chip from surfaceUpdate
+        const surfaceKey = wrapTryCatch(() => vm.commentSurfaceKey);
+        const surfaceUpdate = surfaceKey ? fwById[surfaceKey] : undefined;
+        const donatedChip = wrapTryCatch(() => surfaceUpdate?.pdgCommentChip);
+        if (donatedChip) {
+            commentObj.commentRenderer = commentObj.commentRenderer || {};
+            commentObj.commentRenderer.donatedChip = donatedChip;
         }
     } catch (e) {
         console.error(e);
@@ -583,6 +593,13 @@ function generateCommentObjectFromFW(params: {
         if (sponsorBadge) {
             comment.commentRenderer.sponsorCommentBadge = sponsorBadge;
         }
+
+        // Extract donated chip from surfaceUpdate
+        const donatedChip = wrapTryCatch(() => surfaceUpdate?.pdgCommentChip);
+        if (donatedChip) {
+            comment.commentRenderer.donatedChip = donatedChip;
+        }
+
         if (wrapTryCatch(() => author.isVerified)) {
             comment.commentRenderer.verifiedAuthor = true;
         }
