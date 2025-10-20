@@ -1,6 +1,6 @@
 import urlRegex from 'url-regex';
 
-import { GlobalStore, wrapTryCatch } from '../common';
+import { extractChannelId, wrapTryCatch } from '../common';
 import { ICommentItem, ICommentsFuseResult } from '../interfaces/i_types';
 
 function filterAuthorChat(comments: any): [] {
@@ -8,7 +8,7 @@ function filterAuthorChat(comments: any): [] {
 
     try {
         const fAuthor: any = [];
-        const channelID = wrapTryCatch(() => GlobalStore.getInitYtData[2].playerResponse.videoDetails.channelId);
+        const channelID = extractChannelId();
 
         if (channelID) {
             for (const [, c] of comments.entries()) {

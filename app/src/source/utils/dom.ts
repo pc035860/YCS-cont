@@ -242,7 +242,8 @@ function setCacheToIDB(value: any, url: string, title: string): void {
                     titleVideo: title,
                     comments: value.comments,
                     commentsChat: value.commentsChat,
-                    commentsTrVideo: value.commentsTrVideo
+                    commentsTrVideo: value.commentsTrVideo,
+                    channelId: value.channelId
                 }
             },
             window.location.origin

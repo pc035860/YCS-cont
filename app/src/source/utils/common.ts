@@ -252,6 +252,40 @@ async function delayMs(ms: number): Promise<void> {
 }
 
 /**
+ * Extract channelId from GlobalStore.getInitYtData
+ * Supports both array (legacy API) and object (new API/cached) formats
+ *
+ * @returns channelId string or undefined if not found
+ *
+ * @example
+ * // New API or cached format (direct object)
+ * GlobalStore.getInitYtData = { playerResponse: { videoDetails: { channelId: "UCxxx" } } }
+ * extractChannelId() // returns "UCxxx"
+ *
+ * // Legacy API format (array, channelId typically at index [2] or [3])
+ * GlobalStore.getInitYtData = [{...}, {...}, { playerResponse: { videoDetails: { channelId: "UCxxx" } } }, {...}]
+ * extractChannelId() // returns "UCxxx"
+ */
+function extractChannelId(): string | undefined {
+    const ytData = GlobalStore.getInitYtData;
+
+    // Priority 1: Direct object access (new API or cached)
+    if (ytData?.playerResponse?.videoDetails?.channelId) {
+        return ytData.playerResponse.videoDetails.channelId;
+    }
+
+    // Priority 2: Array access (legacy API)
+    if (Array.isArray(ytData)) {
+        for (let i = 0; i < ytData.length; i++) {
+            const channelId = ytData[i]?.playerResponse?.videoDetails?.channelId;
+            if (channelId) return channelId;
+        }
+    }
+
+    return undefined;
+}
+
+/**
  * Converts YouTube's 32-bit RGBA integer color to CSS rgba() string
  * Format: 0xRRGGBBAA (Red, Green, Blue, Alpha in hex)
  *
@@ -297,5 +331,6 @@ export {
     isWatchVideo,
     isVideoPage,
     getPaginate,
+    extractChannelId,
     convertColorToRgba
 };
