@@ -116,11 +116,11 @@ YouTube.com Page
 
 The extension integrates with YouTube's internal Innertube API for comments, chat replays, and transcripts.
 
-**Documentation** (in `app/docs/`):
-- `innertube-comments-integration.md` - **Start here** for comment integration
-- `innertube-migration-guide.md` - frameworkUpdates migration guide
-- `innertube-chat-replay-api-changes.md` - Chat replay API changes
-- `continuation-processing.md` - Implementation reference
+**Documentation**:
+- [innertube-comments-integration.md](app/docs/innertube-comments-integration.md) - **Start here** for comment integration
+- [innertube-migration-guide.md](app/docs/innertube-migration-guide.md) - frameworkUpdates migration guide
+- [innertube-chat-replay-api-changes.md](app/docs/innertube-chat-replay-api-changes.md) - Chat replay API changes
+- [continuation-processing.md](app/docs/continuation-processing.md) - Implementation reference
 
 **Key directories**:
 - `app/src/source/` - TypeScript source code
