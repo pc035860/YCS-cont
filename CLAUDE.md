@@ -23,6 +23,8 @@ npm run build     # Production build → app/dist/
 npm run rebuild   # Clean cache and rebuild
 npm run lint      # Run ESLint
 npm run typecheck # Run TypeScript type checking
+npm run format    # Format code with Prettier
+npm run format:check # Check code formatting without modifying
 npm run rm        # Clean all build artifacts
 
 # Release workflow (from project root)
@@ -63,13 +65,18 @@ MV3 security restrictions require web page code to run in isolated context. The 
   - `content-scripts/`: Content script bridge
   - `web-resources/`: Main search and UI logic
   - `utils/`: Modular utility system
+    - `assist.ts`: Module facade and unified export point
+    - `common.ts`: Shared utilities and GlobalStore
+    - `libs.ts`: External library wrappers (fetchR retry client, IndexedDB)
+    - `dom.ts`: DOM manipulation and UI interactions
+    - `formatting.ts`: Data transformation and HTML output
     - `innertube.ts`: YouTube Innertube API integration
     - `filters/`: Comment and chat filtering modules
-    - `formatting.ts`: Data transformation and HTML output
-    - `dom.ts`: DOM manipulation and UI interactions
     - `sheets.ts`: Excel export functionality
-    - `common.ts`: Shared utilities and GlobalStore
     - `renderView.ts`: HTML template rendering
+    - `viewModels.ts`: View model interfaces and builders
+    - `icons.ts`: SVG icon constants
+    - `injections.ts`: Script injection utilities (MV3 compliance)
     - `interfaces/`: TypeScript type definitions
   - `options/`: Extension settings page and comment export
   - `browser-action/`: Extension popup UI
@@ -266,6 +273,13 @@ git push origin feature/my-feature
 - **After**: All source code and build output in single YCS repo
 - **Migration**: Extension build folder renamed from root to `app/`
 - **Build system**: Updated to work with single-repo structure
+
+## Recent Features (v1.4.x)
+
+- **Donated Comment Filtering**: Filter and display comments with donation badges, showing amount and custom colors
+- **Chat Timestamp Filtering**: Enable timestamp-based filtering for chat replay messages
+- **Member Badge Improvements**: Enhanced member badge and creator heart tooltip extraction
+- **View Model Architecture**: Separated API data from DOM rendering for improved maintainability
 
 ## Known Issues and Solutions
 
