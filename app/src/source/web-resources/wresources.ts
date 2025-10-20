@@ -781,7 +781,8 @@ import {
                                 {
                                     comments,
                                     commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
-                                    commentsTrVideo
+                                    commentsTrVideo,
+                                    channelId: GlobalStore.getInitYtData?.playerResponse?.videoDetails?.channelId
                                 },
                                 window.location.href,
                                 document.title
@@ -838,7 +839,8 @@ import {
                                 {
                                     comments,
                                     commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
-                                    commentsTrVideo
+                                    commentsTrVideo,
+                                    channelId: GlobalStore.getInitYtData?.playerResponse?.videoDetails?.channelId
                                 },
                                 window.location.href,
                                 document.title
@@ -909,7 +911,8 @@ import {
                                     {
                                         comments,
                                         commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
-                                        commentsTrVideo
+                                        commentsTrVideo,
+                                        channelId: GlobalStore.getInitYtData?.playerResponse?.videoDetails?.channelId
                                     },
                                     window.location.href,
                                     document.title
@@ -2706,6 +2709,17 @@ Total: ${c.count}\n${c.html}`;
 
                         commentsChat = new Map(JSON.parse(e.data.body.commentsChat));
                         commentsTrVideo = e.data.body.commentsTrVideo;
+
+                        // Restore GlobalStore.getInitYtData with minimal structure for author filter
+                        if (e.data.body.channelId) {
+                            (GlobalStore as any).getInitYtData = {
+                                playerResponse: {
+                                    videoDetails: {
+                                        channelId: e.data.body.channelId
+                                    }
+                                }
+                            };
+                        }
 
                         const crdate = e.data.body.date;
 

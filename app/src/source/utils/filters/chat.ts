@@ -8,7 +8,7 @@ function filterAuthorChat(comments: any): [] {
 
     try {
         const fAuthor: any = [];
-        const channelID = wrapTryCatch(() => GlobalStore.getInitYtData[2].playerResponse.videoDetails.channelId);
+        const channelID = wrapTryCatch(() => GlobalStore.getInitYtData.playerResponse.videoDetails.channelId);
 
         if (channelID) {
             for (const [, c] of comments.entries()) {
