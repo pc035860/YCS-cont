@@ -2,6 +2,12 @@
 
 > Source-based development repository. Main branch: **v2-source**
 
+## Installation
+
+Download the extension from official stores:
+- **Chrome Web Store**: https://chromewebstore.google.com/detail/mfobjniokjbcldieppimekoibpocahed
+- **Firefox Add-ons**: https://addons.mozilla.org/zh-TW/firefox/addon/ycs-continued/
+
 ## Project Background
 
 This repository is the source-based continuation of **YCS (YouTube Comment Search)** extension.
@@ -17,7 +23,7 @@ The extension enables searching, filtering, and exporting YouTube comments, repl
 ## Development Setup
 
 ### Prerequisites
-- Node.js 16+
+- Node.js 22+ (defined in `app/.nvmrc`)
 - npm
 
 ### Installation & Build
@@ -43,6 +49,10 @@ npm run lint
 
 # Type checking
 npm run typecheck
+
+# Format code with Prettier
+npm run format
+npm run format:check
 
 # Clean all build artifacts
 npm run rm
