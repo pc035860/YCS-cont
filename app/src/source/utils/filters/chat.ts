@@ -8,7 +8,25 @@ function filterAuthorChat(comments: any): [] {
 
     try {
         const fAuthor: any = [];
-        const channelID = wrapTryCatch(() => GlobalStore.getInitYtData.playerResponse.videoDetails.channelId);
+        // Support multiple data structures: direct object (new API/cached) and array (legacy API)
+        const channelID = wrapTryCatch(() => {
+            const ytData = GlobalStore.getInitYtData;
+
+            // Priority 1: Direct object access (new API or cached)
+            if (ytData?.playerResponse?.videoDetails?.channelId) {
+                return ytData.playerResponse.videoDetails.channelId;
+            }
+
+            // Priority 2: Array access (legacy API)
+            if (Array.isArray(ytData)) {
+                for (let i = 0; i < ytData.length; i++) {
+                    const channelId = ytData[i]?.playerResponse?.videoDetails?.channelId;
+                    if (channelId) return channelId;
+                }
+            }
+
+            return undefined;
+        });
 
         if (channelID) {
             for (const [, c] of comments.entries()) {
