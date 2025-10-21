@@ -6,10 +6,10 @@ import { GlobalStore, extractChannelId, wrapTryCatch, getCleanUrlVideo, isVideoP
 import { initShowBarFAQ, initShowViewMode, removeClass, removeNodeList, showLoadComments } from '../utils/dom';
 import { getAllCommentsModeV2, getChatComments, getTranscriptVideo } from '../utils/innertube';
 
-import { ICommentsFuseResult, IParamSearch, ISelectedSearch } from '../utils/interfaces/i_types';
+import { IParamSearch, ISelectedSearch } from '../utils/interfaces/i_types';
 
-import { iconCollapse, iconExpand, iconOk, iconReload } from '../utils/icons';
-import { renderComment, renderLoadComments, renderSearch } from '../utils/renderView';
+import { iconOk, iconReload } from '../utils/icons';
+import { renderLoadComments, renderSearch } from '../utils/renderView';
 import { loadFromCache, saveToCache, updateBadge } from './services/cacheService';
 import {
     downloadChatFile,
@@ -41,6 +41,7 @@ import {
     WebResourcesState
 } from './state';
 import { FilterButtonConfig, registerFilterButtons } from './ui/filters';
+import { registerCommentInteractions } from './ui/commentInteractions';
 import { runSearch as runCommentsSearch } from './search/commentsSearch';
 import { runSearch as runChatSearch } from './search/chatSearch';
 import { runSearch as runTranscriptSearch } from './search/transcriptSearch';
@@ -832,142 +833,16 @@ export function initApp(): void {
 
             state = setSearchCount(state, 'comments', result.total);
 
-            const elsCommentOpenReply = document.getElementById('ycs_wrap_comments');
+            const commentsContainer = document.getElementById('ycs_wrap_comments');
 
-            if (elsCommentOpenReply) {
-                elsCommentOpenReply.addEventListener('click', (event) => {
-                    try {
-                        const target = event.target as HTMLElement | null;
-                        if (!target) return;
-
-                        const comments = getComments(state);
-
-                        if (target.classList.contains('ycs-open-comment')) {
-                            const refID = parseInt(target.getAttribute('id') || '', 10);
-                            const reply = target.closest('.ycs-render-comment');
-
-                            if (reply && refID && !document.getElementById(`ycs-com-${refID}`)) {
-                                const origin = comments.find((item: any) => (item as any)?._index === refID);
-                                const com = origin
-                                    ? { item: (origin as any).originComment, refIndex: refID }
-                                    : undefined;
-
-                                const wrap = document.createElement('div');
-                                wrap.id = `ycs-com-${refID}`;
-                                wrap.className = wrap.id;
-
-                                reply.insertAdjacentElement('beforebegin', wrap);
-
-                                if (com) renderComment(`#${wrap.id}`, [com], true, query);
-
-                                reply.classList.add('ycs-oc-ml');
-
-                                let toReplyAuthor: string | undefined;
-
-                                if ((origin as any)?.commentRenderer?.contentText?.runs?.length > 0) {
-                                    for (const msg of (origin as any).commentRenderer.contentText.runs) {
-                                        if (msg.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl) {
-                                            toReplyAuthor = msg.navigationEndpoint.browseEndpoint.canonicalBaseUrl;
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                const replyAuthor: ICommentsFuseResult[] = [];
-
-                                if (toReplyAuthor) {
-                                    for (const auth of comments) {
-                                        if (
-                                            (auth as any).typeComment === 'R' &&
-                                            (auth as any).originComment === (origin as any).originComment &&
-                                            (auth as any).commentRenderer?.authorEndpoint?.browseEndpoint
-                                                ?.canonicalBaseUrl === toReplyAuthor
-                                        ) {
-                                            replyAuthor.push({ item: auth, refIndex: refID });
-                                        }
-                                    }
-                                }
-
-                                if (replyAuthor.length > 0) {
-                                    const wrapToReply = document.createElement('div');
-                                    wrapToReply.id = `ycs-com-rauth-${refID}`;
-                                    wrapToReply.className = `ycs-com-${refID} ycs-oc-ml`;
-                                    reply.insertAdjacentElement('beforebegin', wrapToReply);
-
-                                    renderComment(`#${wrapToReply.id}`, replyAuthor, false, query);
-                                }
-
-                                target.innerHTML = `${iconCollapse()}`;
-                                target.title = 'Close the comment to the reply here.';
-                            } else if (reply && refID && document.getElementById(`ycs-com-${refID}`)) {
-                                removeNodeList(`.ycs-com-${refID}`);
-
-                                reply.classList.remove('ycs-oc-ml');
-                                target.innerHTML = `${iconExpand()}`;
-                                target.title = 'Open the comment to the reply here.';
-                            }
-                        } else if (target.classList.contains('ycs-gotochat-video')) {
-                            event.preventDefault();
-
-                            const elFrameVideo: HTMLVideoElement | undefined =
-                                document.getElementsByTagName('video')[0];
-                            if (elFrameVideo) {
-                                const ms = target.dataset.offsetvideo;
-                                if (ms) {
-                                    elFrameVideo.currentTime = parseInt(ms, 10);
-                                }
-                            }
-                        } else if (target.classList.contains('ycs-open-reply')) {
-                            const id = target.dataset.idcom;
-                            const wrap = target.closest('.ycs-render-comment');
-
-                            if (wrap?.querySelector(`.ycs-com-replies-${id}`)) {
-                                const replies = wrap.querySelector(`.ycs-com-replies-${id}`);
-                                replies?.remove();
-
-                                target.innerHTML = '+';
-                                target.title = 'Open replies to the comment';
-                                return;
-                            }
-
-                            const repls: ICommentsFuseResult[] = [];
-                            if (id) {
-                                let index: number | undefined;
-
-                                for (const [i, comment] of comments.entries()) {
-                                    if ((comment as any).commentRenderer?.commentId === id) {
-                                        index = i;
-                                        break;
-                                    }
-                                }
-
-                                if (Number.isInteger(index) && (index as number) >= 0) {
-                                    for (const comment of comments) {
-                                        if (comments[index as number] === (comment as any).originComment) {
-                                            const refIndex = Number((comment as any)?._index ?? 0);
-                                            repls.push({ item: comment, refIndex });
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (repls.length > 0) {
-                                const replyContainer = target.closest('.ycs-render-comment');
-                                const wrapToReply = document.createElement('div');
-                                wrapToReply.id = `ycs-com-replies-${id}`;
-                                wrapToReply.className = `ycs-com-replies-${id} ycs-oc-ml ycs-com-replies ycs-com-rp`;
-                                replyContainer?.insertAdjacentElement('beforeend', wrapToReply);
-
-                                renderComment(wrapToReply, repls, false, query);
-
-                                target.innerHTML = String.fromCharCode(8722);
-                                target.title = 'Close replies to the comment';
-                            }
-                        }
-                    } catch (error) {
-                        console.error(error);
-                    }
-                });
+            if (commentsContainer instanceof HTMLElement) {
+                registerCommentInteractions(
+                    commentsContainer,
+                    {
+                        getComments: () => getComments(state)
+                    },
+                    () => query
+                );
             }
 
             return result;
@@ -986,15 +861,23 @@ export function initApp(): void {
                 elsGotoChatVideo.addEventListener('click', (event) => {
                     try {
                         const target = event.target as HTMLElement | null;
-                        if (!target?.classList.contains('ycs-gotochat-video')) return;
+                        if (!target) return;
+
+                        const isChatVideo = target.classList.contains('ycs-gotochat-video');
+                        const isCommentTime = target.classList.contains('ycs-goto-comment-time');
+
+                        if (!isChatVideo && !isCommentTime) return;
 
                         event.preventDefault();
 
                         const elFrameVideo = document.getElementsByTagName('video')[0];
                         if (elFrameVideo) {
-                            const ms = target.dataset.offsetvideo;
-                            if (ms) {
-                                elFrameVideo.currentTime = parseInt(ms, 10) / 1000;
+                            const timeValue = target.dataset.offsetvideo;
+                            if (timeValue) {
+                                // Chat video uses milliseconds, comment time uses seconds
+                                elFrameVideo.currentTime = isChatVideo
+                                    ? parseInt(timeValue, 10) / 1000
+                                    : parseInt(timeValue, 10);
                             }
                         }
                     } catch (error) {
