@@ -8,7 +8,7 @@ import {
 import type { ExportMeta, ResolvedExportMeta } from '../../utils/formatting';
 
 function buildDocument(sectionTitle: string, meta: ResolvedExportMeta, count: number, body: string): string {
-    return `YCS - YouTube Comment Search\n\n${sectionTitle}\nFile created by ${meta.generatedAt}\nVideo URL: ${meta.url}\nTitle: ${meta.title}\nTotal: ${count}\n${body}`;
+    return `\nYCS - YouTube Comment Search\n\n${sectionTitle}\nFile created by ${meta.generatedAt}\nVideo URL: ${meta.url}\nTitle: ${meta.title}\nTotal: ${count}\n${body}`;
 }
 
 export function openCommentsWindow(comments: any[], meta?: ExportMeta): void {
