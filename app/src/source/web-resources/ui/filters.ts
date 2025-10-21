@@ -26,7 +26,11 @@ type SortOrder = 'newest' | 'oldest';
 const SORT_DATASET_KEYS: SortDatasetKey[] = ['sort', 'sortChat', 'sortTrp'];
 
 function extractBaseLabel(html: string): string {
-    return html.replace(iconSortDown(), '').replace(iconSortUp(), '').trim();
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    // Remove all .ycs-icons elements to extract base label
+    temp.querySelectorAll('.ycs-icons').forEach((el) => el.remove());
+    return temp.innerHTML.trim();
 }
 
 function getCurrentSortOrder(button: HTMLElement): SortOrder {
