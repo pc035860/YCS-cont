@@ -11,6 +11,7 @@ import {
 import { ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
 import { wrapTryCatch } from '../../utils/common';
 import { getCommentsChat, WebResourcesState } from '../state';
+import { SearchContext } from './types';
 
 export interface SearchButtonState {
     order?: 'newest' | 'oldest';
@@ -58,16 +59,6 @@ function ensureSortOrder(order?: 'newest' | 'oldest'): 'newest' | 'oldest' {
     return order === 'oldest' ? 'oldest' : 'newest';
 }
 
-function resolveSortOrder(buttonId: string): 'newest' | 'oldest' | undefined {
-    const button = document.getElementById(buttonId) as HTMLElement | null;
-    if (!button) return undefined;
-    const value = button.dataset.sortChat;
-    if (value === 'newest' || value === 'oldest') {
-        return value;
-    }
-    return undefined;
-}
-
 function filterWithQuery(
     items: ICommentsFuseResult[],
     query: string,
@@ -87,7 +78,8 @@ function filterWithQuery(
 export function runSearch(
     query: string,
     filters: IParamSearch | undefined,
-    state: WebResourcesState
+    state: WebResourcesState,
+    context: SearchContext
 ): ChatSearchResult {
     const trimmedQuery = query?.trim?.() ?? '';
     const param = filters ?? {};
@@ -115,27 +107,23 @@ export function runSearch(
 
     const cmntsChat = [...commentsChat.values()];
 
-    const elExtSearch = document.getElementById('ycs_extended_search') as HTMLInputElement | null;
-    const elExtSearchTitle = document.getElementById('ycs_extended_search_title') as HTMLInputElement | null;
-    const elExtSearchMain = document.getElementById('ycs_extended_search_main') as HTMLInputElement | null;
-
     let fuseOptions = cloneFuseOptions();
     let fuseKeys = [
         'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.authorName.simpleText',
         'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.message.fullText'
     ];
 
-    if (elExtSearch?.checked) {
+    if (context.extendedSearch.enabled) {
         fuseOptions = cloneFuseOptions();
         fuseOptions.useExtendedSearch = true;
 
-        if (elExtSearchTitle?.checked) {
+        if (context.extendedSearch.title) {
             fuseKeys = [
                 'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.authorName.simpleText'
             ];
         }
 
-        if (elExtSearchMain?.checked) {
+        if (context.extendedSearch.main) {
             fuseKeys = [
                 'replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.message.fullText'
             ];
@@ -168,7 +156,7 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortOrder('ycs_btn_author'));
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_author']);
             if (resolvedOrder === 'oldest') {
                 resultSearch = Array.from(resultSearch).reverse();
             }
@@ -188,7 +176,7 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortOrder('ycs_btn_donated'));
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_donated']);
             if (resolvedOrder === 'newest') {
                 resultSearch = filterWithQuery(resultSearch, trimmedQuery, options);
             } else {
@@ -210,7 +198,7 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortOrder('ycs_btn_members'));
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_members']);
             if (resolvedOrder === 'newest') {
                 resultSearch = filterWithQuery(resultSearch, trimmedQuery, options);
             } else {
@@ -238,7 +226,7 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortOrder('ycs_btn_timestamps'));
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_timestamps']);
             if (resolvedOrder === 'oldest') {
                 resultSearch = Array.from(resultSearch).reverse();
             }
@@ -268,7 +256,7 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortOrder('ycs_btn_sort_first'));
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_sort_first']);
             if (resolvedOrder === 'oldest') {
                 resultSearch = Array.from(resultSearch).reverse();
             }
@@ -288,7 +276,7 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortOrder('ycs_btn_verified'));
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_verified']);
             if (resolvedOrder === 'newest') {
                 // Use query to further filter if present
                 if (trimmedQuery) {
@@ -312,7 +300,7 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortOrder('ycs_btn_links'));
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_links']);
             if (resolvedOrder === 'newest') {
                 resultSearch = filterWithQuery(resultSearch, trimmedQuery, options);
             } else {

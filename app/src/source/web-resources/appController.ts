@@ -45,6 +45,7 @@ import { registerCommentInteractions } from './ui/commentInteractions';
 import { runSearch as runCommentsSearch } from './search/commentsSearch';
 import { runSearch as runChatSearch } from './search/chatSearch';
 import { runSearch as runTranscriptSearch } from './search/transcriptSearch';
+import { SearchContext, SortOrder } from './search/types';
 import { renderCommentsResult, renderChatResult, renderTranscriptResult } from './ui/render';
 
 const DEBUG = false;
@@ -60,6 +61,58 @@ const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'members',
     'verified'
 ] as const;
+
+const SORT_BUTTON_IDS = [
+    'ycs_btn_links',
+    'ycs_btn_members',
+    'ycs_btn_donated',
+    'ycs_btn_author',
+    'ycs_btn_heart',
+    'ycs_btn_verified',
+    'ycs_btn_timestamps',
+    'ycs_btn_sort_first'
+] as const;
+
+type SortAttribute = 'sort' | 'sortChat' | 'sortTrp';
+
+const parseSortOrder = (value: string | undefined): SortOrder | undefined => {
+    if (value === 'newest' || value === 'oldest') {
+        return value;
+    }
+    return undefined;
+};
+
+const readSortOrders = (attribute: SortAttribute): Partial<Record<string, SortOrder>> => {
+    const map: Partial<Record<string, SortOrder>> = {};
+    for (const id of SORT_BUTTON_IDS) {
+        const element = document.getElementById(id) as HTMLElement | null;
+        if (!element) continue;
+        const parsed = parseSortOrder(element.dataset?.[attribute]);
+        if (parsed) {
+            map[id] = parsed;
+        }
+    }
+    return map;
+};
+
+const buildSearchContext = (): SearchContext => {
+    const extendedToggle = document.getElementById('ycs_extended_search') as HTMLInputElement | null;
+    const extendedTitle = document.getElementById('ycs_extended_search_title') as HTMLInputElement | null;
+    const extendedMain = document.getElementById('ycs_extended_search_main') as HTMLInputElement | null;
+
+    return {
+        extendedSearch: {
+            enabled: Boolean(extendedToggle?.checked),
+            title: Boolean(extendedTitle?.checked),
+            main: Boolean(extendedMain?.checked)
+        },
+        sortOrders: {
+            comments: readSortOrders('sort'),
+            chat: readSortOrders('sortChat'),
+            transcript: readSortOrders('sortTrp')
+        }
+    };
+};
 
 let appFunction: (() => void) | null = null;
 let observeIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -827,7 +880,8 @@ export function initApp(): void {
         });
 
         const runCommentsPipeline = (selector: string, query: string, param?: IParamSearch) => {
-            const result = runCommentsSearch(query, param, state);
+            const context = buildSearchContext();
+            const result = runCommentsSearch(query, param, state, context);
 
             renderCommentsResult(selector, result);
 
@@ -849,7 +903,8 @@ export function initApp(): void {
         };
 
         const runChatPipeline = (selector: string, query: string, param?: IParamSearch) => {
-            const result = runChatSearch(query, param, state);
+            const context = buildSearchContext();
+            const result = runChatSearch(query, param, state, context);
 
             renderChatResult(selector, result);
 
@@ -890,7 +945,8 @@ export function initApp(): void {
         };
 
         const runTranscriptPipeline = (selector: string, query: string, param?: IParamSearch) => {
-            const result = runTranscriptSearch(query, param, state);
+            const context = buildSearchContext();
+            const result = runTranscriptSearch(query, param, state, context);
 
             renderTranscriptResult(selector, result);
 
