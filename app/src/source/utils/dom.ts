@@ -2,6 +2,7 @@ import Mark from 'mark.js';
 import type { MarkOptions } from 'mark.js';
 
 import { GlobalStore, getCleanUrlVideo, getRandomInt, getVideoId, oIsEmpty, wrapTryCatch } from './common';
+import { resolveMeta } from './formatting';
 
 function removeClass(elms: object, s: string): void {
     try {
@@ -43,7 +44,9 @@ function openComments(comments: any): WindowProxy | undefined {
         );
 
         if (commentsNewWindow) {
-            commentsNewWindow.document.title = `Comments, ${document.title} (${comments.count})`;
+            const meta = resolveMeta(comments?.meta);
+
+            commentsNewWindow.document.title = `Comments, ${meta.title} (${comments.count})`;
             const elWrapPre = document.createElement('pre');
             elWrapPre.style.cssText = 'word-wrap: break-word; white-space: pre-wrap;';
             elWrapPre.insertAdjacentText(
@@ -52,9 +55,9 @@ function openComments(comments: any): WindowProxy | undefined {
 YCS - YouTube Comment Search
 
 Comments
-File created by ${new Date().toString()}
-Video URL: ${getCleanUrlVideo(window.location.href)}
-Title: ${document.title}
+File created by ${meta.generatedAt}
+Video URL: ${meta.url}
+Title: ${meta.title}
 Total comments: ${comments.count}\n${comments.html}`
             );
             commentsNewWindow.document.body.textContent = '';
@@ -80,7 +83,9 @@ function openCommentsChat(comments: any): WindowProxy | undefined {
         );
 
         if (commentsNewWindow) {
-            commentsNewWindow.document.title = `Chat, ${document.title} (${comments.count})`;
+            const meta = resolveMeta(comments?.meta);
+
+            commentsNewWindow.document.title = `Chat, ${meta.title} (${comments.count})`;
             const elWrapPre = document.createElement('pre');
             elWrapPre.style.cssText = 'word-wrap: break-word; white-space: pre-wrap;';
             elWrapPre.insertAdjacentText(
@@ -89,9 +94,9 @@ function openCommentsChat(comments: any): WindowProxy | undefined {
 YCS - YouTube Comment Search
 
 Chat replay
-File created by ${new Date().toString()}
-Video URL: ${getCleanUrlVideo(window.location.href)}
-Title: ${document.title}
+File created by ${meta.generatedAt}
+Video URL: ${meta.url}
+Title: ${meta.title}
 Total: ${comments.count}\n${comments.html}`
             );
             commentsNewWindow.document.body.textContent = '';
@@ -117,7 +122,9 @@ function openCommentsTrVideo(comments: any): WindowProxy | undefined {
         );
 
         if (commentsNewWindow) {
-            commentsNewWindow.document.title = `Transcript video, ${document.title} (${comments.count})`;
+            const meta = resolveMeta(comments?.meta);
+
+            commentsNewWindow.document.title = `Transcript video, ${meta.title} (${comments.count})`;
             const elWrapPre = document.createElement('pre');
             elWrapPre.style.cssText = 'word-wrap: break-word; white-space: pre-wrap;';
             elWrapPre.insertAdjacentText(
@@ -126,9 +133,9 @@ function openCommentsTrVideo(comments: any): WindowProxy | undefined {
 YCS - YouTube Comment Search
 
 Transcript video
-File created by ${new Date().toString()}
-Video URL: ${getCleanUrlVideo(window.location.href)}
-Title: ${document.title}
+File created by ${meta.generatedAt}
+Video URL: ${meta.url}
+Title: ${meta.title}
 Total: ${comments.count}\n${comments.html}`
             );
             commentsNewWindow.document.body.textContent = '';
