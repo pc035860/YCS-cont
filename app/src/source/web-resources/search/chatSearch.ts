@@ -151,7 +151,15 @@ export function runSearch(
     let resultSearch: ICommentsFuseResult[] = [];
 
     const updateButtonState = (id: string, order: 'newest' | 'oldest', title: string, label?: string): void => {
-        buttonStates[id] = { order, title, label };
+        buttonStates[id] = {
+            order,
+            title,
+            label,
+            dataset: {
+                sortChat: order,
+                sort: order
+            }
+        };
     };
 
     if (param.author) {
@@ -187,10 +195,6 @@ export function runSearch(
                 resultSearch = filterWithQuery(resultSearch, trimmedQuery, options, true);
             }
 
-            if (resolvedOrder === 'oldest' && !trimmedQuery) {
-                resultSearch = Array.from(resultSearch).reverse();
-            }
-
             updateButtonState(
                 'ycs_btn_donated',
                 resolvedOrder,
@@ -211,10 +215,6 @@ export function runSearch(
                 resultSearch = filterWithQuery(resultSearch, trimmedQuery, options);
             } else {
                 resultSearch = filterWithQuery(resultSearch, trimmedQuery, options, true);
-            }
-
-            if (resolvedOrder === 'oldest' && !trimmedQuery) {
-                resultSearch = Array.from(resultSearch).reverse();
             }
 
             updateButtonState(
@@ -298,10 +298,6 @@ export function runSearch(
                 resultSearch = filterWithQuery(resultSearch, trimmedQuery, options, true);
             }
 
-            if (resolvedOrder === 'oldest' && !trimmedQuery) {
-                resultSearch = Array.from(resultSearch).reverse();
-            }
-
             updateButtonState(
                 'ycs_btn_verified',
                 resolvedOrder,
@@ -321,10 +317,6 @@ export function runSearch(
                 resultSearch = filterWithQuery(resultSearch, trimmedQuery, options);
             } else {
                 resultSearch = filterWithQuery(resultSearch, trimmedQuery, options, true);
-            }
-
-            if (resolvedOrder === 'oldest' && !trimmedQuery) {
-                resultSearch = Array.from(resultSearch).reverse();
             }
 
             updateButtonState(
