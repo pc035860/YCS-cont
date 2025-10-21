@@ -54,6 +54,25 @@ import {
     renderLoadComments,
     renderSearch
 } from '../utils/renderView';
+import {
+    clearComments,
+    clearCommentsChat,
+    clearCommentsTrVideo,
+    createState,
+    getComments,
+    getCommentsChat,
+    getCommentsTrVideo,
+    getController,
+    getCounts,
+    getSearchCounts,
+    resetController,
+    resetSearchCounts,
+    setComments,
+    setCommentsChat,
+    setCommentsTrVideo,
+    setCount,
+    setSearchCount
+} from './state';
 
 const DEBUG = false;
 
@@ -87,9 +106,9 @@ export function retryApp(): boolean {
 }
 
 export function initApp(): void {
-    let controller: AbortController;
-
     let handleMessageEvent: (ev: MessageEvent<any>) => unknown;
+
+    let state = createState();
 
     function app(): void {
         if (!isVideoPage()) return;
@@ -98,23 +117,7 @@ export function initApp(): void {
             window.removeEventListener('message', handleMessageEvent);
         }
 
-        const countComments = {
-            comments: 0,
-            commentsChat: 0,
-            commentsTrVideo: 0
-        };
-
-        const countSearchComments = {
-            comments: 0,
-            commentsChat: 0,
-            commentsTrVideo: 0
-        };
-
-        let comments: object[] = [];
-        let commentsChat = new Map<number, object>();
-        let commentsTrVideo: object | undefined;
-
-        controller = new AbortController();
+        state = createState();
 
         const fuseOptions = {
             isCaseSensitive: false,
@@ -314,9 +317,7 @@ export function initApp(): void {
         const handlersBtnPanel = (hElms: any): void => {
             if (hElms) {
                 const clearCountComments = (): void => {
-                    countSearchComments.comments = 0;
-                    countSearchComments.commentsChat = 0;
-                    countSearchComments.commentsTrVideo = 0;
+                    state = resetSearchCounts(state);
                 };
 
                 // Helper function to execute search based on selected type
@@ -693,7 +694,8 @@ export function initApp(): void {
                 if (!elLiveApp.parentNode || !elLiveApp.parentElement) return;
                 console.log('CLICK');
 
-                comments.length = 0;
+                state = clearComments(state);
+                const comments = getComments(state);
 
                 const currentTarget = e.currentTarget as HTMLButtonElement;
 
@@ -708,6 +710,8 @@ export function initApp(): void {
 
                     elStatusCmnts.innerHTML = iconReload();
 
+                    const controller = getController(state);
+
                     await getAllCommentsModeV2(elLoadCmnts, controller.signal, comments);
 
                     console.log('ORIGIN COMMENTS: ', comments);
@@ -717,8 +721,8 @@ export function initApp(): void {
                         setCacheToIDB(
                             {
                                 comments,
-                                commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
-                                commentsTrVideo,
+                                commentsChat: JSON.stringify(Array.from(getCommentsChat(state).entries())),
+                                commentsTrVideo: getCommentsTrVideo(state),
                                 channelId: extractChannelId()
                             },
                             window.location.href,
@@ -728,10 +732,11 @@ export function initApp(): void {
                 }
 
                 if (comments.length > 0) {
-                    countComments.comments = comments.length;
+                    state = setCount(state, 'comments', comments.length);
                 }
 
-                const totalCount = countComments.comments + countComments.commentsChat + countComments.commentsTrVideo;
+                const counts = getCounts(state);
+                const totalCount = counts.comments + counts.commentsChat + counts.commentsTrVideo;
                 sendMsgToBadge('NUMBER_COMMENTS', totalCount);
 
                 if (elLoadCmnts) {
@@ -749,7 +754,8 @@ export function initApp(): void {
             elLoadCommentsChat.addEventListener('click', async function (e: MouseEvent): Promise<void> {
                 if (!elLiveApp.parentNode || !elLiveApp.parentElement) return;
 
-                commentsChat.clear();
+                state = clearCommentsChat(state);
+                const commentsChat = getCommentsChat(state);
 
                 const currentTarget = e.currentTarget as HTMLButtonElement;
 
@@ -764,18 +770,20 @@ export function initApp(): void {
 
                     elStatusChat.innerHTML = iconReload();
 
+                    const controller = getController(state);
+
                     await getChatComments(controller.signal, elLoadChat, commentsChat);
 
                     console.log('CHAT COMMENTS: ', commentsChat);
 
-                    if (commentsChat && commentsChat.size > 0) {
+                    if (commentsChat.size > 0) {
                         elLoadChat.textContent = commentsChat.size.toString();
                         elStatusChat.innerHTML = iconOk();
                         setCacheToIDB(
                             {
-                                comments,
+                                comments: getComments(state),
                                 commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
-                                commentsTrVideo,
+                                commentsTrVideo: getCommentsTrVideo(state),
                                 channelId: extractChannelId()
                             },
                             window.location.href,
@@ -784,11 +792,12 @@ export function initApp(): void {
                     }
                 }
 
-                if (commentsChat && commentsChat.size > 0 && (elLiveApp.parentNode || elLiveApp.parentElement)) {
-                    countComments.commentsChat = commentsChat.size;
+                if (commentsChat.size > 0 && (elLiveApp.parentNode || elLiveApp.parentElement)) {
+                    state = setCount(state, 'commentsChat', commentsChat.size);
                 }
 
-                const totalCount = countComments.comments + countComments.commentsChat + countComments.commentsTrVideo;
+                const counts = getCounts(state);
+                const totalCount = counts.comments + counts.commentsChat + counts.commentsTrVideo;
                 sendMsgToBadge('NUMBER_COMMENTS', totalCount);
 
                 updateTitleCount(totalCount);
@@ -817,8 +826,9 @@ export function initApp(): void {
 
                     // Load transcript with robust fallback,
                     // ensure old buffer won't leak when current load fails
+                    const controller = getController(state);
                     const tr = await getTranscriptVideo(controller.signal);
-                    commentsTrVideo = undefined;
+                    state = clearCommentsTrVideo(state);
                     if (
                         wrapTryCatch(
                             () =>
@@ -826,46 +836,48 @@ export function initApp(): void {
                                     ?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
                         )
                     ) {
-                        commentsTrVideo = tr;
+                        state = setCommentsTrVideo(state, tr);
                     }
 
                     try {
+                        const transcript = getCommentsTrVideo(state);
                         if (
-                            commentsTrVideo &&
+                            transcript &&
                             elLoadTrVideo &&
-                            (commentsTrVideo as any)?.actions?.length > 0 &&
-                            (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content
-                                ?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
+                            (transcript as any)?.actions?.length > 0 &&
+                            (transcript as any)?.actions[0]?.updateEngagementPanelAction?.content?.transcriptRenderer
+                                ?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
                         ) {
                             showLoadComments(
-                                (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content
-                                    .transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length,
+                                (transcript as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer
+                                    .body.transcriptBodyRenderer.cueGroups.length,
                                 elLoadTrVideo
                             );
                             setCacheToIDB(
                                 {
-                                    comments,
-                                    commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
-                                    commentsTrVideo,
+                                    comments: getComments(state),
+                                    commentsChat: JSON.stringify(Array.from(getCommentsChat(state).entries())),
+                                    commentsTrVideo: transcript,
                                     channelId: extractChannelId()
                                 },
                                 window.location.href,
                                 document.title
                             );
                         } else {
-                            commentsTrVideo = undefined;
+                            state = clearCommentsTrVideo(state);
                         }
                     } catch (err) {
                         console.error(err);
-                        commentsTrVideo = undefined;
+                        state = clearCommentsTrVideo(state);
                     }
 
-                    console.log('Transcript: ', commentsTrVideo);
+                    const transcript = getCommentsTrVideo(state);
+                    console.log('Transcript: ', transcript);
 
                     if (
                         wrapTryCatch(
                             () =>
-                                (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content
+                                (transcript as any)?.actions[0]?.updateEngagementPanelAction?.content
                                     ?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
                         )
                     ) {
@@ -876,17 +888,22 @@ export function initApp(): void {
                 if (
                     wrapTryCatch(
                         () =>
-                            (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content
+                            (getCommentsTrVideo(state) as any)?.actions[0]?.updateEngagementPanelAction?.content
                                 ?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
                     ) &&
                     (elLiveApp.parentNode || elLiveApp.parentElement)
                 ) {
-                    countComments.commentsTrVideo = (
-                        commentsTrVideo as any
-                    ).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length;
+                    const transcript = getCommentsTrVideo(state) as any;
+                    state = setCount(
+                        state,
+                        'commentsTrVideo',
+                        transcript.actions[0].updateEngagementPanelAction.content.transcriptRenderer.body
+                            .transcriptBodyRenderer.cueGroups.length
+                    );
                 }
 
-                const totalCount = countComments.comments + countComments.commentsChat + countComments.commentsTrVideo;
+                const counts = getCounts(state);
+                const totalCount = counts.comments + counts.commentsChat + counts.commentsTrVideo;
                 sendMsgToBadge('NUMBER_COMMENTS', totalCount);
 
                 updateTitleCount(totalCount);
@@ -912,8 +929,8 @@ export function initApp(): void {
         if (elLoadAllStop) {
             elLoadAllStop.addEventListener('click', () => {
                 try {
-                    controller.abort();
-                    controller = new AbortController();
+                    getController(state).abort();
+                    state = resetController(state);
                 } catch (err) {
                     console.error(err);
                 }
@@ -973,6 +990,7 @@ export function initApp(): void {
 
         const btnOpenCommentsNewWindow = document.getElementById('ycs_open_all_comments_window');
         btnOpenCommentsNewWindow?.addEventListener('click', () => {
+            const comments = getComments(state);
             if (comments.length === 0) return;
 
             try {
@@ -985,6 +1003,7 @@ export function initApp(): void {
 
         const btnSaveCommentsToFile = document.getElementById('ycs_save_all_comments');
         btnSaveCommentsToFile?.addEventListener('click', () => {
+            const comments = getComments(state);
             if (comments.length === 0) return;
 
             try {
@@ -1007,6 +1026,7 @@ Total: ${c.count}\n${c.html}`;
 
         const btnOpenCommentsChatNewWindow = document.getElementById('ycs_open_all_comments_chat_window');
         btnOpenCommentsChatNewWindow?.addEventListener('click', () => {
+            const commentsChat = getCommentsChat(state);
             if (commentsChat.size === 0) return;
 
             try {
@@ -1019,6 +1039,7 @@ Total: ${c.count}\n${c.html}`;
 
         const btnSaveCommentsChatToFile = document.getElementById('ycs_save_all_comments_chat');
         btnSaveCommentsChatToFile?.addEventListener('click', () => {
+            const commentsChat = getCommentsChat(state);
             if (commentsChat.size === 0) return;
 
             try {
@@ -1042,6 +1063,7 @@ Total: ${c.count}\n${c.html}`;
         const btnOpenCommentsTrVideoNewWindow = document.getElementById('ycs_open_all_comments_trvideo_window');
         btnOpenCommentsTrVideoNewWindow?.addEventListener('click', () => {
             try {
+                const commentsTrVideo = getCommentsTrVideo(state);
                 console.log('commentsTrVideo: ', commentsTrVideo);
 
                 if (
@@ -1066,6 +1088,7 @@ Total: ${c.count}\n${c.html}`;
         const btnSaveCommentsTrVideoToFile = document.getElementById('ycs_save_all_comments_trvideo');
         btnSaveCommentsTrVideoToFile?.addEventListener('click', () => {
             try {
+                const commentsTrVideo = getCommentsTrVideo(state);
                 if (
                     commentsTrVideo &&
                     (commentsTrVideo as any)?.actions?.length > 0 &&
@@ -1096,11 +1119,12 @@ Total: ${c.count}\n${c.html}`;
 
         const searchComments = (selector: string, param?: IParamSearch): void => {
             try {
+                const comments = getComments(state);
                 if (comments.length === 0) {
                     const elSearchRes = document.querySelector(selector);
                     if (elSearchRes) elSearchRes.textContent = '';
                     updateTotalResultDisplay('(Comments) Found: 0');
-                    countSearchComments.comments = 0;
+                    state = setSearchCount(state, 'comments', 0);
                     return;
                 }
 
@@ -1473,7 +1497,7 @@ Total: ${c.count}\n${c.html}`;
                 // Use unified helper function to update total result display
                 updateTotalResultDisplay(`(Comments) Found: ${resultSearch.length}`);
 
-                countSearchComments.comments = resultSearch.length;
+                state = setSearchCount(state, 'comments', resultSearch.length);
 
                 console.log('RESULT SEARCH: ', resultSearch);
 
@@ -1670,11 +1694,12 @@ Total: ${c.count}\n${c.html}`;
                     const elSearchRes = document.querySelector(selector);
                     if (elSearchRes) elSearchRes.textContent = '';
                     updateTotalResultDisplay('(Chat replay) Found: 0');
-                    countSearchComments.commentsChat = 0;
+                    state = setSearchCount(state, 'commentsChat', 0);
                     return;
                 }
 
-                if (commentsChat && commentsChat.size > 0) {
+                const commentsChat = getCommentsChat(state);
+                if (commentsChat.size > 0) {
                     const elSearchRes = document.querySelector(selector);
                     const inputSearch = document.getElementById('ycs-input-search');
 
@@ -2060,7 +2085,7 @@ Total: ${c.count}\n${c.html}`;
 
                     // Use unified helper function to update total result display
                     updateTotalResultDisplay(`(Chat replay) Found: ${resultSearch.length}`);
-                    countSearchComments.commentsChat = resultSearch.length;
+                    state = setSearchCount(state, 'commentsChat', resultSearch.length);
 
                     const elsGotoChatVideo = document.getElementById('ycs_wrap_comments_chat');
 
@@ -2100,10 +2125,11 @@ Total: ${c.count}\n${c.html}`;
                     if (elSearchRes) elSearchRes.textContent = '';
                     // Display zero count instead of hiding (consistent with user expectation)
                     updateTotalResultDisplay('(Tr. video) Found: 0');
-                    countSearchComments.commentsTrVideo = 0;
+                    state = setSearchCount(state, 'commentsTrVideo', 0);
                     return;
                 }
 
+                const commentsTrVideo = getCommentsTrVideo(state);
                 if (
                     commentsTrVideo &&
                     wrapTryCatch(
@@ -2348,7 +2374,7 @@ Total: ${c.count}\n${c.html}`;
 
                     // Use unified helper function to update total result display
                     updateTotalResultDisplay(`(Tr. video) Found: ${resultSearch.length}`);
-                    countSearchComments.commentsTrVideo = resultSearch.length;
+                    state = setSearchCount(state, 'commentsTrVideo', resultSearch.length);
 
                     const elsGotoVideo = document.getElementById('ycs_wrap_comments_trvideo');
 
@@ -2388,6 +2414,9 @@ Total: ${c.count}\n${c.html}`;
 
         const searchCommentsAll = (selector: string, param?: IParamSearch): void => {
             const elSearchAll = document.querySelector(selector);
+            const comments = getComments(state);
+            const commentsChat = getCommentsChat(state);
+            const commentsTrVideo = getCommentsTrVideo(state);
 
             /**
              * Filter support matrix:
@@ -2424,9 +2453,7 @@ Total: ${c.count}\n${c.html}`;
             console.log('searchCommentsAll selector, param: ', selector, param);
 
             // Reset counters before re-rendering grouped results
-            countSearchComments.comments = 0;
-            countSearchComments.commentsChat = 0;
-            countSearchComments.commentsTrVideo = 0;
+            state = resetSearchCounts(state);
 
             try {
                 if (comments.length > 0) {
@@ -2435,7 +2462,7 @@ Total: ${c.count}\n${c.html}`;
                     searchComments('#ycs_allsearch__wrap_comments', param);
                 }
 
-                if (shouldRenderChat && commentsChat && commentsChat.size > 0) {
+                if (shouldRenderChat && commentsChat.size > 0) {
                     elSearchAll?.appendChild(elWrapCommentsChat);
                     searchCommentsChat('#ycs_allsearch__wrap_comments_chat', param);
                 }
@@ -2455,10 +2482,8 @@ Total: ${c.count}\n${c.html}`;
                 }
 
                 // Use unified helper function to update total result display with proper text
-                const resTotalSearch =
-                    countSearchComments.comments +
-                    countSearchComments.commentsChat +
-                    countSearchComments.commentsTrVideo;
+                const searchCounts = getSearchCounts(state);
+                const resTotalSearch = searchCounts.comments + searchCounts.commentsChat + searchCounts.commentsTrVideo;
 
                 let resultText = '';
                 if (param?.timestamp) {
@@ -2629,11 +2654,12 @@ Total: ${c.count}\n${c.html}`;
                 console.log('YCS_CACHE_STORAGE_GET_RESPONSE:', e.data);
 
                 if (e.data?.body) {
+                    const cachedComments: any[] = e.data.body.comments || [];
                     try {
                         // Rebuild reply-to-origin mapping using a single-pass index to reduce complexity from O(n^2) to O(n)
-                        if (e.data.body.comments.length > 0) {
+                        if (cachedComments.length > 0) {
                             const originById: Record<string, any> = {};
-                            for (const c of e.data.body.comments) {
+                            for (const c of cachedComments) {
                                 if (c?.typeComment === 'C') {
                                     const id = c?.commentRenderer?.commentId;
                                     if (typeof id === 'string' && id.length > 0) {
@@ -2642,7 +2668,7 @@ Total: ${c.count}\n${c.html}`;
                                 }
                             }
 
-                            for (const cmnt of e.data.body.comments) {
+                            for (const cmnt of cachedComments) {
                                 if (cmnt?.typeComment === 'R') {
                                     const refId = cmnt?.originComment?.commentRenderer?.commentId;
                                     if (typeof refId === 'string' && refId.length > 0) {
@@ -2651,15 +2677,14 @@ Total: ${c.count}\n${c.html}`;
                                     }
                                 }
                             }
-
-                            comments = e.data.body.comments;
                         }
                     } catch (err) {
                         console.error(err);
                     }
+                    state = setComments(state, cachedComments);
 
-                    commentsChat = new Map(JSON.parse(e.data.body.commentsChat));
-                    commentsTrVideo = e.data.body.commentsTrVideo;
+                    state = setCommentsChat(state, new Map<number, object>(JSON.parse(e.data.body.commentsChat)));
+                    state = setCommentsTrVideo(state, e.data.body.commentsTrVideo);
 
                     // Restore GlobalStore.getInitYtData with minimal structure for author filter
                     if (e.data.body.channelId) {
@@ -2673,6 +2698,9 @@ Total: ${c.count}\n${c.html}`;
                     }
 
                     const crdate = e.data.body.date;
+                    const comments = getComments(state);
+                    const commentsChat = getCommentsChat(state);
+                    const commentsTrVideo = getCommentsTrVideo(state);
 
                     // comments
                     const elStatusCmnts = document.getElementById('ycs_status_cmnt');
@@ -2681,7 +2709,7 @@ Total: ${c.count}\n${c.html}`;
                     }
 
                     if (comments.length > 0 && (elLiveApp.parentNode || elLiveApp.parentElement)) {
-                        countComments.comments = comments.length;
+                        state = setCount(state, 'comments', comments.length);
                     }
 
                     const elLoadCmnts = document.getElementById('ycs_cmnts');
@@ -2693,15 +2721,15 @@ Total: ${c.count}\n${c.html}`;
 
                     // chat
 
-                    if (commentsChat && commentsChat.size > 0) {
+                    if (commentsChat.size > 0) {
                         const elLoadChat = document.getElementById('ycs_cmnts_chat') as HTMLElement;
                         const elStatusChat = document.getElementById('ycs_status_chat') as HTMLElement;
                         elLoadChat.textContent = commentsChat.size.toString();
                         elStatusChat.innerHTML = iconOk();
                     }
 
-                    if (commentsChat && commentsChat.size > 0 && (elLiveApp.parentNode || elLiveApp.parentElement)) {
-                        countComments.commentsChat = commentsChat.size;
+                    if (commentsChat.size > 0 && (elLiveApp.parentNode || elLiveApp.parentElement)) {
+                        state = setCount(state, 'commentsChat', commentsChat.size);
                     }
 
                     // end chat
@@ -2734,15 +2762,18 @@ Total: ${c.count}\n${c.html}`;
                         ) &&
                         (elLiveApp.parentNode || elLiveApp.parentElement)
                     ) {
-                        countComments.commentsTrVideo = (
-                            commentsTrVideo as any
-                        ).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body.transcriptBodyRenderer.cueGroups.length;
+                        state = setCount(
+                            state,
+                            'commentsTrVideo',
+                            (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer
+                                .body.transcriptBodyRenderer.cueGroups.length
+                        );
                     }
 
                     // end tr. video
 
-                    const totalCount =
-                        countComments.comments + countComments.commentsChat + countComments.commentsTrVideo;
+                    const counts = getCounts(state);
+                    const totalCount = counts.comments + counts.commentsChat + counts.commentsTrVideo;
                     sendMsgToBadge('NUMBER_COMMENTS', totalCount);
 
                     updateTitleCount(totalCount);
@@ -2822,7 +2853,7 @@ Total: ${c.count}\n${c.html}`;
                 prevUrl = getCleanUrlVideo(window.location.href);
                 // console.log('prevUrl After: ', prevUrl);
 
-                controller.abort();
+                getController(state).abort();
                 app();
             }
         }, 1000);
