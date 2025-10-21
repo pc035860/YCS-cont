@@ -37,6 +37,11 @@ export function registerCommentInteractions(
             return;
         }
 
+        if (target.classList.contains('ycs-goto-comment-time')) {
+            handleGotoCommentTime(event);
+            return;
+        }
+
         if (target.classList.contains('ycs-open-reply')) {
             handleOpenReply(target, stateAccessor, queryGetter);
         }
@@ -122,7 +127,7 @@ function buildAuthorReplyResults(
             (entry as any)?.commentRenderer?.authorEndpoint?.browseEndpoint?.canonicalBaseUrl === replyUrl
         ) {
             replies.push({
-                item: entry,
+                item: entry as any,
                 refIndex: Number((entry as any)?._index ?? refId)
             });
         }
@@ -201,6 +206,24 @@ function handleGotoChatVideo(event: Event): void {
     }
 }
 
+function handleGotoCommentTime(event: Event): void {
+    event.preventDefault();
+
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+
+    const video = document.getElementsByTagName('video')[0];
+    if (!video) return;
+
+    const seconds = target.dataset.offsetvideo;
+    if (!seconds) return;
+
+    const secondsValue = Number.parseInt(seconds, 10);
+    if (Number.isFinite(secondsValue)) {
+        video.currentTime = secondsValue;
+    }
+}
+
 function collectRepliesForComment(
     comments: CommentCollection,
     commentId: string | undefined,
@@ -216,7 +239,7 @@ function collectRepliesForComment(
     for (const entry of comments) {
         if ((entry as any)?.originComment === reference) {
             replies.push({
-                item: entry,
+                item: entry as any,
                 refIndex: Number((entry as any)?._index ?? refId)
             });
         }

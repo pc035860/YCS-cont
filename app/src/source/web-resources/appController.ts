@@ -861,15 +861,23 @@ export function initApp(): void {
                 elsGotoChatVideo.addEventListener('click', (event) => {
                     try {
                         const target = event.target as HTMLElement | null;
-                        if (!target?.classList.contains('ycs-gotochat-video')) return;
+                        if (!target) return;
+
+                        const isChatVideo = target.classList.contains('ycs-gotochat-video');
+                        const isCommentTime = target.classList.contains('ycs-goto-comment-time');
+
+                        if (!isChatVideo && !isCommentTime) return;
 
                         event.preventDefault();
 
                         const elFrameVideo = document.getElementsByTagName('video')[0];
                         if (elFrameVideo) {
-                            const ms = target.dataset.offsetvideo;
-                            if (ms) {
-                                elFrameVideo.currentTime = parseInt(ms, 10) / 1000;
+                            const timeValue = target.dataset.offsetvideo;
+                            if (timeValue) {
+                                // Chat video uses milliseconds, comment time uses seconds
+                                elFrameVideo.currentTime = isChatVideo
+                                    ? parseInt(timeValue, 10) / 1000
+                                    : parseInt(timeValue, 10);
                             }
                         }
                     } catch (error) {

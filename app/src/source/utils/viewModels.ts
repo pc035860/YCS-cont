@@ -267,7 +267,7 @@ function buildChatRunsHtml(runs: any[]): string {
                         : '';
                     const safeHref = href ? ` href="${escapeHtml(href)}"` : '';
                     parts.push(
-                        `<a class="ycs-cpointer ycs-gotochat-video"${safeHref}${offsetAttr}>${escapeHtml(text)}</a>`
+                        `<a class="ycs-cpointer ycs-goto-comment-time"${safeHref}${offsetAttr}>${escapeHtml(text)}</a>`
                     );
                 } else {
                     const href =

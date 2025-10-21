@@ -228,13 +228,15 @@ html[dark] .ycs-open-reply {
 .ycs-comment-link,
 .ycs-open-comment,
 .ycs-gotochat-video,
+.ycs-goto-comment-time,
 .ycs-goto-video {
   cursor: pointer;
   color: #065fd4;
   text-decoration: none;
 }
 
-.ycs-gotochat-video * {
+.ycs-gotochat-video *,
+.ycs-goto-comment-time * {
   vertical-align: unset !important;
   pointer-events: none;
 }
@@ -266,11 +268,13 @@ html[dark='true'] .ycs-open-reply,
 html[dark='true'] .ycs-comment-link,
 html[dark='true'] .ycs-open-comment,
 html[dark='true'] .ycs-gotochat-video,
+html[dark='true'] .ycs-goto-comment-time,
 html[dark='true'] .ycs-goto-video,
 html[dark] .ycs-open-reply,
 html[dark] .ycs-comment-link,
 html[dark] .ycs-open-comment,
 html[dark] .ycs-gotochat-video,
+html[dark] .ycs-goto-comment-time,
 html[dark] .ycs-goto-video {
   color: #3ea6ff;
 }
