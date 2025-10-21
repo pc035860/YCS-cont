@@ -1,4 +1,38 @@
-import { escapeHtml, wrapTryCatch } from './common';
+import { escapeHtml, wrapTryCatch, getCleanUrlVideo } from './common';
+
+interface ExportMeta {
+    url?: string;
+    title?: string;
+    generatedAt?: Date | string;
+}
+
+interface ResolvedExportMeta {
+    url: string;
+    title: string;
+    generatedAt: string;
+}
+
+function resolveMeta(meta?: ExportMeta): ResolvedExportMeta {
+    const fallbackTitle = typeof document !== 'undefined' ? document.title : '';
+    const fallbackUrl =
+        typeof window !== 'undefined' ? (getCleanUrlVideo(window.location.href) ?? window.location.href) : '';
+
+    let generatedAt = new Date();
+    if (meta?.generatedAt instanceof Date) {
+        generatedAt = meta.generatedAt;
+    } else if (typeof meta?.generatedAt === 'string') {
+        const parsed = new Date(meta.generatedAt);
+        if (!Number.isNaN(parsed.getTime())) {
+            generatedAt = parsed;
+        }
+    }
+
+    return {
+        title: typeof meta?.title === 'string' && meta.title ? meta.title : fallbackTitle,
+        url: typeof meta?.url === 'string' && meta.url ? meta.url : fallbackUrl,
+        generatedAt: generatedAt.toString()
+    };
+}
 
 function esc(input: unknown): string {
     try {
@@ -392,6 +426,7 @@ start offset: ${wrapTryCatch(() => c.transcriptCueGroupRenderer.cues[0].transcri
 }
 
 export {
+    resolveMeta,
     esc,
     safeUrl,
     sanitizeHtml,
@@ -405,3 +440,5 @@ export {
     getCommentsChatHtmlText,
     getCommentsTrVideoHtmlText
 };
+
+export type { ExportMeta, ResolvedExportMeta };

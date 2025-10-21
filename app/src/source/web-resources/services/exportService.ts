@@ -1,43 +1,14 @@
-import { getCleanUrlVideo } from '../../utils/common';
 import { downloadFile, openComments, openCommentsChat, openCommentsTrVideo } from '../../utils/dom';
-import { getCommentsChatHtmlText, getCommentsHtmlText, getCommentsTrVideoHtmlText } from '../../utils/formatting';
-
-interface ExportMeta {
-    url?: string;
-    title?: string;
-    generatedAt?: Date | string;
-}
-
-interface ResolvedExportMeta {
-    url: string;
-    title: string;
-    generatedAt: string;
-}
-
-function resolveMeta(meta?: ExportMeta): ResolvedExportMeta {
-    const fallbackTitle = typeof document !== 'undefined' ? document.title : '';
-    const fallbackUrl =
-        typeof window !== 'undefined' ? (getCleanUrlVideo(window.location.href) ?? window.location.href) : '';
-
-    let generatedAt = new Date();
-    if (meta?.generatedAt instanceof Date) {
-        generatedAt = meta.generatedAt;
-    } else if (typeof meta?.generatedAt === 'string') {
-        const parsed = new Date(meta.generatedAt);
-        if (!Number.isNaN(parsed.getTime())) {
-            generatedAt = parsed;
-        }
-    }
-
-    return {
-        title: meta?.title ?? fallbackTitle,
-        url: meta?.url ?? fallbackUrl,
-        generatedAt: generatedAt.toString()
-    };
-}
+import {
+    getCommentsChatHtmlText,
+    getCommentsHtmlText,
+    getCommentsTrVideoHtmlText,
+    resolveMeta
+} from '../../utils/formatting';
+import type { ExportMeta, ResolvedExportMeta } from '../../utils/formatting';
 
 function buildDocument(sectionTitle: string, meta: ResolvedExportMeta, count: number, body: string): string {
-    return `YCS - YouTube Comment Search\n\n${sectionTitle}\nFile created by ${meta.generatedAt}\nVideo URL: ${meta.url}\nTitle: ${meta.title}\nTotal: ${count}\\n${body}`;
+    return `YCS - YouTube Comment Search\n\n${sectionTitle}\nFile created by ${meta.generatedAt}\nVideo URL: ${meta.url}\nTitle: ${meta.title}\nTotal: ${count}\n${body}`;
 }
 
 export function openCommentsWindow(comments: any[], meta?: ExportMeta): void {

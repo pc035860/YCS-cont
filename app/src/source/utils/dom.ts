@@ -2,26 +2,7 @@ import Mark from 'mark.js';
 import type { MarkOptions } from 'mark.js';
 
 import { GlobalStore, getCleanUrlVideo, getRandomInt, getVideoId, oIsEmpty, wrapTryCatch } from './common';
-
-function resolveExportMeta(meta: any): { title: string; url: string; generatedAt: string } {
-    const fallbackTitle = typeof document !== 'undefined' ? document.title : '';
-    const fallbackUrl =
-        typeof window !== 'undefined' ? (getCleanUrlVideo(window.location.href) ?? window.location.href) : '';
-
-    let generatedAt = new Date().toString();
-
-    if (meta?.generatedAt instanceof Date) {
-        generatedAt = meta.generatedAt.toString();
-    } else if (typeof meta?.generatedAt === 'string' && meta.generatedAt) {
-        generatedAt = meta.generatedAt;
-    }
-
-    return {
-        title: typeof meta?.title === 'string' && meta.title ? meta.title : fallbackTitle,
-        url: typeof meta?.url === 'string' && meta.url ? meta.url : fallbackUrl,
-        generatedAt
-    };
-}
+import { resolveMeta } from './formatting';
 
 function removeClass(elms: object, s: string): void {
     try {
@@ -63,7 +44,7 @@ function openComments(comments: any): WindowProxy | undefined {
         );
 
         if (commentsNewWindow) {
-            const meta = resolveExportMeta(comments?.meta);
+            const meta = resolveMeta(comments?.meta);
 
             commentsNewWindow.document.title = `Comments, ${meta.title} (${comments.count})`;
             const elWrapPre = document.createElement('pre');
@@ -102,7 +83,7 @@ function openCommentsChat(comments: any): WindowProxy | undefined {
         );
 
         if (commentsNewWindow) {
-            const meta = resolveExportMeta(comments?.meta);
+            const meta = resolveMeta(comments?.meta);
 
             commentsNewWindow.document.title = `Chat, ${meta.title} (${comments.count})`;
             const elWrapPre = document.createElement('pre');
@@ -141,7 +122,7 @@ function openCommentsTrVideo(comments: any): WindowProxy | undefined {
         );
 
         if (commentsNewWindow) {
-            const meta = resolveExportMeta(comments?.meta);
+            const meta = resolveMeta(comments?.meta);
 
             commentsNewWindow.document.title = `Transcript video, ${meta.title} (${comments.count})`;
             const elWrapPre = document.createElement('pre');
