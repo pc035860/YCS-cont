@@ -71,8 +71,10 @@ import {
     setCommentsChat,
     setCommentsTrVideo,
     setCount,
-    setSearchCount
+    setSearchCount,
+    WebResourcesState
 } from './state';
+import { FilterButtonConfig, registerFilterButtons } from './ui/filters';
 
 const DEBUG = false;
 
@@ -314,335 +316,104 @@ export function initApp(): void {
             }
         };
 
-        const handlersBtnPanel = (hElms: any): void => {
-            if (hElms) {
-                const clearCountComments = (): void => {
-                    state = resetSearchCounts(state);
-                };
+        const executeSearchBasedOnType = (param?: IParamSearch): void => {
+            const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement;
 
-                // Helper function to execute search based on selected type
-                const executeSearchBasedOnType = (param?: IParamSearch): void => {
-                    const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement;
+            if (elSelectOptSearch) {
+                const selected: ISelectedSearch = elSelectOptSearch?.options[elSelectOptSearch?.options?.selectedIndex]
+                    .value as unknown as ISelectedSearch;
 
-                    if (elSelectOptSearch) {
-                        const selected: ISelectedSearch = elSelectOptSearch?.options[
-                            elSelectOptSearch?.options?.selectedIndex
-                        ].value as unknown as ISelectedSearch;
-
-                        switch (selected) {
-                            case 'comments':
-                                // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                                searchComments('#ycs-search-result', param);
-                                break;
-                            case 'chat':
-                                // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                                searchCommentsChat('#ycs-search-result', param);
-                                break;
-                            case 'video':
-                                // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                                searchCommentsTrVideo('#ycs-search-result', param);
-                                break;
-                            case 'all':
-                                // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                                searchCommentsAll('#ycs-search-result', param);
-                                break;
-                            default:
-                                // Default to searchCommentsAll if no valid selection
-                                // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                                searchCommentsAll('#ycs-search-result', param);
-                                break;
-                        }
-                    } else {
-                        // Fallback to searchCommentsAll if select element not found
+                switch (selected) {
+                    case 'comments':
+                        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                        searchComments('#ycs-search-result', param);
+                        break;
+                    case 'chat':
+                        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                        searchCommentsChat('#ycs-search-result', param);
+                        break;
+                    case 'video':
+                        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                        searchCommentsTrVideo('#ycs-search-result', param);
+                        break;
+                    case 'all':
                         // eslint-disable-next-line @typescript-eslint/no-use-before-define
                         searchCommentsAll('#ycs-search-result', param);
-                    }
-                };
-
-                hElms?.elPTimeStamps?.addEventListener('click', (e: Event) => {
-                    try {
-                        const currentTarget = e.currentTarget as HTMLElement;
-                        const wasActive = currentTarget.classList.contains('ycs_btn_active');
-
-                        // Toggle sort only if button was already active
-                        if (wasActive) {
-                            const currentSort = currentTarget.dataset.sort;
-                            currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
-                            const currentSortChat = currentTarget.dataset.sortChat;
-                            currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
-                        }
-
-                        setActiveFilterByElement('timestamp', currentTarget);
-                        clearCountComments();
-
+                        break;
+                    default:
+                        // Default to searchCommentsAll if no valid selection
                         // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                        executeSearchBasedOnType({
-                            timestamp: true
-                        });
-                    } catch (err) {
-                        console.error(err);
-                    }
-                });
-
-                hElms?.elPAuthor?.addEventListener('click', (e: Event) => {
-                    try {
-                        const currentTarget = e.currentTarget as HTMLElement;
-                        const wasActive = currentTarget.classList.contains('ycs_btn_active');
-
-                        // Toggle sort only if button was already active
-                        if (wasActive) {
-                            const currentSort = currentTarget.dataset.sort;
-                            currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
-                            const currentSortChat = currentTarget.dataset.sortChat;
-                            currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
-                        }
-
-                        setActiveFilterByElement('author', currentTarget);
-                        clearCountComments();
-
-                        // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                        executeSearchBasedOnType({
-                            author: true
-                        });
-                    } catch (err) {
-                        console.error(err);
-                    }
-                });
-
-                hElms?.elPHeart?.addEventListener('click', (e: Event) => {
-                    try {
-                        const currentTarget = e.currentTarget as HTMLElement;
-                        const wasActive = currentTarget.classList.contains('ycs_btn_active');
-
-                        // Toggle sort only if button was already active
-                        if (wasActive) {
-                            const currentSort = currentTarget.dataset.sort;
-                            currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
-                        }
-
-                        setActiveFilterByElement('heart', currentTarget);
-                        clearCountComments();
-
-                        // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                        executeSearchBasedOnType({
-                            heart: true
-                        });
-                    } catch (err) {
-                        console.error(err);
-                    }
-                });
-
-                hElms?.elPVerified?.addEventListener('click', (e: Event) => {
-                    try {
-                        const currentTarget = e.currentTarget as HTMLElement;
-                        const wasActive = currentTarget.classList.contains('ycs_btn_active');
-
-                        // Toggle sort only if button was already active
-                        if (wasActive) {
-                            const currentSort = currentTarget.dataset.sort;
-                            currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
-                            const currentSortChat = currentTarget.dataset.sortChat;
-                            currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
-                        }
-
-                        setActiveFilterByElement('verified', currentTarget);
-                        clearCountComments();
-
-                        // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                        executeSearchBasedOnType({
-                            verified: true
-                        });
-                    } catch (err) {
-                        console.error(err);
-                    }
-                });
-
-                hElms?.elPLinks?.addEventListener('click', (e: Event) => {
-                    try {
-                        const currentTarget = e.currentTarget as HTMLElement;
-                        const wasActive = currentTarget.classList.contains('ycs_btn_active');
-
-                        // Toggle sort only if button was already active
-                        if (wasActive) {
-                            const currentSort = currentTarget.dataset.sort;
-                            currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
-                            const currentSortChat = currentTarget.dataset.sortChat;
-                            currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
-                            const currentSortTrp = currentTarget.dataset.sortTrp;
-                            currentTarget.dataset.sortTrp = currentSortTrp === 'newest' ? 'oldest' : 'newest';
-                        }
-
-                        setActiveFilterByElement('links', currentTarget);
-                        clearCountComments();
-
-                        // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                        executeSearchBasedOnType({
-                            links: true
-                        });
-                    } catch (err) {
-                        console.error(err);
-                    }
-                });
-
-                hElms?.elPLikes?.addEventListener('click', (e: Event) => {
-                    try {
-                        const currentTarget = e.currentTarget;
-
-                        setActiveFilterByElement('likes', currentTarget as HTMLElement);
-                        clearCountComments();
-
-                        executeSearchBasedOnType({
-                            likes: true
-                        });
-                    } catch (err) {
-                        console.error(err);
-                    }
-                });
-
-                hElms?.elPReplied?.addEventListener('click', (e: Event) => {
-                    try {
-                        const currentTarget = e.currentTarget;
-
-                        setActiveFilterByElement('replied', currentTarget as HTMLElement);
-                        clearCountComments();
-
-                        executeSearchBasedOnType({
-                            replied: true
-                        });
-                    } catch (err) {
-                        console.error(err);
-                    }
-                });
-
-                hElms?.elPMembers?.addEventListener('click', (e: Event) => {
-                    try {
-                        const currentTarget = e.currentTarget as HTMLElement;
-                        const wasActive = currentTarget.classList.contains('ycs_btn_active');
-
-                        // Toggle sort only if button was already active
-                        if (wasActive) {
-                            const currentSort = currentTarget.dataset.sort;
-                            currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
-                            const currentSortChat = currentTarget.dataset.sortChat;
-                            currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
-                        }
-
-                        setActiveFilterByElement('members', currentTarget);
-                        clearCountComments();
-
-                        executeSearchBasedOnType({
-                            members: true
-                        });
-                    } catch (err) {
-                        console.error(err);
-                    }
-                });
-
-                hElms?.elPDonated?.addEventListener('click', (e: Event) => {
-                    try {
-                        const currentTarget = e.currentTarget as HTMLElement;
-                        const wasActive = currentTarget.classList.contains('ycs_btn_active');
-
-                        // Toggle sort only if button was already active
-                        if (wasActive) {
-                            const currentSort = currentTarget.dataset.sort;
-                            currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
-                            const currentSortChat = currentTarget.dataset.sortChat;
-                            currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
-                        }
-
-                        setActiveFilterByElement('donated', currentTarget);
-                        clearCountComments();
-
-                        executeSearchBasedOnType({
-                            donated: true
-                        });
-                    } catch (err) {
-                        console.error(err);
-                    }
-                });
-
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                hElms?.elPClear?.addEventListener('click', (e: Event) => {
-                    try {
-                        // const currentTarget = e.currentTarget;
-
-                        setActiveFilterByElement(null);
-
-                        clearCountComments();
-
-                        // (currentTarget as HTMLElement)?.classList.add('ycs_btn_active');
-
-                        // Check if search input has content
-                        const eInputSearch = document.getElementById('ycs-input-search') as HTMLInputElement;
-
-                        // If search input is not empty, trigger search again for results without button filter
-                        if (eInputSearch?.value && eInputSearch.value.trim()) {
-                            // Use requestAnimationFrame to ensure DOM updates are completed before triggering search
-                            requestAnimationFrame(() => {
-                                const searchBtn = document.getElementById('ycs_btn_search');
-                                searchBtn?.click();
-                            });
-                        } else {
-                            // Only clear results if search input is empty
-                            const elSearchRes = document.getElementById('ycs-search-result');
-                            const elSearchTotalRes: any = document.getElementById('ycs-search-total-result');
-
-                            if (elSearchRes) {
-                                elSearchRes.innerText = '';
-                                elSearchTotalRes.innerText = 'Search cleared';
-                            }
-                        }
-
-                        // Hide clear-filter button after clearing
-                        const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
-                        if (btnClear) btnClear.style.visibility = 'hidden';
-                    } catch (err) {
-                        console.error(err);
-                    }
-                });
-
-                hElms?.elPRandom?.addEventListener('click', (e: Event) => {
-                    try {
-                        const currentTarget = e.currentTarget;
-
-                        setActiveFilterByElement('random', currentTarget as HTMLElement);
-                        clearCountComments();
-
-                        executeSearchBasedOnType({
-                            random: true
-                        });
-                    } catch (err) {
-                        console.error(err);
-                    }
-                });
-
-                hElms?.elFirstComments?.addEventListener('click', (e: Event) => {
-                    try {
-                        const currentTarget = e.currentTarget as HTMLElement;
-                        const wasActive = currentTarget.classList.contains('ycs_btn_active');
-
-                        // Toggle sort only if button was already active
-                        if (wasActive) {
-                            const currentSort = currentTarget.dataset.sort;
-                            currentTarget.dataset.sort = currentSort === 'newest' ? 'oldest' : 'newest';
-                            const currentSortChat = currentTarget.dataset.sortChat;
-                            currentTarget.dataset.sortChat = currentSortChat === 'newest' ? 'oldest' : 'newest';
-                            const currentSortTrp = currentTarget.dataset.sortTrp;
-                            currentTarget.dataset.sortTrp = currentSortTrp === 'newest' ? 'oldest' : 'newest';
-                        }
-
-                        setActiveFilterByElement('sortFirst', currentTarget);
-                        clearCountComments();
-
-                        executeSearchBasedOnType({
-                            sortFirst: true
-                        });
-                    } catch (err) {
-                        console.error(err);
-                    }
-                });
+                        searchCommentsAll('#ycs-search-result', param);
+                        break;
+                }
+            } else {
+                // Fallback to searchCommentsAll if select element not found
+                // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                searchCommentsAll('#ycs-search-result', param);
             }
+        };
+
+        const handlersBtnPanel = (hElms: any): void => {
+            if (!hElms) {
+                return;
+            }
+
+            const filterButtonConfigs: FilterButtonConfig[] = [
+                { id: 'ycs_btn_timestamps', param: 'timestamp', supportsSort: true },
+                { id: 'ycs_btn_author', param: 'author', supportsSort: true },
+                { id: 'ycs_btn_heart', param: 'heart', supportsSort: true },
+                { id: 'ycs_btn_verified', param: 'verified', supportsSort: true },
+                { id: 'ycs_btn_links', param: 'links', supportsSort: true },
+                { id: 'ycs_btn_likes', param: 'likes' },
+                { id: 'ycs_btn_replied_comments', param: 'replied' },
+                { id: 'ycs_btn_members', param: 'members', supportsSort: true },
+                { id: 'ycs_btn_donated', param: 'donated', supportsSort: true },
+                { id: 'ycs_btn_random', param: 'random' },
+                { id: 'ycs_btn_sort_first', param: 'sortFirst', supportsSort: true }
+            ];
+
+            registerFilterButtons({
+                state: {
+                    get: () => state,
+                    set: (nextState: WebResourcesState) => {
+                        state = nextState;
+                    }
+                },
+                executeSearch: executeSearchBasedOnType,
+                setActiveFilter: setActiveFilterByElement,
+                buttonConfigs: filterButtonConfigs
+            });
+
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            hElms?.elPClear?.addEventListener('click', (e: Event) => {
+                try {
+                    setActiveFilterByElement(null);
+
+                    state = resetSearchCounts(state);
+
+                    const eInputSearch = document.getElementById('ycs-input-search') as HTMLInputElement;
+
+                    if (eInputSearch?.value && eInputSearch.value.trim()) {
+                        requestAnimationFrame(() => {
+                            const searchBtn = document.getElementById('ycs_btn_search');
+                            searchBtn?.click();
+                        });
+                    } else {
+                        const elSearchRes = document.getElementById('ycs-search-result');
+                        const elSearchTotalRes: any = document.getElementById('ycs-search-total-result');
+
+                        if (elSearchRes) {
+                            elSearchRes.innerText = '';
+                            elSearchTotalRes.innerText = 'Search cleared';
+                        }
+                    }
+
+                    const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
+                    if (btnClear) btnClear.style.visibility = 'hidden';
+                } catch (err) {
+                    console.error(err);
+                }
+            });
         };
 
         handlersBtnPanel(elsBtnPanel);
