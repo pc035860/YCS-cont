@@ -3,27 +3,23 @@
 import 'abort-controller/polyfill';
 
 import { GlobalStore, extractChannelId, wrapTryCatch, getCleanUrlVideo, isVideoPage } from '../utils/common';
-import {
-    downloadFile,
-    initShowBarFAQ,
-    initShowViewMode,
-    openComments,
-    openCommentsChat,
-    openCommentsTrVideo,
-    removeClass,
-    removeNodeList,
-    sendGetCacheInIDB,
-    sendMsgToBadge,
-    setCacheToIDB,
-    showLoadComments
-} from '../utils/dom';
+import { initShowBarFAQ, initShowViewMode, removeClass, removeNodeList, showLoadComments } from '../utils/dom';
 import { getAllCommentsModeV2, getChatComments, getTranscriptVideo } from '../utils/innertube';
-import { getCommentsChatHtmlText, getCommentsHtmlText, getCommentsTrVideoHtmlText } from '../utils/formatting';
 
 import { ICommentsFuseResult, IParamSearch, ISelectedSearch } from '../utils/interfaces/i_types';
 
 import { iconCollapse, iconExpand, iconOk, iconReload } from '../utils/icons';
 import { renderComment, renderLoadComments, renderSearch } from '../utils/renderView';
+import { loadFromCache, saveToCache, updateBadge } from './services/cacheService';
+import {
+    downloadChatFile,
+    downloadCommentsFile,
+    downloadTranscriptFile,
+    openChatWindow,
+    openCommentsWindow,
+    openTranscriptWindow,
+    ExportMeta
+} from './services/exportService';
 import {
     clearComments,
     clearCommentsChat,
@@ -95,7 +91,7 @@ export function initApp(): void {
 
         state = createState();
 
-        sendMsgToBadge('NUMBER_COMMENTS', '');
+        updateBadge('NUMBER_COMMENTS', '');
 
         removeNodeList('.ycs-app');
 
@@ -402,6 +398,21 @@ export function initApp(): void {
             }
         };
 
+        const buildCacheMeta = () => ({
+            url: window.location.href,
+            title: document.title
+        });
+
+        const buildExportMeta = (): ExportMeta => {
+            const videoUrl = getCleanUrlVideo(window.location.href);
+
+            return {
+                url: videoUrl ?? window.location.href,
+                title: document.title,
+                generatedAt: new Date()
+            };
+        };
+
         const appendCachedInfo = (timestamp: number | string | null | undefined): void => {
             const cacheTitle = new Date(timestamp as number | string);
             const targets: (HTMLElement | null)[] = [elCountComments, elCountCommentsCollapsed];
@@ -449,15 +460,14 @@ export function initApp(): void {
 
                     if (comments.length > 0) {
                         elStatusCmnts.innerHTML = iconOk();
-                        setCacheToIDB(
+                        saveToCache(
                             {
                                 comments,
                                 commentsChat: JSON.stringify(Array.from(getCommentsChat(state).entries())),
                                 commentsTrVideo: getCommentsTrVideo(state),
                                 channelId: extractChannelId()
                             },
-                            window.location.href,
-                            document.title
+                            buildCacheMeta()
                         );
                     }
                 }
@@ -468,7 +478,7 @@ export function initApp(): void {
 
                 const counts = getCounts(state);
                 const totalCount = counts.comments + counts.commentsChat + counts.commentsTrVideo;
-                sendMsgToBadge('NUMBER_COMMENTS', totalCount);
+                updateBadge('NUMBER_COMMENTS', totalCount);
 
                 if (elLoadCmnts) {
                     elLoadCmnts.textContent = `${comments.length}`;
@@ -510,15 +520,14 @@ export function initApp(): void {
                     if (commentsChat.size > 0) {
                         elLoadChat.textContent = commentsChat.size.toString();
                         elStatusChat.innerHTML = iconOk();
-                        setCacheToIDB(
+                        saveToCache(
                             {
                                 comments: getComments(state),
                                 commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
                                 commentsTrVideo: getCommentsTrVideo(state),
                                 channelId: extractChannelId()
                             },
-                            window.location.href,
-                            document.title
+                            buildCacheMeta()
                         );
                     }
                 }
@@ -529,7 +538,7 @@ export function initApp(): void {
 
                 const counts = getCounts(state);
                 const totalCount = counts.comments + counts.commentsChat + counts.commentsTrVideo;
-                sendMsgToBadge('NUMBER_COMMENTS', totalCount);
+                updateBadge('NUMBER_COMMENTS', totalCount);
 
                 updateTitleCount(totalCount);
 
@@ -584,15 +593,14 @@ export function initApp(): void {
                                     .body.transcriptBodyRenderer.cueGroups.length,
                                 elLoadTrVideo
                             );
-                            setCacheToIDB(
+                            saveToCache(
                                 {
                                     comments: getComments(state),
                                     commentsChat: JSON.stringify(Array.from(getCommentsChat(state).entries())),
                                     commentsTrVideo: transcript,
                                     channelId: extractChannelId()
                                 },
-                                window.location.href,
-                                document.title
+                                buildCacheMeta()
                             );
                         } else {
                             state = clearCommentsTrVideo(state);
@@ -635,7 +643,7 @@ export function initApp(): void {
 
                 const counts = getCounts(state);
                 const totalCount = counts.comments + counts.commentsChat + counts.commentsTrVideo;
-                sendMsgToBadge('NUMBER_COMMENTS', totalCount);
+                updateBadge('NUMBER_COMMENTS', totalCount);
 
                 updateTitleCount(totalCount);
 
@@ -725,7 +733,7 @@ export function initApp(): void {
             if (comments.length === 0) return;
 
             try {
-                openComments(getCommentsHtmlText(comments));
+                openCommentsWindow(comments, buildExportMeta());
             } catch (e) {
                 console.error(e);
                 return;
@@ -738,17 +746,7 @@ export function initApp(): void {
             if (comments.length === 0) return;
 
             try {
-                const c = getCommentsHtmlText(comments);
-                const htmlText = `
-YCS - YouTube Comment Search
-
-Comments
-File created by ${new Date().toString()}
-Video URL: ${getCleanUrlVideo(window.location.href)}
-Title: ${document.title}
-Total: ${c.count}\n${c.html}`;
-
-                downloadFile(htmlText, `Comments, ${document.title} (${c.count}).txt`, 'text/plain');
+                downloadCommentsFile(comments, buildExportMeta());
             } catch (e) {
                 console.error(e);
                 return;
@@ -761,7 +759,7 @@ Total: ${c.count}\n${c.html}`;
             if (commentsChat.size === 0) return;
 
             try {
-                openCommentsChat(getCommentsChatHtmlText([...commentsChat.values()]));
+                openChatWindow([...commentsChat.values()], buildExportMeta());
             } catch (e) {
                 console.error(e);
                 return;
@@ -774,17 +772,7 @@ Total: ${c.count}\n${c.html}`;
             if (commentsChat.size === 0) return;
 
             try {
-                const c = getCommentsChatHtmlText([...commentsChat.values()]);
-                const htmlText = `
-YCS - YouTube Comment Search
-
-Comments chat
-File created by ${new Date().toString()}
-Video URL: ${getCleanUrlVideo(window.location.href)}
-Title: ${document.title}
-Total: ${c.count}\n${c.html}`;
-
-                downloadFile(htmlText, `Comments chat, ${document.title} (${c.count}).txt`, 'text/plain');
+                downloadChatFile([...commentsChat.values()], buildExportMeta());
             } catch (e) {
                 console.error(e);
                 return;
@@ -803,11 +791,10 @@ Total: ${c.count}\n${c.html}`;
                     (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body
                         ?.transcriptBodyRenderer?.cueGroups?.length > 0
                 ) {
-                    openCommentsTrVideo(
-                        getCommentsTrVideoHtmlText(
-                            (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer
-                                .body.transcriptBodyRenderer.cueGroups
-                        )
+                    openTranscriptWindow(
+                        (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body
+                            .transcriptBodyRenderer.cueGroups,
+                        buildExportMeta()
                     );
                 }
             } catch (e) {
@@ -826,21 +813,11 @@ Total: ${c.count}\n${c.html}`;
                     (commentsTrVideo as any).actions[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body
                         ?.transcriptBodyRenderer?.cueGroups?.length > 0
                 ) {
-                    const c = getCommentsTrVideoHtmlText(
+                    downloadTranscriptFile(
                         (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body
-                            .transcriptBodyRenderer.cueGroups
+                            .transcriptBodyRenderer.cueGroups,
+                        buildExportMeta()
                     );
-
-                    const htmlText = `
-YCS - YouTube Comment Search
-
-Transcript video
-File created by ${new Date().toString()}
-Video URL: ${getCleanUrlVideo(window.location.href)}
-Title: ${document.title}
-Total: ${c.count}\n${c.html}`;
-
-                    downloadFile(htmlText, `Transcript video, ${document.title} (${c.count}).txt`, 'text/plain');
                 }
             } catch (e) {
                 console.error(e);
@@ -1216,7 +1193,7 @@ Total: ${c.count}\n${c.html}`;
                     try {
                         if (!value) return;
 
-                        sendGetCacheInIDB(window.location.href);
+                        loadFromCache(window.location.href);
                     } catch (err) {
                         console.error(err);
                     }
@@ -1390,7 +1367,7 @@ Total: ${c.count}\n${c.html}`;
 
                     const counts = getCounts(state);
                     const totalCount = counts.comments + counts.commentsChat + counts.commentsTrVideo;
-                    sendMsgToBadge('NUMBER_COMMENTS', totalCount);
+                    updateBadge('NUMBER_COMMENTS', totalCount);
 
                     updateTitleCount(totalCount);
                     appendCachedInfo(crdate);

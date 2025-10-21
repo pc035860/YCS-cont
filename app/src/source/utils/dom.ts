@@ -3,6 +3,26 @@ import type { MarkOptions } from 'mark.js';
 
 import { GlobalStore, getCleanUrlVideo, getRandomInt, getVideoId, oIsEmpty, wrapTryCatch } from './common';
 
+function resolveExportMeta(meta: any): { title: string; url: string; generatedAt: string } {
+    const fallbackTitle = typeof document !== 'undefined' ? document.title : '';
+    const fallbackUrl =
+        typeof window !== 'undefined' ? (getCleanUrlVideo(window.location.href) ?? window.location.href) : '';
+
+    let generatedAt = new Date().toString();
+
+    if (meta?.generatedAt instanceof Date) {
+        generatedAt = meta.generatedAt.toString();
+    } else if (typeof meta?.generatedAt === 'string' && meta.generatedAt) {
+        generatedAt = meta.generatedAt;
+    }
+
+    return {
+        title: typeof meta?.title === 'string' && meta.title ? meta.title : fallbackTitle,
+        url: typeof meta?.url === 'string' && meta.url ? meta.url : fallbackUrl,
+        generatedAt
+    };
+}
+
 function removeClass(elms: object, s: string): void {
     try {
         if (oIsEmpty(elms) || typeof s !== 'string') return;
@@ -43,7 +63,9 @@ function openComments(comments: any): WindowProxy | undefined {
         );
 
         if (commentsNewWindow) {
-            commentsNewWindow.document.title = `Comments, ${document.title} (${comments.count})`;
+            const meta = resolveExportMeta(comments?.meta);
+
+            commentsNewWindow.document.title = `Comments, ${meta.title} (${comments.count})`;
             const elWrapPre = document.createElement('pre');
             elWrapPre.style.cssText = 'word-wrap: break-word; white-space: pre-wrap;';
             elWrapPre.insertAdjacentText(
@@ -52,9 +74,9 @@ function openComments(comments: any): WindowProxy | undefined {
 YCS - YouTube Comment Search
 
 Comments
-File created by ${new Date().toString()}
-Video URL: ${getCleanUrlVideo(window.location.href)}
-Title: ${document.title}
+File created by ${meta.generatedAt}
+Video URL: ${meta.url}
+Title: ${meta.title}
 Total comments: ${comments.count}\n${comments.html}`
             );
             commentsNewWindow.document.body.textContent = '';
@@ -80,7 +102,9 @@ function openCommentsChat(comments: any): WindowProxy | undefined {
         );
 
         if (commentsNewWindow) {
-            commentsNewWindow.document.title = `Chat, ${document.title} (${comments.count})`;
+            const meta = resolveExportMeta(comments?.meta);
+
+            commentsNewWindow.document.title = `Chat, ${meta.title} (${comments.count})`;
             const elWrapPre = document.createElement('pre');
             elWrapPre.style.cssText = 'word-wrap: break-word; white-space: pre-wrap;';
             elWrapPre.insertAdjacentText(
@@ -89,9 +113,9 @@ function openCommentsChat(comments: any): WindowProxy | undefined {
 YCS - YouTube Comment Search
 
 Chat replay
-File created by ${new Date().toString()}
-Video URL: ${getCleanUrlVideo(window.location.href)}
-Title: ${document.title}
+File created by ${meta.generatedAt}
+Video URL: ${meta.url}
+Title: ${meta.title}
 Total: ${comments.count}\n${comments.html}`
             );
             commentsNewWindow.document.body.textContent = '';
@@ -117,7 +141,9 @@ function openCommentsTrVideo(comments: any): WindowProxy | undefined {
         );
 
         if (commentsNewWindow) {
-            commentsNewWindow.document.title = `Transcript video, ${document.title} (${comments.count})`;
+            const meta = resolveExportMeta(comments?.meta);
+
+            commentsNewWindow.document.title = `Transcript video, ${meta.title} (${comments.count})`;
             const elWrapPre = document.createElement('pre');
             elWrapPre.style.cssText = 'word-wrap: break-word; white-space: pre-wrap;';
             elWrapPre.insertAdjacentText(
@@ -126,9 +152,9 @@ function openCommentsTrVideo(comments: any): WindowProxy | undefined {
 YCS - YouTube Comment Search
 
 Transcript video
-File created by ${new Date().toString()}
-Video URL: ${getCleanUrlVideo(window.location.href)}
-Title: ${document.title}
+File created by ${meta.generatedAt}
+Video URL: ${meta.url}
+Title: ${meta.title}
 Total: ${comments.count}\n${comments.html}`
             );
             commentsNewWindow.document.body.textContent = '';
