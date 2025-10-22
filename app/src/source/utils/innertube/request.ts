@@ -26,11 +26,11 @@ export interface BuildInnertubeBodyOptions {
 }
 
 /**
- * 產生向 Innertube API 發送請求時所需的預設標頭，並允許以覆寫方式調整個別欄位。
+ * Builds the default headers for Innertube API requests and allows overriding individual fields.
  *
- * @param ytcfgData - 由頁面取得的 ytcfg 設定資料。
- * @param overrides - 自訂標頭覆寫項目，例如調整 x-youtube-client-version。
- * @returns 適用於 fetch 請求的標頭物件。
+ * @param ytcfgData - YTCFG configuration data captured from the page context.
+ * @param overrides - Header overrides, for example to adjust x-youtube-client-version.
+ * @returns Headers object that can be used with fetch requests.
  */
 export function buildInnertubeHeaders(
     ytcfgData: YtcfgData | undefined,
@@ -58,10 +58,10 @@ export function buildInnertubeHeaders(
 }
 
 /**
- * 建立 Innertube API 請求的共用 body，僅保留實際提供的參數並允許附加額外欄位。
+ * Builds a shared Innertube API request body, keeping only provided parameters while allowing additional fields.
  *
- * @param options - 組裝請求 body 所需的參數集合。
- * @returns 已根據提供參數過濾後的請求 payload。
+ * @param options - Collection of parameters used to assemble the request body.
+ * @returns Request payload filtered to include only supplied values.
  */
 export function buildInnertubeBody({
     ytcfgData,
