@@ -940,18 +940,11 @@ async function getParamsForComments(
         const ytcfgData = await getPageCfgData(w, signal, params?.url);
 
         const clickTrackingParams = params?.clickTrackingParams ?? params?.clickTracking;
-        const bodyPayload = buildInnertubeBody(
-            clickTrackingParams
-                ? {
-                      ytcfgData,
-                      continuation: params?.continue,
-                      clickTrackingParams
-                  }
-                : {
-                      ytcfgData,
-                      continuation: params?.continue
-                  }
-        );
+        const bodyPayload = buildInnertubeBody({
+            ytcfgData,
+            continuation: params?.continue,
+            clickTrackingParams: clickTrackingParams ?? undefined
+        });
 
         return {
             headers: buildInnertubeHeaders(ytcfgData),
@@ -976,18 +969,11 @@ async function getParamsForReplies(
         const ytcfgData = await getPageCfgData(w, signal, params?.url);
 
         const clickTrackingParams = params?.clickTracking ?? params?.clickTrackingParams;
-        const bodyPayload = buildInnertubeBody(
-            clickTrackingParams
-                ? {
-                      ytcfgData,
-                      continuation: params?.continue,
-                      clickTrackingParams
-                  }
-                : {
-                      ytcfgData,
-                      continuation: params?.continue
-                  }
-        );
+        const bodyPayload = buildInnertubeBody({
+            ytcfgData,
+            continuation: params?.continue,
+            clickTrackingParams: clickTrackingParams ?? undefined
+        });
 
         return {
             headers: buildInnertubeHeaders(ytcfgData),
