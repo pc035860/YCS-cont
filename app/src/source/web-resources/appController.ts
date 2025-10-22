@@ -5,7 +5,6 @@ import {
     initShowBarFAQ,
     initShowViewMode,
     navigateVideoToTimestamp,
-    removeClass,
     removeNodeList,
     showLoadComments
 } from '../utils/dom';
@@ -47,7 +46,7 @@ import {
     setSearchCount,
     WebResourcesState
 } from './state';
-import { FilterButtonConfig, registerFilterButtons } from './ui/filters';
+import { FILTER_BUTTONS, FilterButtonRegistry, FilterParamKey, registerFilterButtons } from './ui/filters';
 import { registerCommentInteractions } from './ui/commentInteractions';
 import { runSearch as runCommentsSearch } from './search/commentsSearch';
 import { runSearch as runChatSearch } from './search/chatSearch';
@@ -69,46 +68,17 @@ const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'verified'
 ] as const;
 
-const SORT_BUTTON_IDS = [
-    'ycs_btn_links',
-    'ycs_btn_members',
-    'ycs_btn_donated',
-    'ycs_btn_author',
-    'ycs_btn_heart',
-    'ycs_btn_verified',
-    'ycs_btn_timestamps',
-    'ycs_btn_sort_first'
-] as const;
-
 type SortAttribute = 'sort' | 'sortChat' | 'sortTrp';
 
-type FilterCode =
-    | 'timestamp'
-    | 'author'
-    | 'heart'
-    | 'verified'
-    | 'links'
-    | 'likes'
-    | 'replied'
-    | 'members'
-    | 'donated'
-    | 'random'
-    | 'sortFirst';
+let filterRegistry: FilterButtonRegistry | null = null;
 
-interface ButtonPanelElements {
-    elPTimeStamps: HTMLElement | null;
-    elPAuthor: HTMLElement | null;
-    elPHeart: HTMLElement | null;
-    elPVerified: HTMLElement | null;
-    elPLinks: HTMLElement | null;
-    elPLikes: HTMLElement | null;
-    elPReplied: HTMLElement | null;
-    elPMembers: HTMLElement | null;
-    elPDonated: HTMLElement | null;
-    elPClear: HTMLElement | null;
-    elPRandom: HTMLElement | null;
-    elFirstComments: HTMLElement | null;
-}
+const getSortableButtonIds = (): string[] => {
+    if (filterRegistry?.sortButtonIds?.length) {
+        return filterRegistry.sortButtonIds;
+    }
+
+    return FILTER_BUTTONS.filter((config) => config.supportsSort).map((config) => config.elementId);
+};
 
 const parseSortOrder = (value: string | undefined): SortOrder | undefined => {
     if (value === 'newest' || value === 'oldest') {
@@ -119,7 +89,7 @@ const parseSortOrder = (value: string | undefined): SortOrder | undefined => {
 
 const readSortOrders = (attribute: SortAttribute): Partial<Record<string, SortOrder>> => {
     const map: Partial<Record<string, SortOrder>> = {};
-    for (const id of SORT_BUTTON_IDS) {
+    for (const id of getSortableButtonIds()) {
         const element = document.getElementById(id) as HTMLElement | null;
         if (!element) continue;
         const parsed = parseSortOrder(element.dataset?.[attribute]);
@@ -128,6 +98,15 @@ const readSortOrders = (attribute: SortAttribute): Partial<Record<string, SortOr
         }
     }
     return map;
+};
+
+const getParamByElementId = (elementId: string): FilterParamKey | undefined => {
+    const mapped = filterRegistry?.idToCode?.[elementId];
+    if (mapped) {
+        return mapped;
+    }
+
+    return FILTER_BUTTONS.find((config) => config.elementId === elementId)?.param;
 };
 
 const extractCueGroups = (transcript?: TranscriptData | null): TranscriptCueGroup[] | undefined => {
@@ -261,55 +240,21 @@ export function initApp(): void {
             return inputSearch?.value ?? '';
         };
 
-        const getElmsBtnPanel = (): ButtonPanelElements => {
-            return {
-                elPTimeStamps: document.getElementById('ycs_btn_timestamps'),
-                elPAuthor: document.getElementById('ycs_btn_author'),
-                elPHeart: document.getElementById('ycs_btn_heart'),
-                elPVerified: document.getElementById('ycs_btn_verified'),
-                elPLinks: document.getElementById('ycs_btn_links'),
-                elPLikes: document.getElementById('ycs_btn_likes'),
-                elPReplied: document.getElementById('ycs_btn_replied_comments'),
-                elPMembers: document.getElementById('ycs_btn_members'),
-                elPDonated: document.getElementById('ycs_btn_donated'),
-                elPClear: document.getElementById('ycs_btn_clear'),
-                elPRandom: document.getElementById('ycs_btn_random'),
-                elFirstComments: document.getElementById('ycs_btn_sort_first')
-            };
-        };
-
-        const elsBtnPanel = getElmsBtnPanel();
-        console.log('elsBtnPanel: ', elsBtnPanel);
-
-        // Active-state management helpers for filter buttons
-        const codeToId: Record<FilterCode, string> = {
-            timestamp: 'ycs_btn_timestamps',
-            author: 'ycs_btn_author',
-            heart: 'ycs_btn_heart',
-            verified: 'ycs_btn_verified',
-            links: 'ycs_btn_links',
-            likes: 'ycs_btn_likes',
-            replied: 'ycs_btn_replied_comments',
-            members: 'ycs_btn_members',
-            donated: 'ycs_btn_donated',
-            random: 'ycs_btn_random',
-            sortFirst: 'ycs_btn_sort_first'
-        };
-        const idToCode = Object.entries(codeToId).reduce<Record<string, FilterCode>>((acc, [code, id]) => {
-            acc[id] = code as FilterCode;
-            return acc;
-        }, {});
-
-        // Removed persistent storage for active filter; rely on DOM state only
-
-        const setActiveFilterByElement = (code: string | null, el?: HTMLElement): void => {
+        const setActiveFilterByElement = (param: FilterParamKey | null, el?: HTMLElement): void => {
             try {
-                removeClass(elsBtnPanel, 'ycs_btn_active');
-                if (code && el) el.classList.add('ycs_btn_active');
+                FILTER_BUTTONS.forEach(({ elementId }) => {
+                    const button = document.getElementById(elementId);
+                    button?.classList.remove('ycs_btn_active');
+                });
+
+                if (param && el) {
+                    el.classList.add('ycs_btn_active');
+                }
+
                 // toggle clear-filter button visibility
                 const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
                 if (btnClear) {
-                    const hasActive = !!code;
+                    const hasActive = !!param;
                     btnClear.style.visibility = hasActive ? 'visible' : 'hidden';
                 }
             } catch {
@@ -322,54 +267,22 @@ export function initApp(): void {
         const getActiveFilterParam = (): IParamSearch | undefined => {
             try {
                 const active = document.querySelector('.ycs_btn_active') as HTMLElement | null;
-                const code = active?.id ? (idToCode[active.id] as string) : '';
-                if (!code) return undefined;
+                const paramKey = active?.id ? getParamByElementId(active.id) : undefined;
+                if (!paramKey) return undefined;
 
-                const param: IParamSearch = {} as IParamSearch;
-                switch (code) {
-                    case 'timestamp':
-                        param.timestamp = true;
-                        break;
-                    case 'author':
-                        param.author = true;
-                        break;
-                    case 'heart':
-                        param.heart = true;
-                        break;
-                    case 'verified':
-                        param.verified = true;
-                        break;
-                    case 'links':
-                        param.links = true;
-                        break;
-                    case 'likes':
-                        param.likes = true;
-                        break;
-                    case 'replied':
-                        param.replied = true;
-                        break;
-                    case 'members':
-                        param.members = true;
-                        break;
-                    case 'donated':
-                        param.donated = true;
-                        break;
-                    case 'random':
-                        param.random = true;
-                        break;
-                    case 'sortFirst':
-                        param.sortFirst = true;
-                        break;
-                    default:
-                        return undefined;
-                }
+                const param: IParamSearch = { [paramKey]: true } as IParamSearch;
 
                 // Get sort order from the active button's dataset
                 if (active) {
-                    const sortOrder = active.dataset.sort as 'newest' | 'oldest' | undefined;
-                    if (sortOrder) param.sortOrder = sortOrder;
-                    const sortChatOrder = active.dataset.sortChat as 'newest' | 'oldest' | undefined;
-                    if (sortChatOrder) param.sortOrder = sortChatOrder;
+                    const sortDatasetKeys: Array<'sort' | 'sortChat' | 'sortTrp'> = ['sort', 'sortChat', 'sortTrp'];
+
+                    for (const key of sortDatasetKeys) {
+                        const datasetOrder = active.dataset[key] as SortOrder | undefined;
+                        if (datasetOrder === 'newest' || datasetOrder === 'oldest') {
+                            param.sortOrder = datasetOrder;
+                            break;
+                        }
+                    }
                 }
 
                 return param;
@@ -409,26 +322,8 @@ export function initApp(): void {
                 }
             }
         };
-        const handlersBtnPanel = (hElms: ButtonPanelElements | null): void => {
-            if (!hElms) {
-                return;
-            }
-
-            const filterButtonConfigs: FilterButtonConfig[] = [
-                { id: 'ycs_btn_timestamps', param: 'timestamp', supportsSort: true },
-                { id: 'ycs_btn_author', param: 'author', supportsSort: true },
-                { id: 'ycs_btn_heart', param: 'heart', supportsSort: true },
-                { id: 'ycs_btn_verified', param: 'verified', supportsSort: true },
-                { id: 'ycs_btn_links', param: 'links', supportsSort: true },
-                { id: 'ycs_btn_likes', param: 'likes' },
-                { id: 'ycs_btn_replied_comments', param: 'replied' },
-                { id: 'ycs_btn_members', param: 'members', supportsSort: true },
-                { id: 'ycs_btn_donated', param: 'donated', supportsSort: true },
-                { id: 'ycs_btn_random', param: 'random' },
-                { id: 'ycs_btn_sort_first', param: 'sortFirst', supportsSort: true }
-            ];
-
-            registerFilterButtons({
+        const initFilterButtons = (): void => {
+            filterRegistry = registerFilterButtons({
                 state: {
                     get: () => state,
                     set: (nextState: WebResourcesState) => {
@@ -437,11 +332,11 @@ export function initApp(): void {
                 },
                 executeSearch: executeSearchBasedOnType,
                 setActiveFilter: setActiveFilterByElement,
-                buttonConfigs: filterButtonConfigs
+                buttonConfigs: FILTER_BUTTONS
             });
 
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            hElms?.elPClear?.addEventListener('click', (e: Event) => {
+            const clearButton = document.getElementById('ycs_btn_clear');
+            clearButton?.addEventListener('click', () => {
                 try {
                     setActiveFilterByElement(null);
 
@@ -474,7 +369,7 @@ export function initApp(): void {
             });
         };
 
-        handlersBtnPanel(elsBtnPanel);
+        initFilterButtons();
         // No restore from storage; ensure clear button hidden initially
         try {
             const btnClearInit = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;

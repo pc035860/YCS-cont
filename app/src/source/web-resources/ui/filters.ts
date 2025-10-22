@@ -5,10 +5,24 @@ import { resetSearchCounts, WebResourcesState } from '../state';
 export type FilterParamKey = Exclude<keyof IParamSearch, 'sortOrder'>;
 
 export interface FilterButtonConfig {
-    id: string;
+    elementId: string;
     param: FilterParamKey;
     supportsSort?: boolean;
 }
+
+export const FILTER_BUTTONS: FilterButtonConfig[] = [
+    { elementId: 'ycs_btn_timestamps', param: 'timestamp', supportsSort: true },
+    { elementId: 'ycs_btn_author', param: 'author', supportsSort: true },
+    { elementId: 'ycs_btn_heart', param: 'heart', supportsSort: true },
+    { elementId: 'ycs_btn_verified', param: 'verified', supportsSort: true },
+    { elementId: 'ycs_btn_links', param: 'links', supportsSort: true },
+    { elementId: 'ycs_btn_likes', param: 'likes' },
+    { elementId: 'ycs_btn_replied_comments', param: 'replied' },
+    { elementId: 'ycs_btn_members', param: 'members', supportsSort: true },
+    { elementId: 'ycs_btn_donated', param: 'donated', supportsSort: true },
+    { elementId: 'ycs_btn_random', param: 'random' },
+    { elementId: 'ycs_btn_sort_first', param: 'sortFirst', supportsSort: true }
+];
 
 export interface RegisterFilterButtonsOptions {
     state: {
@@ -16,8 +30,14 @@ export interface RegisterFilterButtonsOptions {
         set(next: WebResourcesState): void;
     };
     executeSearch(param: IParamSearch): void;
-    setActiveFilter(code: string | null, element?: HTMLElement): void;
+    setActiveFilter(param: FilterParamKey | null, element?: HTMLElement): void;
     buttonConfigs: FilterButtonConfig[];
+}
+
+export interface FilterButtonRegistry {
+    codeToId: Record<FilterParamKey, string>;
+    idToCode: Record<string, FilterParamKey>;
+    sortButtonIds: string[];
 }
 
 type SortDatasetKey = 'sort' | 'sortChat' | 'sortTrp';
@@ -83,10 +103,37 @@ export function registerFilterButtons({
     executeSearch,
     setActiveFilter,
     buttonConfigs
-}: RegisterFilterButtonsOptions): void {
+}: RegisterFilterButtonsOptions): FilterButtonRegistry {
+    const codeToId = buttonConfigs.reduce<Record<FilterParamKey, string>>(
+        (acc, config) => {
+            acc[config.param] = config.elementId;
+            return acc;
+        },
+        {} as Record<FilterParamKey, string>
+    );
+
+    const idToCode = buttonConfigs.reduce<Record<string, FilterParamKey>>(
+        (acc, config) => {
+            acc[config.elementId] = config.param;
+            return acc;
+        },
+        {} as Record<string, FilterParamKey>
+    );
+
+    const sortButtonIds = buttonConfigs.filter((config) => config.supportsSort).map((config) => config.elementId);
+
     buttonConfigs.forEach((config) => {
-        const button = document.getElementById(config.id) as HTMLElement | null;
+        const button = document.getElementById(config.elementId) as HTMLElement | null;
         if (!button) return;
+
+        if (config.supportsSort) {
+            SORT_DATASET_KEYS.forEach((key) => {
+                const value = button.dataset[key];
+                if (value !== 'newest' && value !== 'oldest') {
+                    button.dataset[key] = 'newest';
+                }
+            });
+        }
 
         button.addEventListener('click', (event: Event) => {
             try {
@@ -110,4 +157,10 @@ export function registerFilterButtons({
             }
         });
     });
+
+    return {
+        codeToId,
+        idToCode,
+        sortButtonIds
+    };
 }
