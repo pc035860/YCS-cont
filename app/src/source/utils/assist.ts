@@ -53,7 +53,8 @@ export {
     getPiP,
     initShowBarFAQ,
     initShowViewMode,
-    getRandomComment
+    getRandomComment,
+    navigateVideoToTimestamp
 } from './dom';
 
 export {

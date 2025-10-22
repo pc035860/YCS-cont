@@ -1,7 +1,14 @@
 import 'abort-controller/polyfill';
 
 import { GlobalStore, extractChannelId, getCleanUrlVideo, isVideoPage } from '../utils/common';
-import { initShowBarFAQ, initShowViewMode, removeClass, removeNodeList, showLoadComments } from '../utils/dom';
+import {
+    initShowBarFAQ,
+    initShowViewMode,
+    navigateVideoToTimestamp,
+    removeClass,
+    removeNodeList,
+    showLoadComments
+} from '../utils/dom';
 import { getAllCommentsModeV2, getChatComments, getTranscriptVideo } from '../utils/innertube';
 
 import { IParamSearch, ISelectedSearch, IYCSOptions } from '../utils/interfaces/i_types';
@@ -922,13 +929,7 @@ export function initApp(): void {
 
                         const elFrameVideo = document.getElementsByTagName('video')[0];
                         if (elFrameVideo) {
-                            const timeValue = target.dataset.offsetvideo;
-                            if (timeValue) {
-                                // Chat video uses milliseconds, comment time uses seconds
-                                elFrameVideo.currentTime = isChatVideo
-                                    ? parseInt(timeValue, 10) / 1000
-                                    : parseInt(timeValue, 10);
-                            }
+                            navigateVideoToTimestamp(target, elFrameVideo);
                         }
                     } catch (error) {
                         console.error(error);
