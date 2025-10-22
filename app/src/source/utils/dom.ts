@@ -513,6 +513,31 @@ function getRandomComment(comments: any): [] {
     }
 }
 
+/**
+ * Navigate video to timestamp with backward compatibility
+ * @param target - Click target element containing timestamp data
+ * @param video - Video element to navigate
+ * @returns true if navigation succeeded, false otherwise
+ */
+function navigateVideoToTimestamp(target: HTMLElement, video: HTMLVideoElement): boolean {
+    const timeValue = target.dataset.offsetvideo;
+    if (!timeValue) return false;
+
+    const parsed = Number.parseInt(timeValue, 10);
+    if (!Number.isFinite(parsed)) return false;
+
+    // Backward compatibility logic:
+    // - ycs_goto_chat: Chat "Go to" button (milliseconds)
+    // - Others: Old cached timestamp links or new timestamp links (seconds)
+    if (target.classList.contains('ycs_goto_chat')) {
+        video.currentTime = parsed / 1000;
+    } else {
+        video.currentTime = parsed;
+    }
+
+    return true;
+}
+
 export {
     removeClass,
     showLoadComments,
@@ -528,5 +553,6 @@ export {
     getPiP,
     initShowBarFAQ,
     initShowViewMode,
-    getRandomComment
+    getRandomComment,
+    navigateVideoToTimestamp
 };

@@ -1,4 +1,4 @@
-import { removeNodeList } from '../../utils/dom';
+import { removeNodeList, navigateVideoToTimestamp } from '../../utils/dom';
 import { iconCollapse, iconExpand } from '../../utils/icons';
 import { ICommentsFuseResult } from '../../utils/interfaces/i_types';
 import { renderComment } from '../../utils/renderView';
@@ -197,13 +197,7 @@ function handleGotoChatVideo(event: Event): void {
     const video = document.getElementsByTagName('video')[0];
     if (!video) return;
 
-    const ms = target.dataset.offsetvideo;
-    if (!ms) return;
-
-    const msValue = Number.parseInt(ms, 10);
-    if (Number.isFinite(msValue)) {
-        video.currentTime = msValue / 1000;
-    }
+    navigateVideoToTimestamp(target, video);
 }
 
 function handleGotoCommentTime(event: Event): void {
@@ -215,13 +209,7 @@ function handleGotoCommentTime(event: Event): void {
     const video = document.getElementsByTagName('video')[0];
     if (!video) return;
 
-    const seconds = target.dataset.offsetvideo;
-    if (!seconds) return;
-
-    const secondsValue = Number.parseInt(seconds, 10);
-    if (Number.isFinite(secondsValue)) {
-        video.currentTime = secondsValue;
-    }
+    navigateVideoToTimestamp(target, video);
 }
 
 function collectRepliesForComment(
