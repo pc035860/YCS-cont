@@ -197,12 +197,19 @@ function handleGotoChatVideo(event: Event): void {
     const video = document.getElementsByTagName('video')[0];
     if (!video) return;
 
-    const ms = target.dataset.offsetvideo;
-    if (!ms) return;
+    const timeValue = target.dataset.offsetvideo;
+    if (!timeValue) return;
 
-    const msValue = Number.parseInt(ms, 10);
-    if (Number.isFinite(msValue)) {
-        video.currentTime = msValue / 1000;
+    const parsed = Number.parseInt(timeValue, 10);
+    if (!Number.isFinite(parsed)) return;
+
+    // Backward compatibility logic:
+    // - ycs_goto_chat: Chat "Go to" button (milliseconds)
+    // - Others: Old cached timestamp links (seconds)
+    if (target.classList.contains('ycs_goto_chat')) {
+        video.currentTime = parsed / 1000;
+    } else {
+        video.currentTime = parsed;
     }
 }
 
