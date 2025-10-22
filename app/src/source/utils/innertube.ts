@@ -7,6 +7,7 @@ import { fetchR } from './libs';
 import { GlobalStore, deepFindObjKey, getCleanUrlVideo, getObj, getVideoId, wrapTryCatch } from './common';
 import { parseFormattedNumber } from './formatting';
 import { showLoadComments } from './dom';
+import { buildInnertubeBody, buildInnertubeHeaders } from './innertube/request';
 
 async function findInitYParams(initData: [object]): Promise<string | undefined> {
     try {
@@ -825,27 +826,18 @@ async function getParamsForChat(
     try {
         const ytcfgData = await getPageCfgData(w, signal);
 
-        const bodyPayload: any = {
-            context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client },
-            continuation: cLiveChat.continuation
-        };
-
-        if (useLegacyApi) {
-            bodyPayload.currentPlayerState = {
-                playerOffsetMs: playerOffsetMs.toString()
-            };
-        }
+        const bodyPayload = buildInnertubeBody({
+            ytcfgData,
+            continuation: cLiveChat.continuation,
+            currentPlayerState: useLegacyApi
+                ? {
+                      playerOffsetMs: playerOffsetMs.toString()
+                  }
+                : undefined
+        });
 
         return {
-            headers: {
-                accept: '*/*',
-                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                pragma: 'no-cache',
-                'cache-control': 'no-store',
-                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION
-            },
+            headers: buildInnertubeHeaders(ytcfgData),
             referrerPolicy: 'strict-origin-when-cross-origin',
             body: JSON.stringify(bodyPayload),
             method: 'POST',
@@ -868,23 +860,16 @@ async function getDetailsVideoIDV2(
 
         const ytcfgData = await getPageCfgData(w, signal, url);
         const videoId = getVideoId(url);
-
         const params: RequestInit = {
-            headers: {
-                accept: '*/*',
-                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                pragma: 'no-cache',
-                'cache-control': 'no-store',
-                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION
-            },
+            headers: buildInnertubeHeaders(ytcfgData),
             referrer: url,
             referrerPolicy: 'strict-origin-when-cross-origin',
-            body: JSON.stringify({
-                context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client },
-                videoId
-            }),
+            body: JSON.stringify(
+                buildInnertubeBody({
+                    ytcfgData,
+                    videoId
+                })
+            ),
             method: 'POST',
             mode: 'cors',
             credentials: 'include'
@@ -916,22 +901,16 @@ async function getDetailsCommentsVideoIDV2(
         const ytcfgData = await getPageCfgData(w, signal, ps?.url);
 
         const params: RequestInit = {
-            headers: {
-                accept: '*/*',
-                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                pragma: 'no-cache',
-                'cache-control': 'no-store',
-                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION
-            },
+            headers: buildInnertubeHeaders(ytcfgData),
             referrer: ps.url,
             referrerPolicy: 'strict-origin-when-cross-origin',
-            body: JSON.stringify({
-                context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client },
-                clickTracking: { clickTrackingParams: '' },
-                continuation: ps.continue
-            }),
+            body: JSON.stringify(
+                buildInnertubeBody({
+                    ytcfgData,
+                    continuation: ps.continue,
+                    clickTrackingParams: ''
+                })
+            ),
             method: 'POST',
             mode: 'cors',
             credentials: 'include'
@@ -959,28 +938,25 @@ async function getParamsForComments(
 ): Promise<object | undefined> {
     try {
         const ytcfgData = await getPageCfgData(w, signal, params?.url);
-        const body: Record<string, unknown> = {
-            context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client },
-            continuation: params?.continue
-        };
 
         const clickTrackingParams = params?.clickTrackingParams ?? params?.clickTracking;
-        if (clickTrackingParams) {
-            body.clickTracking = { clickTrackingParams };
-        }
+        const bodyPayload = buildInnertubeBody(
+            clickTrackingParams
+                ? {
+                      ytcfgData,
+                      continuation: params?.continue,
+                      clickTrackingParams
+                  }
+                : {
+                      ytcfgData,
+                      continuation: params?.continue
+                  }
+        );
 
         return {
-            headers: {
-                accept: '*/*',
-                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                pragma: 'no-cache',
-                'cache-control': 'no-store',
-                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION
-            },
+            headers: buildInnertubeHeaders(ytcfgData),
             referrerPolicy: 'strict-origin-when-cross-origin',
-            body: JSON.stringify(body),
+            body: JSON.stringify(bodyPayload),
             method: 'POST',
             mode: 'cors',
             credentials: 'include'
@@ -998,28 +974,25 @@ async function getParamsForReplies(
 ): Promise<object | undefined> {
     try {
         const ytcfgData = await getPageCfgData(w, signal, params?.url);
-        const body: Record<string, unknown> = {
-            context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client },
-            continuation: params?.continue
-        };
 
         const clickTrackingParams = params?.clickTracking ?? params?.clickTrackingParams;
-        if (clickTrackingParams) {
-            body.clickTracking = { clickTrackingParams };
-        }
+        const bodyPayload = buildInnertubeBody(
+            clickTrackingParams
+                ? {
+                      ytcfgData,
+                      continuation: params?.continue,
+                      clickTrackingParams
+                  }
+                : {
+                      ytcfgData,
+                      continuation: params?.continue
+                  }
+        );
 
         return {
-            headers: {
-                accept: '*/*',
-                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                pragma: 'no-cache',
-                'cache-control': 'no-store',
-                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION
-            },
+            headers: buildInnertubeHeaders(ytcfgData),
             referrerPolicy: 'strict-origin-when-cross-origin',
-            body: JSON.stringify(body),
+            body: JSON.stringify(bodyPayload),
             method: 'POST',
             mode: 'cors',
             credentials: 'include'
@@ -1041,20 +1014,14 @@ async function getParamsForLiveChat(
         const ytcfgData = await getPageCfgData(w, signal);
 
         return {
-            headers: {
-                accept: '*/*',
-                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                pragma: 'no-cache',
-                'cache-control': 'no-store',
-                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
-                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION
-            },
+            headers: buildInnertubeHeaders(ytcfgData),
             referrerPolicy: 'strict-origin-when-cross-origin',
-            body: JSON.stringify({
-                context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client },
-                continuation: cLiveChat.continuation
-            }),
+            body: JSON.stringify(
+                buildInnertubeBody({
+                    ytcfgData,
+                    continuation: cLiveChat.continuation
+                })
+            ),
             method: 'POST',
             mode: 'cors',
             credentials: 'include'
@@ -1075,18 +1042,18 @@ async function getParamsForTranscript(
         const cleanUrl = getCleanUrlVideo(w.location.href) ?? w.location.href;
 
         return {
-            headers: {
-                accept: '*/*',
-                'accept-language': ytcfgData?.GOOGLE_FEEDBACK_PRODUCT_DATA?.accept_language || 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                pragma: 'no-cache',
-                'cache-control': 'no-store',
-                'x-youtube-client-name': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_NAME || '1',
+            headers: buildInnertubeHeaders(ytcfgData, {
                 'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION || ''
-            },
+            }),
             referrer: cleanUrl,
             referrerPolicy: 'origin-when-cross-origin',
-            body: JSON.stringify({ context: { client: ytcfgData?.INNERTUBE_CONTEXT?.client || {} }, params: param }),
+            body: JSON.stringify(
+                buildInnertubeBody({
+                    ytcfgData,
+                    params: param,
+                    clientFallback: {}
+                })
+            ),
             method: 'POST',
             mode: 'cors',
             credentials: 'include'
