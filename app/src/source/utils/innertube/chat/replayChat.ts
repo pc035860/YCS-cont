@@ -8,8 +8,10 @@ import {
 } from './utils';
 
 /**
- * 處理回放批次資料，確保訊息欄位一致並寫入暫存 Map。
- * 手動測試：播放聊天室回放影片並執行抓取，驗證留言數量與時間軸標記與舊版結果相同。
+ * Process a batch of chat replay actions, align message fields, and store the
+ * normalized comments in the shared map.
+ * Manual testing: play a chat replay video, run the fetch routine, and confirm
+ * the comment count and timeline markers match the previous implementation.
  */
 export function processReplayBatch(actions: any[], context: ChatProcessingContext): void {
     if (!Array.isArray(actions) || actions.length === 0) return;
