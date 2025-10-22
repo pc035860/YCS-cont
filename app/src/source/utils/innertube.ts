@@ -1,4 +1,3 @@
-// @ts-expect-error [No have types]
 import objectScan from 'object-scan';
 import Queue from 'p-queue';
 
@@ -1691,53 +1690,56 @@ async function getAllCommentsModeV2(
                         let fullTextComment = '';
                         let renderFullTextComment = '';
 
-                        const contentText = normalized.commentRenderer.contentText.runs || [];
+                        const contentText = normalized.commentRenderer.contentText?.runs ?? [];
                         for (const partTextComment of contentText) {
-                            fullTextComment += partTextComment?.text || '';
+                            const text = partTextComment?.text ?? '';
+                            fullTextComment += text;
                             try {
-                                if (
-                                    parseInt(partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0
-                                ) {
-                                    const currentVideoId = (getVideoId(window.location.href) || '') as string;
-                                    const linkVideoId = (wrapTryCatch(
-                                        () => partTextComment?.navigationEndpoint?.watchEndpoint?.videoId
-                                    ) || '') as string;
-                                    const isSameVideo = String(linkVideoId || '') === String(currentVideoId || '');
+                                const navigationEndpoint = partTextComment?.navigationEndpoint;
+                                const watchEndpoint = navigationEndpoint?.watchEndpoint;
+                                const startTimeSeconds = watchEndpoint?.startTimeSeconds;
+                                const startTimeValue =
+                                    typeof startTimeSeconds === 'string' ? parseInt(startTimeSeconds, 10) : Number.NaN;
 
-                                    renderFullTextComment += `<a class="ycs-cpointer ycs-goto-comment-time" href="https://www.youtube.com/watch?v=${linkVideoId}&t=${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}" data-video-id="${linkVideoId}">${partTextComment?.text || ''}</a>`;
-                                    try {
-                                        if (isSameVideo) normalized.commentRenderer.isTimeLine = 'timeline';
-                                    } catch {
-                                        // If timeline property setting fails, continue processing
+                                if (!Number.isNaN(startTimeValue) && startTimeValue >= 0) {
+                                    const currentVideoId = String(getVideoId(window.location.href) || '');
+                                    const linkVideoId = watchEndpoint?.videoId ?? '';
+                                    const isSameVideo = linkVideoId === currentVideoId;
+                                    const timeParam = startTimeSeconds ?? String(startTimeValue);
+
+                                    renderFullTextComment += `<a class="ycs-cpointer ycs-goto-comment-time" href="https://www.youtube.com/watch?v=${linkVideoId}&t=${timeParam}s" data-offsetvideo="${timeParam}" data-video-id="${linkVideoId}">${text}</a>`;
+                                    if (isSameVideo) {
+                                        normalized.commentRenderer.isTimeLine = 'timeline';
                                     }
-                                } else if (partTextComment?.navigationEndpoint) {
-                                    renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${partTextComment?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || partTextComment?.navigationEndpoint?.urlEndpoint?.url || partTextComment?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || partTextComment?.text || '#'}" target="_blank">${partTextComment?.text || ''}</a>`;
-                                } else if (wrapTryCatch(() => (partTextComment as any).emoji)) {
-                                    const url =
-                                        wrapTryCatch(() => {
-                                            const thumbnails = (partTextComment as any).emoji.image.thumbnails;
-                                            return thumbnails[thumbnails.length - 1].url;
-                                        }) || '';
-                                    const alt =
-                                        (wrapTryCatch(() => (partTextComment as any).emoji.shortcuts?.[0]) as string) ||
-                                        '';
-                                    const style = `margin-left: 2px; margin-right: 2px;`;
+                                } else if (navigationEndpoint) {
+                                    const href =
+                                        navigationEndpoint.browseEndpoint?.canonicalBaseUrl ??
+                                        navigationEndpoint.urlEndpoint?.url ??
+                                        navigationEndpoint.commandMetadata?.webCommandMetadata?.url ??
+                                        (text || '#');
+
+                                    renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${href}" target="_blank">${text}</a>`;
+                                } else if (partTextComment?.emoji) {
+                                    const thumbnails = partTextComment.emoji.image?.thumbnails ?? [];
+                                    const url = thumbnails[thumbnails.length - 1]?.url ?? '';
+                                    const alt = partTextComment.emoji.shortcuts?.[0] ?? '';
+                                    const style = 'margin-left: 2px; margin-right: 2px;';
                                     renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
-                                } else if (wrapTryCatch(() => (partTextComment as any).attachment?.image)) {
-                                    const image: any = wrapTryCatch(() => (partTextComment as any).attachment.image);
-                                    const url = image?.url || '';
-                                    const width = image?.width || 24;
-                                    const height = image?.height || 24;
-                                    const margin = image?.margin || { left: 0, right: 0 };
-                                    const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
-                                    const alt = (partTextComment as any)?.text || '';
+                                } else if (partTextComment?.attachment?.image) {
+                                    const image = partTextComment.attachment.image;
+                                    const url = image.url ?? '';
+                                    const width = image.width ?? 24;
+                                    const height = image.height ?? 24;
+                                    const margin = image.margin ?? { left: 0, right: 0 };
+                                    const style = `margin-left: ${margin.left ?? 0}px; margin-right: ${margin.right ?? 0}px;`;
+                                    const alt = text;
                                     renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
                                 } else {
-                                    renderFullTextComment += partTextComment?.text || '';
+                                    renderFullTextComment += text;
                                 }
                             } catch (e) {
                                 console.error(e);
-                                renderFullTextComment += partTextComment?.text || '';
+                                renderFullTextComment += text;
                                 continue;
                             }
                         }

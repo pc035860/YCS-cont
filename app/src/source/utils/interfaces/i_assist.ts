@@ -16,22 +16,94 @@ export interface GetParams {
 /**
  * 單一 run 片段的標準化資料結構。
  */
+export interface NavigationWatchEndpoint {
+    videoId?: string;
+    startTimeSeconds?: string;
+}
+
+export interface NavigationBrowseEndpoint {
+    canonicalBaseUrl?: string;
+}
+
+export interface NavigationUrlEndpoint {
+    url?: string;
+}
+
+export interface NavigationCommandMetadata {
+    webCommandMetadata?: {
+        url?: string;
+    };
+}
+
+export interface NavigationEndpoint {
+    watchEndpoint?: NavigationWatchEndpoint;
+    browseEndpoint?: NavigationBrowseEndpoint;
+    urlEndpoint?: NavigationUrlEndpoint;
+    commandMetadata?: NavigationCommandMetadata;
+    [key: string]: unknown;
+}
+
+export interface EmojiImageThumbnail {
+    url?: string;
+    width?: number;
+    height?: number;
+}
+
+export interface EmojiImage {
+    thumbnails?: EmojiImageThumbnail[];
+}
+
+export interface EmojiData {
+    image?: EmojiImage;
+    shortcuts?: string[];
+    [key: string]: unknown;
+}
+
+export interface AttachmentImageMargin {
+    left?: number;
+    right?: number;
+}
+
+export interface AttachmentImage {
+    url?: string;
+    width?: number;
+    height?: number;
+    margin?: AttachmentImageMargin;
+}
+
+export interface AttachmentData {
+    image?: AttachmentImage;
+    [key: string]: unknown;
+}
+
 export interface CommentRun {
     text?: string;
-    emoji?: Record<string, unknown>;
-    attachment?: Record<string, unknown>;
-    navigationEndpoint?: Record<string, unknown>;
+    emoji?: EmojiData;
+    attachment?: AttachmentData;
+    navigationEndpoint?: NavigationEndpoint;
+    [key: string]: unknown;
+}
+
+export interface CommentRendererContentText {
+    runs: CommentRun[];
+    fullText?: string;
+    renderFullText?: string;
+    [key: string]: unknown;
+}
+
+export interface CommentRendererData {
+    contentText: CommentRendererContentText;
+    isTimeLine?: string;
+    [key: string]: unknown;
 }
 
 /**
  * 由 commentViewModel 轉換而來的 commentRenderer 介面。
  */
 export interface NormalizedCommentRenderer {
-    commentRenderer: {
-        contentText: {
-            runs: CommentRun[];
-        };
-    };
+    commentRenderer: CommentRendererData;
+    typeComment?: string;
+    [key: string]: unknown;
 }
 
 export interface ISheetDetails {
