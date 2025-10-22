@@ -280,15 +280,11 @@ function sendGetCacheInIDB(url: string): void {
 
 function sendMsgToBadge(typeMsg: string, msg: string | number): void {
     try {
-        chrome.runtime.sendMessage({
-            action: 'ACTION_BADGE',
-            payload: {
-                typeMsg,
-                msg
-            }
-        });
-    } catch (err) {
-        console.error(err);
+        if ((typeof msg === 'string' || typeof msg === 'number') && typeof typeMsg === 'string') {
+            window.postMessage({ type: typeMsg.toString(), text: msg.toString() }, window.location.origin);
+        }
+    } catch (e) {
+        console.error(e);
     }
 }
 
