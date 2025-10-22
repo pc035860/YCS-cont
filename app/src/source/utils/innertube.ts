@@ -4,10 +4,13 @@ import Queue from 'p-queue';
 
 import type { ChatContinuationResult, GetParams } from './interfaces/i_assist';
 import { fetchR } from './libs';
-import { GlobalStore, deepFindObjKey, getCleanUrlVideo, getObj, getVideoId, wrapTryCatch } from './common';
+import { GlobalStore, deepFindObjKey, getCleanUrlVideo, getVideoId, wrapTryCatch } from './common';
 import { parseFormattedNumber } from './formatting';
 import { showLoadComments } from './dom';
 import { buildInnertubeBody, buildInnertubeHeaders } from './innertube/request';
+import { processLiveChatActions } from './innertube/chat/liveChat';
+import { processReplayBatch } from './innertube/chat/replayChat';
+import type { ChatProcessingContext } from './innertube/chat/utils';
 
 async function findInitYParams(initData: [object]): Promise<string | undefined> {
     try {
@@ -261,30 +264,6 @@ function normalizeCommentFromViewModel(item: any): any | undefined {
         console.error(e);
         return undefined;
     }
-}
-
-/**
- * Extracts donate chip information from liveChatPaidMessageRenderer
- * and adds it to the renderer as donatedChip structure for unified chip badge rendering
- */
-function addDonatedChipFromPaidRenderer(renderer: any): void {
-    const purchaseAmount =
-        wrapTryCatch(() => renderer.purchaseAmountText?.simpleText) ??
-        wrapTryCatch(() => (renderer.purchaseAmountText?.runs || []).map((run: any) => run?.text || '').join(''));
-
-    if (!purchaseAmount) return;
-
-    renderer.donatedChip = {
-        pdgCommentChipRenderer: {
-            chipText: {
-                simpleText: purchaseAmount
-            },
-            chipColorPalette: {
-                backgroundColor: renderer.headerBackgroundColor ?? renderer.bodyBackgroundColor,
-                foregroundTitleColor: renderer.headerTextColor ?? renderer.bodyTextColor
-            }
-        }
-    };
 }
 
 function getFrameworkUpdatesById(response: any): Record<string, any> {
@@ -1205,838 +1184,122 @@ async function getChatComments(
     container: Map<number, object> | undefined = undefined
 ): Promise<Map<number, object> | undefined> {
     try {
-        const _prepareFieldsChatComments = (cmnt: any): object => {
-            try {
-                if (
-                    wrapTryCatch(
-                        () =>
-                            cmnt.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorBadges[0].liveChatAuthorBadgeRenderer.icon.iconType.indexOf(
-                                'VERIFIED'
-                            ) >= 0
-                    ) ||
-                    wrapTryCatch(
-                        () =>
-                            cmnt.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorBadges[0].liveChatAuthorBadgeRenderer.icon.iconType.indexOf(
-                                'CHECK'
-                            ) >= 0
-                    ) ||
-                    wrapTryCatch(
-                        () =>
-                            cmnt.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorBadges[0].liveChatAuthorBadgeRenderer.tooltip.indexOf(
-                                'Verified'
-                            ) >= 0
-                    )
-                ) {
-                    try {
-                        cmnt.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.verifiedAuthor = true;
-                    } catch (err) {
-                        console.error(err);
-                    }
-                }
-
-                return cmnt;
-            } catch (err) {
-                console.error(err);
-                return cmnt;
-            }
-        };
-
         const result = await getCDChat(signal);
         if (!result.continuationData) {
             console.log('STOP CHAT CD!!!! No continuation data available');
             return;
         }
 
-        const cDChat = result.continuationData;
+        const continuationData = result.continuationData;
         const useLegacyApi = result.apiVersion === 'old';
 
-        // Log detected API version
         console.log(`[getChatComments] Detected API version: ${result.apiVersion}`);
         console.log(`[getChatComments] Source path: ${result.sourcePath}`);
 
         const chatCmnts = container || new Map<number, object>();
+        const currentVideoId = (getVideoId(window.location.href) || undefined) as string | undefined;
+
+        const context: ChatProcessingContext = {
+            chatMap: chatCmnts,
+            currentVideoId,
+            onCommentAdded: (count: number) => showLoadComments(count, elShowLoading)
+        };
 
         const liveChatData: any = await getLiveChat(signal);
 
-        if (liveChatData) {
-            try {
-                if (liveChatData?.actions?.length > 0) {
-                    console.log('IS LIVECHAT!!!!!', liveChatData);
+        if (liveChatData?.actions?.length > 0) {
+            console.log('IS LIVECHAT!!!!!', liveChatData);
+            processLiveChatActions(liveChatData.actions, context);
+            return chatCmnts;
+        }
 
-                    for (const c of liveChatData.actions) {
-                        try {
-                            const protoComment = {
-                                replayChatItemAction: {
-                                    actions: [
-                                        {
-                                            addChatItemAction: {}
-                                        }
-                                    ]
-                                }
-                            };
+        if (useLegacyApi) {
+            let currentOffsetTimeMsec = 0;
+            let next = true;
 
-                            protoComment.replayChatItemAction.actions[0] = c;
-                            const comment: any = protoComment;
+            while (next) {
+                console.log('Loop chat comments (Legacy API)');
+                const params = await getParamsForChat(window, continuationData, signal, true, currentOffsetTimeMsec);
 
-                            if (
-                                !wrapTryCatch(
-                                    () =>
-                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                            .liveChatTextMessageRenderer.timestampUsec
-                                )
-                            ) {
-                                if (
-                                    wrapTryCatch(
-                                        () =>
-                                            comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                .liveChatPaidMessageRenderer
-                                    )
-                                ) {
-                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
-                                        comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatPaidMessageRenderer;
-                                    console.log('Done! Added liveChatPaidMessageRenderer: ', comment);
-
-                                    // Extract donate chip information from liveChatPaidMessageRenderer
-                                    addDonatedChipFromPaidRenderer(
-                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                            .liveChatTextMessageRenderer
-                                    );
-                                } else if (
-                                    wrapTryCatch(
-                                        () =>
-                                            comment.replayChatItemAction.actions[0].addBannerToLiveChatCommand
-                                                .bannerRenderer.liveChatBannerRenderer.contents
-                                                .liveChatTextMessageRenderer
-                                    )
-                                ) {
-                                    comment.replayChatItemAction.actions[0].addChatItemAction = {
-                                        item: { liveChatTextMessageRenderer: {} }
-                                    };
-                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
-                                        comment.replayChatItemAction.actions[0].addBannerToLiveChatCommand.bannerRenderer.liveChatBannerRenderer.contents.liveChatTextMessageRenderer;
-                                    console.log('Done! Added liveChatBannerRenderer: ', comment);
-                                } else if (
-                                    wrapTryCatch(
-                                        () =>
-                                            comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item
-                                                .liveChatTickerPaidMessageItemRenderer.showItemEndpoint
-                                                .showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer
-                                    )
-                                ) {
-                                    comment.replayChatItemAction.actions[0].addChatItemAction = {
-                                        item: { liveChatTextMessageRenderer: {} }
-                                    };
-                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
-                                        comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint.showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer;
-                                    console.log('Done! Added LiveChatTickerItemAction: ', comment);
-
-                                    // Extract donate chip information from liveChatPaidMessageRenderer
-                                    addDonatedChipFromPaidRenderer(
-                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                            .liveChatTextMessageRenderer
-                                    );
-                                } else {
-                                    // console.log('deepFindObjKey: ', deepFindObjKey(comment, 'timestampUsec'));
-                                    const pathComment = wrapTryCatch(() =>
-                                        Object.keys(deepFindObjKey(comment, 'timestampUsec')[0])[0]
-                                            .split('.')
-                                            .slice(0, -1)
-                                            .join('.')
-                                    ) as string | undefined;
-                                    // console.log('pathComment: ', pathComment);
-                                    if (pathComment) {
-                                        const findedComment = getObj(comment, pathComment, undefined) as any;
-                                        console.log('-----------------> GET OBJECT LIVE CHAT COMMENT: ', findedComment);
-
-                                        if (findedComment && findedComment?.authorName && findedComment?.message) {
-                                            console.log('-----------------> FINDED LIVE CHAT COMMENT: ', findedComment);
-                                            comment.replayChatItemAction.actions[0].addChatItemAction = {
-                                                item: { liveChatTextMessageRenderer: {} }
-                                            };
-                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
-                                                findedComment;
-                                        }
-                                    }
-                                }
-                            }
-
-                            const timestampUsec: string | undefined = wrapTryCatch(
-                                () =>
-                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                        .liveChatTextMessageRenderer.timestampUsec
-                            ) as any;
-
-                            if (timestampUsec && !chatCmnts.has(parseInt(timestampUsec, 10))) {
-                                const chatMsgs =
-                                    (wrapTryCatch(
-                                        () =>
-                                            comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                .liveChatTextMessageRenderer.message.runs
-                                    ) as any) || [];
-
-                                let fullText = '';
-                                let renderFullTextComment = '';
-
-                                // Removed hardcoded HTML for purchaseAmountText
-                                // Now handled by donatedChip structure and chip badge rendering
-
-                                for (const msg of chatMsgs) {
-                                    try {
-                                        fullText += msg?.text || '';
-
-                                        if (parseInt(msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0) {
-                                            const currentVideoId = (getVideoId(window.location.href) || '') as string;
-                                            const linkVideoId = (wrapTryCatch(
-                                                () => msg?.navigationEndpoint?.watchEndpoint?.videoId
-                                            ) || '') as string;
-                                            const isSameVideo =
-                                                String(linkVideoId || '') === String(currentVideoId || '');
-
-                                            renderFullTextComment += `<a class="ycs-cpointer ycs-goto-comment-time" href="https://www.youtube.com/watch?v=${linkVideoId}&t=${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}" data-video-id="${linkVideoId}">${msg?.text || ''}</a>`;
-
-                                            if (
-                                                isSameVideo &&
-                                                wrapTryCatch(
-                                                    () =>
-                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                            .liveChatTextMessageRenderer
-                                                )
-                                            ) {
-                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
-                                                    'timeline';
-                                            }
-                                        } else if (msg?.navigationEndpoint) {
-                                            renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${msg?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || msg?.navigationEndpoint?.urlEndpoint?.url || msg?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || msg?.text || '#'}" target="_blank">${msg?.text || ''}</a>`;
-                                        } else if (wrapTryCatch(() => (msg as any).emoji)) {
-                                            const url =
-                                                wrapTryCatch(() => {
-                                                    const thumbnails = (msg as any).emoji.image.thumbnails;
-                                                    return thumbnails[thumbnails.length - 1].url;
-                                                }) || '';
-                                            const alt =
-                                                (wrapTryCatch(() => (msg as any).emoji.shortcuts?.[0]) as string) || '';
-                                            const style = `margin-left: 2px; margin-right: 2px;`;
-                                            renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
-                                        } else if (wrapTryCatch(() => (msg as any).attachment?.image)) {
-                                            const image: any = wrapTryCatch(() => (msg as any).attachment.image);
-                                            const url = image?.url || '';
-                                            const width = image?.width || 24;
-                                            const height = image?.height || 24;
-                                            const margin = image?.margin || { left: 0, right: 0 };
-                                            const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
-                                            const alt = (msg as any)?.text || '';
-                                            renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
-                                        } else {
-                                            renderFullTextComment += msg?.text || '';
-                                        }
-                                    } catch (e) {
-                                        console.error(e);
-                                        renderFullTextComment += msg?.text || '';
-                                    }
-                                }
-
-                                if (fullText) {
-                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText =
-                                        fullText;
-
-                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText =
-                                        renderFullTextComment || fullText;
-                                }
-
-                                if (
-                                    wrapTryCatch(
-                                        () =>
-                                            comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                .liveChatTextMessageRenderer.authorName
-                                    )
-                                ) {
-                                    chatCmnts.set(parseInt(timestampUsec, 10), _prepareFieldsChatComments(comment));
-                                    showLoadComments(chatCmnts.size, elShowLoading);
-                                }
-                            }
-                        } catch (err) {
-                            console.error(err);
-                            continue;
-                        }
-                    }
+                if (!params) {
+                    next = false;
+                    break;
                 }
-            } catch (e) {
-                console.error(e);
-                return chatCmnts;
+
+                const res = await fetchR(
+                    `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?key=${getInnertubeApiKey()}`,
+                    { ...params, signal, cache: 'no-store' }
+                );
+
+                const response = await res.json();
+                const cmnts = response?.continuationContents?.liveChatContinuation?.actions;
+                console.log('Chat comments (Legacy): ', cmnts);
+
+                if (cmnts && cmnts.length > 0) {
+                    const lastOffsetTimeInCmnts = wrapTryCatch(() => {
+                        const offsetData = deepFindObjKey(cmnts[cmnts.length - 1], 'videoOffsetTimeMsec')[0];
+                        return (Object as any).entries(offsetData)[0][1];
+                    }) as number | undefined;
+
+                    console.log('lastOffsetTimeInCmnts: ', lastOffsetTimeInCmnts);
+
+                    if (currentOffsetTimeMsec === lastOffsetTimeInCmnts) {
+                        console.log('BREAK! Reached end of chat replay (Legacy API)');
+                        next = false;
+                        break;
+                    }
+
+                    processReplayBatch(cmnts, context);
+
+                    if (lastOffsetTimeInCmnts !== undefined) {
+                        currentOffsetTimeMsec = lastOffsetTimeInCmnts;
+                    }
+                } else {
+                    next = false;
+                }
             }
-        } else {
-            // Chat Replay branch - handle both legacy and new API
-            if (useLegacyApi) {
-                // ========== Legacy API Logic ==========
-                try {
-                    let currentOffsetTimeMsec = 0;
-                    let next = true;
 
-                    while (next) {
-                        console.log('Loop chat comments (Legacy API)');
-                        const params = await getParamsForChat(window, cDChat, signal, true, currentOffsetTimeMsec);
+            return chatCmnts;
+        }
 
-                        if (params) {
-                            const res = await fetchR(
-                                `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?key=${getInnertubeApiKey()}`,
-                                { ...params, signal, cache: 'no-store' }
-                            );
+        let nextContinuation: any = continuationData;
 
-                            const response = await res.json();
-                            const cmnts = response?.continuationContents?.liveChatContinuation?.actions;
-                            console.log('Chat comments (Legacy): ', cmnts);
+        while (nextContinuation) {
+            console.log('Loop chat comments (New API)');
+            const params = await getParamsForChat(window, nextContinuation, signal, false);
 
-                            if (cmnts && cmnts.length > 0) {
-                                // Extract videoOffsetTimeMsec from last comment
-                                const lastOffsetTimeInCmnts = wrapTryCatch(() => {
-                                    const offsetData = deepFindObjKey(
-                                        cmnts[cmnts.length - 1],
-                                        'videoOffsetTimeMsec'
-                                    )[0];
-                                    return (Object as any).entries(offsetData)[0][1];
-                                }) as number | undefined;
+            if (!params) break;
 
-                                console.log('lastOffsetTimeInCmnts: ', lastOffsetTimeInCmnts);
+            const res = await fetchR(`https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay`, {
+                ...params,
+                signal,
+                cache: 'no-store'
+            });
 
-                                // Check if we've reached the end
-                                if (currentOffsetTimeMsec === lastOffsetTimeInCmnts) {
-                                    console.log('BREAK! Reached end of chat replay (Legacy API)');
-                                    next = false;
-                                    break;
-                                }
+            const response = await res.json();
+            const cmnts = response?.continuationContents?.liveChatContinuation?.actions;
+            console.log('Chat comments (New): ', cmnts);
 
-                                // Process all comments
-                                for (const comment of cmnts) {
-                                    try {
-                                        if (
-                                            !wrapTryCatch(
-                                                () =>
-                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                        .liveChatTextMessageRenderer.timestampUsec
-                                            )
-                                        ) {
-                                            if (
-                                                wrapTryCatch(
-                                                    () =>
-                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                            .liveChatPaidMessageRenderer
-                                                )
-                                            ) {
-                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
-                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatPaidMessageRenderer;
-                                                console.log('Done! Added liveChatPaidMessageRenderer: ', comment);
+            if (Array.isArray(cmnts) && cmnts.length > 0) {
+                processReplayBatch(cmnts, context);
+            }
 
-                                                // Extract donate chip information from liveChatPaidMessageRenderer
-                                                addDonatedChipFromPaidRenderer(
-                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                        .liveChatTextMessageRenderer
-                                                );
-                                            } else if (
-                                                wrapTryCatch(
-                                                    () =>
-                                                        comment.replayChatItemAction.actions[0]
-                                                            .addBannerToLiveChatCommand.bannerRenderer
-                                                            .liveChatBannerRenderer.contents.liveChatTextMessageRenderer
-                                                )
-                                            ) {
-                                                comment.replayChatItemAction.actions[0].addChatItemAction = {
-                                                    item: { liveChatTextMessageRenderer: {} }
-                                                };
-                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
-                                                    comment.replayChatItemAction.actions[0].addBannerToLiveChatCommand.bannerRenderer.liveChatBannerRenderer.contents.liveChatTextMessageRenderer;
-                                                console.log('Done! Added liveChatBannerRenderer: ', comment);
-                                            } else if (
-                                                wrapTryCatch(
-                                                    () =>
-                                                        comment.replayChatItemAction.actions[0]
-                                                            .addLiveChatTickerItemAction.item
-                                                            .liveChatTickerPaidMessageItemRenderer.showItemEndpoint
-                                                            .showLiveChatItemEndpoint.renderer
-                                                            .liveChatPaidMessageRenderer
-                                                )
-                                            ) {
-                                                comment.replayChatItemAction.actions[0].addChatItemAction = {
-                                                    item: { liveChatTextMessageRenderer: {} }
-                                                };
-                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
-                                                    comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint.showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer;
-                                                console.log('Done! Added LiveChatTickerItemAction: ', comment);
+            const continuations = response?.continuationContents?.liveChatContinuation?.continuations;
+            const continuationToken = continuations?.[0]?.liveChatReplayContinuationData?.continuation;
 
-                                                // Extract donate chip information from liveChatPaidMessageRenderer
-                                                addDonatedChipFromPaidRenderer(
-                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                        .liveChatTextMessageRenderer
-                                                );
-                                            } else {
-                                                // console.log('deepFindObjKey: ', deepFindObjKey(comment, 'timestampUsec'));
-                                                const pathComment = wrapTryCatch(() =>
-                                                    Object.keys(deepFindObjKey(comment, 'timestampUsec')[0])[0]
-                                                        .split('.')
-                                                        .slice(0, -1)
-                                                        .join('.')
-                                                ) as string | undefined;
-                                                // console.log('pathComment: ', pathComment);
-                                                if (pathComment) {
-                                                    const findedComment = getObj(
-                                                        comment,
-                                                        pathComment,
-                                                        undefined
-                                                    ) as any;
-                                                    console.log(
-                                                        '-----------------> GET OBJECT CHAT COMMENT: ',
-                                                        findedComment
-                                                    );
-
-                                                    if (
-                                                        findedComment &&
-                                                        findedComment?.authorName &&
-                                                        findedComment?.message
-                                                    ) {
-                                                        console.log(
-                                                            '-----------------> FINDED CHAT COMMENT: ',
-                                                            findedComment
-                                                        );
-                                                        comment.replayChatItemAction.actions[0].addChatItemAction = {
-                                                            item: { liveChatTextMessageRenderer: {} }
-                                                        };
-                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
-                                                            findedComment;
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        const timestampUsec: string | undefined = wrapTryCatch(
-                                            () =>
-                                                comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                    .liveChatTextMessageRenderer.timestampUsec
-                                        ) as any;
-
-                                        if (timestampUsec && !chatCmnts.has(parseInt(timestampUsec, 10))) {
-                                            const chatMsgs =
-                                                (wrapTryCatch(
-                                                    () =>
-                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                            .liveChatTextMessageRenderer.message.runs
-                                                ) as any) || [];
-
-                                            let fullText = '';
-                                            let renderFullTextComment = '';
-
-                                            // Removed hardcoded HTML for purchaseAmountText
-                                            // Now handled by donatedChip structure and chip badge rendering
-
-                                            for (const msg of chatMsgs) {
-                                                try {
-                                                    fullText += msg?.text || '';
-
-                                                    if (
-                                                        parseInt(
-                                                            msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds
-                                                        ) >= 0
-                                                    ) {
-                                                        renderFullTextComment += `<a class="ycs-cpointer ycs-goto-comment-time" href="https://www.youtube.com/watch?v=${msg?.navigationEndpoint?.watchEndpoint?.videoId}&t=${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}">${msg?.text || ''}</a>`;
-
-                                                        const currentVideoId = (getVideoId(window.location.href) ||
-                                                            '') as string;
-                                                        const linkVideoId = (wrapTryCatch(
-                                                            () => msg?.navigationEndpoint?.watchEndpoint?.videoId
-                                                        ) || '') as string;
-                                                        const isSameVideo =
-                                                            String(linkVideoId || '') === String(currentVideoId || '');
-
-                                                        if (
-                                                            isSameVideo &&
-                                                            wrapTryCatch(
-                                                                () =>
-                                                                    comment.replayChatItemAction.actions[0]
-                                                                        .addChatItemAction.item
-                                                                        .liveChatTextMessageRenderer
-                                                            )
-                                                        ) {
-                                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
-                                                                'timeline';
-                                                        }
-                                                    } else if (msg?.navigationEndpoint) {
-                                                        renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${msg?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || msg?.navigationEndpoint?.urlEndpoint?.url || msg?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || msg?.text || '#'}" target="_blank">${msg?.text || ''}</a>`;
-                                                    } else if (wrapTryCatch(() => (msg as any).emoji)) {
-                                                        const emoji: any = wrapTryCatch(() => (msg as any).emoji) || {};
-                                                        const thumbnails =
-                                                            wrapTryCatch(() => emoji.image.thumbnails) || [];
-                                                        const url =
-                                                            wrapTryCatch(() => thumbnails[thumbnails.length - 1].url) ||
-                                                            '';
-                                                        const shortcut =
-                                                            (wrapTryCatch(() => emoji.shortcuts?.[0]) as string) || '';
-                                                        const label =
-                                                            (wrapTryCatch(
-                                                                () => emoji.image.accessibility.accessibilityData.label
-                                                            ) as string) || '';
-
-                                                        // Always add a textual placeholder into fullText for exports/search
-                                                        if (shortcut) {
-                                                            fullText += shortcut;
-                                                        } else if (label) {
-                                                            fullText += `:${label}:`;
-                                                        } else {
-                                                            fullText += ':emoji:';
-                                                        }
-
-                                                        // Prefer image in rich HTML, fallback to shortcut text if no image URL
-                                                        const alt = shortcut || label || 'emoji';
-                                                        const style = `margin-left: 2px; margin-right: 2px;`;
-                                                        if (url) {
-                                                            renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
-                                                        } else {
-                                                            renderFullTextComment += alt;
-                                                        }
-                                                    } else if (wrapTryCatch(() => (msg as any).attachment?.image)) {
-                                                        const image: any = wrapTryCatch(
-                                                            () => (msg as any).attachment.image
-                                                        );
-                                                        const url = image?.url || '';
-                                                        const width = image?.width || 24;
-                                                        const height = image?.height || 24;
-                                                        const margin = image?.margin || { left: 0, right: 0 };
-                                                        const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
-                                                        const alt = (msg as any)?.text || '';
-                                                        renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
-                                                    } else {
-                                                        renderFullTextComment += msg?.text || '';
-                                                    }
-                                                } catch (e) {
-                                                    console.error(e);
-                                                    renderFullTextComment += msg?.text || '';
-                                                }
-                                            }
-
-                                            if (fullText) {
-                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText =
-                                                    fullText;
-
-                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText =
-                                                    renderFullTextComment || fullText;
-                                            }
-
-                                            if (
-                                                wrapTryCatch(
-                                                    () =>
-                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                            .liveChatTextMessageRenderer.authorName
-                                                )
-                                            ) {
-                                                chatCmnts.set(
-                                                    parseInt(timestampUsec, 10),
-                                                    _prepareFieldsChatComments(comment)
-                                                );
-                                                showLoadComments(chatCmnts.size, elShowLoading);
-                                            }
-                                        }
-                                    } catch (err) {
-                                        console.error(err);
-                                        continue;
-                                    }
-                                }
-
-                                // Update playerOffsetMs for next iteration
-                                if (lastOffsetTimeInCmnts !== undefined) {
-                                    currentOffsetTimeMsec = lastOffsetTimeInCmnts;
-                                }
-                            } else {
-                                next = false;
-                            }
-                        } else {
-                            next = false;
-                        }
-                    }
-
-                    return chatCmnts;
-                } catch (e) {
-                    console.error('Legacy API error:', e);
-                    return chatCmnts;
-                }
+            if (continuationToken) {
+                nextContinuation = { continuation: continuationToken };
             } else {
-                // ========== New API Logic ==========
-                try {
-                    let nextContinuation = cDChat;
-
-                    while (nextContinuation) {
-                        console.log('Loop chat comments (New API)');
-                        const params = await getParamsForChat(window, nextContinuation, signal, false);
-
-                        if (params) {
-                            const res = await fetchR(
-                                `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay`,
-                                { ...params, signal, cache: 'no-store' }
-                            );
-
-                            const response = await res.json();
-                            const cmnts = response?.continuationContents?.liveChatContinuation?.actions;
-                            console.log('Chat comments (New): ', cmnts);
-
-                            // Extract next continuation token
-                            const continuations = response?.continuationContents?.liveChatContinuation?.continuations;
-                            const continuationToken = continuations?.[0]?.liveChatReplayContinuationData?.continuation;
-                            if (continuationToken) {
-                                nextContinuation = { continuation: continuationToken };
-                            } else {
-                                break;
-                            }
-
-                            if (cmnts && cmnts.length > 0) {
-                                for (const comment of cmnts) {
-                                    try {
-                                        if (
-                                            !wrapTryCatch(
-                                                () =>
-                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                        .liveChatTextMessageRenderer.timestampUsec
-                                            )
-                                        ) {
-                                            if (
-                                                wrapTryCatch(
-                                                    () =>
-                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                            .liveChatPaidMessageRenderer
-                                                )
-                                            ) {
-                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
-                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatPaidMessageRenderer;
-                                                console.log('Done! Added liveChatPaidMessageRenderer: ', comment);
-
-                                                // Extract donate chip information from liveChatPaidMessageRenderer
-                                                addDonatedChipFromPaidRenderer(
-                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                        .liveChatTextMessageRenderer
-                                                );
-                                            } else if (
-                                                wrapTryCatch(
-                                                    () =>
-                                                        comment.replayChatItemAction.actions[0]
-                                                            .addBannerToLiveChatCommand.bannerRenderer
-                                                            .liveChatBannerRenderer.contents.liveChatTextMessageRenderer
-                                                )
-                                            ) {
-                                                comment.replayChatItemAction.actions[0].addChatItemAction = {
-                                                    item: { liveChatTextMessageRenderer: {} }
-                                                };
-                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
-                                                    comment.replayChatItemAction.actions[0].addBannerToLiveChatCommand.bannerRenderer.liveChatBannerRenderer.contents.liveChatTextMessageRenderer;
-                                                console.log('Done! Added liveChatBannerRenderer: ', comment);
-                                            } else if (
-                                                wrapTryCatch(
-                                                    () =>
-                                                        comment.replayChatItemAction.actions[0]
-                                                            .addLiveChatTickerItemAction.item
-                                                            .liveChatTickerPaidMessageItemRenderer.showItemEndpoint
-                                                            .showLiveChatItemEndpoint.renderer
-                                                            .liveChatPaidMessageRenderer
-                                                )
-                                            ) {
-                                                comment.replayChatItemAction.actions[0].addChatItemAction = {
-                                                    item: { liveChatTextMessageRenderer: {} }
-                                                };
-                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
-                                                    comment.replayChatItemAction.actions[0].addLiveChatTickerItemAction.item.liveChatTickerPaidMessageItemRenderer.showItemEndpoint.showLiveChatItemEndpoint.renderer.liveChatPaidMessageRenderer;
-                                                console.log('Done! Added LiveChatTickerItemAction: ', comment);
-
-                                                // Extract donate chip information from liveChatPaidMessageRenderer
-                                                addDonatedChipFromPaidRenderer(
-                                                    comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                        .liveChatTextMessageRenderer
-                                                );
-                                            } else {
-                                                const pathComment = wrapTryCatch(() =>
-                                                    Object.keys(deepFindObjKey(comment, 'timestampUsec')[0])[0]
-                                                        .split('.')
-                                                        .slice(0, -1)
-                                                        .join('.')
-                                                ) as string | undefined;
-
-                                                if (pathComment) {
-                                                    const findedComment = getObj(
-                                                        comment,
-                                                        pathComment,
-                                                        undefined
-                                                    ) as any;
-                                                    console.log(
-                                                        '-----------------> GET OBJECT CHAT COMMENT: ',
-                                                        findedComment
-                                                    );
-
-                                                    if (
-                                                        findedComment &&
-                                                        findedComment?.authorName &&
-                                                        findedComment?.message
-                                                    ) {
-                                                        console.log(
-                                                            '-----------------> FINDED CHAT COMMENT: ',
-                                                            findedComment
-                                                        );
-                                                        comment.replayChatItemAction.actions[0].addChatItemAction = {
-                                                            item: { liveChatTextMessageRenderer: {} }
-                                                        };
-                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer =
-                                                            findedComment;
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        const timestampUsec: string | undefined = wrapTryCatch(
-                                            () =>
-                                                comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                    .liveChatTextMessageRenderer.timestampUsec
-                                        ) as any;
-
-                                        if (timestampUsec && !chatCmnts.has(parseInt(timestampUsec, 10))) {
-                                            const chatMsgs =
-                                                (wrapTryCatch(
-                                                    () =>
-                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                            .liveChatTextMessageRenderer.message.runs
-                                                ) as any) || [];
-
-                                            let fullText = '';
-                                            let renderFullTextComment = '';
-
-                                            // Removed hardcoded HTML for purchaseAmountText
-                                            // Now handled by donatedChip structure and chip badge rendering
-
-                                            for (const msg of chatMsgs) {
-                                                try {
-                                                    fullText += msg?.text || '';
-
-                                                    if (
-                                                        parseInt(
-                                                            msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds
-                                                        ) >= 0
-                                                    ) {
-                                                        renderFullTextComment += `<a class="ycs-cpointer ycs-goto-comment-time" href="https://www.youtube.com/watch?v=${msg?.navigationEndpoint?.watchEndpoint?.videoId}&t=${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${msg?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}">${msg?.text || ''}</a>`;
-
-                                                        const currentVideoId = (getVideoId(window.location.href) ||
-                                                            '') as string;
-                                                        const linkVideoId = (wrapTryCatch(
-                                                            () => msg?.navigationEndpoint?.watchEndpoint?.videoId
-                                                        ) || '') as string;
-                                                        const isSameVideo =
-                                                            String(linkVideoId || '') === String(currentVideoId || '');
-
-                                                        if (
-                                                            isSameVideo &&
-                                                            wrapTryCatch(
-                                                                () =>
-                                                                    comment.replayChatItemAction.actions[0]
-                                                                        .addChatItemAction.item
-                                                                        .liveChatTextMessageRenderer
-                                                            )
-                                                        ) {
-                                                            comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine =
-                                                                'timeline';
-                                                        }
-                                                    } else if (msg?.navigationEndpoint) {
-                                                        renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${msg?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || msg?.navigationEndpoint?.urlEndpoint?.url || msg?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || msg?.text || '#'}" target="_blank">${msg?.text || ''}</a>`;
-                                                    } else if (wrapTryCatch(() => (msg as any).emoji)) {
-                                                        const emoji: any = wrapTryCatch(() => (msg as any).emoji) || {};
-                                                        const thumbnails =
-                                                            wrapTryCatch(() => emoji.image.thumbnails) || [];
-                                                        const url =
-                                                            wrapTryCatch(() => thumbnails[thumbnails.length - 1].url) ||
-                                                            '';
-                                                        const shortcut =
-                                                            (wrapTryCatch(() => emoji.shortcuts?.[0]) as string) || '';
-                                                        const label =
-                                                            (wrapTryCatch(
-                                                                () => emoji.image.accessibility.accessibilityData.label
-                                                            ) as string) || '';
-
-                                                        if (shortcut) {
-                                                            fullText += shortcut;
-                                                        } else if (label) {
-                                                            fullText += `:${label}:`;
-                                                        } else {
-                                                            fullText += ':emoji:';
-                                                        }
-
-                                                        const alt = shortcut || label || 'emoji';
-                                                        const style = `margin-left: 2px; margin-right: 2px;`;
-                                                        if (url) {
-                                                            renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
-                                                        } else {
-                                                            renderFullTextComment += alt;
-                                                        }
-                                                    } else if (wrapTryCatch(() => (msg as any).attachment?.image)) {
-                                                        const image: any = wrapTryCatch(
-                                                            () => (msg as any).attachment.image
-                                                        );
-                                                        const url = image?.url || '';
-                                                        const width = image?.width || 24;
-                                                        const height = image?.height || 24;
-                                                        const margin = image?.margin || { left: 0, right: 0 };
-                                                        const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
-                                                        const alt = (msg as any)?.text || '';
-                                                        renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
-                                                    } else {
-                                                        renderFullTextComment += msg?.text || '';
-                                                    }
-                                                } catch (e) {
-                                                    console.error(e);
-                                                    renderFullTextComment += msg?.text || '';
-                                                }
-                                            }
-
-                                            if (fullText) {
-                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.fullText =
-                                                    fullText;
-
-                                                comment.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.message.renderFullText =
-                                                    renderFullTextComment || fullText;
-                                            }
-
-                                            if (
-                                                wrapTryCatch(
-                                                    () =>
-                                                        comment.replayChatItemAction.actions[0].addChatItemAction.item
-                                                            .liveChatTextMessageRenderer.authorName
-                                                )
-                                            ) {
-                                                chatCmnts.set(
-                                                    parseInt(timestampUsec, 10),
-                                                    _prepareFieldsChatComments(comment)
-                                                );
-                                                showLoadComments(chatCmnts.size, elShowLoading);
-                                            }
-                                        }
-                                    } catch (err) {
-                                        console.error(err);
-                                        continue;
-                                    }
-                                }
-                            }
-
-                            // Check if there are more messages
-                            if (!nextContinuation) {
-                                console.log('No more continuation, finished loading chat');
-                                break;
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-
-                    return chatCmnts;
-                } catch (e) {
-                    console.error('New API error:', e);
-                    return chatCmnts;
-                }
+                console.log('No more continuation, finished loading chat');
+                break;
             }
         }
+
+        return chatCmnts;
     } catch (e) {
         console.error(e);
         return;
     }
-
-    return;
 }
 
 async function getTranscriptBaseUrl(w: any, signal: AbortSignal): Promise<string> {
