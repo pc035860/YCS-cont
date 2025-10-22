@@ -8,8 +8,7 @@ import {
     filterMembersChat,
     filterVerifiedChatComments
 } from '../../utils/filters/chat';
-import { ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
-import { wrapTryCatch } from '../../utils/common';
+import type { ChatItem, FuseSupportedItem, ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
 import { getCommentsChat, WebResourcesState } from '../state';
 import { SearchContext } from './types';
 
@@ -47,10 +46,10 @@ function cloneFuseOptions(): Fuse.IFuseOptions<any> {
     return JSON.parse(JSON.stringify(BASE_FUSE_OPTIONS));
 }
 
-function mapFuseResults(raw: readonly Fuse.FuseResult<any>[]): ICommentsFuseResult[] {
+function mapFuseResults<T extends FuseSupportedItem>(raw: readonly Fuse.FuseResult<T>[]): ICommentsFuseResult<T>[] {
     return raw.map((result) => ({
         item: result.item,
-        refIndex: (result.item as any)?._index ?? result.refIndex ?? 0,
+        refIndex: (result.item as { _index?: number })?._index ?? result.refIndex ?? 0,
         score: result.score
     }));
 }
@@ -59,21 +58,32 @@ function ensureSortOrder(order?: 'newest' | 'oldest'): 'newest' | 'oldest' {
     return order === 'oldest' ? 'oldest' : 'newest';
 }
 
-function filterWithQuery(
-    items: ICommentsFuseResult[],
+function filterWithQuery<T extends FuseSupportedItem>(
+    items: ICommentsFuseResult<T>[],
     query: string,
     options: Fuse.IFuseOptions<any>,
     reverseBase = false
-): ICommentsFuseResult[] {
+): ICommentsFuseResult<T>[] {
     if (!query.trim()) {
-        return reverseBase ? Array.from(items).reverse() : items;
+        return reverseBase ? items.slice().reverse() : items;
     }
 
-    const source = reverseBase ? Array.from(items).reverse() : items;
+    const source = reverseBase ? items.slice().reverse() : items;
     const base = source.map((entry) => entry.item);
-    const fuse = new Fuse(base, options);
+    const fuse = new Fuse<T>(base, options);
     return mapFuseResults(fuse.search(query.trim()));
 }
+
+const toTimestampRef = (value: string | number | undefined): number => {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : 0;
+    }
+    if (typeof value === 'string') {
+        const parsed = Number.parseInt(value, 10);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+};
 
 export function runSearch(
     query: string,
@@ -136,7 +146,7 @@ export function runSearch(
     };
 
     const buttonStates: Record<string, SearchButtonState> = {};
-    let resultSearch: ICommentsFuseResult[] = [];
+    let resultSearch: ICommentsFuseResult<ChatItem>[] = [];
 
     const updateButtonState = (id: string, order: 'newest' | 'oldest', title: string, label?: string): void => {
         buttonStates[id] = {
@@ -151,7 +161,7 @@ export function runSearch(
     };
 
     if (param.author) {
-        resultSearch = filterAuthorChat(cmntsChat);
+        resultSearch = filterAuthorChat(cmntsChat) as ICommentsFuseResult<ChatItem>[];
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -171,7 +181,7 @@ export function runSearch(
             );
         }
     } else if (param.donated) {
-        resultSearch = filterDonatedChat(cmntsChat);
+        resultSearch = filterDonatedChat(cmntsChat) as ICommentsFuseResult<ChatItem>[];
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -193,7 +203,7 @@ export function runSearch(
             );
         }
     } else if (param.members) {
-        resultSearch = filterMembersChat(cmntsChat);
+        resultSearch = filterMembersChat(cmntsChat) as ICommentsFuseResult<ChatItem>[];
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -220,7 +230,7 @@ export function runSearch(
             keys: ['replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine']
         };
 
-        const fuse = new Fuse(cmntsChat, timestampOptions);
+        const fuse = new Fuse<ChatItem>(cmntsChat, timestampOptions);
         resultSearch = mapFuseResults(fuse.search('timeline'));
 
         if (resultSearch.length > 0) {
@@ -241,12 +251,12 @@ export function runSearch(
             );
         }
     } else if (param.sortFirst) {
-        resultSearch = (filterChatNewestFirst(commentsChat) as ICommentsFuseResult[]) || [];
+        resultSearch = filterChatNewestFirst(commentsChat) ?? [];
 
         if (trimmedQuery) {
             try {
-                const fuseBase = new Fuse(cmntsChat, options);
-                const matched = new Set(fuseBase.search(trimmedQuery).map((entry) => entry.item));
+                const fuseBase = new Fuse<ChatItem>(cmntsChat, options);
+                const matched = new Set<ChatItem>(fuseBase.search(trimmedQuery).map((entry) => entry.item));
                 resultSearch = resultSearch.filter((entry) => matched.has(entry.item));
             } catch (error) {
                 console.error(error);
@@ -271,7 +281,7 @@ export function runSearch(
             );
         }
     } else if (param.verified) {
-        resultSearch = (filterVerifiedChatComments(commentsChat) as ICommentsFuseResult[]) || [];
+        resultSearch = (filterVerifiedChatComments(commentsChat) as ICommentsFuseResult<ChatItem>[]) || [];
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -295,7 +305,7 @@ export function runSearch(
             );
         }
     } else if (param.links) {
-        resultSearch = (filterLinksChatComments(commentsChat) as ICommentsFuseResult[]) || [];
+        resultSearch = (filterLinksChatComments(commentsChat) as ICommentsFuseResult<ChatItem>[]) || [];
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -317,20 +327,17 @@ export function runSearch(
             );
         }
     } else {
-        const fuse = new Fuse(cmntsChat, options);
-        resultSearch = fuse.search(trimmedQuery).map((entry) => ({
-            item: entry.item,
-            refIndex:
-                parseInt(
-                    wrapTryCatch(
-                        () =>
-                            entry.item.replayChatItemAction.actions[0].addChatItemAction.item
-                                .liveChatTextMessageRenderer.timestampUsec
-                    ) as any,
-                    10
-                ) || 0,
-            score: entry.score
-        }));
+        const fuse = new Fuse<ChatItem>(cmntsChat, options);
+        resultSearch = fuse.search(trimmedQuery).map((entry): ICommentsFuseResult<ChatItem> => {
+            const firstAction = entry.item.replayChatItemAction.actions?.[0];
+            const liveChatRenderer = firstAction?.addChatItemAction?.item?.liveChatTextMessageRenderer;
+
+            return {
+                item: entry.item,
+                refIndex: toTimestampRef(liveChatRenderer?.timestampUsec),
+                score: entry.score
+            };
+        });
     }
 
     const total = resultSearch.length;
