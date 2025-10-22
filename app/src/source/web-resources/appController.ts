@@ -134,6 +134,12 @@ const getCueGroupCount = (transcript?: TranscriptData | null): number => {
 
 type CacheStorageBody = CacheData & { date?: string };
 
+type ExtensionMessagePayload =
+    | { type: 'YCS_OPTIONS'; text?: Partial<IYCSOptions> | null }
+    | { type: 'YCS_CACHE_STORAGE_GET_RESPONSE'; body?: CacheStorageBody | null }
+    | { type: 'YCS_AUTOLOAD' }
+    | ({ type?: string } & Record<string, unknown>);
+
 const buildSearchContext = (): SearchContext => {
     const extendedToggle = document.getElementById('ycs_extended_search') as HTMLInputElement | null;
     const extendedTitle = document.getElementById('ycs_extended_search_title') as HTMLInputElement | null;
@@ -171,7 +177,7 @@ export function retryApp(): boolean {
 }
 
 export function initApp(): void {
-    let handleMessageEvent: (ev: MessageEvent<unknown>) => unknown;
+    let handleMessageEvent: ((ev: MessageEvent<ExtensionMessagePayload>) => void) | null = null;
 
     let state = createState();
 
@@ -1073,7 +1079,7 @@ export function initApp(): void {
 
         window.postMessage({ type: 'GET_OPTIONS' }, window.location.origin);
 
-        handleMessageEvent = (e): void => {
+        handleMessageEvent = (e: MessageEvent<ExtensionMessagePayload>): void => {
             // console.log('EVENT MESSAGE e: ', e);
 
             if (e.origin !== window.location.origin) return;

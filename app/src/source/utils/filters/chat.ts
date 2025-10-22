@@ -1,7 +1,7 @@
 import urlRegex from 'url-regex';
 
 import { extractChannelId, wrapTryCatch } from '../common';
-import { ICommentItem, ICommentsFuseResult } from '../interfaces/i_types';
+import type { ChatItem, ICommentsFuseResult } from '../interfaces/i_types';
 
 function filterAuthorChat(comments: any): [] {
     if (comments.length === 0) return [];
@@ -177,17 +177,17 @@ function filterLinksChatComments(comments: any): [] {
     }
 }
 
-function filterChatNewestFirst(comments: Map<number, object>): ICommentsFuseResult[] | void {
+function filterChatNewestFirst(comments: Map<number, ChatItem>): ICommentsFuseResult<ChatItem>[] | undefined {
     try {
         if (comments.size === 0) return;
 
-        const res: ICommentsFuseResult[] = [];
+        const res: ICommentsFuseResult<ChatItem>[] = [];
 
-        for (const [i, comment] of comments.entries()) {
+        for (const [index, comment] of comments.entries()) {
             try {
                 res.push({
-                    item: comment as ICommentItem,
-                    refIndex: i as number
+                    item: comment,
+                    refIndex: Number.isFinite(index) ? index : 0
                 });
             } catch (err) {
                 console.error(err);
@@ -195,7 +195,7 @@ function filterChatNewestFirst(comments: Map<number, object>): ICommentsFuseResu
             }
         }
 
-        if (res?.length > 0) {
+        if (res.length > 0) {
             return res;
         }
     } catch (err) {
