@@ -14,6 +14,7 @@ import {
 } from '../../utils/filters/comments';
 import { ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
 import { getComments, WebResourcesState } from '../state';
+import { SearchContext } from './types';
 
 export interface SearchButtonState {
     order?: 'newest' | 'oldest';
@@ -63,16 +64,6 @@ function applyTextMatches(results: ICommentsFuseResult[], matches: Set<any> | nu
     return results.filter((entry) => matches.has(entry.item));
 }
 
-function resolveSortOrder(buttonId: string): 'newest' | 'oldest' | undefined {
-    const button = document.getElementById(buttonId) as HTMLElement | null;
-    if (!button) return undefined;
-    const value = button.dataset.sort;
-    if (value === 'newest' || value === 'oldest') {
-        return value;
-    }
-    return undefined;
-}
-
 function ensureSortOrder(order?: 'newest' | 'oldest'): 'newest' | 'oldest' {
     return order === 'oldest' ? 'oldest' : 'newest';
 }
@@ -94,7 +85,8 @@ function searchWithinSubset(
 export function runSearch(
     query: string,
     filters: IParamSearch | undefined,
-    state: WebResourcesState
+    state: WebResourcesState,
+    context: SearchContext
 ): CommentsSearchResult {
     const comments = getComments(state);
     const trimmedQuery = query?.trim?.() ?? '';
@@ -109,22 +101,18 @@ export function runSearch(
         };
     }
 
-    const elExtSearch = document.getElementById('ycs_extended_search') as HTMLInputElement | null;
-    const elExtSearchTitle = document.getElementById('ycs_extended_search_title') as HTMLInputElement | null;
-    const elExtSearchMain = document.getElementById('ycs_extended_search_main') as HTMLInputElement | null;
-
     let fuseOptions = cloneFuseOptions();
     let fuseKeys = ['commentRenderer.authorText.simpleText', 'commentRenderer.contentText.fullText'];
 
-    if (elExtSearch?.checked) {
+    if (context.extendedSearch.enabled) {
         fuseOptions = cloneFuseOptions();
         fuseOptions.useExtendedSearch = true;
 
-        if (elExtSearchTitle?.checked) {
+        if (context.extendedSearch.title) {
             fuseKeys = ['commentRenderer.authorText.simpleText'];
         }
 
-        if (elExtSearchMain?.checked) {
+        if (context.extendedSearch.main) {
             fuseKeys = ['commentRenderer.contentText.fullText'];
         }
     }
@@ -164,7 +152,7 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            let sortOrder = param.sortOrder ?? resolveSortOrder('ycs_btn_links');
+            let sortOrder = param.sortOrder ?? context.sortOrders.comments['ycs_btn_links'];
             if (sortOrder === undefined && trimmedQuery) {
                 resultSearch = searchWithinSubset(resultSearch, options, trimmedQuery);
                 sortOrder = 'newest';
@@ -190,7 +178,7 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortOrder('ycs_btn_members'));
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_members']);
             if (resolvedOrder === 'oldest') {
                 resultSearch = Array.from(resultSearch).reverse();
             }
@@ -210,7 +198,7 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortOrder('ycs_btn_donated'));
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_donated']);
             if (resolvedOrder === 'oldest') {
                 resultSearch = Array.from(resultSearch).reverse();
             }
@@ -238,7 +226,7 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortOrder('ycs_btn_author'));
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_author']);
             if (resolvedOrder === 'oldest') {
                 resultSearch = Array.from(resultSearch).reverse();
             }
@@ -258,7 +246,7 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortOrder('ycs_btn_heart'));
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_heart']);
             if (resolvedOrder === 'oldest') {
                 resultSearch = Array.from(resultSearch).reverse();
             }
@@ -277,7 +265,7 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortOrder('ycs_btn_verified'));
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_verified']);
             if (resolvedOrder === 'oldest') {
                 resultSearch = Array.from(resultSearch).reverse();
             }
@@ -320,7 +308,7 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortOrder('ycs_btn_timestamps'));
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_timestamps']);
             if (resolvedOrder === 'oldest') {
                 resultSearch = Array.from(resultSearch).reverse();
             }
@@ -339,7 +327,7 @@ export function runSearch(
         resultSearch = applyTextMatches(newest, matches);
 
         if (resultSearch.length > 0) {
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortOrder('ycs_btn_sort_first'));
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_sort_first']);
             if (resolvedOrder === 'oldest') {
                 resultSearch = Array.from(resultSearch).reverse();
             }

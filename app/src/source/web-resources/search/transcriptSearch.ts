@@ -4,6 +4,7 @@ import { filterAllTrpVideoComments, filterLinksTrpVideoComments } from '../../ut
 import { ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
 import { wrapTryCatch } from '../../utils/common';
 import { getCommentsTrVideo, WebResourcesState } from '../state';
+import { SearchContext } from './types';
 
 export interface SearchButtonState {
     order?: 'newest' | 'oldest';
@@ -63,16 +64,6 @@ function ensureSortOrder(order?: 'newest' | 'oldest'): 'newest' | 'oldest' {
     return order === 'oldest' ? 'oldest' : 'newest';
 }
 
-function resolveSortTrp(buttonId: string): 'newest' | 'oldest' | undefined {
-    const button = document.getElementById(buttonId) as HTMLElement | null;
-    if (!button) return undefined;
-    const value = button.dataset.sortTrp;
-    if (value === 'newest' || value === 'oldest') {
-        return value;
-    }
-    return undefined;
-}
-
 function filterByMatches(results: ICommentsFuseResult[], matches: Set<any> | null): ICommentsFuseResult[] {
     if (!matches) return results;
     return results.filter((entry) => matches.has(entry.item));
@@ -81,7 +72,8 @@ function filterByMatches(results: ICommentsFuseResult[], matches: Set<any> | nul
 export function runSearch(
     query: string,
     filters: IParamSearch | undefined,
-    state: WebResourcesState
+    state: WebResourcesState,
+    context: SearchContext
 ): TranscriptSearchResult {
     const trimmedQuery = query?.trim?.() ?? '';
     const param = filters ?? {};
@@ -113,25 +105,21 @@ export function runSearch(
         };
     }
 
-    const elExtSearch = document.getElementById('ycs_extended_search') as HTMLInputElement | null;
-    const elExtSearchTitle = document.getElementById('ycs_extended_search_title') as HTMLInputElement | null;
-    const elExtSearchMain = document.getElementById('ycs_extended_search_main') as HTMLInputElement | null;
-
     let fuseOptions = cloneFuseOptions();
     let fuseKeys = [
         'transcriptCueGroupRenderer.cues.transcriptCueRenderer.cue.simpleText',
         'transcriptCueGroupRenderer.formattedStartOffset.simpleText'
     ];
 
-    if (elExtSearch?.checked) {
+    if (context.extendedSearch.enabled) {
         fuseOptions = cloneFuseOptions();
         fuseOptions.useExtendedSearch = true;
 
-        if (elExtSearchTitle?.checked) {
+        if (context.extendedSearch.title) {
             fuseKeys = ['transcriptCueGroupRenderer.formattedStartOffset.simpleText'];
         }
 
-        if (elExtSearchMain?.checked) {
+        if (context.extendedSearch.main) {
             fuseKeys = ['transcriptCueGroupRenderer.cues.transcriptCueRenderer.cue.simpleText'];
         }
     }
@@ -165,7 +153,7 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortTrp('ycs_btn_links'));
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.transcript['ycs_btn_links']);
             if (resolvedOrder === 'newest') {
                 if (trimmedQuery) {
                     const fuse = new Fuse(
@@ -200,7 +188,9 @@ export function runSearch(
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
 
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? resolveSortTrp('ycs_btn_sort_first'));
+            const resolvedOrder = ensureSortOrder(
+                param.sortOrder ?? context.sortOrders.transcript['ycs_btn_sort_first']
+            );
             if (resolvedOrder === 'oldest') {
                 resultSearch = Array.from(resultSearch).reverse();
             }
@@ -239,8 +229,7 @@ export function runSearch(
                         ) || 0
                 }));
 
-            const button = document.getElementById('ycs_btn_timestamps') as HTMLElement | null;
-            const currentOrder = (button?.dataset.sortTrp as 'newest' | 'oldest') || 'newest';
+            const currentOrder = context.sortOrders.transcript['ycs_btn_timestamps'] ?? 'newest';
             if (currentOrder === 'oldest') {
                 resultSearch = Array.from(resultSearch).reverse();
                 updateButtonState(
