@@ -1,16 +1,16 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import 'abort-controller/polyfill';
 
-import { GlobalStore, extractChannelId, wrapTryCatch, getCleanUrlVideo, isVideoPage } from '../utils/common';
+import { GlobalStore, extractChannelId, getCleanUrlVideo, isVideoPage } from '../utils/common';
 import { initShowBarFAQ, initShowViewMode, removeClass, removeNodeList, showLoadComments } from '../utils/dom';
 import { getAllCommentsModeV2, getChatComments, getTranscriptVideo } from '../utils/innertube';
 
-import { IParamSearch, ISelectedSearch } from '../utils/interfaces/i_types';
+import { IParamSearch, ISelectedSearch, IYCSOptions } from '../utils/interfaces/i_types';
+import type { ChatItem, CommentItem, TranscriptCueGroup, TranscriptData } from '../utils/interfaces/i_types';
 
 import { iconOk, iconReload } from '../utils/icons';
 import { renderLoadComments, renderSearch } from '../utils/renderView';
 import { loadFromCache, saveToCache, updateBadge } from './services/cacheService';
+import type { CacheData } from './services/cacheService';
 import {
     downloadChatFile,
     downloadCommentsFile,
@@ -75,6 +75,34 @@ const SORT_BUTTON_IDS = [
 
 type SortAttribute = 'sort' | 'sortChat' | 'sortTrp';
 
+type FilterCode =
+    | 'timestamp'
+    | 'author'
+    | 'heart'
+    | 'verified'
+    | 'links'
+    | 'likes'
+    | 'replied'
+    | 'members'
+    | 'donated'
+    | 'random'
+    | 'sortFirst';
+
+interface ButtonPanelElements {
+    elPTimeStamps: HTMLElement | null;
+    elPAuthor: HTMLElement | null;
+    elPHeart: HTMLElement | null;
+    elPVerified: HTMLElement | null;
+    elPLinks: HTMLElement | null;
+    elPLikes: HTMLElement | null;
+    elPReplied: HTMLElement | null;
+    elPMembers: HTMLElement | null;
+    elPDonated: HTMLElement | null;
+    elPClear: HTMLElement | null;
+    elPRandom: HTMLElement | null;
+    elFirstComments: HTMLElement | null;
+}
+
 const parseSortOrder = (value: string | undefined): SortOrder | undefined => {
     if (value === 'newest' || value === 'oldest') {
         return value;
@@ -94,6 +122,17 @@ const readSortOrders = (attribute: SortAttribute): Partial<Record<string, SortOr
     }
     return map;
 };
+
+const extractCueGroups = (transcript?: TranscriptData | null): TranscriptCueGroup[] | undefined => {
+    return transcript?.actions?.[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body
+        ?.transcriptBodyRenderer?.cueGroups as TranscriptCueGroup[] | undefined;
+};
+
+const getCueGroupCount = (transcript?: TranscriptData | null): number => {
+    return extractCueGroups(transcript)?.length ?? 0;
+};
+
+type CacheStorageBody = CacheData & { date?: string };
 
 const buildSearchContext = (): SearchContext => {
     const extendedToggle = document.getElementById('ycs_extended_search') as HTMLInputElement | null;
@@ -132,7 +171,7 @@ export function retryApp(): boolean {
 }
 
 export function initApp(): void {
-    let handleMessageEvent: (ev: MessageEvent<any>) => unknown;
+    let handleMessageEvent: (ev: MessageEvent<unknown>) => unknown;
 
     let state = createState();
 
@@ -209,7 +248,7 @@ export function initApp(): void {
             return inputSearch?.value ?? '';
         };
 
-        const getElmsBtnPanel = (): object => {
+        const getElmsBtnPanel = (): ButtonPanelElements => {
             return {
                 elPTimeStamps: document.getElementById('ycs_btn_timestamps'),
                 elPAuthor: document.getElementById('ycs_btn_author'),
@@ -230,7 +269,7 @@ export function initApp(): void {
         console.log('elsBtnPanel: ', elsBtnPanel);
 
         // Active-state management helpers for filter buttons
-        const codeToId: Record<string, string> = {
+        const codeToId: Record<FilterCode, string> = {
             timestamp: 'ycs_btn_timestamps',
             author: 'ycs_btn_author',
             heart: 'ycs_btn_heart',
@@ -243,16 +282,10 @@ export function initApp(): void {
             random: 'ycs_btn_random',
             sortFirst: 'ycs_btn_sort_first'
         };
-        const idToCode: Record<string, ISelectedSearch | string> = (function () {
-            const res: Record<string, ISelectedSearch | string> = {};
-            for (const key in codeToId) {
-                if (Object.prototype.hasOwnProperty.call(codeToId, key)) {
-                    const val = (codeToId as any)[key] as string;
-                    res[val] = key as ISelectedSearch | string;
-                }
-            }
-            return res;
-        })();
+        const idToCode = Object.entries(codeToId).reduce<Record<string, FilterCode>>((acc, [code, id]) => {
+            acc[id] = code as FilterCode;
+            return acc;
+        }, {});
 
         // Removed persistent storage for active filter; rely on DOM state only
 
@@ -363,7 +396,7 @@ export function initApp(): void {
                 }
             }
         };
-        const handlersBtnPanel = (hElms: any): void => {
+        const handlersBtnPanel = (hElms: ButtonPanelElements | null): void => {
             if (!hElms) {
                 return;
             }
@@ -410,9 +443,11 @@ export function initApp(): void {
                         });
                     } else {
                         const elSearchRes = document.getElementById('ycs-search-result');
-                        const elSearchTotalRes: any = document.getElementById('ycs-search-total-result');
+                        const elSearchTotalRes = document.getElementById(
+                            'ycs-search-total-result'
+                        ) as HTMLElement | null;
 
-                        if (elSearchRes) {
+                        if (elSearchRes && elSearchTotalRes) {
                             elSearchRes.innerText = '';
                             elSearchTotalRes.innerText = 'Search cleared';
                         }
@@ -621,32 +656,17 @@ export function initApp(): void {
                     // Load transcript with robust fallback,
                     // ensure old buffer won't leak when current load fails
                     const controller = getController(state);
-                    const tr = await getTranscriptVideo(controller.signal);
+                    const tr = (await getTranscriptVideo(controller.signal)) as TranscriptData | undefined;
                     state = clearCommentsTrVideo(state);
-                    if (
-                        wrapTryCatch(
-                            () =>
-                                (tr as any)?.actions?.[0]?.updateEngagementPanelAction?.content?.transcriptRenderer
-                                    ?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
-                        )
-                    ) {
+                    if (getCueGroupCount(tr) > 0) {
                         state = setCommentsTrVideo(state, tr);
                     }
 
                     try {
                         const transcript = getCommentsTrVideo(state);
-                        if (
-                            transcript &&
-                            elLoadTrVideo &&
-                            (transcript as any)?.actions?.length > 0 &&
-                            (transcript as any)?.actions[0]?.updateEngagementPanelAction?.content?.transcriptRenderer
-                                ?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
-                        ) {
-                            showLoadComments(
-                                (transcript as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer
-                                    .body.transcriptBodyRenderer.cueGroups.length,
-                                elLoadTrVideo
-                            );
+                        const cueGroups = extractCueGroups(transcript);
+                        if (transcript && elLoadTrVideo && cueGroups && cueGroups.length > 0) {
+                            showLoadComments(cueGroups.length, elLoadTrVideo);
                             saveToCache(
                                 {
                                     comments: getComments(state),
@@ -667,32 +687,17 @@ export function initApp(): void {
                     const transcript = getCommentsTrVideo(state);
                     console.log('Transcript: ', transcript);
 
-                    if (
-                        wrapTryCatch(
-                            () =>
-                                (transcript as any)?.actions[0]?.updateEngagementPanelAction?.content
-                                    ?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
-                        )
-                    ) {
+                    if (getCueGroupCount(transcript) > 0) {
                         elStatusTrVideo.innerHTML = iconOk();
                     }
                 }
 
                 if (
-                    wrapTryCatch(
-                        () =>
-                            (getCommentsTrVideo(state) as any)?.actions[0]?.updateEngagementPanelAction?.content
-                                ?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
-                    ) &&
+                    getCueGroupCount(getCommentsTrVideo(state)) > 0 &&
                     (elLiveApp.parentNode || elLiveApp.parentElement)
                 ) {
-                    const transcript = getCommentsTrVideo(state) as any;
-                    state = setCount(
-                        state,
-                        'commentsTrVideo',
-                        transcript.actions[0].updateEngagementPanelAction.content.transcriptRenderer.body
-                            .transcriptBodyRenderer.cueGroups.length
-                    );
+                    const transcript = getCommentsTrVideo(state);
+                    state = setCount(state, 'commentsTrVideo', getCueGroupCount(transcript));
                 }
 
                 const counts = getCounts(state);
@@ -761,7 +766,7 @@ export function initApp(): void {
 
                     const activeParam = getActiveFilterParam();
                     const elSearchRes = document.getElementById('ycs-search-result');
-                    const elSearchTotalRes: any = document.getElementById('ycs-search-total-result');
+                    const elSearchTotalRes = document.getElementById('ycs-search-total-result') as HTMLElement | null;
 
                     if (activeParam) {
                         // Reapply current filter while only clearing the text query
@@ -839,17 +844,9 @@ export function initApp(): void {
                 const commentsTrVideo = getCommentsTrVideo(state);
                 console.log('commentsTrVideo: ', commentsTrVideo);
 
-                if (
-                    commentsTrVideo &&
-                    (commentsTrVideo as any)?.actions?.length > 0 &&
-                    (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body
-                        ?.transcriptBodyRenderer?.cueGroups?.length > 0
-                ) {
-                    openTranscriptWindow(
-                        (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body
-                            .transcriptBodyRenderer.cueGroups,
-                        buildExportMeta()
-                    );
+                const cueGroups = extractCueGroups(commentsTrVideo);
+                if (cueGroups && cueGroups.length > 0) {
+                    openTranscriptWindow(cueGroups, buildExportMeta());
                 }
             } catch (e) {
                 console.error(e);
@@ -861,17 +858,9 @@ export function initApp(): void {
         btnSaveCommentsTrVideoToFile?.addEventListener('click', () => {
             try {
                 const commentsTrVideo = getCommentsTrVideo(state);
-                if (
-                    commentsTrVideo &&
-                    (commentsTrVideo as any)?.actions?.length > 0 &&
-                    (commentsTrVideo as any).actions[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body
-                        ?.transcriptBodyRenderer?.cueGroups?.length > 0
-                ) {
-                    downloadTranscriptFile(
-                        (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer.body
-                            .transcriptBodyRenderer.cueGroups,
-                        buildExportMeta()
-                    );
+                const cueGroups = extractCueGroups(commentsTrVideo);
+                if (cueGroups && cueGroups.length > 0) {
+                    downloadTranscriptFile(cueGroups, buildExportMeta());
                 }
             } catch (e) {
                 console.error(e);
@@ -1026,15 +1015,7 @@ export function initApp(): void {
                     runChatPipeline('#ycs_allsearch__wrap_comments_chat', query, param);
                 }
 
-                if (
-                    shouldRenderTranscript &&
-                    commentsTrVideo &&
-                    (wrapTryCatch(
-                        () =>
-                            (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer
-                                .body.transcriptBodyRenderer.cueGroups.length
-                    ) as any) > 0
-                ) {
+                if (shouldRenderTranscript && getCueGroupCount(commentsTrVideo) > 0) {
                     elSearchAll?.appendChild(elWrapCommentsTrVideo);
                     runTranscriptPipeline('#ycs_allsearch__wrap_comments_trvideo', query, param);
                 }
@@ -1106,7 +1087,7 @@ export function initApp(): void {
                     }
                 };
 
-                const wrapOptAutoload = (value: boolean, opts: any): void => {
+                const wrapOptAutoload = (value: boolean, opts: IYCSOptions): void => {
                     if (!opts.cache) {
                         optAutoload(value);
                     }
@@ -1122,7 +1103,7 @@ export function initApp(): void {
 
                 const optHighlightExact = (value: boolean): void => {
                     try {
-                        (GlobalStore as any).highlightExact = value;
+                        GlobalStore.highlightExact = value;
                     } catch (err) {
                         console.error(err);
                     }
@@ -1150,33 +1131,33 @@ export function initApp(): void {
                 };
 
                 try {
-                    const opts = e.data.text;
+                    const opts = (e.data.text ?? {}) as IYCSOptions;
 
-                    for (const key of Object.keys(opts)) {
+                    (Object.keys(opts) as Array<keyof IYCSOptions>).forEach((key) => {
                         switch (key) {
                             case 'autoload':
-                                wrapOptAutoload(opts[key], opts);
+                                wrapOptAutoload(Boolean(opts.autoload), opts);
                                 break;
 
                             case 'highlightText':
-                                optHighlightText(opts[key]);
+                                optHighlightText(Boolean(opts.highlightText));
                                 break;
                             case 'highlightExact':
-                                optHighlightExact(opts[key]);
+                                optHighlightExact(Boolean(opts.highlightExact));
                                 break;
 
                             case 'cache':
-                                optCached(opts[key]);
+                                optCached(Boolean(opts.cache));
                                 break;
 
                             case 'hiddenByDefault':
-                                optHiddenByDefault(opts[key]);
+                                optHiddenByDefault(Boolean(opts.hiddenByDefault));
                                 break;
 
                             default:
                                 break;
                         }
-                    }
+                    });
                 } catch (err) {
                     console.error(err);
                 }
@@ -1186,11 +1167,12 @@ export function initApp(): void {
                 console.log('YCS_CACHE_STORAGE_GET_RESPONSE:', e.data);
 
                 if (e.data?.body) {
-                    const cachedComments: any[] = e.data.body.comments || [];
+                    const body = e.data.body as CacheStorageBody;
+                    const cachedComments = Array.isArray(body.comments) ? (body.comments as CommentItem[]) : [];
                     try {
                         // Rebuild reply-to-origin mapping using a single-pass index to reduce complexity from O(n^2) to O(n)
                         if (cachedComments.length > 0) {
-                            const originById: Record<string, any> = {};
+                            const originById: Record<string, CommentItem> = {};
                             for (const c of cachedComments) {
                                 if (c?.typeComment === 'C') {
                                     const id = c?.commentRenderer?.commentId;
@@ -1215,21 +1197,22 @@ export function initApp(): void {
                     }
                     state = setComments(state, cachedComments);
 
-                    state = setCommentsChat(state, new Map<number, object>(JSON.parse(e.data.body.commentsChat)));
-                    state = setCommentsTrVideo(state, e.data.body.commentsTrVideo);
+                    const chatEntries = JSON.parse(body.commentsChat || '[]') as Array<[number, ChatItem]>;
+                    state = setCommentsChat(state, new Map<number, ChatItem>(chatEntries));
+                    state = setCommentsTrVideo(state, body.commentsTrVideo);
 
                     // Restore GlobalStore.getInitYtData with minimal structure for author filter
-                    if (e.data.body.channelId) {
-                        (GlobalStore as any).getInitYtData = {
+                    if (body.channelId) {
+                        GlobalStore.getInitYtData = {
                             playerResponse: {
                                 videoDetails: {
-                                    channelId: e.data.body.channelId
+                                    channelId: body.channelId
                                 }
                             }
                         };
                     }
 
-                    const crdate = e.data.body.date;
+                    const crdate = body.date;
                     const comments = getComments(state);
                     const commentsChat = getCommentsChat(state);
                     const commentsTrVideo = getCommentsTrVideo(state);
@@ -1268,38 +1251,17 @@ export function initApp(): void {
 
                     // Tr. video
 
-                    if (
-                        wrapTryCatch(
-                            () =>
-                                (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content
-                                    ?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
-                        )
-                    ) {
+                    const transcriptGroupCount = getCueGroupCount(commentsTrVideo);
+                    if (transcriptGroupCount > 0) {
                         const elStatusTrVideo = document.getElementById('ycs_status_trvideo') as HTMLElement;
                         const elLoadTrVideo = document.getElementById('ycs_cmnts_video') as HTMLElement;
 
-                        showLoadComments(
-                            (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer
-                                .body.transcriptBodyRenderer.cueGroups.length,
-                            elLoadTrVideo
-                        );
+                        showLoadComments(transcriptGroupCount, elLoadTrVideo);
                         elStatusTrVideo.innerHTML = iconOk();
                     }
 
-                    if (
-                        wrapTryCatch(
-                            () =>
-                                (commentsTrVideo as any)?.actions[0]?.updateEngagementPanelAction?.content
-                                    ?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.length > 0
-                        ) &&
-                        (elLiveApp.parentNode || elLiveApp.parentElement)
-                    ) {
-                        state = setCount(
-                            state,
-                            'commentsTrVideo',
-                            (commentsTrVideo as any).actions[0].updateEngagementPanelAction.content.transcriptRenderer
-                                .body.transcriptBodyRenderer.cueGroups.length
-                        );
+                    if (transcriptGroupCount > 0 && (elLiveApp.parentNode || elLiveApp.parentElement)) {
+                        state = setCount(state, 'commentsTrVideo', transcriptGroupCount);
                     }
 
                     // end tr. video

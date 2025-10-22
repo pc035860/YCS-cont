@@ -1,3 +1,5 @@
+import type { ChatItem, CommentItem, TranscriptData } from '../utils/interfaces/i_types';
+
 export interface CountBuckets {
     comments: number;
     commentsChat: number;
@@ -5,9 +7,9 @@ export interface CountBuckets {
 }
 
 export interface WebResourcesState {
-    comments: any[];
-    commentsChat: Map<number, any>;
-    commentsTrVideo?: any;
+    comments: CommentItem[];
+    commentsChat: Map<number, ChatItem>;
+    commentsTrVideo?: TranscriptData;
     count: CountBuckets;
     countSearch: CountBuckets;
     controller: AbortController;
@@ -24,7 +26,7 @@ function createCounts(): CountBuckets {
 export function createState(): WebResourcesState {
     return {
         comments: [],
-        commentsChat: new Map<number, any>(),
+        commentsChat: new Map<number, ChatItem>(),
         commentsTrVideo: undefined,
         count: createCounts(),
         countSearch: createCounts(),
@@ -34,11 +36,11 @@ export function createState(): WebResourcesState {
 
 export type CountKey = keyof CountBuckets;
 
-export function getComments(state: WebResourcesState): any[] {
+export function getComments(state: WebResourcesState): CommentItem[] {
     return state.comments;
 }
 
-export function setComments(state: WebResourcesState, comments: any[]): WebResourcesState {
+export function setComments(state: WebResourcesState, comments: CommentItem[]): WebResourcesState {
     return {
         ...state,
         comments
@@ -49,11 +51,11 @@ export function clearComments(state: WebResourcesState): WebResourcesState {
     return setComments(state, []);
 }
 
-export function getCommentsChat(state: WebResourcesState): Map<number, any> {
+export function getCommentsChat(state: WebResourcesState): Map<number, ChatItem> {
     return state.commentsChat;
 }
 
-export function setCommentsChat(state: WebResourcesState, commentsChat: Map<number, any>): WebResourcesState {
+export function setCommentsChat(state: WebResourcesState, commentsChat: Map<number, ChatItem>): WebResourcesState {
     return {
         ...state,
         commentsChat
@@ -61,14 +63,14 @@ export function setCommentsChat(state: WebResourcesState, commentsChat: Map<numb
 }
 
 export function clearCommentsChat(state: WebResourcesState): WebResourcesState {
-    return setCommentsChat(state, new Map<number, any>());
+    return setCommentsChat(state, new Map<number, ChatItem>());
 }
 
-export function getCommentsTrVideo(state: WebResourcesState): any | undefined {
+export function getCommentsTrVideo(state: WebResourcesState): TranscriptData | undefined {
     return state.commentsTrVideo;
 }
 
-export function setCommentsTrVideo(state: WebResourcesState, transcript?: any): WebResourcesState {
+export function setCommentsTrVideo(state: WebResourcesState, transcript?: TranscriptData): WebResourcesState {
     return {
         ...state,
         commentsTrVideo: transcript

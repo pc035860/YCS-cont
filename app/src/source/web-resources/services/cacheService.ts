@@ -1,4 +1,5 @@
 import { sendGetCacheInIDB, setCacheToIDB, sendMsgToBadge } from '../../utils/dom';
+import type { CommentItem, TranscriptData } from '../../utils/interfaces/i_types';
 
 interface CacheMeta {
     url: string;
@@ -6,9 +7,9 @@ interface CacheMeta {
 }
 
 interface CacheData {
-    comments: any[];
+    comments: CommentItem[];
     commentsChat: string;
-    commentsTrVideo: unknown;
+    commentsTrVideo?: TranscriptData;
     channelId?: string | null;
 }
 
