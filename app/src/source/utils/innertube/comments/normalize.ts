@@ -106,7 +106,7 @@ function getCommentViewModel(source: unknown): CommentViewModel | undefined {
 }
 
 /**
- * 搜尋並回傳所有可能的 runs 候選陣列。
+ * Locate every array that might represent comment runs.
  */
 export function scanForRuns(viewModel: CommentViewModel): RunCandidate[] {
     const preferredMatches = (preferredRunScanner(viewModel) as unknown[]).filter(isRunElementArray) as RunCandidate[];
@@ -123,7 +123,7 @@ export function scanForRuns(viewModel: CommentViewModel): RunCandidate[] {
 }
 
 /**
- * 由 ViewModel 擷取最符合預期的 runs 候選陣列。
+ * Select the run array that best matches the expected view model shape.
  */
 export function extractRunCandidates(viewModel: CommentViewModel): CommentElement[] {
     const candidates = scanForRuns(viewModel);
@@ -133,7 +133,7 @@ export function extractRunCandidates(viewModel: CommentViewModel): CommentElemen
 }
 
 /**
- * 將單一元素映射為 commentRenderer 的 run 片段。
+ * Map a single element into a legacy commentRenderer run fragment.
  */
 export function mapElementToRun(element: CommentElement): CommentRun | undefined {
     const directText = safeString(() => (element as any).text ?? (element as any).simpleText);
@@ -173,7 +173,7 @@ export function mapElementToRun(element: CommentElement): CommentRun | undefined
 }
 
 /**
- * 遞迴蒐集元素及其巢狀內容轉換而成的 runs。
+ * Recursively collect runs from the provided elements and their nested segments.
  */
 export function collectRuns(elements: CommentElement[]): CommentRun[] {
     return elements.reduce<CommentRun[]>((accumulator, element) => {
@@ -192,7 +192,7 @@ export function collectRuns(elements: CommentElement[]): CommentRun[] {
 }
 
 /**
- * 將任意物件（含 commentThreadRenderer）正規化為 commentRenderer 結構。
+ * Normalize any object (including commentThreadRenderer wrappers) into a commentRenderer structure.
  */
 export function normalizeCommentViewModel(source: unknown): NormalizedCommentRenderer | undefined {
     const viewModel = getCommentViewModel(source);

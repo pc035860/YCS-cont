@@ -14,7 +14,7 @@ export interface GetParams {
 }
 
 /**
- * 單一 run 片段的標準化資料結構。
+ * Normalized representation for a single comment run fragment.
  */
 export interface NavigationWatchEndpoint {
     videoId?: string;
@@ -98,7 +98,7 @@ export interface CommentRendererData {
 }
 
 /**
- * 由 commentViewModel 轉換而來的 commentRenderer 介面。
+ * commentRenderer shape derived from a commentViewModel instance.
  */
 export interface NormalizedCommentRenderer {
     commentRenderer: CommentRendererData;
