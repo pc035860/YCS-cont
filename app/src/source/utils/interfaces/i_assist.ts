@@ -1,16 +1,15 @@
+export interface InnertubeRequestParams extends RequestInit {
+    headers: Record<string, string>;
+    referrer: string;
+    referrerPolicy: ReferrerPolicy;
+    body?: string;
+}
+
 export interface GetParams {
     ctoken: string | null;
     continuation: string | null;
     itct: string | null;
-    params: {
-        credentials: string;
-        headers: object;
-        referrer: string;
-        referrerPolicy: string;
-        body: string;
-        method: string;
-        mode: string;
-    };
+    params: InnertubeRequestParams;
 }
 
 /**
