@@ -13,6 +13,99 @@ export interface GetParams {
     };
 }
 
+/**
+ * Normalized representation for a single comment run fragment.
+ */
+export interface NavigationWatchEndpoint {
+    videoId?: string;
+    startTimeSeconds?: string;
+}
+
+export interface NavigationBrowseEndpoint {
+    canonicalBaseUrl?: string;
+}
+
+export interface NavigationUrlEndpoint {
+    url?: string;
+}
+
+export interface NavigationCommandMetadata {
+    webCommandMetadata?: {
+        url?: string;
+    };
+}
+
+export interface NavigationEndpoint {
+    watchEndpoint?: NavigationWatchEndpoint;
+    browseEndpoint?: NavigationBrowseEndpoint;
+    urlEndpoint?: NavigationUrlEndpoint;
+    commandMetadata?: NavigationCommandMetadata;
+    [key: string]: unknown;
+}
+
+export interface EmojiImageThumbnail {
+    url?: string;
+    width?: number;
+    height?: number;
+}
+
+export interface EmojiImage {
+    thumbnails?: EmojiImageThumbnail[];
+}
+
+export interface EmojiData {
+    image?: EmojiImage;
+    shortcuts?: string[];
+    [key: string]: unknown;
+}
+
+export interface AttachmentImageMargin {
+    left?: number;
+    right?: number;
+}
+
+export interface AttachmentImage {
+    url?: string;
+    width?: number;
+    height?: number;
+    margin?: AttachmentImageMargin;
+}
+
+export interface AttachmentData {
+    image?: AttachmentImage;
+    [key: string]: unknown;
+}
+
+export interface CommentRun {
+    text?: string;
+    emoji?: EmojiData;
+    attachment?: AttachmentData;
+    navigationEndpoint?: NavigationEndpoint;
+    [key: string]: unknown;
+}
+
+export interface CommentRendererContentText {
+    runs: CommentRun[];
+    fullText?: string;
+    renderFullText?: string;
+    [key: string]: unknown;
+}
+
+export interface CommentRendererData {
+    contentText: CommentRendererContentText;
+    isTimeLine?: string;
+    [key: string]: unknown;
+}
+
+/**
+ * commentRenderer shape derived from a commentViewModel instance.
+ */
+export interface NormalizedCommentRenderer {
+    commentRenderer: CommentRendererData;
+    typeComment?: string;
+    [key: string]: unknown;
+}
+
 export interface ISheetDetails {
     'Cache timestamp': number;
     URL: string;

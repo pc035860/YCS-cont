@@ -1,4 +1,3 @@
-// @ts-expect-error [No have types]
 import objectScan from 'object-scan';
 import Queue from 'p-queue';
 
@@ -11,6 +10,7 @@ import { buildInnertubeBody, buildInnertubeHeaders } from './innertube/request';
 import { processLiveChatActions } from './innertube/chat/liveChat';
 import { processReplayBatch } from './innertube/chat/replayChat';
 import type { ChatProcessingContext } from './innertube/chat/utils';
+import { normalizeCommentViewModel } from './innertube/comments/normalize';
 
 async function findInitYParams(initData: [object]): Promise<string | undefined> {
     try {
@@ -132,138 +132,6 @@ async function getParams(w: Window & typeof globalThis, signal?: AbortSignal): P
             mode: 'cors'
         }
     };
-}
-
-function normalizeCommentFromViewModel(item: any): any | undefined {
-    try {
-        const commentVM =
-            wrapTryCatch(() => item.commentThreadRenderer.commentViewModel) ||
-            wrapTryCatch(() => item.commentViewModel);
-        if (!commentVM) return undefined;
-
-        const candidates = [] as any[];
-        const preferredPaths = [
-            '**.commentContentViewModel.content',
-            '**.attributedText.content',
-            '**.content.content',
-            '**.content',
-            '**.commentContentViewModel.content.runs',
-            '**.attributedText.runs',
-            '**.content.runs',
-            '**.content.content.runs',
-            '**.textContent.runs',
-            '**.body.runs',
-            '**.commentText.runs',
-            '**.contentText.runs',
-            '**.runs'
-        ];
-        for (const p of preferredPaths) {
-            const arrs = objectScan([p], { joined: true, rtn: 'value' })(commentVM) as any[];
-            for (const arr of arrs) {
-                if (Array.isArray(arr)) candidates.push(arr);
-            }
-            if (candidates.length > 0) break;
-        }
-
-        if (candidates.length === 0) {
-            const anyArrays = objectScan(['**.*'], { rtn: 'value' })(commentVM) as any[];
-            for (const v of anyArrays) {
-                if (
-                    Array.isArray(v) &&
-                    v.length > 0 &&
-                    v.some(
-                        (r: any) =>
-                            typeof r === 'object' &&
-                            (wrapTryCatch(() => r.text) ||
-                                wrapTryCatch(() => r.emoji) ||
-                                wrapTryCatch(() => r.attachment) ||
-                                wrapTryCatch(() => r.navigationEndpoint))
-                    )
-                ) {
-                    candidates.push(v);
-                    break;
-                }
-            }
-        }
-
-        const runsLike = (candidates.find((a) => a && Array.isArray(a) && a.some((r: any) => typeof r === 'object')) ||
-            []) as any[];
-
-        const mapElementToRun = (elem: any): any | undefined => {
-            try {
-                if (!elem || typeof elem !== 'object') return undefined;
-                const text = wrapTryCatch(() => elem.text) || wrapTryCatch(() => elem.simpleText);
-                if (typeof text === 'string') {
-                    return { text, navigationEndpoint: wrapTryCatch(() => elem.navigationEndpoint) };
-                }
-                const textRunContent =
-                    wrapTryCatch(() => elem.textRun.content) || wrapTryCatch(() => elem.textRun.text);
-                if (typeof textRunContent === 'string') {
-                    return {
-                        text: textRunContent,
-                        navigationEndpoint: wrapTryCatch(() => elem.textRun.navigationEndpoint)
-                    };
-                }
-                const nestedText =
-                    wrapTryCatch(() => elem.content) ||
-                    wrapTryCatch(() => elem.string) ||
-                    wrapTryCatch(() => elem.value);
-                if (typeof nestedText === 'string') {
-                    return { text: nestedText };
-                }
-                const emoji = wrapTryCatch(() => elem.emoji) || wrapTryCatch(() => elem.emojiRun.emoji);
-                if (emoji) {
-                    return { emoji };
-                }
-                const attachment =
-                    wrapTryCatch(() => elem.attachment) ||
-                    wrapTryCatch(() => elem.image) ||
-                    wrapTryCatch(() => elem.inlineObject);
-                if (attachment) {
-                    return { attachment };
-                }
-                return undefined;
-            } catch {
-                return undefined;
-            }
-        };
-
-        const collectRunsFromElements = (elements: any[]): any[] => {
-            const acc: any[] = [];
-            for (const elem of elements) {
-                const mapped = mapElementToRun(elem);
-                if (mapped) acc.push(mapped);
-                const nestedSegs =
-                    wrapTryCatch(() => elem.attributedText?.content) ||
-                    wrapTryCatch(() => elem.content?.content) ||
-                    wrapTryCatch(() => elem.content);
-                if (Array.isArray(nestedSegs) && nestedSegs.length > 0) {
-                    acc.push(...collectRunsFromElements(nestedSegs));
-                }
-            }
-            return acc;
-        };
-
-        let runs = collectRunsFromElements(runsLike).filter((x: any) => !!x);
-
-        if (!runs || runs.length === 0) {
-            const parts: any[] = [];
-            const textValues = objectScan(['**.simpleText', '**.text', '**.content'], { joined: true, rtn: 'value' })(
-                commentVM
-            ) as any[];
-            for (const t of textValues) {
-                if (typeof t === 'string' && t.trim().length > 0) {
-                    parts.push({ text: t });
-                }
-            }
-            if (parts.length > 0) runs = parts;
-        }
-
-        return { commentRenderer: { contentText: { runs: runs || [] } } };
-    } catch (e) {
-        console.error(e);
-        return undefined;
-    }
 }
 
 function getFrameworkUpdatesById(response: any): Record<string, any> {
@@ -1725,7 +1593,7 @@ async function getAllCommentsModeV2(
                     (wrapTryCatch(() => c.commentThreadRenderer.commentViewModel) ||
                         wrapTryCatch(() => c.commentViewModel))
                 ) {
-                    const normalizedEarly = normalizeCommentFromViewModel(c);
+                    const normalizedEarly = normalizeCommentViewModel(c);
                     if (normalizedEarly) {
                         c.commentThreadRenderer.comment = normalizedEarly;
                         try {
@@ -1817,58 +1685,61 @@ async function getAllCommentsModeV2(
                     wrapTryCatch(() => c.commentThreadRenderer?.commentViewModel) ||
                     wrapTryCatch(() => c.commentViewModel)
                 ) {
-                    const normalized = normalizeCommentFromViewModel(c);
+                    const normalized = normalizeCommentViewModel(c);
                     if (normalized && normalized.commentRenderer?.contentText?.runs) {
                         let fullTextComment = '';
                         let renderFullTextComment = '';
 
-                        const contentText = normalized.commentRenderer.contentText.runs || [];
+                        const contentText = normalized.commentRenderer.contentText?.runs ?? [];
                         for (const partTextComment of contentText) {
-                            fullTextComment += partTextComment?.text || '';
+                            const text = partTextComment?.text ?? '';
+                            fullTextComment += text;
                             try {
-                                if (
-                                    parseInt(partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) >= 0
-                                ) {
-                                    const currentVideoId = (getVideoId(window.location.href) || '') as string;
-                                    const linkVideoId = (wrapTryCatch(
-                                        () => partTextComment?.navigationEndpoint?.watchEndpoint?.videoId
-                                    ) || '') as string;
-                                    const isSameVideo = String(linkVideoId || '') === String(currentVideoId || '');
+                                const navigationEndpoint = partTextComment?.navigationEndpoint;
+                                const watchEndpoint = navigationEndpoint?.watchEndpoint;
+                                const startTimeSeconds = watchEndpoint?.startTimeSeconds;
+                                const startTimeValue =
+                                    typeof startTimeSeconds === 'string' ? parseInt(startTimeSeconds, 10) : Number.NaN;
 
-                                    renderFullTextComment += `<a class="ycs-cpointer ycs-goto-comment-time" href="https://www.youtube.com/watch?v=${linkVideoId}&t=${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}s" data-offsetvideo="${partTextComment?.navigationEndpoint?.watchEndpoint?.startTimeSeconds}" data-video-id="${linkVideoId}">${partTextComment?.text || ''}</a>`;
-                                    try {
-                                        if (isSameVideo) normalized.commentRenderer.isTimeLine = 'timeline';
-                                    } catch {
-                                        // If timeline property setting fails, continue processing
+                                if (!Number.isNaN(startTimeValue) && startTimeValue >= 0) {
+                                    const currentVideoId = String(getVideoId(window.location.href) || '');
+                                    const linkVideoId = watchEndpoint?.videoId ?? '';
+                                    const isSameVideo = linkVideoId === currentVideoId;
+                                    const timeParam = startTimeSeconds ?? String(startTimeValue);
+
+                                    renderFullTextComment += `<a class="ycs-cpointer ycs-goto-comment-time" href="https://www.youtube.com/watch?v=${linkVideoId}&t=${timeParam}s" data-offsetvideo="${timeParam}" data-video-id="${linkVideoId}">${text}</a>`;
+                                    if (isSameVideo) {
+                                        normalized.commentRenderer.isTimeLine = 'timeline';
                                     }
-                                } else if (partTextComment?.navigationEndpoint) {
-                                    renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${partTextComment?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl || partTextComment?.navigationEndpoint?.urlEndpoint?.url || partTextComment?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || partTextComment?.text || '#'}" target="_blank">${partTextComment?.text || ''}</a>`;
-                                } else if (wrapTryCatch(() => (partTextComment as any).emoji)) {
-                                    const url =
-                                        wrapTryCatch(() => {
-                                            const thumbnails = (partTextComment as any).emoji.image.thumbnails;
-                                            return thumbnails[thumbnails.length - 1].url;
-                                        }) || '';
-                                    const alt =
-                                        (wrapTryCatch(() => (partTextComment as any).emoji.shortcuts?.[0]) as string) ||
-                                        '';
-                                    const style = `margin-left: 2px; margin-right: 2px;`;
+                                } else if (navigationEndpoint) {
+                                    const href =
+                                        navigationEndpoint.browseEndpoint?.canonicalBaseUrl ??
+                                        navigationEndpoint.urlEndpoint?.url ??
+                                        navigationEndpoint.commandMetadata?.webCommandMetadata?.url ??
+                                        (text || '#');
+
+                                    renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${href}" target="_blank">${text}</a>`;
+                                } else if (partTextComment?.emoji) {
+                                    const thumbnails = partTextComment.emoji.image?.thumbnails ?? [];
+                                    const url = thumbnails[thumbnails.length - 1]?.url ?? '';
+                                    const alt = partTextComment.emoji.shortcuts?.[0] ?? '';
+                                    const style = 'margin-left: 2px; margin-right: 2px;';
                                     renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
-                                } else if (wrapTryCatch(() => (partTextComment as any).attachment?.image)) {
-                                    const image: any = wrapTryCatch(() => (partTextComment as any).attachment.image);
-                                    const url = image?.url || '';
-                                    const width = image?.width || 24;
-                                    const height = image?.height || 24;
-                                    const margin = image?.margin || { left: 0, right: 0 };
-                                    const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
-                                    const alt = (partTextComment as any)?.text || '';
+                                } else if (partTextComment?.attachment?.image) {
+                                    const image = partTextComment.attachment.image;
+                                    const url = image.url ?? '';
+                                    const width = image.width ?? 24;
+                                    const height = image.height ?? 24;
+                                    const margin = image.margin ?? { left: 0, right: 0 };
+                                    const style = `margin-left: ${margin.left ?? 0}px; margin-right: ${margin.right ?? 0}px;`;
+                                    const alt = text;
                                     renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
                                 } else {
-                                    renderFullTextComment += partTextComment?.text || '';
+                                    renderFullTextComment += text;
                                 }
                             } catch (e) {
                                 console.error(e);
-                                renderFullTextComment += partTextComment?.text || '';
+                                renderFullTextComment += text;
                                 continue;
                             }
                         }
@@ -1926,7 +1797,7 @@ async function getAllCommentsModeV2(
                                 const replies: any = repliesContainer || [];
                                 for (let comment of replies) {
                                     if (!comment?.commentRenderer) {
-                                        const norm = normalizeCommentFromViewModel(comment);
+                                        const norm = normalizeCommentViewModel(comment);
                                         if (norm && norm.commentRenderer) comment = norm;
                                     }
                                     if (!comment?.commentRenderer) continue;
@@ -2077,7 +1948,7 @@ async function getAllCommentsModeV2(
                                     const replies: any = moreReplies;
                                     for (let comment of replies) {
                                         if (!comment?.commentRenderer) {
-                                            const norm = normalizeCommentFromViewModel(comment);
+                                            const norm = normalizeCommentViewModel(comment);
                                             if (norm && norm.commentRenderer) comment = norm;
                                         }
                                         if (!comment?.commentRenderer) continue;
