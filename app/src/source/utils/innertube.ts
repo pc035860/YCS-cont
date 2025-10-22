@@ -11,6 +11,7 @@ import { buildInnertubeBody, buildInnertubeHeaders } from './innertube/request';
 import { processLiveChatActions } from './innertube/chat/liveChat';
 import { processReplayBatch } from './innertube/chat/replayChat';
 import type { ChatProcessingContext } from './innertube/chat/utils';
+import { normalizeCommentViewModel } from './innertube/comments/normalize';
 
 async function findInitYParams(initData: [object]): Promise<string | undefined> {
     try {
@@ -132,138 +133,6 @@ async function getParams(w: Window & typeof globalThis, signal?: AbortSignal): P
             mode: 'cors'
         }
     };
-}
-
-function normalizeCommentFromViewModel(item: any): any | undefined {
-    try {
-        const commentVM =
-            wrapTryCatch(() => item.commentThreadRenderer.commentViewModel) ||
-            wrapTryCatch(() => item.commentViewModel);
-        if (!commentVM) return undefined;
-
-        const candidates = [] as any[];
-        const preferredPaths = [
-            '**.commentContentViewModel.content',
-            '**.attributedText.content',
-            '**.content.content',
-            '**.content',
-            '**.commentContentViewModel.content.runs',
-            '**.attributedText.runs',
-            '**.content.runs',
-            '**.content.content.runs',
-            '**.textContent.runs',
-            '**.body.runs',
-            '**.commentText.runs',
-            '**.contentText.runs',
-            '**.runs'
-        ];
-        for (const p of preferredPaths) {
-            const arrs = objectScan([p], { joined: true, rtn: 'value' })(commentVM) as any[];
-            for (const arr of arrs) {
-                if (Array.isArray(arr)) candidates.push(arr);
-            }
-            if (candidates.length > 0) break;
-        }
-
-        if (candidates.length === 0) {
-            const anyArrays = objectScan(['**.*'], { rtn: 'value' })(commentVM) as any[];
-            for (const v of anyArrays) {
-                if (
-                    Array.isArray(v) &&
-                    v.length > 0 &&
-                    v.some(
-                        (r: any) =>
-                            typeof r === 'object' &&
-                            (wrapTryCatch(() => r.text) ||
-                                wrapTryCatch(() => r.emoji) ||
-                                wrapTryCatch(() => r.attachment) ||
-                                wrapTryCatch(() => r.navigationEndpoint))
-                    )
-                ) {
-                    candidates.push(v);
-                    break;
-                }
-            }
-        }
-
-        const runsLike = (candidates.find((a) => a && Array.isArray(a) && a.some((r: any) => typeof r === 'object')) ||
-            []) as any[];
-
-        const mapElementToRun = (elem: any): any | undefined => {
-            try {
-                if (!elem || typeof elem !== 'object') return undefined;
-                const text = wrapTryCatch(() => elem.text) || wrapTryCatch(() => elem.simpleText);
-                if (typeof text === 'string') {
-                    return { text, navigationEndpoint: wrapTryCatch(() => elem.navigationEndpoint) };
-                }
-                const textRunContent =
-                    wrapTryCatch(() => elem.textRun.content) || wrapTryCatch(() => elem.textRun.text);
-                if (typeof textRunContent === 'string') {
-                    return {
-                        text: textRunContent,
-                        navigationEndpoint: wrapTryCatch(() => elem.textRun.navigationEndpoint)
-                    };
-                }
-                const nestedText =
-                    wrapTryCatch(() => elem.content) ||
-                    wrapTryCatch(() => elem.string) ||
-                    wrapTryCatch(() => elem.value);
-                if (typeof nestedText === 'string') {
-                    return { text: nestedText };
-                }
-                const emoji = wrapTryCatch(() => elem.emoji) || wrapTryCatch(() => elem.emojiRun.emoji);
-                if (emoji) {
-                    return { emoji };
-                }
-                const attachment =
-                    wrapTryCatch(() => elem.attachment) ||
-                    wrapTryCatch(() => elem.image) ||
-                    wrapTryCatch(() => elem.inlineObject);
-                if (attachment) {
-                    return { attachment };
-                }
-                return undefined;
-            } catch {
-                return undefined;
-            }
-        };
-
-        const collectRunsFromElements = (elements: any[]): any[] => {
-            const acc: any[] = [];
-            for (const elem of elements) {
-                const mapped = mapElementToRun(elem);
-                if (mapped) acc.push(mapped);
-                const nestedSegs =
-                    wrapTryCatch(() => elem.attributedText?.content) ||
-                    wrapTryCatch(() => elem.content?.content) ||
-                    wrapTryCatch(() => elem.content);
-                if (Array.isArray(nestedSegs) && nestedSegs.length > 0) {
-                    acc.push(...collectRunsFromElements(nestedSegs));
-                }
-            }
-            return acc;
-        };
-
-        let runs = collectRunsFromElements(runsLike).filter((x: any) => !!x);
-
-        if (!runs || runs.length === 0) {
-            const parts: any[] = [];
-            const textValues = objectScan(['**.simpleText', '**.text', '**.content'], { joined: true, rtn: 'value' })(
-                commentVM
-            ) as any[];
-            for (const t of textValues) {
-                if (typeof t === 'string' && t.trim().length > 0) {
-                    parts.push({ text: t });
-                }
-            }
-            if (parts.length > 0) runs = parts;
-        }
-
-        return { commentRenderer: { contentText: { runs: runs || [] } } };
-    } catch (e) {
-        console.error(e);
-        return undefined;
-    }
 }
 
 function getFrameworkUpdatesById(response: any): Record<string, any> {
@@ -1725,7 +1594,7 @@ async function getAllCommentsModeV2(
                     (wrapTryCatch(() => c.commentThreadRenderer.commentViewModel) ||
                         wrapTryCatch(() => c.commentViewModel))
                 ) {
-                    const normalizedEarly = normalizeCommentFromViewModel(c);
+                    const normalizedEarly = normalizeCommentViewModel(c);
                     if (normalizedEarly) {
                         c.commentThreadRenderer.comment = normalizedEarly;
                         try {
@@ -1817,7 +1686,7 @@ async function getAllCommentsModeV2(
                     wrapTryCatch(() => c.commentThreadRenderer?.commentViewModel) ||
                     wrapTryCatch(() => c.commentViewModel)
                 ) {
-                    const normalized = normalizeCommentFromViewModel(c);
+                    const normalized = normalizeCommentViewModel(c);
                     if (normalized && normalized.commentRenderer?.contentText?.runs) {
                         let fullTextComment = '';
                         let renderFullTextComment = '';
@@ -1926,7 +1795,7 @@ async function getAllCommentsModeV2(
                                 const replies: any = repliesContainer || [];
                                 for (let comment of replies) {
                                     if (!comment?.commentRenderer) {
-                                        const norm = normalizeCommentFromViewModel(comment);
+                                        const norm = normalizeCommentViewModel(comment);
                                         if (norm && norm.commentRenderer) comment = norm;
                                     }
                                     if (!comment?.commentRenderer) continue;
@@ -2077,7 +1946,7 @@ async function getAllCommentsModeV2(
                                     const replies: any = moreReplies;
                                     for (let comment of replies) {
                                         if (!comment?.commentRenderer) {
-                                            const norm = normalizeCommentFromViewModel(comment);
+                                            const norm = normalizeCommentViewModel(comment);
                                             if (norm && norm.commentRenderer) comment = norm;
                                         }
                                         if (!comment?.commentRenderer) continue;

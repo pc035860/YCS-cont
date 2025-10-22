@@ -13,6 +13,27 @@ export interface GetParams {
     };
 }
 
+/**
+ * 單一 run 片段的標準化資料結構。
+ */
+export interface CommentRun {
+    text?: string;
+    emoji?: Record<string, unknown>;
+    attachment?: Record<string, unknown>;
+    navigationEndpoint?: Record<string, unknown>;
+}
+
+/**
+ * 由 commentViewModel 轉換而來的 commentRenderer 介面。
+ */
+export interface NormalizedCommentRenderer {
+    commentRenderer: {
+        contentText: {
+            runs: CommentRun[];
+        };
+    };
+}
+
 export interface ISheetDetails {
     'Cache timestamp': number;
     URL: string;
