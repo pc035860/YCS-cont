@@ -666,15 +666,37 @@ export function prepareFieldsComment(cmnt: any): object {
         if (wrapTryCatch(() => cmnt.commentRenderer?.actionButtons?.commentActionButtonsRenderer?.creatorHeart)) {
             try {
                 cmnt.commentRenderer.creatorHeart = {
-                    tooltip: wrapTryCatch(
-                        () =>
-                            cmnt.commentRenderer.actionButtons.commentActionButtonsRenderer.creatorHeart
-                                .creatorHeartRenderer.heartIcon.tooltip
-                    )
+                    tooltip:
+                        wrapTryCatch(
+                            () =>
+                                cmnt.commentRenderer.actionButtons.commentActionButtonsRenderer.creatorHeart
+                                    .creatorHeartRenderer.heartIcon.tooltip
+                        ) ||
+                        wrapTryCatch(
+                            () =>
+                                cmnt.commentRenderer.actionButtons.commentActionButtonsRenderer.creatorHeart
+                                    .creatorHeartRenderer.creatorThumbnail.accessibility.accessibilityData.label
+                        )
                 };
             } catch (err) {
                 console.error(err);
             }
+        }
+
+        // Extract verified status from authorCommentBadge before deletion (legacy format fallback)
+        if (
+            wrapTryCatch(() => {
+                const iconType =
+                    cmnt.commentRenderer.authorCommentBadge?.authorCommentBadgeRenderer?.icon?.iconType || '';
+                return iconType.indexOf('CHECK') >= 0 || iconType.indexOf('OFFICIAL_ARTIST_BADGE') >= 0;
+            }) ||
+            wrapTryCatch(() => {
+                const tooltip = cmnt.commentRenderer.authorCommentBadge?.authorCommentBadgeRenderer?.iconTooltip || '';
+                const lowerTooltip = typeof tooltip === 'string' ? tooltip.toLowerCase() : '';
+                return lowerTooltip.includes('verified') || lowerTooltip.includes('official');
+            })
+        ) {
+            cmnt.commentRenderer.verifiedAuthor = true;
         }
 
         wrapTryCatch(() => delete cmnt.commentRenderer.actionButtons);
@@ -690,6 +712,10 @@ export function prepareFieldsComment(cmnt: any): object {
         wrapTryCatch(() => delete cmnt.commentRenderer.sharedWith);
         wrapTryCatch(() => delete cmnt.commentRenderer.voteState);
         wrapTryCatch(() => delete cmnt.commentRenderer.actionMenu);
+        wrapTryCatch(() => delete cmnt.commentRenderer.loggingDirectives);
+        wrapTryCatch(() => delete cmnt.commentRenderer.voteStatus);
+        wrapTryCatch(() => delete cmnt.commentRenderer.trackingParams);
+        wrapTryCatch(() => delete cmnt.commentRenderer.isLiked);
 
         wrapTryCatch(() => delete cmnt.commentRenderer.analyticsTrackingParams);
 
@@ -697,11 +723,17 @@ export function prepareFieldsComment(cmnt: any): object {
         wrapTryCatch(() => delete cmnt.commentRenderer.authorText.accessibility);
         wrapTryCatch(() => delete cmnt.commentRenderer.authorText.runs[0].navigationEndpoint);
 
-        wrapTryCatch(() => delete cmnt.commentRenderer.authorCommentBadge.renderer.type);
+        wrapTryCatch(() => delete cmnt.commentRenderer.authorCommentBadge);
 
         wrapTryCatch(() => delete cmnt.commentRenderer.authorThumbnail.thumbnails[0].width);
         wrapTryCatch(() => delete cmnt.commentRenderer.authorThumbnail.thumbnails[0].height);
         wrapTryCatch(() => delete cmnt.commentRenderer.authorThumbnail.thumbnails[0].thumbnail);
+        wrapTryCatch(() => delete cmnt.commentRenderer.authorThumbnail.accessibility);
+        wrapTryCatch(() => {
+            if (cmnt.commentRenderer.authorThumbnail.thumbnails.length > 1) {
+                cmnt.commentRenderer.authorThumbnail.thumbnails.length = 1;
+            }
+        });
 
         wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.clickTrackingParams);
         wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.commandMetadata);
@@ -710,11 +742,6 @@ export function prepareFieldsComment(cmnt: any): object {
 
         wrapTryCatch(() => delete cmnt.commentRenderer.commentSimpleboxEndpoint);
         wrapTryCatch(() => delete cmnt.commentRenderer.commentActionButtonsRenderer);
-
-        wrapTryCatch(() => delete cmnt.commentRenderer.commentSimpleboxEndpoint);
-        wrapTryCatch(() => delete cmnt.commentRenderer.commentActionButtonsRenderer);
-
-        wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.commandMetadata);
 
         wrapTryCatch(
             () =>
@@ -726,13 +753,9 @@ export function prepareFieldsComment(cmnt: any): object {
             () => delete cmnt.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.watchEndpoint.params
         );
 
-        wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.clickTrackingParams);
-
         wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.commandMetadata.webCommandMetadata.apiUrl);
         wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.commandMetadata.webCommandMetadata.rootVe);
         wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.commandMetadata.webCommandMetadata.webPageType);
-
-        wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.browseEndpoint.browseId);
 
         wrapTryCatch(
             () => delete cmnt.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.clickTrackingParams
