@@ -1172,7 +1172,7 @@ async function fetchCommentPage(
 
         if (!paramsCmnts) return undefined;
 
-        const response = await fetch(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, {
+        const response = await fetchR(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, {
             ...paramsCmnts,
             signal,
             cache: 'no-store'
