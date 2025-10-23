@@ -42,6 +42,99 @@ export interface ScheduleReplyFetchParams {
     frameworkUpdatesResolver?: (response: any) => Record<string, any>;
 }
 
+export interface FormattedCommentContent {
+    fullText: string;
+    renderFullText: string;
+    isTimeline: boolean;
+}
+
+export function formatCommentRuns(runs: any[] | undefined, currentVideoId: string): FormattedCommentContent {
+    let fullTextComment = '';
+    let renderFullTextComment = '';
+    let isTimeline = false;
+
+    const safeRuns = Array.isArray(runs) ? runs : [];
+
+    for (const partTextComment of safeRuns) {
+        let text = '';
+        let navigationEndpoint: any;
+        try {
+            text =
+                (partTextComment as any)?.text ??
+                (partTextComment as any)?.simpleText ??
+                (wrapTryCatch(() => (partTextComment as any)?.textRun?.content) as string) ??
+                (wrapTryCatch(() => (partTextComment as any)?.textRun?.text) as string) ??
+                (wrapTryCatch(() => (partTextComment as any)?.content) as string) ??
+                '';
+            navigationEndpoint =
+                (partTextComment as any)?.navigationEndpoint ??
+                wrapTryCatch(() => (partTextComment as any)?.textRun?.navigationEndpoint);
+
+            fullTextComment += text || '';
+
+            const rawTimeValue = wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds);
+            const parsedTime =
+                typeof rawTimeValue === 'string' ? parseInt(rawTimeValue, 10) : (rawTimeValue as number | undefined);
+            if (Number.isFinite(parsedTime) && (parsedTime as number) >= 0) {
+                const linkVideoId = (wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.videoId) || '') as string;
+                const isSameVideo = String(linkVideoId || '') === String(currentVideoId || '');
+                const timeValue = rawTimeValue ?? parsedTime ?? '';
+                renderFullTextComment += `<a class="ycs-cpointer ycs-goto-comment-time" href="https://www.youtube.com/watch?v=${linkVideoId}&t=${timeValue}s" data-offsetvideo="${timeValue}" data-video-id="${linkVideoId}">${text || ''}</a>`;
+                if (isSameVideo) {
+                    isTimeline = true;
+                }
+            } else if (navigationEndpoint) {
+                const href = (wrapTryCatch(() => navigationEndpoint?.browseEndpoint?.canonicalBaseUrl) ||
+                    wrapTryCatch(() => navigationEndpoint?.urlEndpoint?.url) ||
+                    wrapTryCatch(() => navigationEndpoint?.commandMetadata?.webCommandMetadata?.url) ||
+                    text ||
+                    '#') as string;
+                renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${href}" target="_blank">${text || ''}</a>`;
+            } else if (wrapTryCatch(() => (partTextComment as any).emoji)) {
+                const url =
+                    wrapTryCatch(() => {
+                        const thumbnails = (partTextComment as any).emoji.image.thumbnails;
+                        return thumbnails[thumbnails.length - 1].url;
+                    }) || '';
+                const alt = (wrapTryCatch(() => (partTextComment as any).emoji.shortcuts?.[0]) as string) || '';
+                const style = `margin-left: 2px; margin-right: 2px;`;
+                renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
+            } else if (wrapTryCatch(() => (partTextComment as any).attachment?.image)) {
+                const image: any = wrapTryCatch(() => (partTextComment as any).attachment.image);
+                const url = image?.url || '';
+                const width = image?.width || 24;
+                const height = image?.height || 24;
+                const margin = image?.margin || { left: 0, right: 0 };
+                const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
+                const alt = text || '';
+                renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
+            } else {
+                renderFullTextComment += text || '';
+            }
+        } catch (e) {
+            console.error(e);
+            const fallbackText: string = ((): string => {
+                try {
+                    const t =
+                        (partTextComment as any)?.text ??
+                        (partTextComment as any)?.simpleText ??
+                        (wrapTryCatch(() => (partTextComment as any)?.textRun?.content) as string) ??
+                        (wrapTryCatch(() => (partTextComment as any)?.textRun?.text) as string) ??
+                        (wrapTryCatch(() => (partTextComment as any)?.content) as string) ??
+                        '';
+                    return typeof t === 'string' ? t : '';
+                } catch {
+                    return '';
+                }
+            })();
+            renderFullTextComment += fallbackText;
+            fullTextComment += fallbackText;
+        }
+    }
+
+    return { fullText: fullTextComment, renderFullText: renderFullTextComment, isTimeline };
+}
+
 export interface FetchInitialCommentBatchParams {
     windowRef: Window & typeof globalThis;
     signal?: AbortSignal;
@@ -333,6 +426,22 @@ export function generateCommentObjectFromFW(params: {
             }
         };
 
+        let currentVideoId = '';
+        if (typeof window !== 'undefined') {
+            try {
+                currentVideoId = String(getVideoId(window.location.href) || '');
+            } catch {
+                currentVideoId = '';
+            }
+        }
+        const formattedContent = formatCommentRuns(runs, currentVideoId);
+        comment.commentRenderer.contentText.fullText = formattedContent.fullText || baseText;
+        comment.commentRenderer.contentText.renderFullText =
+            formattedContent.renderFullText || formattedContent.fullText || baseText;
+        if (formattedContent.isTimeline) {
+            comment.commentRenderer.isTimeLine = 'timeline';
+        }
+
         const publishedTime = wrapTryCatch(() => update.properties?.publishedTime) || '';
         if (publishedTime) {
             comment.commentRenderer.publishedTimeText = {
@@ -342,25 +451,6 @@ export function generateCommentObjectFromFW(params: {
                     }
                 ]
             };
-        }
-
-        if (typeof window !== 'undefined') {
-            try {
-                const hasTimeline =
-                    Array.isArray(runs) &&
-                    runs.some((r: any) => {
-                        const vId = wrapTryCatch(() => r.navigationEndpoint.watchEndpoint.videoId) as any;
-                        const v = wrapTryCatch(() => r.navigationEndpoint.watchEndpoint.startTimeSeconds) as any;
-                        const n = typeof v === 'string' ? parseInt(v, 10) : v;
-                        const currentVideoId = (getVideoId(window.location.href) || '') as string;
-                        return Number.isFinite(n) && n >= 0 && String(vId || '') === String(currentVideoId || '');
-                    });
-                if (hasTimeline) {
-                    comment.commentRenderer.isTimeLine = 'timeline';
-                }
-            } catch {
-                // ignore timeline detection errors
-            }
         }
 
         if (surfaceUpdate) {
@@ -687,87 +777,21 @@ export function prepareFieldsComment(cmnt: any): object {
 function enrichCommentRenderer(comment: any, currentVideoId: string, originComment?: any, type: 'C' | 'R' = 'C'): any {
     if (!comment?.commentRenderer) return undefined;
 
-    const runs = comment.commentRenderer?.contentText?.runs || [];
-    let fullTextComment = '';
-    let renderFullTextComment = '';
-
-    for (const partTextComment of runs) {
-        let text = '';
-        let navigationEndpoint: any;
-        try {
-            text =
-                (partTextComment as any)?.text ??
-                (partTextComment as any)?.simpleText ??
-                (wrapTryCatch(() => (partTextComment as any)?.textRun?.content) as string) ??
-                (wrapTryCatch(() => (partTextComment as any)?.textRun?.text) as string) ??
-                (wrapTryCatch(() => (partTextComment as any)?.content) as string) ??
-                '';
-            navigationEndpoint =
-                (partTextComment as any)?.navigationEndpoint ??
-                wrapTryCatch(() => (partTextComment as any)?.textRun?.navigationEndpoint);
-
-            fullTextComment += text || '';
-
-            if (parseInt(wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds) as any) >= 0) {
-                const linkVideoId = (wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.videoId) || '') as string;
-                const isSameVideo = String(linkVideoId || '') === String(currentVideoId || '');
-                const timeValue = wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.startTimeSeconds) || '';
-                renderFullTextComment += `<a class="ycs-cpointer ycs-goto-comment-time" href="https://www.youtube.com/watch?v=${linkVideoId}&t=${timeValue}s" data-offsetvideo="${timeValue}" data-video-id="${linkVideoId}">${text || ''}</a>`;
-                if (isSameVideo && comment.commentRenderer) {
-                    comment.commentRenderer.isTimeLine = 'timeline';
-                }
-            } else if (navigationEndpoint) {
-                const href = (wrapTryCatch(() => navigationEndpoint?.browseEndpoint?.canonicalBaseUrl) ||
-                    wrapTryCatch(() => navigationEndpoint?.urlEndpoint?.url) ||
-                    wrapTryCatch(() => navigationEndpoint?.commandMetadata?.webCommandMetadata?.url) ||
-                    text ||
-                    '#') as string;
-                renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${href}" target="_blank">${text || ''}</a>`;
-            } else if (wrapTryCatch(() => (partTextComment as any).emoji)) {
-                const url =
-                    wrapTryCatch(() => {
-                        const thumbnails = (partTextComment as any).emoji.image.thumbnails;
-                        return thumbnails[thumbnails.length - 1].url;
-                    }) || '';
-                const alt = (wrapTryCatch(() => (partTextComment as any).emoji.shortcuts?.[0]) as string) || '';
-                const style = `margin-left: 2px; margin-right: 2px;`;
-                renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
-            } else if (wrapTryCatch(() => (partTextComment as any).attachment?.image)) {
-                const image: any = wrapTryCatch(() => (partTextComment as any).attachment.image);
-                const url = image?.url || '';
-                const width = image?.width || 24;
-                const height = image?.height || 24;
-                const margin = image?.margin || { left: 0, right: 0 };
-                const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
-                const alt = text || '';
-                renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
-            } else {
-                renderFullTextComment += text || '';
-            }
-        } catch (e) {
-            console.error(e);
-            const fallbackText: string = ((): string => {
-                try {
-                    const t =
-                        (partTextComment as any)?.text ??
-                        (partTextComment as any)?.simpleText ??
-                        (wrapTryCatch(() => (partTextComment as any)?.textRun?.content) as string) ??
-                        (wrapTryCatch(() => (partTextComment as any)?.textRun?.text) as string) ??
-                        (wrapTryCatch(() => (partTextComment as any)?.content) as string) ??
-                        '';
-                    return typeof t === 'string' ? t : '';
-                } catch {
-                    return '';
-                }
-            })();
-            renderFullTextComment += fallbackText;
-            fullTextComment += fallbackText;
+    try {
+        const contentText = comment.commentRenderer.contentText || {};
+        const runs = contentText?.runs || [];
+        const formatted = formatCommentRuns(runs, currentVideoId);
+        const existingFullText = (contentText as any).fullText || '';
+        const computedFullText = formatted.fullText || existingFullText || '';
+        contentText.fullText = computedFullText;
+        contentText.renderFullText =
+            formatted.renderFullText || (contentText as any).renderFullText || computedFullText;
+        comment.commentRenderer.contentText = contentText;
+        if (formatted.isTimeline) {
+            comment.commentRenderer.isTimeLine = 'timeline';
         }
-    }
-
-    if (comment.commentRenderer?.contentText) {
-        comment.commentRenderer.contentText.fullText = fullTextComment;
-        comment.commentRenderer.contentText.renderFullText = renderFullTextComment;
+    } catch (e) {
+        console.error(e);
     }
 
     comment.typeComment = type;
