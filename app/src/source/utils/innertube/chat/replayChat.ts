@@ -1,11 +1,6 @@
 import { wrapTryCatch } from '../../common';
-import {
-    ChatProcessingContext,
-    ensureTextMessageRenderer,
-    formatChatRuns,
-    markTimelineLinks,
-    prepareChatCommentFields
-} from './utils';
+import { ensureTextMessageRenderer, formatChatRuns, markTimelineLinks, prepareChatCommentFields } from './utils';
+import type { ChatProcessingContext } from './utils';
 
 /**
  * Process a batch of chat replay actions, align message fields, and store the

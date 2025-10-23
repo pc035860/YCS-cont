@@ -1,11 +1,6 @@
 import { wrapTryCatch } from '../../common';
-import {
-    ChatProcessingContext,
-    ensureTextMessageRenderer,
-    formatChatRuns,
-    markTimelineLinks,
-    prepareChatCommentFields
-} from './utils';
+import { ensureTextMessageRenderer, formatChatRuns, markTimelineLinks, prepareChatCommentFields } from './utils';
+import type { ChatProcessingContext } from './utils';
 
 /**
  * Process incoming live chat actions and normalize them into the shared map.
