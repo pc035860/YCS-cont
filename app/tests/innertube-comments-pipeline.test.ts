@@ -167,6 +167,97 @@ test('processParentComment collects replies and reply continuations', () => {
     });
 });
 
+test('processParentComment formats timeline links, external links, emojis, and attachments consistently', () => {
+    const runs = [
+        { text: 'See ' },
+        {
+            text: '1:23',
+            navigationEndpoint: {
+                watchEndpoint: {
+                    startTimeSeconds: 83,
+                    videoId: 'video-1'
+                }
+            }
+        },
+        { text: ' example ' },
+        {
+            text: 'docs',
+            navigationEndpoint: {
+                urlEndpoint: {
+                    url: 'https://example.com'
+                }
+            }
+        },
+        {
+            text: ' :smile:',
+            emoji: {
+                image: {
+                    thumbnails: [
+                        { url: 'https://example.com/smile-small.png' },
+                        { url: 'https://example.com/smile.png' }
+                    ]
+                },
+                shortcuts: [':smile:']
+            }
+        },
+        {
+            text: ' [img]',
+            attachment: {
+                image: {
+                    url: 'https://example.com/image.png',
+                    width: 48,
+                    height: 48,
+                    margin: { left: 1, right: 2 }
+                }
+            }
+        }
+    ];
+    const parentRuns = JSON.parse(JSON.stringify(runs));
+    const replyRuns = JSON.parse(JSON.stringify(runs));
+    const thread = createParentThread({
+        commentId: 'parent-format',
+        contentText: { runs: parentRuns }
+    });
+    thread.commentThreadRenderer.replies = {
+        commentRepliesRenderer: {
+            contents: [
+                {
+                    commentRenderer: {
+                        commentId: 'reply-format',
+                        contentText: { runs: replyRuns },
+                        publishedTimeText: { runs: [{ text: 'just now' }] }
+                    }
+                }
+            ]
+        }
+    };
+
+    const result = processParentComment({ item: thread, frameworkUpdates: {}, currentVideoId: 'video-1' });
+
+    const parent = result.comments.find((c: any) => c.typeComment === 'C') as any;
+    const reply = result.comments.find((c: any) => c.typeComment === 'R') as any;
+
+    assert.ok(parent);
+    assert.ok(reply);
+    assert.strictEqual(parent.commentRenderer.contentText.fullText, 'See 1:23 example docs :smile: [img]');
+    assert.strictEqual(parent.commentRenderer.contentText.fullText, reply.commentRenderer.contentText.fullText);
+    assert.strictEqual(
+        parent.commentRenderer.contentText.renderFullText,
+        reply.commentRenderer.contentText.renderFullText
+    );
+
+    const rendered = parent.commentRenderer.contentText.renderFullText;
+    assert.ok(rendered.includes('ycs-goto-comment-time'));
+    assert.ok(rendered.includes('href="https://www.youtube.com/watch?v=video-1&t=83s"'));
+    assert.ok(rendered.includes('data-video-id="video-1"'));
+    assert.ok(rendered.includes('ycs-comment-link'));
+    assert.ok(rendered.includes('href="https://example.com"'));
+    const attachmentMatches = rendered.match(/class="ycs-attachment"/g) || [];
+    assert.strictEqual(attachmentMatches.length, 2);
+    assert.strictEqual(parent.commentRenderer.isTimeLine, 'timeline');
+    assert.strictEqual(reply.commentRenderer.isTimeLine, 'timeline');
+});
+
 test('processParentComment applies framework updates for creator flag', () => {
     const thread = createParentThread();
     const frameworkUpdates = {
