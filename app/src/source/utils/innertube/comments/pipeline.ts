@@ -3,6 +3,7 @@ import Queue from 'p-queue';
 
 import { fetchR } from '../../libs';
 import { getCleanUrlVideo, getVideoId, wrapTryCatch } from '../../common';
+import { parseFormattedNumber } from '../../formatting';
 import { normalizeCommentViewModel } from './normalize';
 import { buildInnertubeBody, buildInnertubeHeaders } from '../request';
 import { getInnertubeApiKey, getPageCfgData } from '../core';
@@ -237,24 +238,19 @@ export function generateCommentObjectFromFW(params: {
                                 }
                             }
                         });
-                    } else if (browseEndpoint) {
+                    } else if (browseEndpoint || webUrl) {
+                        const canonicalBaseUrl = webUrl ? `https://www.youtube.com${webUrl}` : undefined;
                         rawRuns.push({
                             text,
                             startIndex,
                             length,
                             navigationEndpoint: {
+                                watchEndpoint: { startTimeSeconds: -1 },
                                 browseEndpoint: {
-                                    canonicalBaseUrl: wrapTryCatch(() => browseEndpoint.canonicalBaseUrl)
+                                    browseId: wrapTryCatch(() => browseEndpoint?.browseId),
+                                    canonicalBaseUrl:
+                                        wrapTryCatch(() => browseEndpoint?.canonicalBaseUrl) || canonicalBaseUrl
                                 }
-                            }
-                        });
-                    } else if (webUrl) {
-                        rawRuns.push({
-                            text,
-                            startIndex,
-                            length,
-                            navigationEndpoint: {
-                                commandMetadata: { webCommandMetadata: { url: webUrl } }
                             }
                         });
                     }
@@ -267,56 +263,157 @@ export function generateCommentObjectFromFW(params: {
             console.error(e);
         }
 
+        try {
+            const attachmentRuns = wrapTryCatch(() => propContent.attachmentRuns) || [];
+            for (const attachmentRun of attachmentRuns) {
+                try {
+                    const image = wrapTryCatch(() => attachmentRun.element.type.imageType.image);
+                    if (!image) continue;
+                    const startIndex = wrapTryCatch(() => attachmentRun.startIndex);
+                    const length = wrapTryCatch(() => attachmentRun.length);
+                    let text: string | undefined;
+                    if (typeof startIndex === 'number' && typeof length === 'number') {
+                        text = baseText.slice(startIndex, startIndex + length);
+                    }
+                    const imageSource = wrapTryCatch(() => image.sources[0]) || {};
+                    const imageMargin =
+                        wrapTryCatch(() => attachmentRun.element.properties.layoutProperties.margin) || {};
+                    rawRuns.push({
+                        text,
+                        startIndex,
+                        length,
+                        attachment: {
+                            image: {
+                                width: wrapTryCatch(() => imageSource.width),
+                                height: wrapTryCatch(() => imageSource.height),
+                                url: wrapTryCatch(() => imageSource.url),
+                                margin: {
+                                    left: wrapTryCatch(() => imageMargin.left.value) || 0,
+                                    right: wrapTryCatch(() => imageMargin.right.value) || 0
+                                }
+                            }
+                        }
+                    });
+                } catch (e) {
+                    console.error(e);
+                    continue;
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+
+        rawRuns.sort((a: any, b: any) => (a?.startIndex || 0) - (b?.startIndex || 0));
         const runs = migrateRuns(baseText, rawRuns);
 
-        const commentRenderer: any = {
-            commentId,
-            contentText: {
-                runs
-            },
-            publishedTimeText: {
-                runs: [
-                    {
-                        text: wrapTryCatch(() => update.properties.publishedTime) || ''
-                    }
-                ]
+        const author = wrapTryCatch(() => update.author) || {};
+        const likeCountLiked = wrapTryCatch(() => update.toolbar?.likeCountLiked);
+        let likeCount = 0;
+        try {
+            const parsed = parseFormattedNumber(likeCountLiked);
+            if (parsed.multiply === 1) {
+                likeCount = Math.max(0, parsed.number - 1);
+            } else {
+                likeCount = parsed.number;
+            }
+        } catch {
+            // ignore parse errors and keep default likeCount
+        }
+        const replyCount = parseFormattedNumber(wrapTryCatch(() => update.toolbar?.replyCount) || '0').number;
+
+        const comment: any = {
+            commentRenderer: {
+                commentId,
+                likeCount,
+                replyCount,
+                authorText: { simpleText: wrapTryCatch(() => author.displayName) },
+                authorThumbnail: { thumbnails: [{ url: wrapTryCatch(() => author.avatarThumbnailUrl) }] },
+                authorEndpoint: wrapTryCatch(() => author.channelCommand?.innertubeCommand),
+                contentText: { runs, fullText: baseText }
             }
         };
 
-        if (wrapTryCatch(() => update.author?.isVerified)) {
-            commentRenderer.verifiedAuthor = true;
-        }
-        if (wrapTryCatch(() => update.author?.isCreator)) {
-            commentRenderer.authorIsChannelOwner = true;
+        const publishedTime = wrapTryCatch(() => update.properties?.publishedTime) || '';
+        if (publishedTime) {
+            comment.commentRenderer.publishedTimeText = {
+                runs: [
+                    {
+                        text: publishedTime
+                    }
+                ]
+            };
         }
 
-        const sponsorBadge = buildSponsorBadge({
-            sponsorBadgeUrl: wrapTryCatch(() => update.author?.sponsorBadgeUrl),
-            sponsorBadgeA11y: wrapTryCatch(() => update.author?.sponsorBadgeA11y)
-        });
-        if (sponsorBadge) {
-            commentRenderer.sponsorCommentBadge = sponsorBadge;
+        if (typeof window !== 'undefined') {
+            try {
+                const hasTimeline =
+                    Array.isArray(runs) &&
+                    runs.some((r: any) => {
+                        const vId = wrapTryCatch(() => r.navigationEndpoint.watchEndpoint.videoId) as any;
+                        const v = wrapTryCatch(() => r.navigationEndpoint.watchEndpoint.startTimeSeconds) as any;
+                        const n = typeof v === 'string' ? parseInt(v, 10) : v;
+                        const currentVideoId = (getVideoId(window.location.href) || '') as string;
+                        return Number.isFinite(n) && n >= 0 && String(vId || '') === String(currentVideoId || '');
+                    });
+                if (hasTimeline) {
+                    comment.commentRenderer.isTimeLine = 'timeline';
+                }
+            } catch {
+                // ignore timeline detection errors
+            }
         }
 
         if (surfaceUpdate) {
-            const toolbarSurface = wrapTryCatch(() => surfaceUpdate.engagementToolbar);
-            if (toolbarSurface) {
-                commentRenderer.engagementToolbar = toolbarSurface;
+            const publishedText = wrapTryCatch(() => update.properties?.publishedTime) || undefined;
+            if (publishedText) {
+                comment.commentRenderer.publishedTimeText = {
+                    runs: [
+                        {
+                            text: publishedText,
+                            navigationEndpoint: wrapTryCatch(
+                                () => surfaceUpdate?.publishedTimeCommand?.innertubeCommand
+                            )
+                        }
+                    ]
+                };
             }
+
             const donatedChip = wrapTryCatch(() => surfaceUpdate.pdgCommentChip);
             if (donatedChip) {
-                commentRenderer.donatedChip = donatedChip;
+                comment.commentRenderer.donatedChip = donatedChip;
+            }
+
+            const engagementToolbar = wrapTryCatch(() => surfaceUpdate.engagementToolbar);
+            if (engagementToolbar) {
+                comment.commentRenderer.engagementToolbar = engagementToolbar;
             }
         }
 
-        if (wrapTryCatch(() => toolbarStateUpdate?.heartState) === 'TOOLBAR_HEART_STATE_HEARTED') {
-            const heartTooltip =
-                wrapTryCatch(() => toolbarStateUpdate?.toolbar?.heartActiveTooltip) ||
-                wrapTryCatch(() => update?.toolbar?.heartActiveTooltip);
-            commentRenderer.creatorHeart = { tooltip: heartTooltip || 'hearted' };
+        if (toolbarStateUpdate && wrapTryCatch(() => toolbarStateUpdate.heartState) === 'TOOLBAR_HEART_STATE_HEARTED') {
+            comment.commentRenderer.creatorHeart = {
+                tooltip:
+                    wrapTryCatch(() => toolbarStateUpdate.toolbar?.heartActiveTooltip) ||
+                    wrapTryCatch(() => update.toolbar?.heartActiveTooltip) ||
+                    'hearted'
+            } as any;
         }
 
-        return { commentRenderer };
+        const sponsorBadge = buildSponsorBadge({
+            sponsorBadgeUrl: wrapTryCatch(() => author.sponsorBadgeUrl),
+            sponsorBadgeA11y: wrapTryCatch(() => author.sponsorBadgeA11y)
+        });
+        if (sponsorBadge) {
+            comment.commentRenderer.sponsorCommentBadge = sponsorBadge;
+        }
+
+        if (wrapTryCatch(() => author.isVerified)) {
+            comment.commentRenderer.verifiedAuthor = true;
+        }
+        if (wrapTryCatch(() => author.isCreator)) {
+            comment.commentRenderer.authorIsChannelOwner = true;
+        }
+
+        return comment;
     } catch (e) {
         console.error(e);
         return undefined;

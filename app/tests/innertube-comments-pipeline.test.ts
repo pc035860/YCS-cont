@@ -6,6 +6,7 @@ import {
     scheduleReplyFetches,
     fetchContinuationBatch,
     fetchInitialCommentBatch,
+    generateCommentObjectFromFW,
     type ReplyContinuation
 } from '../src/source/utils/innertube/comments/pipeline';
 
@@ -34,6 +35,83 @@ const createParentThread = (overrides: Partial<any> = {}) => ({
             }
         }
     }
+});
+
+test('generateCommentObjectFromFW populates author metadata and counts', () => {
+    const update = {
+        properties: {
+            content: {
+                content: 'Hello world',
+                commandRuns: [
+                    {
+                        startIndex: 0,
+                        length: 5,
+                        onTap: {
+                            innertubeCommand: {
+                                watchEndpoint: { videoId: 'video-1', startTimeSeconds: 12 }
+                            }
+                        }
+                    }
+                ]
+            },
+            publishedTime: '1 day ago'
+        },
+        author: {
+            displayName: 'Test Author',
+            avatarThumbnailUrl: 'https://example.com/avatar.jpg',
+            channelCommand: { innertubeCommand: { browseEndpoint: { browseId: 'UC123' } } },
+            sponsorBadgeUrl: 'https://example.com/badge.png',
+            sponsorBadgeA11y: 'Supporter badge',
+            isVerified: true,
+            isCreator: true
+        },
+        toolbar: {
+            likeCountLiked: '5',
+            replyCount: '3',
+            heartActiveTooltip: 'Creator heart'
+        }
+    };
+
+    const surfaceUpdate = {
+        publishedTimeCommand: { innertubeCommand: { browseEndpoint: { browseId: 'UC123' } } },
+        pdgCommentChip: { chipText: 'donated' },
+        engagementToolbar: { some: 'toolbar' }
+    };
+
+    const toolbarStateUpdate = {
+        heartState: 'TOOLBAR_HEART_STATE_HEARTED',
+        toolbar: { heartActiveTooltip: 'Creator heart' }
+    };
+
+    const comment = generateCommentObjectFromFW({
+        commentId: 'comment-1',
+        update,
+        surfaceUpdate,
+        toolbarStateUpdate
+    });
+
+    assert.ok(comment);
+    const renderer: any = (comment as any).commentRenderer;
+    assert.strictEqual(renderer.commentId, 'comment-1');
+    assert.strictEqual(renderer.likeCount, 4);
+    assert.strictEqual(renderer.replyCount, 3);
+    assert.strictEqual(renderer.contentText.fullText, 'Hello world');
+    assert.strictEqual(renderer.authorThumbnail.thumbnails[0].url, 'https://example.com/avatar.jpg');
+    assert.strictEqual(renderer.authorEndpoint.browseEndpoint.browseId, 'UC123');
+    assert.strictEqual(renderer.authorIsChannelOwner, true);
+    assert.strictEqual(renderer.verifiedAuthor, true);
+    assert.strictEqual(
+        renderer.sponsorCommentBadge.sponsorCommentBadgeRenderer.customBadge.thumbnails[0].url,
+        'https://example.com/badge.png'
+    );
+    assert.strictEqual(renderer.creatorHeart.tooltip, 'Creator heart');
+    assert.deepStrictEqual(renderer.donatedChip, surfaceUpdate.pdgCommentChip);
+    assert.deepStrictEqual(renderer.engagementToolbar, surfaceUpdate.engagementToolbar);
+    assert.strictEqual(renderer.publishedTimeText.runs[0].text, '1 day ago');
+    assert.deepStrictEqual(
+        renderer.publishedTimeText.runs[0].navigationEndpoint,
+        surfaceUpdate.publishedTimeCommand.innertubeCommand
+    );
 });
 
 test('processParentComment builds parent without continuations', () => {
