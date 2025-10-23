@@ -1012,18 +1012,38 @@ async function fetchCommentPage(
                 }
             }
 
+            const continuationToken =
+                (wrapTryCatch(() =>
+                    objectScan(
+                        [
+                            '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'
+                        ],
+                        { joined: true, rtn: 'value', abort: true }
+                    )(detailsCmntsVIDV2)
+                ) as string | undefined) ||
+                (wrapTryCatch(() =>
+                    objectScan(
+                        [
+                            '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'
+                        ],
+                        { joined: true, rtn: 'value', abort: true }
+                    )((windowRef as any).ytInitialData)
+                ) as string | undefined);
+
+            const fallbackClickTracking = wrapTryCatch(() =>
+                objectScan(
+                    ['**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.clickTrackingParams'],
+                    { joined: true, rtn: 'value', abort: true }
+                )((windowRef as any).ytInitialData)
+            );
+
+            const clickTrackingParams = tokenComments ?? fallbackClickTracking;
+
             paramsCmnts = await getParamsForComments(
                 windowRef,
                 {
-                    continue: wrapTryCatch(() =>
-                        objectScan(
-                            [
-                                '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'
-                            ],
-                            { joined: true, rtn: 'value', abort: true }
-                        )((windowRef as any).ytInitialData)
-                    ),
-                    clickTrackingParams: tokenComments
+                    continue: continuationToken,
+                    clickTrackingParams
                 },
                 signal
             );

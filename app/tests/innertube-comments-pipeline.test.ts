@@ -5,6 +5,7 @@ import {
     processParentComment,
     scheduleReplyFetches,
     fetchContinuationBatch,
+    fetchInitialCommentBatch,
     type ReplyContinuation
 } from '../src/source/utils/innertube/comments/pipeline';
 
@@ -169,6 +170,123 @@ test('dedupeParentComments keeps first parent and rewires replies', () => {
     assert.strictEqual(deduped.length, 2);
     assert.strictEqual(deduped[0], parentA);
     assert.strictEqual((deduped[1] as any).originComment, parentA);
+});
+
+test('fetchInitialCommentBatch prefers API continuation token', async () => {
+    const windowRef: any = {
+        location: { href: 'https://www.youtube.com/watch?v=videoB' },
+        ytcfg: {
+            data_: {
+                INNERTUBE_CONTEXT_CLIENT_NAME: '1',
+                INNERTUBE_CONTEXT_CLIENT_VERSION: '1.20240101',
+                INNERTUBE_CONTEXT: { client: { clientName: 'WEB', clientVersion: '1.20240101' } },
+                GOOGLE_FEEDBACK_PRODUCT_DATA: { accept_language: 'en-US' },
+                INNERTUBE_API_KEY: 'test-key'
+            }
+        },
+        ytInitialData: {
+            sortMenu: {
+                sortFilterSubMenuRenderer: {
+                    subMenuItems: [
+                        {
+                            serviceEndpoint: {
+                                continuationCommand: { token: 'legacy-token' },
+                                clickTrackingParams: 'legacy-click'
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    };
+
+    const originalWindow = (globalThis as any).window;
+    (globalThis as any).window = windowRef;
+
+    const capturedRequests: Array<{ url: unknown; init: RequestInit | undefined }> = [];
+    const originalFetch = globalThis.fetch;
+
+    let callCount = 0;
+    globalThis.fetch = async (url: any, init?: RequestInit) => {
+        callCount++;
+        capturedRequests.push({ url, init });
+        if (callCount === 1) {
+            return new Response(
+                JSON.stringify({
+                    contents: {
+                        twoColumnWatchNextResults: {
+                            results: {
+                                results: {
+                                    contents: [
+                                        {
+                                            itemSectionRenderer: {
+                                                contents: [
+                                                    {
+                                                        continuationItemRenderer: {
+                                                            continuationEndpoint: {
+                                                                continuationCommand: { token: 'seed-token' }
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }),
+                { status: 200 }
+            );
+        }
+
+        if (callCount === 2) {
+            return new Response(
+                JSON.stringify({
+                    sortMenu: {
+                        sortFilterSubMenuRenderer: {
+                            subMenuItems: [
+                                {
+                                    serviceEndpoint: {
+                                        continuationCommand: { token: 'api-token' },
+                                        clickTrackingParams: 'api-click'
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }),
+                { status: 200 }
+            );
+        }
+
+        return new Response(
+            JSON.stringify({
+                onResponseReceivedEndpoints: [
+                    { appendContinuationItemsAction: { continuationItems: [] } },
+                    { reloadContinuationItemsCommand: { continuationItems: [] } }
+                ]
+            }),
+            { status: 200 }
+        );
+    };
+
+    try {
+        const batch = await fetchInitialCommentBatch({ windowRef: windowRef as any, signal: undefined });
+        assert.ok(batch);
+        assert.strictEqual(capturedRequests.length, 3);
+        const body = JSON.parse(String(capturedRequests[2].init?.body));
+        assert.strictEqual(body.continuation, 'api-token');
+        assert.strictEqual(body.clickTracking.clickTrackingParams, 'api-click');
+    } finally {
+        globalThis.fetch = originalFetch;
+        if (originalWindow === undefined) {
+            delete (globalThis as any).window;
+        } else {
+            (globalThis as any).window = originalWindow;
+        }
+    }
 });
 
 test('fetchContinuationBatch includes continuation token and tracking params', async () => {
