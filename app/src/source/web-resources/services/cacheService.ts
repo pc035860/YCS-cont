@@ -7,6 +7,7 @@ interface CacheMeta {
 }
 
 interface CacheData {
+    videoId?: string;
     comments: CommentItem[];
     commentsChat: string;
     commentsTrVideo?: TranscriptData;

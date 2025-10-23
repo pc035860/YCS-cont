@@ -1,6 +1,6 @@
 import 'abort-controller/polyfill';
 
-import { GlobalStore, extractChannelId, getCleanUrlVideo, isVideoPage } from '../utils/common';
+import { GlobalStore, extractChannelId, getCleanUrlVideo, getVideoId, isVideoPage } from '../utils/common';
 import {
     initShowBarFAQ,
     initShowViewMode,
@@ -169,6 +169,9 @@ export function initApp(): void {
 
     function app(): void {
         if (!isVideoPage()) return;
+
+        // Clear GlobalStore to prevent data leakage across videos
+        delete GlobalStore.getInitYtData;
 
         if (handleMessageEvent) {
             window.removeEventListener('message', handleMessageEvent);
@@ -433,6 +436,10 @@ export function initApp(): void {
                 if (!elLiveApp.parentNode || !elLiveApp.parentElement) return;
                 console.log('CLICK');
 
+                // Capture URL and videoId at the start of async operation
+                const startUrl = window.location.href;
+                const startVideoId = getVideoId(startUrl);
+
                 state = clearComments(state);
                 const comments = getComments(state);
 
@@ -455,10 +462,23 @@ export function initApp(): void {
 
                     console.log('ORIGIN COMMENTS: ', comments);
 
+                    // Verify video hasn't changed before saving cache
+                    const currentVideoId = getVideoId(window.location.href);
+                    if (startVideoId !== currentVideoId) {
+                        console.warn(
+                            '[YCS] Video changed during comment loading, skipping cache save:',
+                            startVideoId,
+                            '→',
+                            currentVideoId
+                        );
+                        return;
+                    }
+
                     if (comments.length > 0) {
                         elStatusCmnts.innerHTML = iconOk();
                         saveToCache(
                             {
+                                videoId: startVideoId,
                                 comments,
                                 commentsChat: JSON.stringify(Array.from(getCommentsChat(state).entries())),
                                 commentsTrVideo: getCommentsTrVideo(state),
@@ -492,6 +512,10 @@ export function initApp(): void {
             elLoadCommentsChat.addEventListener('click', async function (e: MouseEvent): Promise<void> {
                 if (!elLiveApp.parentNode || !elLiveApp.parentElement) return;
 
+                // Capture URL and videoId at the start of async operation
+                const startUrl = window.location.href;
+                const startVideoId = getVideoId(startUrl);
+
                 state = clearCommentsChat(state);
                 const commentsChat = getCommentsChat(state);
 
@@ -514,11 +538,24 @@ export function initApp(): void {
 
                     console.log('CHAT COMMENTS: ', commentsChat);
 
+                    // Verify video hasn't changed before saving cache
+                    const currentVideoId = getVideoId(window.location.href);
+                    if (startVideoId !== currentVideoId) {
+                        console.warn(
+                            '[YCS] Video changed during chat loading, skipping cache save:',
+                            startVideoId,
+                            '→',
+                            currentVideoId
+                        );
+                        return;
+                    }
+
                     if (commentsChat.size > 0) {
                         elLoadChat.textContent = commentsChat.size.toString();
                         elStatusChat.innerHTML = iconOk();
                         saveToCache(
                             {
+                                videoId: startVideoId,
                                 comments: getComments(state),
                                 commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
                                 commentsTrVideo: getCommentsTrVideo(state),
@@ -548,6 +585,10 @@ export function initApp(): void {
             elLoadTranscriptVideo.addEventListener('click', async function (e: MouseEvent): Promise<void> {
                 if (!elLiveApp.parentNode || !elLiveApp.parentElement) return;
 
+                // Capture URL and videoId at the start of async operation
+                const startUrl = window.location.href;
+                const startVideoId = getVideoId(startUrl);
+
                 const currentTarget = e.currentTarget as HTMLButtonElement;
 
                 currentTarget.disabled = true;
@@ -570,6 +611,18 @@ export function initApp(): void {
                         state = setCommentsTrVideo(state, tr);
                     }
 
+                    // Verify video hasn't changed before saving cache
+                    const currentVideoId = getVideoId(window.location.href);
+                    if (startVideoId !== currentVideoId) {
+                        console.warn(
+                            '[YCS] Video changed during transcript loading, skipping cache save:',
+                            startVideoId,
+                            '→',
+                            currentVideoId
+                        );
+                        return;
+                    }
+
                     try {
                         const transcript = getCommentsTrVideo(state);
                         const cueGroups = extractCueGroups(transcript);
@@ -577,6 +630,7 @@ export function initApp(): void {
                             showLoadComments(cueGroups.length, elLoadTrVideo);
                             saveToCache(
                                 {
+                                    videoId: startVideoId,
                                     comments: getComments(state),
                                     commentsChat: JSON.stringify(Array.from(getCommentsChat(state).entries())),
                                     commentsTrVideo: transcript,
@@ -1070,6 +1124,19 @@ export function initApp(): void {
 
                 if (e.data?.body) {
                     const body = e.data.body as CacheStorageBody;
+
+                    // Validate cache videoId matches current video to prevent stale data from wrong video
+                    const currentVideoId = getVideoId(window.location.href);
+                    if (body.videoId !== currentVideoId) {
+                        console.warn(
+                            '[YCS] Cache videoId mismatch, ignoring stale cache:',
+                            body.videoId,
+                            '!==',
+                            currentVideoId
+                        );
+                        return;
+                    }
+
                     const cachedComments = Array.isArray(body.comments) ? (body.comments as CommentItem[]) : [];
                     try {
                         // Rebuild reply-to-origin mapping using a single-pass index to reduce complexity from O(n^2) to O(n)
