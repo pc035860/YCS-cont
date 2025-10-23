@@ -967,7 +967,14 @@ async function fetchCommentPage(
     try {
         let paramsCmnts;
         if (continuation) {
-            paramsCmnts = await getParamsForComments(windowRef, continuation, signal);
+            const continuationParams = {
+                continue: (continuation as any).continue ?? continuation.token,
+                clickTrackingParams:
+                    (continuation as any).clickTrackingParams ??
+                    (continuation as any).clickTracking ??
+                    continuation.clickTrackingParams
+            };
+            paramsCmnts = await getParamsForComments(windowRef, continuationParams, signal);
         } else {
             const url = getCleanUrlVideo(windowRef.location.href) as string;
             const detailsVideoV2 = await getDetailsVideoIDV2(windowRef, url, signal as AbortSignal);
@@ -1088,7 +1095,14 @@ export async function fetchContinuationBatch(params: FetchContinuationParams): P
 
 export async function fetchRepliesBatch(params: FetchRepliesParams): Promise<CommentBatchResult | undefined> {
     try {
-        const paramsCmnts = await getParamsForReplies(params.windowRef, params.continuation, params.signal);
+        const continuationParams = {
+            continue: (params.continuation as any).continue ?? params.continuation.token,
+            clickTrackingParams:
+                (params.continuation as any).clickTrackingParams ??
+                (params.continuation as any).clickTracking ??
+                params.continuation.clickTrackingParams
+        };
+        const paramsCmnts = await getParamsForReplies(params.windowRef, continuationParams, params.signal);
         if (!paramsCmnts) return undefined;
         const res = await fetchR(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, {
             ...paramsCmnts,

@@ -4,6 +4,7 @@ import {
     dedupeParentComments,
     processParentComment,
     scheduleReplyFetches,
+    fetchContinuationBatch,
     type ReplyContinuation
 } from '../src/source/utils/innertube/comments/pipeline';
 
@@ -168,4 +169,59 @@ test('dedupeParentComments keeps first parent and rewires replies', () => {
     assert.strictEqual(deduped.length, 2);
     assert.strictEqual(deduped[0], parentA);
     assert.strictEqual((deduped[1] as any).originComment, parentA);
+});
+
+test('fetchContinuationBatch includes continuation token and tracking params', async () => {
+    const windowRef: any = {
+        location: { href: 'https://www.youtube.com/watch?v=abc123' },
+        ytcfg: {
+            data_: {
+                INNERTUBE_CONTEXT_CLIENT_NAME: '1',
+                INNERTUBE_CONTEXT_CLIENT_VERSION: '1.20240101',
+                INNERTUBE_CONTEXT: { client: { clientName: 'WEB', clientVersion: '1.20240101' } },
+                GOOGLE_FEEDBACK_PRODUCT_DATA: { accept_language: 'en-US' },
+                INNERTUBE_API_KEY: 'test-key'
+            }
+        }
+    };
+
+    const originalWindow = (globalThis as any).window;
+    (globalThis as any).window = windowRef;
+
+    const capturedRequests: Array<{ url: unknown; init: RequestInit | undefined }> = [];
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = async (url: any, init?: RequestInit) => {
+        capturedRequests.push({ url, init });
+        return new Response(
+            JSON.stringify({
+                onResponseReceivedEndpoints: [
+                    { appendContinuationItemsAction: { continuationItems: [] } },
+                    { reloadContinuationItemsCommand: { continuationItems: [] } }
+                ]
+            }),
+            { status: 200 }
+        );
+    };
+
+    try {
+        const batch = await fetchContinuationBatch({
+            windowRef: windowRef as any,
+            signal: undefined,
+            continuation: { token: 'token-123', clickTrackingParams: 'tracking-xyz' }
+        });
+
+        assert.ok(batch);
+        assert.strictEqual(capturedRequests.length, 1);
+        const body = JSON.parse(String(capturedRequests[0].init?.body));
+        assert.strictEqual(body.continuation, 'token-123');
+        assert.strictEqual(body.clickTracking.clickTrackingParams, 'tracking-xyz');
+    } finally {
+        globalThis.fetch = originalFetch;
+        if (originalWindow === undefined) {
+            delete (globalThis as any).window;
+        } else {
+            (globalThis as any).window = originalWindow;
+        }
+    }
 });
