@@ -9,6 +9,7 @@ import {
     generateCommentObjectFromFW,
     type ReplyContinuation
 } from '../src/source/utils/innertube/comments/pipeline';
+import { setFetchImplementation } from '../src/source/utils/libs';
 
 const createStubQueue = () => {
     const pending: Promise<unknown>[] = [];
@@ -272,15 +273,21 @@ test('processParentComment applies framework updates for creator flag', () => {
     assert.strictEqual(parent.commentRenderer.authorIsChannelOwner, true);
 });
 
-test('scheduleReplyFetches returns empty when no continuations', async () => {
-    const replies = await scheduleReplyFetches({
+test('scheduleReplyFetches returns without scheduling when no continuations', async () => {
+    const queue = createStubQueue();
+    const collected: any[] = [];
+
+    scheduleReplyFetches({
         continuations: [],
-        queue: createStubQueue(),
+        queue,
         currentVideoId: 'video-1',
-        fetchContinuation: async () => undefined
+        fetchContinuation: async () => undefined,
+        onReply: (reply) => collected.push(reply)
     });
 
-    assert.deepStrictEqual(replies, []);
+    await queue.onIdle();
+
+    assert.deepStrictEqual(collected, []);
 });
 
 test('scheduleReplyFetches processes reply continuations', async () => {
@@ -293,9 +300,12 @@ test('scheduleReplyFetches processes reply continuations', async () => {
         originComment: parent
     };
 
-    const replies = await scheduleReplyFetches({
+    const queue = createStubQueue();
+    const collected: any[] = [];
+
+    scheduleReplyFetches({
         continuations: [replyContinuation],
-        queue: createStubQueue(),
+        queue,
         currentVideoId: 'video-1',
         fetchContinuation: async () => ({
             comments: [
@@ -309,11 +319,14 @@ test('scheduleReplyFetches processes reply continuations', async () => {
             ],
             continuations: [],
             frameworkUpdates: {}
-        })
+        }),
+        onReply: (reply) => collected.push(reply)
     });
 
-    assert.strictEqual(replies.length, 1);
-    const reply: any = replies[0];
+    await queue.onIdle();
+
+    assert.strictEqual(collected.length, 1);
+    const reply: any = collected[0];
     assert.strictEqual(reply.typeComment, 'R');
     assert.strictEqual(reply.originComment, parent);
     assert.strictEqual(reply.commentRenderer.contentText.fullText, 'Nested reply');
@@ -376,7 +389,7 @@ test('fetchInitialCommentBatch prefers API continuation token', async () => {
     const originalFetch = globalThis.fetch;
 
     let callCount = 0;
-    globalThis.fetch = async (url: any, init?: RequestInit) => {
+    const stubFetch = async (url: any, init?: RequestInit) => {
         callCount++;
         capturedRequests.push({ url, init });
         if (callCount === 1) {
@@ -441,6 +454,9 @@ test('fetchInitialCommentBatch prefers API continuation token', async () => {
         );
     };
 
+    globalThis.fetch = stubFetch as typeof fetch;
+    setFetchImplementation(stubFetch as typeof fetch);
+
     try {
         const batch = await fetchInitialCommentBatch({ windowRef: windowRef as any, signal: undefined });
         assert.ok(batch);
@@ -449,6 +465,7 @@ test('fetchInitialCommentBatch prefers API continuation token', async () => {
         assert.strictEqual(body.continuation, 'api-token');
         assert.strictEqual(body.clickTracking.clickTrackingParams, 'api-click');
     } finally {
+        setFetchImplementation(originalFetch as typeof fetch);
         globalThis.fetch = originalFetch;
         if (originalWindow === undefined) {
             delete (globalThis as any).window;
@@ -478,7 +495,7 @@ test('fetchContinuationBatch includes continuation token and tracking params', a
     const capturedRequests: Array<{ url: unknown; init: RequestInit | undefined }> = [];
     const originalFetch = globalThis.fetch;
 
-    globalThis.fetch = async (url: any, init?: RequestInit) => {
+    const stubFetch = async (url: any, init?: RequestInit) => {
         capturedRequests.push({ url, init });
         return new Response(
             JSON.stringify({
@@ -490,6 +507,9 @@ test('fetchContinuationBatch includes continuation token and tracking params', a
             { status: 200 }
         );
     };
+
+    globalThis.fetch = stubFetch as typeof fetch;
+    setFetchImplementation(stubFetch as typeof fetch);
 
     try {
         const batch = await fetchContinuationBatch({
@@ -504,6 +524,7 @@ test('fetchContinuationBatch includes continuation token and tracking params', a
         assert.strictEqual(body.continuation, 'token-123');
         assert.strictEqual(body.clickTracking.clickTrackingParams, 'tracking-xyz');
     } finally {
+        setFetchImplementation(originalFetch as typeof fetch);
         globalThis.fetch = originalFetch;
         if (originalWindow === undefined) {
             delete (globalThis as any).window;

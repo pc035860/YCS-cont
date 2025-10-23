@@ -39,6 +39,7 @@ export interface ScheduleReplyFetchParams {
     queue: Queue;
     currentVideoId: string;
     fetchContinuation: (continuation: ReplyContinuation) => Promise<CommentBatchResult | undefined>;
+    onReply: (reply: any) => void;
     frameworkUpdatesResolver?: (response: any) => Record<string, any>;
 }
 
@@ -873,38 +874,50 @@ export function processParentComment(params: ProcessParentCommentParams): Proces
     return { comments: collected, replyContinuations };
 }
 
-export async function scheduleReplyFetches(params: ScheduleReplyFetchParams): Promise<any[]> {
-    const { continuations, queue, fetchContinuation, currentVideoId } = params;
-    if (!continuations || continuations.length === 0) return [];
-    const result: any[] = [];
+export function scheduleReplyFetches(params: ScheduleReplyFetchParams): void {
+    const { continuations, queue, fetchContinuation, currentVideoId, onReply } = params;
+    if (!continuations || continuations.length === 0) {
+        return;
+    }
 
-    const handleContinuation = async (cont: ReplyContinuation): Promise<void> => {
-        const batch = await fetchContinuation(cont);
-        if (!batch) return;
-        const fwById = batch.frameworkUpdates || {};
-        for (let comment of batch.comments || []) {
-            if (!comment?.commentRenderer) {
-                const normalized = normalizeCommentViewModel(comment);
-                if (normalized && normalized.commentRenderer) comment = normalized;
+    const scheduleContinuation = (cont: ReplyContinuation): void => {
+        const task = queue.add(async () => {
+            try {
+                const batch = await fetchContinuation(cont);
+                if (!batch) return;
+                const fwById = batch.frameworkUpdates || {};
+                for (let comment of batch.comments || []) {
+                    if (!comment?.commentRenderer) {
+                        const normalized = normalizeCommentViewModel(comment);
+                        if (normalized && normalized.commentRenderer) comment = normalized;
+                    }
+                    if (!comment?.commentRenderer) continue;
+                    applyFrameworkUpdatesToComment(comment, comment, fwById);
+                    const prepared = enrichCommentRenderer(comment, currentVideoId, cont.originComment, 'R');
+                    if (prepared) {
+                        try {
+                            onReply(prepared);
+                        } catch (callbackError) {
+                            console.error(callbackError);
+                        }
+                    }
+                }
+                for (const next of batch.continuations || []) {
+                    scheduleContinuation({ ...next, originComment: cont.originComment });
+                }
+            } catch (error) {
+                console.error(error);
             }
-            if (!comment?.commentRenderer) continue;
-            applyFrameworkUpdatesToComment(comment, comment, fwById);
-            const prepared = enrichCommentRenderer(comment, currentVideoId, cont.originComment, 'R');
-            if (prepared) {
-                result.push(prepared);
-            }
-        }
-        const followUps = batch.continuations || [];
-        const followUpTasks = followUps.map((next) =>
-            queue.add(() => handleContinuation({ ...next, originComment: cont.originComment }))
-        );
-        await Promise.all(followUpTasks);
+        });
+
+        void task.catch((err) => {
+            console.error(err);
+        });
     };
 
-    const initialTasks = continuations.map((cont) => queue.add(() => handleContinuation(cont)));
-    await Promise.all(initialTasks);
-
-    return result;
+    for (const continuation of continuations) {
+        scheduleContinuation(continuation);
+    }
 }
 
 export function dedupeParentComments(comments: any[]): any[] {

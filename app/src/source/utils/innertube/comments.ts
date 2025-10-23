@@ -50,17 +50,16 @@ async function getAllCommentsModeV2(
         }
 
         if (replyContinuations.length > 0) {
-            const replies = await scheduleReplyFetches({
+            void scheduleReplyFetches({
                 continuations: replyContinuations,
                 queue: replyQueue,
                 currentVideoId,
-                fetchContinuation: (continuation) => fetchRepliesBatch({ windowRef: window, signal, continuation })
+                fetchContinuation: (continuation) => fetchRepliesBatch({ windowRef: window, signal, continuation }),
+                onReply: (reply) => {
+                    comments.push(reply);
+                    showLoadComments(comments.length, elShowLoading);
+                }
             });
-
-            for (const reply of replies) {
-                comments.push(reply);
-                showLoadComments(comments.length, elShowLoading);
-            }
         }
 
         const nextContinuation = batch.continuations.shift();
