@@ -24,7 +24,13 @@ import {
     openChatWindow,
     openCommentsWindow,
     openTranscriptWindow,
-    ExportMeta
+    ExportMeta,
+    downloadCommentsFileJSON,
+    downloadCommentsFileXLSX,
+    downloadChatFileJSON,
+    downloadChatFileXLSX,
+    downloadTranscriptFileJSON,
+    downloadTranscriptFileXLSX
 } from './services/exportService';
 import {
     clearComments,
@@ -760,6 +766,18 @@ export function initApp(): void {
             });
         }
 
+        // Ensure only one dropdown is open at a time
+        const closeAllDropdowns = (except?: HTMLElement | null) => {
+            try {
+                const menus = document.querySelectorAll('.ycs_dropdown_menu.show');
+                menus.forEach((m) => {
+                    if (m !== except) m.classList.remove('show');
+                });
+            } catch (err) {
+                // ignore
+            }
+        };
+
         const btnOpenCommentsNewWindow = document.getElementById('ycs_open_all_comments_window');
         btnOpenCommentsNewWindow?.addEventListener('click', () => {
             const comments = getComments(state);
@@ -773,16 +791,40 @@ export function initApp(): void {
             }
         });
 
+        // Comments save dropdown
         const btnSaveCommentsToFile = document.getElementById('ycs_save_all_comments');
-        btnSaveCommentsToFile?.addEventListener('click', () => {
-            const comments = getComments(state);
-            if (comments.length === 0) return;
-
+        const btnSaveCommentsToFileMenu = document.getElementById('ycs_save_all_comments_menu');
+        btnSaveCommentsToFile?.addEventListener('click', (e) => {
             try {
-                downloadCommentsFile(comments, buildExportMeta());
-            } catch (e) {
-                console.error(e);
-                return;
+                e.stopPropagation();
+                if (!btnSaveCommentsToFileMenu) return;
+                // close others first
+                closeAllDropdowns(btnSaveCommentsToFileMenu);
+                btnSaveCommentsToFileMenu.classList.toggle('show');
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        btnSaveCommentsToFileMenu?.addEventListener('click', (ev) => {
+            try {
+                const target = ev.target as HTMLElement | null;
+                if (!target) return;
+                const fmt = target.dataset.format;
+                const comments = getComments(state);
+                if (!comments || comments.length === 0) return;
+
+                if (fmt === 'txt') {
+                    downloadCommentsFile(comments, buildExportMeta());
+                } else if (fmt === 'json') {
+                    downloadCommentsFileJSON(comments, buildExportMeta());
+                } else if (fmt === 'xlsx') {
+                    downloadCommentsFileXLSX(comments, buildExportMeta());
+                }
+
+                btnSaveCommentsToFileMenu.classList.remove('show');
+            } catch (err) {
+                console.error(err);
             }
         });
 
@@ -799,16 +841,41 @@ export function initApp(): void {
             }
         });
 
+        // Chat save dropdown
         const btnSaveCommentsChatToFile = document.getElementById('ycs_save_all_comments_chat');
-        btnSaveCommentsChatToFile?.addEventListener('click', () => {
-            const commentsChat = getCommentsChat(state);
-            if (commentsChat.size === 0) return;
-
+        const btnSaveCommentsChatToFileMenu = document.getElementById('ycs_save_all_comments_chat_menu');
+        btnSaveCommentsChatToFile?.addEventListener('click', (e) => {
             try {
-                downloadChatFile([...commentsChat.values()], buildExportMeta());
-            } catch (e) {
-                console.error(e);
-                return;
+                e.stopPropagation();
+                if (!btnSaveCommentsChatToFileMenu) return;
+                // close others first
+                closeAllDropdowns(btnSaveCommentsChatToFileMenu);
+                btnSaveCommentsChatToFileMenu.classList.toggle('show');
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        btnSaveCommentsChatToFileMenu?.addEventListener('click', (ev) => {
+            try {
+                const target = ev.target as HTMLElement | null;
+                if (!target) return;
+                const fmt = target.dataset.format;
+                const commentsChat = getCommentsChat(state);
+                if (!commentsChat || commentsChat.size === 0) return;
+                const arr = [...commentsChat.values()];
+
+                if (fmt === 'txt') {
+                    downloadChatFile(arr, buildExportMeta());
+                } else if (fmt === 'json') {
+                    downloadChatFileJSON(arr, buildExportMeta());
+                } else if (fmt === 'xlsx') {
+                    downloadChatFileXLSX(arr, buildExportMeta());
+                }
+
+                btnSaveCommentsChatToFileMenu.classList.remove('show');
+            } catch (err) {
+                console.error(err);
             }
         });
 
@@ -828,17 +895,53 @@ export function initApp(): void {
             }
         });
 
+        // Transcript save dropdown
         const btnSaveCommentsTrVideoToFile = document.getElementById('ycs_save_all_comments_trvideo');
-        btnSaveCommentsTrVideoToFile?.addEventListener('click', () => {
+        const btnSaveCommentsTrVideoToFileMenu = document.getElementById('ycs_save_all_comments_trvideo_menu');
+        btnSaveCommentsTrVideoToFile?.addEventListener('click', (e) => {
             try {
+                e.stopPropagation();
+                if (!btnSaveCommentsTrVideoToFileMenu) return;
+                // close others first
+                closeAllDropdowns(btnSaveCommentsTrVideoToFileMenu);
+                btnSaveCommentsTrVideoToFileMenu.classList.toggle('show');
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        btnSaveCommentsTrVideoToFileMenu?.addEventListener('click', (ev) => {
+            try {
+                const target = ev.target as HTMLElement | null;
+                if (!target) return;
+                const fmt = target.dataset.format;
                 const commentsTrVideo = getCommentsTrVideo(state);
                 const cueGroups = extractCueGroups(commentsTrVideo);
-                if (cueGroups && cueGroups.length > 0) {
+                if (!cueGroups || cueGroups.length === 0) return;
+
+                if (fmt === 'txt') {
                     downloadTranscriptFile(cueGroups, buildExportMeta());
+                } else if (fmt === 'json') {
+                    downloadTranscriptFileJSON(cueGroups, buildExportMeta());
+                } else if (fmt === 'xlsx') {
+                    downloadTranscriptFileXLSX(cueGroups, buildExportMeta());
                 }
-            } catch (e) {
-                console.error(e);
-                return;
+
+                btnSaveCommentsTrVideoToFileMenu.classList.remove('show');
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (ev) => {
+            try {
+                const t = ev.target as HTMLElement | null;
+                if (t && t.closest && t.closest('.ycs_dropdown_wrap')) return;
+
+                closeAllDropdowns();
+            } catch (err) {
+                // ignore
             }
         });
 

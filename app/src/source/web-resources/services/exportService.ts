@@ -69,4 +69,86 @@ export function downloadTranscriptFile(cueGroups: TranscriptCueGroup[], meta?: E
     downloadFile(documentBody, `Transcript video, ${resolved.title} (${formatted.count}).txt`, 'text/plain');
 }
 
+// New format-specific download helpers (JSON / XLSX)
+import {
+    exportCommentsAsJSON,
+    exportCommentsAsXLSX,
+    exportChatAsJSON,
+    exportChatAsXLSX,
+    exportTranscriptAsJSON,
+    exportTranscriptAsXLSX
+} from './exportFormats';
+
+export function downloadCommentsFileJSON(comments: CommentItem[], meta?: ExportMeta): void {
+    try {
+        const body = { titleVideo: meta?.title || '', url: meta?.url || '', comments: comments } as any;
+        const payload = exportCommentsAsJSON(body);
+        if (!payload) return;
+
+        downloadFile(payload.content, payload.fileName, payload.mime);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+export function downloadCommentsFileXLSX(comments: CommentItem[], meta?: ExportMeta): void {
+    try {
+        const body = { titleVideo: meta?.title || '', url: meta?.url || '', comments: comments } as any;
+        const payload = exportCommentsAsXLSX(body);
+        if (!payload || !payload.writeFunc) return;
+
+        payload.writeFunc();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+export function downloadChatFileJSON(chatMessages: ChatItem[], meta?: ExportMeta): void {
+    try {
+        const body = { titleVideo: meta?.title || '', url: meta?.url || '' } as any;
+        const payload = exportChatAsJSON(chatMessages, body);
+        if (!payload) return;
+
+        downloadFile(payload.content, payload.fileName, payload.mime);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+export function downloadChatFileXLSX(chatMessages: ChatItem[], meta?: ExportMeta): void {
+    try {
+        const body = { titleVideo: meta?.title || '', url: meta?.url || '' } as any;
+        const payload = exportChatAsXLSX(chatMessages, body);
+        if (!payload || !payload.writeFunc) return;
+
+        payload.writeFunc();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+export function downloadTranscriptFileJSON(cueGroups: TranscriptCueGroup[], meta?: ExportMeta): void {
+    try {
+        const body = { titleVideo: meta?.title || '', url: meta?.url || '' } as any;
+        const payload = exportTranscriptAsJSON(cueGroups, body);
+        if (!payload) return;
+
+        downloadFile(payload.content, payload.fileName, payload.mime);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+export function downloadTranscriptFileXLSX(cueGroups: TranscriptCueGroup[], meta?: ExportMeta): void {
+    try {
+        const body = { titleVideo: meta?.title || '', url: meta?.url || '' } as any;
+        const payload = exportTranscriptAsXLSX(cueGroups, body);
+        if (!payload || !payload.writeFunc) return;
+
+        payload.writeFunc();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
 export type { ExportMeta };
