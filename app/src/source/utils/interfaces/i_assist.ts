@@ -1,16 +1,108 @@
+export interface InnertubeRequestParams extends RequestInit {
+    headers: Record<string, string>;
+    referrer: string;
+    referrerPolicy: ReferrerPolicy;
+    body?: string;
+}
+
 export interface GetParams {
     ctoken: string | null;
     continuation: string | null;
     itct: string | null;
-    params: {
-        credentials: string;
-        headers: object;
-        referrer: string;
-        referrerPolicy: string;
-        body: string;
-        method: string;
-        mode: string;
+    params: InnertubeRequestParams;
+}
+
+/**
+ * Normalized representation for a single comment run fragment.
+ */
+export interface NavigationWatchEndpoint {
+    videoId?: string;
+    startTimeSeconds?: string;
+}
+
+export interface NavigationBrowseEndpoint {
+    canonicalBaseUrl?: string;
+}
+
+export interface NavigationUrlEndpoint {
+    url?: string;
+}
+
+export interface NavigationCommandMetadata {
+    webCommandMetadata?: {
+        url?: string;
     };
+}
+
+export interface NavigationEndpoint {
+    watchEndpoint?: NavigationWatchEndpoint;
+    browseEndpoint?: NavigationBrowseEndpoint;
+    urlEndpoint?: NavigationUrlEndpoint;
+    commandMetadata?: NavigationCommandMetadata;
+    [key: string]: unknown;
+}
+
+export interface EmojiImageThumbnail {
+    url?: string;
+    width?: number;
+    height?: number;
+}
+
+export interface EmojiImage {
+    thumbnails?: EmojiImageThumbnail[];
+}
+
+export interface EmojiData {
+    image?: EmojiImage;
+    shortcuts?: string[];
+    [key: string]: unknown;
+}
+
+export interface AttachmentImageMargin {
+    left?: number;
+    right?: number;
+}
+
+export interface AttachmentImage {
+    url?: string;
+    width?: number;
+    height?: number;
+    margin?: AttachmentImageMargin;
+}
+
+export interface AttachmentData {
+    image?: AttachmentImage;
+    [key: string]: unknown;
+}
+
+export interface CommentRun {
+    text?: string;
+    emoji?: EmojiData;
+    attachment?: AttachmentData;
+    navigationEndpoint?: NavigationEndpoint;
+    [key: string]: unknown;
+}
+
+export interface CommentRendererContentText {
+    runs: CommentRun[];
+    fullText?: string;
+    renderFullText?: string;
+    [key: string]: unknown;
+}
+
+export interface CommentRendererData {
+    contentText: CommentRendererContentText;
+    isTimeLine?: string;
+    [key: string]: unknown;
+}
+
+/**
+ * commentRenderer shape derived from a commentViewModel instance.
+ */
+export interface NormalizedCommentRenderer {
+    commentRenderer: CommentRendererData;
+    typeComment?: string;
+    [key: string]: unknown;
 }
 
 export interface ISheetDetails {

@@ -1,7 +1,9 @@
 import Fetch from 'fetch-retry';
 import { openDB } from 'idb';
 
-const fetchR = Fetch(fetch, {
+let baseFetch: typeof fetch = fetch;
+
+const fetchR = Fetch((input: RequestInfo | URL, init?: RequestInit) => baseFetch(input, init), {
     retries: 100,
     retryDelay: (attempt: number, _error: Error | null, _response: unknown) => {
         if (attempt > 50) {
@@ -42,4 +44,8 @@ const idb =
           })
         : (null as any);
 
-export { fetchR, idb };
+const setFetchImplementation = (fn: typeof fetch): void => {
+    baseFetch = fn;
+};
+
+export { fetchR, idb, setFetchImplementation };
