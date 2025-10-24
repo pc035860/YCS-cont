@@ -7,20 +7,48 @@ This directory contains the source code for the YCS (YouTube Comment Search) bro
 ```
 app/
 ├── src/
-│   ├── source/              # TypeScript source code (~12,145 lines)
+│   ├── source/              # TypeScript source code
 │   │   ├── background.ts    # Service Worker - cache and storage management
 │   │   ├── content-scripts/ # Content Script bridge layer
 │   │   │   ├── cscripts.ts  # Message relay, script injection
 │   │   │   └── style.css    # Content script styles
 │   │   ├── web-resources/   # Main search and UI logic
-│   │   │   └── wresources.ts # Fuse.js integration, UI rendering
+│   │   │   ├── wresources.ts     # Entry point
+│   │   │   ├── bootstrap.ts      # App initialization & SPA handling
+│   │   │   ├── appController.ts  # Core application logic
+│   │   │   ├── state.ts          # State management
+│   │   │   ├── search/           # Search pipeline modules
+│   │   │   │   ├── types.ts           # Search context types
+│   │   │   │   ├── commentsSearch.ts  # Comments search
+│   │   │   │   ├── chatSearch.ts      # Chat replay search
+│   │   │   │   └── transcriptSearch.ts # Transcript search
+│   │   │   ├── ui/               # UI components
+│   │   │   │   ├── render.ts            # Result rendering
+│   │   │   │   ├── filters.ts           # Filter button management
+│   │   │   │   └── commentInteractions.ts # Comment interactions
+│   │   │   └── services/         # Service layer
+│   │   │       ├── cacheService.ts      # Cache operations
+│   │   │       └── exportService.ts     # Export/download
 │   │   ├── browser-action/  # Extension popup UI
 │   │   ├── options/         # Settings page and comment export
 │   │   └── utils/           # Modular utility system
 │   │       ├── assist.ts     # Module facade and unified export point
 │   │       ├── common.ts     # Shared utilities and GlobalStore
 │   │       ├── libs.ts       # External library wrappers (fetchR, IndexedDB)
-│   │       ├── innertube.ts  # YouTube Innertube API integration
+│   │       ├── innertube/    # Modularized YouTube API integration
+│   │       │   ├── innertube.ts      # Module facade
+│   │       │   ├── core.ts           # Configuration & initialization
+│   │       │   ├── request.ts        # Request building utilities
+│   │       │   ├── comments.ts       # Comment module entry
+│   │       │   ├── comments/         # Comment processing
+│   │       │   │   ├── pipeline.ts   # Fetching pipeline
+│   │       │   │   └── normalize.ts  # Data normalization
+│   │       │   ├── chat.ts           # Chat module entry
+│   │       │   ├── chat/             # Chat replay processing
+│   │       │   │   ├── liveChat.ts   # Live chat handling
+│   │       │   │   ├── replayChat.ts # Replay chat handling
+│   │       │   │   └── utils.ts      # Chat utilities
+│   │       │   └── transcript.ts     # Transcript fetching
 │   │       ├── filters/      # Comment and chat filtering modules
 │   │       ├── formatting.ts # Data transformation and HTML output
 │   │       ├── dom.ts        # DOM manipulation and UI interactions
@@ -68,6 +96,27 @@ npm ci
 | `npm run format` | Format code with Prettier |
 | `npm run format:check` | Check code formatting without modifying |
 | `npm run rm` | Clean all build artifacts (dist, cache, dev) |
+| `npm test` | Run all tests with Node.js test runner |
+
+## Testing
+
+The project uses **Node.js built-in test runner** with TypeScript support:
+
+```bash
+npm test  # Run all tests
+```
+
+**Test Framework**:
+- **Test runner**: Node.js `node:test` module
+- **Assertion**: Node.js `node:assert` (strict mode)
+- **TypeScript**: `--experimental-strip-types` flag + custom loader (`tests/ts-loader.mjs`)
+
+**Test Files** (in `tests/` directory):
+- `common.test.ts` - Common utilities (HTML entity decoding)
+- `formatting.test.ts` - Data formatting (HTML escaping, URL normalization)
+- `innertube.test.ts` - Innertube API (framework updates, badges, heart icons)
+- `innertube-comments-pipeline.test.ts` - Comment processing pipeline
+- `viewModels.test.ts` - View model construction
 
 ## Building the Extension
 

@@ -6,7 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 YCS (YouTube Comment Search) is a browser extension for Chrome and Firefox that enables searching, filtering, and exporting YouTube comments, replies, chat replays, and video transcripts.
 
-- **Total codebase**: ~12,145 lines of TypeScript
 - **Extension type**: Manifest V3 (MV3)
 - **Build system**: Parcel 2.0.1
 - **Target browsers**: Chrome 88+, Firefox
@@ -25,6 +24,7 @@ npm run lint      # Run ESLint
 npm run typecheck # Run TypeScript type checking
 npm run format    # Format code with Prettier
 npm run format:check # Check code formatting without modifying
+npm test          # Run tests with Node.js test runner
 npm run rm        # Clean all build artifacts
 
 # Release workflow (from project root)
@@ -61,45 +61,36 @@ MV3 security restrictions require web page code to run in isolated context. The 
 ### Key Directories
 
 - **`app/src/source/`**: TypeScript source code
-  - `background.ts`: Service Worker, manages cache and storage
-  - `content-scripts/`: Content script bridge
-  - `web-resources/`: Main search and UI logic
-  - `utils/`: Modular utility system
+  - `background.ts`: Service Worker (cache, storage management)
+  - `content-scripts/`: Message relay bridge (web page ↔ extension)
+  - **`web-resources/`**: Main search and UI logic
+    - `wresources.ts`: Entry point for web page layer
+    - `bootstrap.ts`: Initialization and SPA navigation handling
+    - `appController.ts`: Core application control logic
+    - `state.ts`: WebResourcesState management
+    - `search/`: Search modules (comments, chat, transcript)
+    - `ui/`: UI components (render, filters, interactions)
+    - `services/`: Service layer (cache, export)
+  - **`utils/`**: Modular utility system
     - `assist.ts`: Module facade and unified export point
     - `common.ts`: Shared utilities and GlobalStore
-    - `libs.ts`: External library wrappers (fetchR retry client, IndexedDB)
-    - `dom.ts`: DOM manipulation and UI interactions
-    - `formatting.ts`: Data transformation and HTML output
-    - `innertube.ts`: YouTube Innertube API integration
+    - `libs.ts`: External library wrappers (fetchR, IndexedDB)
+    - `dom.ts`, `formatting.ts`: DOM and data transformation
+    - `innertube/`: Modularized YouTube API integration
+      - `comments/`: Comment fetching and processing pipeline
+      - `chat/`: Chat replay modules (live/replay)
+      - `core.ts`, `request.ts`, `transcript.ts`: Core utilities
     - `filters/`: Comment and chat filtering modules
     - `sheets.ts`: Excel export functionality
-    - `renderView.ts`: HTML template rendering
-    - `viewModels.ts`: View model interfaces and builders
-    - `icons.ts`: SVG icon constants
-    - `injections.ts`: Script injection utilities (MV3 compliance)
-    - `interfaces/`: TypeScript type definitions
-  - `options/`: Extension settings page and comment export
+    - `renderView.ts`, `viewModels.ts`: HTML rendering and view models
+    - `interfaces/`: TypeScript type definitions (CommentItem, ChatItem, etc.)
+  - `options/`: Extension settings page
   - `browser-action/`: Extension popup UI
 
-- **`app/src/static/`**: Static assets copied by Parcel
-  - `manifest.json`: Chrome manifest
-  - `_locales/en/`: Internationalization files
-  - `assets/images/`: Extension icons
-
-- **`app/docs/`**: Technical documentation (4 files)
-  - `innertube-comments-integration.md`: Unified guide for comment integration and continuation handling
-  - `innertube-migration-guide.md`: Migration guide from legacy to frameworkUpdates-driven comment model
-  - `innertube-chat-replay-api-changes.md`: Chat replay API migration (playerOffsetMs → continuation tokens)
-  - `continuation-processing.md`: JS/TS implementation alignment reference
-
-- **`scripts/`**: Build automation
-  - `build-extension.sh`: Platform-specific manifest selection and build
-  - `package-extension.sh`: Create versioned .zip packages
-  - `bump-version.sh`: Update version in manifests
-
-- **`packing/`**: Release artifacts
-  - `chrome-{version}.zip`
-  - `firefox-{version}.zip`
+- **`app/src/static/`**: Static assets (manifest, locales, icons)
+- **`app/docs/`**: Technical documentation (Innertube API integration guides)
+- **`scripts/`**: Build automation (build, package, version bump)
+- **`packing/`**: Release artifacts (.zip files)
 
 ### Extension Manifest Files
 
@@ -118,6 +109,8 @@ MV3 security restrictions require web page code to run in isolated context. The 
 | `fetch-retry` v5.0.3 | HTTP retry with exponential backoff |
 | `xlsx` v0.18.2 | Excel export functionality |
 | `html-entities` v2.6.0 | HTML entity encoding/decoding |
+| `url-regex` v5.0.0 | URL pattern matching |
+| `object-scan` v18.3.4 | Deep object scanning utility |
 
 ## Build System
 
@@ -129,18 +122,9 @@ MV3 security restrictions require web page code to run in isolated context. The 
 
 ### Build Scripts Flow
 
-1. **`build-extension.sh [chrome|firefox]`**
-   - Copies platform-specific manifest from `app/manifest.json` or `app/manifest.firefox.json` to `app/src/static/manifest.json`
-   - Runs `npm run build` in app/ directory
-   - Outputs to `app/dist/`
-
-2. **`package-extension.sh [chrome|firefox]`**
-   - Reads version from built manifest in `app/dist/manifest.json`
-   - Creates `packing/{platform}-{version}.zip` from `app/dist/`
-
-3. **`bump-version.sh [major|minor|patch]`**
-   - Updates version in both `app/manifest.json` and `app/manifest.firefox.json`
-   - Uses semantic versioning
+1. **`build-extension.sh [chrome|firefox]`** - Copies platform-specific manifest to `app/src/static/`, runs `npm run build`, outputs to `app/dist/`
+2. **`package-extension.sh [chrome|firefox]`** - Creates `packing/{platform}-{version}.zip` from `app/dist/`
+3. **`bump-version.sh [major|minor|patch]`** - Updates version in both manifests using semantic versioning
 
 ### Makefile Workflow
 
@@ -150,34 +134,34 @@ The `Makefile` automates the entire release process:
 make release TYPE=patch
 ```
 
-This will:
-1. Run `bump-version.sh` to increment version
-2. Git commit with message "Bump version to {version}"
-3. Create git tag "v{version}"
-4. Build and package both Chrome and Firefox versions
-5. Output `.zip` files to `packing/`
+Steps: bump version → git commit/tag → build/package both platforms → output to `packing/`
 
 ## Code Architecture Patterns
+
+### Module Facade Pattern
+
+The utility layer uses a facade pattern via `utils/assist.ts` as a unified export point. This provides centralized module exports and clear dependency hierarchy (common → dom → formatting → filters → innertube → sheets).
+
+Example: `import { getVideoId, formatLikes } from '../utils/assist';`
 
 ### GlobalStore Pattern
 
 Runtime state management using IIFE closure pattern. See `app/src/source/web-resources/wresources.ts` for implementation.
 
+### Web Resources State Management
+
+`web-resources/state.ts` provides a functional state container with comments, chat data, transcript, counters, and abort controller.
+
 ### IndexedDB Cache Strategy
 
-- **Store name**: `STORE_CACHE_YCS`
-- **Key**: YouTube video ID
-- **Data**: `{ videoId, body }` (comment/transcript data)
+- **Store**: `STORE_CACHE_YCS` (key: video ID, data: comment/transcript)
 - **Auto cleanup**: Clears cache when storage quota exceeded
 - **Quota limit**: 200 MB (configurable in options)
-
-Implementation in `app/src/source/background.ts`.
+- **Implementation**: `app/src/source/background.ts`
 
 ### Message Passing
 
-Three-layer communication using `window.postMessage()` (Web Page ↔ Content Script) and `chrome.runtime.sendMessage()` (Content Script ↔ Service Worker).
-
-See the Architecture section above for communication flow details.
+Three-layer communication using `window.postMessage()` (Web Page ↔ Content Script) and `chrome.runtime.sendMessage()` (Content Script ↔ Service Worker). See Architecture section above.
 
 ### Retry Mechanism
 
@@ -196,113 +180,80 @@ Uses `fetch-retry` with exponential backoff (2s → 10s → 60s, max 100 retries
 
 - **Language**: All code documentation, comments, commit messages, and technical documents must be written in English
 
-- **Formatter**: Prettier
-  - **Config file**: `app/.prettierrc.json`
-  - **Key settings**:
-    - Line width: 120 chars
-    - Single quotes: true
-    - No trailing commas
-    - LF line endings
-    - Semi-colons: true
-  - **Usage**:
-    ```bash
-    # Format specific files
-    npx prettier --write path/to/file.ts
+- **Formatter**: Prettier (`app/.prettierrc.json`)
+  - Line width: 120 chars, single quotes, LF endings, semicolons
+  - Usage: `npx prettier --write "src/**/*.{ts,js,json,css,html}"`
+  - Format before committing, after feature completion, when resolving merge conflicts
+  - Most IDEs can auto-format on save
 
-    # Format entire source directory
-    npx prettier --write "src/**/*.{ts,js,json,css,html}"
-
-    # Check formatting without modifying files
-    npx prettier --check "src/**/*.{ts,js,json,css,html}"
-    ```
-  - **When to format**:
-    - Before committing code changes
-    - After completing a feature or bug fix
-    - When resolving merge conflicts
-  - **Note**: Most IDEs can auto-format on save using the Prettier config
-
-- **Linter**: ESLint with TypeScript parser
-  - Run with `npm run lint` from `app/` directory
+- **Linter**: ESLint with TypeScript parser (`npm run lint` from `app/`)
   - Config: `app/.eslintrc.cjs`
+  - Key rules:
+    - `no-console`: OFF (extension debugging)
+    - `@typescript-eslint/no-explicit-any`: OFF (YouTube API complexity)
+    - `prefer-const`: WARN
+    - `@typescript-eslint/no-unused-vars`: WARN (allow `_` prefix)
 
 - **Indentation**:
-  - TS/JS: 4 spaces (enforced by `.editorconfig`)
+  - TS/JS: 4 spaces (`.editorconfig`)
   - JSON/HTML/CSS: 2 spaces
   - Makefile: Tabs
 
+- **Naming Conventions**:
+  - **Variables**: camelCase (`videoId`, `currentIndex`)
+  - **Constants**: UPPER_SNAKE_CASE (`STORE_CACHE_YCS`, `MAX_RETRIES`)
+  - **Functions**: camelCase with verb (`getVideoId()`, `processComment()`)
+  - **Classes/Interfaces**: PascalCase (`CommentItem`, `CacheData`)
+  - **Type aliases**: PascalCase (`type ReplyContinuation = ...`)
+  - **Unused params**: `_` prefix (`_event: Event`)
+  - **Files**: camelCase (`cacheService.ts`, `innertube.ts`)
+  - **Type definition files**: `i_` prefix (`i_types.ts`, `i_assist.ts`)
+
+- **Documentation**:
+  - Do not include file line numbers in documentation
+  - Do not add test coverage reports to documentation
+  - Avoid temporal markers (e.g., "Updated", "Updated on YYYY/MM/DD", "New") unless explicitly requested
+  - Documentation should reflect the current state, not historical changes
+
 ## Git Workflow
 
-### Branch Strategy
-
-- **Main branch**: `v2-source` (default branch)
-  - All development work should be based on this branch
-  - Protected branch (pull requests required for merging)
-  - Receives all feature branches and bug fixes
-
-- **Feature branches**: `feature/description` or `feat/description`
-  - Created from `v2-source`
-  - Merged back to `v2-source` via pull request
-
-- **Bug fix branches**: `fix/description` or `bugfix/description`
-  - Created from `v2-source`
-  - Merged back to `v2-source` via pull request
-
-- **Refactor branches**: `refactor/description`
-  - Created from `v2-source`
-  - Merged back to `v2-source` via pull request
-
-### Creating Pull Requests
-
-When creating PRs, always set the base branch to `v2-source`:
-
-```bash
-# Example workflow
-git checkout v2-source
-git pull origin v2-source
-git checkout -b feature/my-feature
-# ... make changes ...
-git push origin feature/my-feature
-# Create PR targeting v2-source
-```
-
-## Repository Structure History
-
-**Important**: This repository was migrated from a dual-repo structure (YCS + YCS_origin) to a single repo in commit b59aeaa (2025-01-18).
-
-- **Before**: Source code in separate YCS_origin repo, build output in YCS repo
-- **After**: All source code and build output in single YCS repo
-- **Migration**: Extension build folder renamed from root to `app/`
-- **Build system**: Updated to work with single-repo structure
-
-## Recent Features (v1.4.x)
-
-- **Donated Comment Filtering**: Filter and display comments with donation badges, showing amount and custom colors
-- **Chat Timestamp Filtering**: Enable timestamp-based filtering for chat replay messages
-- **Member Badge Improvements**: Enhanced member badge and creator heart tooltip extraction
-- **View Model Architecture**: Separated API data from DOM rendering for improved maintainability
-
-## Known Issues and Solutions
-
-### SPA Navigation (v1.3.9)
-
-**Issue**: Extension fails to load when navigating from YouTube homepage to video page.
-
-**Solution**: Hybrid approach implemented in commit 591db80:
-- Listen to YouTube native `yt-navigate-finish` event
-- Fallback to `popstate` event
-- Polling fallback for DOM-not-ready scenarios
-- Retry mechanism with duplicate initialization prevention
-
-### Bundle Size Optimization
-
-The extension experienced a ~97% size increase in v1.3.9 (908KB → 1792KB) due to Parcel code splitting creating duplicate chunks. Monitor `app/dist/` output when modifying build configuration.
+- **Main branch**: `v2-source` (default branch for development and releases)
+- All development work should be based on this branch
+- The project uses Husky pre-commit hooks for automatic formatting and linting
 
 ## Testing
 
-This project does not have automated unit tests. Testing is done manually by:
-1. Loading unpacked extension from `app/dist/` in Chrome/Firefox
-2. Testing on YouTube video pages with comments
-3. Verifying search, filtering, and export functionality
+### Automated Testing
+
+The project uses **Node.js built-in test runner** with TypeScript support:
+
+- **Test runner**: Node.js `node:test` module
+- **Assertion**: Node.js `node:assert` (strict mode)
+- **TypeScript**: `--experimental-strip-types` flag + custom loader
+- **Command**: `npm test` (from `app/` directory)
+
+**Test files** (in `app/tests/`):
+- `common.test.ts` - Common utilities
+- `formatting.test.ts` - Data formatting
+- `innertube.test.ts` - Innertube API
+- `innertube-comments-pipeline.test.ts` - Comment pipeline
+- `viewModels.test.ts` - View models
+
+Example:
+```typescript
+import { strict as assert } from 'node:assert';
+import test from 'node:test';
+
+test('description', () => {
+    assert.equal(myFunction(input), expected);
+});
+```
+
+### Manual Testing
+
+1. Load unpacked extension from `app/dist/` in Chrome/Firefox
+2. Test on YouTube video pages with comments
+3. Verify search, filtering, and export functionality
 
 ## Multi-Platform Support
 
@@ -322,51 +273,10 @@ Build scripts handle platform selection automatically.
 
 ## YouTube Innertube API Integration
 
-The extension integrates with YouTube's internal Innertube API for fetching comments, chat replays, and transcripts. Important technical documentation is located in `app/docs/`.
+The extension integrates with YouTube's internal Innertube API for fetching comments, chat replays, and transcripts.
 
-### API Architecture
+- **Dual-track support**: Legacy and frameworkUpdates-driven response formats
+- **Key modules**: Comment fetching, chat replay, pagination handling
+- **Documentation**: See `app/docs/innertube-*.md` for detailed implementation guides
 
-**Two-Track System**: The codebase supports both legacy and new Innertube API response formats:
-
-- **Legacy**: Direct `runs` arrays for comment content
-- **New (frameworkUpdates)**: Entity-based updates via `frameworkUpdates.entityBatchUpdate.mutations`
-
-All Innertube API logic is implemented in `app/src/source/utils/innertube.ts` with type definitions in `utils/interfaces/i_assist.ts`.
-
-### Core Functionality
-
-The implementation handles three main areas:
-- **Comment Fetching**: frameworkUpdates processing, runs migration, continuation handling
-- **Chat Replay**: Three-tier fallback mechanism for API structure detection
-- **Pagination**: Dual support for legacy (`playerOffsetMs`) and new (`continuation` tokens) systems
-
-For detailed function reference, see `app/docs/innertube-comments-integration.md`.
-
-### Documentation Files
-
-Reading `app/docs/` is essential for working with Innertube API code:
-
-| File | Purpose | Use When |
-|------|---------|----------|
-| `innertube-comments-integration.md` | Unified entry point for comment integration | Starting work on comment features |
-| `innertube-migration-guide.md` | Detailed frameworkUpdates migration guide | Understanding the new API model |
-| `innertube-chat-replay-api-changes.md` | Chat replay API changes and implementation | Working on chat replay features |
-| `continuation-processing.md` | JS/TS implementation alignment | Verifying code consistency |
-
-**Documentation Dependency**:
-```
-innertube-comments-integration.md (start here)
-    ↓
-    ├── innertube-migration-guide.md (comment details)
-    │   └── continuation-processing.md (implementation reference)
-    │
-    └── innertube-chat-replay-api-changes.md (chat implementation)
-```
-
-### Common Pitfalls
-
-- Always check for both legacy and new response structures
-- Use frameworkUpdates as source of truth when available
-- Handle missing continuation tokens gracefully
-- Test with various video types (live streams, premieres, regular videos)
-- Verify chat replay works with both ongoing and completed streams
+Implementation: `app/src/source/utils/innertube/` with type definitions in `utils/interfaces/i_assist.ts`

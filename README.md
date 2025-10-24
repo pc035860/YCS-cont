@@ -56,6 +56,9 @@ npm run format:check
 
 # Clean all build artifacts
 npm run rm
+
+# Run tests with Node.js test runner
+npm test
 ```
 
 ### Load Extension in Browser
@@ -121,22 +124,6 @@ The extension integrates with YouTube's internal Innertube API for comments, cha
 - [innertube-migration-guide.md](app/docs/innertube-migration-guide.md) - frameworkUpdates migration guide
 - [innertube-chat-replay-api-changes.md](app/docs/innertube-chat-replay-api-changes.md) - Chat replay API changes
 - [continuation-processing.md](app/docs/continuation-processing.md) - Implementation reference
-
-**Key directories**:
-- `app/src/source/` - TypeScript source code
-  - `utils/` - Modular utility system
-    - `innertube.ts` - YouTube Innertube API integration
-    - `filters/` - Comment and chat filtering modules
-    - `formatting.ts` - Data transformation and HTML output
-    - `dom.ts` - DOM manipulation and UI interactions
-    - `sheets.ts` - Excel export functionality
-    - `common.ts` - Shared utilities and GlobalStore
-  - `web-resources/` - Search UI and Fuse.js integration
-  - `content-scripts/` - Message relay layer
-  - `background.ts` - Service Worker, IndexedDB cache
-- `app/src/static/` - Static assets (manifest, icons, i18n)
-- `scripts/` - Build automation
-- `packing/` - Release artifacts
 
 ## Credits
 - Original YCS by **sonigy**
