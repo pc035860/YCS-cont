@@ -9,7 +9,13 @@ let mutationObserver: MutationObserver | null = null;
 let isRetryingApp = false;
 let lastRetryTime = 0;
 let pendingVerificationTimer: number | null = null;
+
+// Timing constants
 const RETRY_THROTTLE_MS = 1000;
+const VERIFICATION_DELAY_MS = 300; // Wait for normal re-renders to complete
+const RETRY_STATE_RESET_DELAY_MS = 500; // Prevent immediate re-trigger
+const POPSTATE_INIT_DELAY_MS = 100; // Wait for YouTube SPA DOM update after popstate
+const POLLING_INTERVAL_MS = 2000; // Fallback polling interval (reduced since MutationObserver handles most cases)
 
 const metaElementExists = (): Element | null => {
     return document.querySelector(META_SELECTOR);
@@ -58,7 +64,7 @@ const throttledRetryApp = (): void => {
     // Reset state with delay to avoid immediate re-trigger
     setTimeout(() => {
         isRetryingApp = false;
-    }, 500);
+    }, RETRY_STATE_RESET_DELAY_MS);
 };
 
 /**
@@ -70,6 +76,12 @@ const setupDOMObserver = (): void => {
     if (mutationObserver) {
         mutationObserver.disconnect();
         mutationObserver = null;
+    }
+
+    // Clean up pending verification timer to prevent orphaned timers
+    if (pendingVerificationTimer !== null) {
+        clearTimeout(pendingVerificationTimer);
+        pendingVerificationTimer = null;
     }
 
     // Find observation target (priority order)
@@ -122,7 +134,7 @@ const setupDOMObserver = (): void => {
                                     console.log('YCS: .ycs-app was restored by normal flow, recovery not needed');
                                 }
                             }
-                        }, 300); // Wait 300ms to confirm UI is truly missing
+                        }, VERIFICATION_DELAY_MS); // Wait for normal re-renders to complete
 
                         return;
                     }
@@ -187,7 +199,7 @@ export function startWebResources(): void {
 
         setTimeout(() => {
             ensureAppInitialized('popstate');
-        }, 100);
+        }, POPSTATE_INIT_DELAY_MS);
     };
 
     window.addEventListener('yt-navigate-finish', handleNavigateFinish);
@@ -216,5 +228,5 @@ export function startWebResources(): void {
             // Use throttled retry to prevent excessive retries
             throttledRetryApp();
         }
-    }, 2000); // Reduced frequency to 2s since MutationObserver handles most cases
+    }, POLLING_INTERVAL_MS);
 }
