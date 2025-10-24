@@ -182,6 +182,22 @@ export interface ChatItem extends Record<string, unknown> {
     replayChatItemAction: ReplayChatItemAction;
 }
 
+export interface PlayerSeekContinuationData extends Record<string, unknown> {
+    continuation: string;
+    clickTrackingParams?: string;
+}
+
+export interface LiveChatReplayContinuationData extends Record<string, unknown> {
+    timeUntilLastMessageMsec?: number;
+    continuation: string;
+    clickTrackingParams?: string;
+}
+
+export interface LiveChatContinuationItem extends Record<string, unknown> {
+    playerSeekContinuationData?: PlayerSeekContinuationData;
+    liveChatReplayContinuationData?: LiveChatReplayContinuationData;
+}
+
 export interface TranscriptCue extends Record<string, unknown> {
     transcriptCueRenderer?: {
         startOffsetMs?: number;
