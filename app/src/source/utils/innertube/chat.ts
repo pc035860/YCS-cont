@@ -274,11 +274,14 @@ export async function getChatComments(
                 return chatCmnts;
             }
 
-            const res = await fetchR(`https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay`, {
-                ...params,
-                signal,
-                cache: 'no-store'
-            });
+            const res = await fetchR(
+                `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?prettyPrint=false`,
+                {
+                    ...params,
+                    signal,
+                    cache: 'no-store'
+                }
+            );
 
             const response = await res.json();
             const continuations = response?.continuationContents?.liveChatContinuation?.continuations;
@@ -332,11 +335,14 @@ export async function getChatComments(
                     break;
                 }
 
-                const res = await fetchR(`https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay`, {
-                    ...params,
-                    signal,
-                    cache: 'no-store'
-                });
+                const res = await fetchR(
+                    `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?prettyPrint=false`,
+                    {
+                        ...params,
+                        signal,
+                        cache: 'no-store'
+                    }
+                );
 
                 const response = await res.json();
                 const cmnts = response?.continuationContents?.liveChatContinuation?.actions;
@@ -392,11 +398,14 @@ export async function getChatComments(
 
                 if (!params) break;
 
-                const res = await fetchR(`https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay`, {
-                    ...params,
-                    signal,
-                    cache: 'no-store'
-                });
+                const res = await fetchR(
+                    `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?prettyPrint=false`,
+                    {
+                        ...params,
+                        signal,
+                        cache: 'no-store'
+                    }
+                );
 
                 const response = await res.json();
                 const cmnts = response?.continuationContents?.liveChatContinuation?.actions;
