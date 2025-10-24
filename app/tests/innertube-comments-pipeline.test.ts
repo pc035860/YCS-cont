@@ -7,6 +7,7 @@ import {
     fetchContinuationBatch,
     fetchInitialCommentBatch,
     generateCommentObjectFromFW,
+    prepareFieldsComment,
     type ReplyContinuation
 } from '../src/source/utils/innertube/comments/pipeline';
 import { setFetchImplementation } from '../src/source/utils/libs';
@@ -271,6 +272,118 @@ test('processParentComment applies framework updates for creator flag', () => {
 
     const parent: any = result.comments[0];
     assert.strictEqual(parent.commentRenderer.authorIsChannelOwner, true);
+});
+
+test('prepareFieldsComment retains metadata required for exports and caching', () => {
+    const originalComment = {
+        commentRenderer: {
+            authorText: {
+                simpleText: 'Author Name',
+                runs: [
+                    {
+                        text: 'Author Name',
+                        navigationEndpoint: {
+                            browseEndpoint: { browseId: 'UC12345', canonicalBaseUrl: '/@author' },
+                            commandMetadata: {
+                                webCommandMetadata: {
+                                    url: '/channel/UC12345',
+                                    apiUrl: '/youtubei/v1/browse',
+                                    rootVe: 123,
+                                    webPageType: 'WEB_PAGE_TYPE_BROWSE'
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            authorEndpoint: {
+                commandMetadata: {
+                    webCommandMetadata: {
+                        url: '/channel/UC12345',
+                        apiUrl: '/youtubei/v1/browse',
+                        rootVe: 456,
+                        webPageType: 'WEB_PAGE_TYPE_BROWSE'
+                    }
+                },
+                browseEndpoint: {
+                    browseId: 'UC12345',
+                    canonicalBaseUrl: '/@author',
+                    params: 'extra'
+                },
+                clickTrackingParams: 'tracking'
+            },
+            publishedTimeText: {
+                runs: [
+                    {
+                        text: '2 hours ago',
+                        navigationEndpoint: {
+                            commandMetadata: {
+                                webCommandMetadata: {
+                                    webPageType: 'WEB_PAGE_TYPE_BROWSE'
+                                }
+                            },
+                            watchEndpoint: { params: 'detail' },
+                            clickTrackingParams: 'time-tracking'
+                        }
+                    }
+                ]
+            },
+            contentText: {
+                runs: [
+                    {
+                        text: 'with link',
+                        navigationEndpoint: {
+                            browseEndpoint: { browseId: 'UC12345', canonicalBaseUrl: '/@author' },
+                            commandMetadata: {
+                                webCommandMetadata: {
+                                    apiUrl: '/youtubei/v1/browse',
+                                    rootVe: 789,
+                                    webPageType: 'WEB_PAGE_TYPE_BROWSE'
+                                }
+                            },
+                            clickTrackingParams: 'run-1'
+                        }
+                    },
+                    { text: 'just text' }
+                ]
+            },
+            voteCount: {
+                simpleText: '42',
+                runs: [
+                    {
+                        text: '42'
+                    }
+                ],
+                extraData: 'remove me'
+            },
+            likeCount: 41
+        }
+    };
+
+    const prepared = prepareFieldsComment(JSON.parse(JSON.stringify(originalComment)));
+    const renderer: any = prepared.commentRenderer;
+
+    assert.strictEqual(renderer.authorText.simpleText, 'Author Name');
+    assert.ok(renderer.authorText.runs[0].navigationEndpoint);
+    assert.strictEqual(renderer.authorText.runs[0].navigationEndpoint.browseEndpoint.browseId, 'UC12345');
+    assert.strictEqual(renderer.authorEndpoint.commandMetadata.webCommandMetadata.url, '/channel/UC12345');
+    assert.strictEqual(renderer.authorEndpoint.browseEndpoint.browseId, 'UC12345');
+    assert.strictEqual(renderer.authorEndpoint.browseEndpoint.canonicalBaseUrl, '/@author');
+    assert.strictEqual(renderer.publishedTimeText.runs[0].text, '2 hours ago');
+    assert.strictEqual(renderer.contentText.runs[0].text, 'with link');
+    assert.strictEqual(renderer.contentText.runs[1].text, 'just text');
+    assert.strictEqual(renderer.voteCount.simpleText, '42');
+    assert.strictEqual(renderer.voteCount.runs[0].text, '42');
+    assert.strictEqual(renderer.likeCount, 41);
+
+    const serialized = JSON.parse(JSON.stringify(prepared));
+    assert.strictEqual(
+        serialized.commentRenderer.authorEndpoint.commandMetadata.webCommandMetadata.url,
+        '/channel/UC12345'
+    );
+    assert.strictEqual(serialized.commentRenderer.authorEndpoint.browseEndpoint.browseId, 'UC12345');
+    assert.strictEqual(serialized.commentRenderer.contentText.runs[0].text, 'with link');
+    assert.strictEqual(serialized.commentRenderer.voteCount.simpleText, '42');
 });
 
 test('scheduleReplyFetches returns without scheduling when no continuations', async () => {
