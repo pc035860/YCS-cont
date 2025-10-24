@@ -1317,11 +1317,21 @@ export function initApp(): void {
                 document.querySelector('#meta.style-scope.ytd-watch-flexy') &&
                 prevUrl !== getCleanUrlVideo(window.location.href)
             ) {
-                prevUrl = getCleanUrlVideo(window.location.href);
-                // console.log('prevUrl After: ', prevUrl);
+                const currentUrl = getCleanUrlVideo(window.location.href);
 
                 getController(state).abort();
                 app();
+
+                // Only update prevUrl after confirming .ycs-app was successfully created
+                // If DOM insertion failed, next interval tick will retry
+                if (document.querySelector('.ycs-app')) {
+                    prevUrl = currentUrl;
+                    if (DEBUG) {
+                        console.log('YCS: Video switch successful, prevUrl updated to:', prevUrl);
+                    }
+                } else if (DEBUG) {
+                    console.log('YCS: .ycs-app not found after app(), will retry on next interval');
+                }
             }
         }, 1000);
 
