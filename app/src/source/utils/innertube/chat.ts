@@ -302,6 +302,13 @@ export async function getChatComments(
                 )?.liveChatReplayContinuationData;
 
                 if (liveChatReplayData?.continuation) {
+                    // Process the first batch of actions before starting the fallback loop
+                    const firstBatchActions = response?.continuationContents?.liveChatContinuation?.actions;
+                    if (Array.isArray(firstBatchActions) && firstBatchActions.length > 0) {
+                        console.log('Processing first batch in fallback mode:', firstBatchActions.length, 'actions');
+                        processReplayBatch(firstBatchActions, context);
+                    }
+
                     playerSeekToken = { continuation: liveChatReplayData.continuation };
                     usePlayerSeekMode = false;
                 } else {
