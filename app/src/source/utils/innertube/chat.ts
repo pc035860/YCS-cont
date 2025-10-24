@@ -13,7 +13,8 @@ export async function getParamsForChat(
     cLiveChat: any,
     signal?: AbortSignal,
     useLegacyApi = false,
-    playerOffsetMs = 0
+    playerOffsetMs = 0,
+    usePlayerSeek = false
 ): Promise<InnertubeRequestParams | undefined> {
     if (!cLiveChat) return undefined;
 
@@ -28,11 +29,12 @@ export async function getParamsForChat(
         const bodyPayload = buildInnertubeBody({
             ytcfgData,
             continuation: cLiveChat.continuation,
-            currentPlayerState: useLegacyApi
-                ? {
-                      playerOffsetMs: playerOffsetMs.toString()
-                  }
-                : undefined
+            currentPlayerState:
+                useLegacyApi || usePlayerSeek
+                    ? {
+                          playerOffsetMs: playerOffsetMs.toString()
+                      }
+                    : undefined
         });
 
         return {
@@ -259,13 +261,18 @@ export async function getChatComments(
             return chatCmnts;
         }
 
-        let nextContinuation: any = continuationData;
+        // Stage 1: Fetch initial response to get playerSeekContinuationData
+        let playerSeekToken: any = null;
+        let usePlayerSeekMode = true;
 
-        while (nextContinuation) {
-            console.log('Loop chat comments (New API)');
-            const params = await getParamsForChat(window, nextContinuation, signal, false);
+        {
+            console.log('Fetching initial playerSeekContinuationData (New API)');
+            const params = await getParamsForChat(window, continuationData, signal, false);
 
-            if (!params) break;
+            if (!params) {
+                console.error('Failed to get initial params');
+                return chatCmnts;
+            }
 
             const res = await fetchR(`https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay`, {
                 ...params,
@@ -274,21 +281,140 @@ export async function getChatComments(
             });
 
             const response = await res.json();
-            const cmnts = response?.continuationContents?.liveChatContinuation?.actions;
-            console.log('Chat comments (New): ', cmnts);
-
-            if (Array.isArray(cmnts) && cmnts.length > 0) {
-                processReplayBatch(cmnts, context);
-            }
-
             const continuations = response?.continuationContents?.liveChatContinuation?.continuations;
-            const continuationToken = continuations?.[0]?.liveChatReplayContinuationData?.continuation;
 
-            if (continuationToken) {
-                nextContinuation = { continuation: continuationToken };
+            // Try to extract playerSeekContinuationData
+            const playerSeekData = continuations?.find(
+                (c: any) => c.playerSeekContinuationData
+            )?.playerSeekContinuationData;
+
+            if (playerSeekData?.continuation) {
+                playerSeekToken = { continuation: playerSeekData.continuation };
+                console.log('Got initial playerSeekContinuationData, using playerOffsetMs mode');
             } else {
-                console.log('No more continuation, finished loading chat');
-                break;
+                // Fallback: use liveChatReplayContinuationData
+                console.warn(
+                    'No playerSeekContinuationData found, falling back to liveChatReplayContinuationData mode'
+                );
+                const liveChatReplayData = continuations?.find(
+                    (c: any) => c.liveChatReplayContinuationData
+                )?.liveChatReplayContinuationData;
+
+                if (liveChatReplayData?.continuation) {
+                    playerSeekToken = { continuation: liveChatReplayData.continuation };
+                    usePlayerSeekMode = false;
+                } else {
+                    console.error('No continuation data found in initial response');
+                    return chatCmnts;
+                }
+            }
+        }
+
+        // Stage 2: Iterate using playerSeek + playerOffsetMs or fallback mode
+        if (usePlayerSeekMode) {
+            // New mode: playerSeek + playerOffsetMs (similar to legacy API)
+            let currentOffsetTimeMsec = 0;
+            let next = true;
+
+            while (next) {
+                console.log('Loop chat comments (New API with playerOffsetMs)');
+                const params = await getParamsForChat(
+                    window,
+                    playerSeekToken,
+                    signal,
+                    false,
+                    currentOffsetTimeMsec,
+                    true // usePlayerSeek = true
+                );
+
+                if (!params) {
+                    next = false;
+                    break;
+                }
+
+                const res = await fetchR(`https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay`, {
+                    ...params,
+                    signal,
+                    cache: 'no-store'
+                });
+
+                const response = await res.json();
+                const cmnts = response?.continuationContents?.liveChatContinuation?.actions;
+
+                if (Array.isArray(cmnts) && cmnts.length > 0) {
+                    // Extract last offset time
+                    const lastOffsetTimeInCmnts = wrapTryCatch(() => {
+                        const offsetData = deepFindObjKey(cmnts[cmnts.length - 1], 'videoOffsetTimeMsec')[0];
+                        return (Object as any).entries(offsetData)[0][1];
+                    }) as number | undefined;
+
+                    console.log('currentOffsetTimeMsec:', currentOffsetTimeMsec);
+                    console.log('lastOffsetTimeInCmnts:', lastOffsetTimeInCmnts);
+
+                    // Check termination condition
+                    if (currentOffsetTimeMsec === lastOffsetTimeInCmnts) {
+                        console.log('BREAK! Reached end of chat replay (New API with playerOffsetMs)');
+                        next = false;
+                        break;
+                    }
+
+                    processReplayBatch(cmnts, context);
+
+                    // Update offset
+                    if (lastOffsetTimeInCmnts !== undefined) {
+                        currentOffsetTimeMsec = lastOffsetTimeInCmnts;
+                    }
+
+                    // Update playerSeekToken
+                    const continuations = response?.continuationContents?.liveChatContinuation?.continuations;
+                    const playerSeekData = continuations?.find(
+                        (c: any) => c.playerSeekContinuationData
+                    )?.playerSeekContinuationData;
+
+                    if (playerSeekData?.continuation) {
+                        playerSeekToken = { continuation: playerSeekData.continuation };
+                    } else {
+                        console.warn('No playerSeekContinuationData in response, stopping');
+                        next = false;
+                        break;
+                    }
+                } else {
+                    next = false;
+                }
+            }
+        } else {
+            // Fallback mode: use liveChatReplayContinuationData (old logic)
+            let nextContinuation: any = playerSeekToken;
+
+            while (nextContinuation) {
+                console.log('Loop chat comments (New API - fallback mode)');
+                const params = await getParamsForChat(window, nextContinuation, signal, false);
+
+                if (!params) break;
+
+                const res = await fetchR(`https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay`, {
+                    ...params,
+                    signal,
+                    cache: 'no-store'
+                });
+
+                const response = await res.json();
+                const cmnts = response?.continuationContents?.liveChatContinuation?.actions;
+
+                if (Array.isArray(cmnts) && cmnts.length > 0) {
+                    processReplayBatch(cmnts, context);
+                }
+
+                const continuations = response?.continuationContents?.liveChatContinuation?.continuations;
+                const continuationToken = continuations?.find((c: any) => c.liveChatReplayContinuationData)
+                    ?.liveChatReplayContinuationData?.continuation;
+
+                if (continuationToken) {
+                    nextContinuation = { continuation: continuationToken };
+                } else {
+                    console.log('No more continuation, finished loading chat (fallback mode)');
+                    break;
+                }
             }
         }
 
