@@ -40,6 +40,23 @@ window.onload = async (): Promise<void> => {
             }
         };
 
+        const getTotalLikesText = (cmnt: any): string => {
+            const voteCountText = wrapTryCatch(() => cmnt?.commentRenderer?.voteCount?.simpleText) as
+                | string
+                | undefined;
+            if (typeof voteCountText === 'string' && voteCountText.length > 0) {
+                return voteCountText;
+            }
+            const likeCount = wrapTryCatch(() => cmnt?.commentRenderer?.likeCount) as string | number | undefined;
+            if (typeof likeCount === 'number') {
+                return String(likeCount);
+            }
+            if (typeof likeCount === 'string' && likeCount.length > 0) {
+                return likeCount;
+            }
+            return '0';
+        };
+
         const getProcessShowAllHtml = (): HTMLElement | void => {
             removeNodeList('#ycs_process_show_all_wrap');
 
@@ -195,7 +212,7 @@ Total: ${c.count}\n${c.html}`;
                             ) as string,
                             commentMessage: (cmnt?.commentRenderer?.contentText?.fullText ||
                                 cmnt?.commentRenderer?.renderFullText) as string,
-                            totalLikes: (cmnt?.commentRenderer?.voteCount?.simpleText || '0') as string,
+                            totalLikes: getTotalLikesText(cmnt),
                             member: cmnt?.commentRenderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer
                                 ?.tooltip as string,
                             commentReplies: {
@@ -238,7 +255,7 @@ Total: ${c.count}\n${c.html}`;
                             ) as string,
                             commentMessage: (cmnt?.commentRenderer?.contentText?.fullText ||
                                 cmnt?.commentRenderer?.renderFullText) as string,
-                            totalLikes: (cmnt?.commentRenderer?.voteCount?.simpleText || '0') as string,
+                            totalLikes: getTotalLikesText(cmnt),
                             member: cmnt?.commentRenderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer
                                 ?.tooltip as string
                         });

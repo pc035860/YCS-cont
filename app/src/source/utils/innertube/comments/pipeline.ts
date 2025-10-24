@@ -663,6 +663,91 @@ export function extractNextContinuation(response: any): { token?: string; clickT
 
 export function prepareFieldsComment(cmnt: any): object {
     try {
+        const preservedAuthorText = wrapTryCatch(() => {
+            const authorText = cmnt.commentRenderer?.authorText;
+            if (!authorText) return undefined;
+            const copy: any = {};
+            if (typeof authorText.simpleText !== 'undefined') {
+                copy.simpleText = authorText.simpleText;
+            }
+            if (Array.isArray(authorText.runs)) {
+                copy.runs = authorText.runs.map((run: any) => {
+                    const runCopy: any = {};
+                    const navigationEndpoint = wrapTryCatch(() => run?.navigationEndpoint);
+                    if (navigationEndpoint) {
+                        runCopy.navigationEndpoint = navigationEndpoint;
+                    }
+                    const text = wrapTryCatch(() => run?.text);
+                    if (typeof text !== 'undefined') {
+                        runCopy.text = text;
+                    }
+                    const simpleRunText = wrapTryCatch(() => run?.simpleText);
+                    if (typeof simpleRunText !== 'undefined') {
+                        runCopy.simpleText = simpleRunText;
+                    }
+                    return runCopy;
+                });
+            }
+            return copy;
+        });
+
+        const preservedAuthorEndpoint = wrapTryCatch(() => {
+            const endpoint = cmnt.commentRenderer?.authorEndpoint;
+            if (!endpoint) return undefined;
+            const url = wrapTryCatch(() => endpoint.commandMetadata?.webCommandMetadata?.url);
+            const browseId = wrapTryCatch(() => endpoint.browseEndpoint?.browseId);
+            const canonicalBaseUrl = wrapTryCatch(() => endpoint.browseEndpoint?.canonicalBaseUrl);
+            return { url, browseId, canonicalBaseUrl };
+        });
+
+        const preservedPublishedTimeTextRuns = wrapTryCatch(() => {
+            const runs = cmnt.commentRenderer?.publishedTimeText?.runs;
+            if (!Array.isArray(runs)) return undefined;
+            return runs.map((run: any) => {
+                const text = wrapTryCatch(() => run?.text);
+                return typeof text !== 'undefined' ? { text } : {};
+            });
+        });
+
+        const preservedContentRuns = wrapTryCatch(() => {
+            const runs = cmnt.commentRenderer?.contentText?.runs;
+            if (!Array.isArray(runs)) return undefined;
+            return runs.map((run: any) => {
+                const runCopy: any = {};
+                const text = wrapTryCatch(() => run?.text);
+                if (typeof text !== 'undefined') {
+                    runCopy.text = text;
+                }
+                const navigationEndpoint = wrapTryCatch(() => run?.navigationEndpoint);
+                if (navigationEndpoint) {
+                    runCopy.navigationEndpoint = navigationEndpoint;
+                }
+                return runCopy;
+            });
+        });
+
+        const preservedVoteCount = wrapTryCatch(() => {
+            const voteCount = cmnt.commentRenderer?.voteCount;
+            if (!voteCount) return undefined;
+            const copy: any = {};
+            const simpleText = wrapTryCatch(() => voteCount.simpleText);
+            if (typeof simpleText !== 'undefined') {
+                copy.simpleText = simpleText;
+            }
+            const runs = wrapTryCatch(() => voteCount.runs);
+            if (Array.isArray(runs)) {
+                copy.runs = runs.map((run: any) => {
+                    const runCopy: any = {};
+                    const text = wrapTryCatch(() => run?.text);
+                    if (typeof text !== 'undefined') {
+                        runCopy.text = text;
+                    }
+                    return runCopy;
+                });
+            }
+            return copy;
+        });
+
         if (wrapTryCatch(() => cmnt.commentRenderer?.actionButtons?.commentActionButtonsRenderer?.creatorHeart)) {
             try {
                 cmnt.commentRenderer.creatorHeart = {
@@ -719,9 +804,7 @@ export function prepareFieldsComment(cmnt: any): object {
 
         wrapTryCatch(() => delete cmnt.commentRenderer.analyticsTrackingParams);
 
-        wrapTryCatch(() => delete cmnt.commentRenderer.authorText.simpleText);
         wrapTryCatch(() => delete cmnt.commentRenderer.authorText.accessibility);
-        wrapTryCatch(() => delete cmnt.commentRenderer.authorText.runs[0].navigationEndpoint);
 
         wrapTryCatch(() => delete cmnt.commentRenderer.authorCommentBadge);
 
@@ -736,10 +819,6 @@ export function prepareFieldsComment(cmnt: any): object {
         });
 
         wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.clickTrackingParams);
-        wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.commandMetadata);
-
-        wrapTryCatch(() => delete cmnt.commentRenderer.authorEndpoint.browseEndpoint.browseId);
-
         wrapTryCatch(() => delete cmnt.commentRenderer.commentSimpleboxEndpoint);
         wrapTryCatch(() => delete cmnt.commentRenderer.commentActionButtonsRenderer);
 
@@ -761,9 +840,14 @@ export function prepareFieldsComment(cmnt: any): object {
             () => delete cmnt.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.clickTrackingParams
         );
 
-        if (wrapTryCatch(() => cmnt.commentRenderer.contentText.runs.length > 0)) {
-            for (const [i, textPart] of cmnt.commentRenderer.contentText.runs.entries()) {
-                if (textPart.navigationEndpoint) {
+        wrapTryCatch(() => {
+            const runs = cmnt.commentRenderer?.contentText?.runs;
+            if (!Array.isArray(runs)) return;
+            for (const [i, textPart] of runs.entries()) {
+                if (!textPart) continue;
+                const originalText = wrapTryCatch(() => textPart?.text);
+                const navEndpoint = wrapTryCatch(() => textPart?.navigationEndpoint);
+                if (navEndpoint) {
                     wrapTryCatch(
                         () =>
                             delete cmnt.commentRenderer.contentText.runs[i].navigationEndpoint.commandMetadata
@@ -784,11 +868,125 @@ export function prepareFieldsComment(cmnt: any): object {
                         () => delete cmnt.commentRenderer.contentText.runs[i].navigationEndpoint.clickTrackingParams
                     );
 
-                    wrapTryCatch(() => delete cmnt.commentRenderer.contentText.runs[i].text);
+                    if (typeof originalText !== 'undefined') {
+                        cmnt.commentRenderer.contentText.runs[i].text = originalText;
+                    }
                 } else {
-                    wrapTryCatch(() => delete cmnt.commentRenderer.contentText.runs[i]);
+                    cmnt.commentRenderer.contentText.runs[i] = {};
+                    if (typeof originalText !== 'undefined') {
+                        cmnt.commentRenderer.contentText.runs[i].text = originalText;
+                    }
                 }
             }
+        });
+
+        if (preservedAuthorText) {
+            cmnt.commentRenderer.authorText = cmnt.commentRenderer.authorText || {};
+            if (typeof preservedAuthorText.simpleText !== 'undefined') {
+                cmnt.commentRenderer.authorText.simpleText = preservedAuthorText.simpleText;
+            }
+            if (Array.isArray(preservedAuthorText.runs)) {
+                cmnt.commentRenderer.authorText.runs = preservedAuthorText.runs.map((run: any, index: number) => {
+                    const sanitized =
+                        (cmnt.commentRenderer.authorText?.runs || [])[index] &&
+                        typeof (cmnt.commentRenderer.authorText?.runs || [])[index] === 'object'
+                            ? { ...(cmnt.commentRenderer.authorText?.runs || [])[index] }
+                            : {};
+                    if (run?.navigationEndpoint) {
+                        sanitized.navigationEndpoint = run.navigationEndpoint;
+                    }
+                    if (typeof run?.text !== 'undefined') {
+                        sanitized.text = run.text;
+                    }
+                    if (typeof run?.simpleText !== 'undefined') {
+                        sanitized.simpleText = run.simpleText;
+                    }
+                    return sanitized;
+                });
+            }
+        }
+
+        if (preservedAuthorEndpoint) {
+            cmnt.commentRenderer.authorEndpoint = cmnt.commentRenderer.authorEndpoint || {};
+            if (typeof preservedAuthorEndpoint.url !== 'undefined') {
+                cmnt.commentRenderer.authorEndpoint.commandMetadata = {
+                    webCommandMetadata: { url: preservedAuthorEndpoint.url }
+                };
+            }
+            if (
+                typeof preservedAuthorEndpoint.browseId !== 'undefined' ||
+                typeof preservedAuthorEndpoint.canonicalBaseUrl !== 'undefined'
+            ) {
+                cmnt.commentRenderer.authorEndpoint.browseEndpoint = {
+                    ...(typeof preservedAuthorEndpoint.browseId !== 'undefined'
+                        ? { browseId: preservedAuthorEndpoint.browseId }
+                        : {}),
+                    ...(typeof preservedAuthorEndpoint.canonicalBaseUrl !== 'undefined'
+                        ? { canonicalBaseUrl: preservedAuthorEndpoint.canonicalBaseUrl }
+                        : {})
+                };
+            }
+        }
+
+        if (Array.isArray(preservedPublishedTimeTextRuns)) {
+            cmnt.commentRenderer.publishedTimeText = cmnt.commentRenderer.publishedTimeText || {};
+            const sanitizedRuns =
+                Array.isArray(cmnt.commentRenderer.publishedTimeText.runs) &&
+                cmnt.commentRenderer.publishedTimeText.runs.length === preservedPublishedTimeTextRuns.length
+                    ? cmnt.commentRenderer.publishedTimeText.runs
+                    : new Array(preservedPublishedTimeTextRuns.length).fill({});
+            cmnt.commentRenderer.publishedTimeText.runs = preservedPublishedTimeTextRuns.map(
+                (run: any, index: number) => {
+                    const sanitized =
+                        sanitizedRuns[index] && typeof sanitizedRuns[index] === 'object'
+                            ? { ...sanitizedRuns[index] }
+                            : {};
+                    if (typeof run?.text !== 'undefined') {
+                        sanitized.text = run.text;
+                    }
+                    return sanitized;
+                }
+            );
+        }
+
+        if (Array.isArray(preservedContentRuns)) {
+            cmnt.commentRenderer.contentText = cmnt.commentRenderer.contentText || {};
+            const sanitizedRuns =
+                Array.isArray(cmnt.commentRenderer.contentText.runs) &&
+                cmnt.commentRenderer.contentText.runs.length === preservedContentRuns.length
+                    ? cmnt.commentRenderer.contentText.runs
+                    : new Array(preservedContentRuns.length).fill({});
+            cmnt.commentRenderer.contentText.runs = preservedContentRuns.map((run: any, index: number) => {
+                const sanitized =
+                    sanitizedRuns[index] && typeof sanitizedRuns[index] === 'object' ? { ...sanitizedRuns[index] } : {};
+                if (typeof run?.text !== 'undefined') {
+                    sanitized.text = run.text;
+                }
+                if (run?.navigationEndpoint) {
+                    sanitized.navigationEndpoint = run.navigationEndpoint;
+                }
+                return sanitized;
+            });
+        }
+
+        if (
+            preservedVoteCount &&
+            (typeof preservedVoteCount.simpleText !== 'undefined' || Array.isArray(preservedVoteCount.runs))
+        ) {
+            const sanitized: any = {};
+            if (typeof preservedVoteCount.simpleText !== 'undefined') {
+                sanitized.simpleText = preservedVoteCount.simpleText;
+            }
+            if (Array.isArray(preservedVoteCount.runs)) {
+                sanitized.runs = preservedVoteCount.runs.map((run: any) => {
+                    const runCopy: any = {};
+                    if (typeof run?.text !== 'undefined') {
+                        runCopy.text = run.text;
+                    }
+                    return runCopy;
+                });
+            }
+            cmnt.commentRenderer.voteCount = sanitized;
         }
 
         return cmnt;
