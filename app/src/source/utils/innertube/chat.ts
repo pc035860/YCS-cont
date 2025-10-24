@@ -148,16 +148,14 @@ async function getCDChat(signal: AbortSignal): Promise<ChatContinuationResult> {
     }
 }
 
-async function getLiveChat(signal: AbortSignal): Promise<object[] | undefined> {
+async function getLiveChat(continuationData: any, signal: AbortSignal): Promise<object[] | undefined> {
     try {
-        const result = await getCDChat(signal);
-
-        if (!result.continuationData) {
+        if (!continuationData) {
             console.log('No continuation data available for live chat');
             return undefined;
         }
 
-        const params = await getParamsForLiveChat(window, result.continuationData, signal);
+        const params = await getParamsForLiveChat(window, continuationData, signal);
 
         if (params) {
             const res = await fetch(
@@ -204,7 +202,7 @@ export async function getChatComments(
             onCommentAdded: (count: number) => showLoadComments(count, elShowLoading)
         };
 
-        const liveChatData: any = await getLiveChat(signal);
+        const liveChatData: any = await getLiveChat(result.continuationData, signal);
 
         if (liveChatData?.actions?.length > 0) {
             console.log('IS LIVECHAT!!!!!', liveChatData);
