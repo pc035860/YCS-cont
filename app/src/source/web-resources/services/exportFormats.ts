@@ -179,43 +179,9 @@ export function exportCommentsAsXLSX(input: {
     }
 }
 
-// Placeholder helpers reused from export_comments.ts - small copies to build sheets
-// helpers (kept for future reuse)
-/* istanbul ignore next */
-function _getSheetDetails(cmnt: any): Record<string, unknown> {
-    return {
-        title: cmnt.title || '',
-        totalComments: cmnt.totalComments || 0,
-        totalReplies: cmnt.totalReplies || 0
-    };
-}
-
-/* istanbul ignore next */
-function _getSheetComments(comments: any[]): any[] {
-    return (comments || []).map((c) => ({
-        author: c.author || '',
-        message: c.commentMessage || '',
-        likes: c.totalLikes || 0,
-        member: c.member || ''
-    }));
-}
-
-/* istanbul ignore next */
-function _getSheetReplies(comments: any[]): any[] {
-    const replies: any[] = [];
-    for (const c of comments || []) {
-        if (Array.isArray(c.replies) && c.replies.length > 0) {
-            for (const r of c.replies) {
-                replies.push({ parentId: c.commentId || '', author: r.author || '', message: r.commentMessage || '' });
-            }
-        }
-    }
-    return replies;
-}
-
 // Chat and Transcript exporters: simple JSON wrappers (XLSX can be added similarly)
 export function exportChatAsJSON(
-    chatMessages: ChatItem[] | any,
+    chatMessages: ChatItem[],
     meta: { titleVideo?: string; url?: string; videoId?: string; cachedDate?: number }
 ): { content: string; fileName: string; mime: string } | void {
     try {
@@ -241,8 +207,8 @@ export function exportChatAsJSON(
         };
 
         for (const it of arr) {
-            const renderer = safe(() => it.replayChatItemAction.actions[0].addChatItemAction.item)
-                ?.liveChatTextMessageRenderer as any;
+            const item = safe(() => (it as any).replayChatItemAction.actions[0].addChatItemAction.item);
+            const renderer = item?.liveChatTextMessageRenderer as any;
             if (!renderer) continue;
             const name = renderer?.authorName?.simpleText || '';
             const channel = '';
@@ -274,7 +240,7 @@ export function exportChatAsJSON(
 }
 
 export function exportChatAsXLSX(
-    chatMessages: ChatItem[] | any,
+    chatMessages: ChatItem[],
     meta: { titleVideo?: string; url?: string; videoId?: string; cachedDate?: number }
 ): { writeFunc: () => void } | void {
     try {
@@ -317,7 +283,7 @@ export function exportChatAsXLSX(
 }
 
 export function exportTranscriptAsJSON(
-    cueGroups: TranscriptCueGroup[] | any,
+    cueGroups: TranscriptCueGroup[],
     meta: { titleVideo?: string; url?: string; videoId?: string; cachedDate?: number; titleTrVideo?: string }
 ): { content: string; fileName: string; mime: string } | void {
     try {
@@ -363,7 +329,7 @@ export function exportTranscriptAsJSON(
 }
 
 export function exportTranscriptAsXLSX(
-    cueGroups: TranscriptCueGroup[] | any,
+    cueGroups: TranscriptCueGroup[],
     meta: { titleVideo?: string; url?: string; videoId?: string; cachedDate?: number; titleTrVideo?: string }
 ): { writeFunc: () => void } | void {
     try {

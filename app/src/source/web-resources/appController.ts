@@ -30,8 +30,10 @@ import {
     downloadChatFileJSON,
     downloadChatFileXLSX,
     downloadTranscriptFileJSON,
-    downloadTranscriptFileXLSX
+    downloadTranscriptFileXLSX,
+    EXPORT_FORMAT
 } from './services/exportService';
+import type { ExportFormat } from './services/exportService';
 import {
     clearComments,
     clearCommentsChat,
@@ -76,7 +78,14 @@ const TRANSCRIPT_UNSUPPORTED_FILTERS = [
 
 type SortAttribute = 'sort' | 'sortChat' | 'sortTrp';
 
+const dropdownMenus = new Set<HTMLElement>();
+
 let filterRegistry: FilterButtonRegistry | null = null;
+let handleDocumentClick: ((ev: MouseEvent) => void) | null = null;
+
+const isExportFormat = (value: string | undefined): value is ExportFormat => {
+    return value === EXPORT_FORMAT.TXT || value === EXPORT_FORMAT.JSON || value === EXPORT_FORMAT.XLSX;
+};
 
 const getSortableButtonIds = (): string[] => {
     if (filterRegistry?.sortButtonIds?.length) {
@@ -188,6 +197,11 @@ export function initApp(): void {
         updateBadge('NUMBER_COMMENTS', '');
 
         removeNodeList('.ycs-app');
+        dropdownMenus.clear();
+        if (handleDocumentClick) {
+            document.removeEventListener('click', handleDocumentClick);
+            handleDocumentClick = null;
+        }
 
         // Try new insertion points first (between expandable-metadata and ticket-shelf)
         if (document.querySelector('#expandable-metadata.ytd-watch-flexy')) {
@@ -766,16 +780,59 @@ export function initApp(): void {
             });
         }
 
-        // Ensure only one dropdown is open at a time
-        const closeAllDropdowns = (except?: HTMLElement | null) => {
-            try {
-                const menus = document.querySelectorAll('.ycs_dropdown_menu.show');
-                menus.forEach((m) => {
-                    if (m !== except) m.classList.remove('show');
-                });
-            } catch (err) {
-                // ignore
+        const setMenuVisibility = (menu: HTMLElement | null, visible: boolean): void => {
+            if (!menu) return;
+            if (visible) {
+                menu.classList.add('show');
+            } else {
+                menu.classList.remove('show');
             }
+            menu.setAttribute('aria-hidden', visible ? 'false' : 'true');
+        };
+
+        const closeAllDropdowns = (except?: HTMLElement | null): void => {
+            dropdownMenus.forEach((menu) => {
+                if (menu !== except) {
+                    setMenuVisibility(menu, false);
+                }
+            });
+        };
+
+        const setupDropdown = (
+            trigger: HTMLElement | null,
+            menu: HTMLElement | null,
+            onSelect: (format: ExportFormat) => void
+        ): void => {
+            if (!trigger || !menu) return;
+
+            dropdownMenus.add(menu);
+            setMenuVisibility(menu, false);
+
+            trigger.addEventListener('click', (event) => {
+                try {
+                    event.stopPropagation();
+                    closeAllDropdowns(menu);
+                    const shouldShow = !menu.classList.contains('show');
+                    setMenuVisibility(menu, shouldShow);
+                } catch (err) {
+                    console.error(err);
+                }
+            });
+
+            menu.addEventListener('click', (event) => {
+                try {
+                    const target = event.target as HTMLElement | null;
+                    if (!target) return;
+                    const format = target.dataset.format;
+                    if (!isExportFormat(format)) return;
+
+                    onSelect(format);
+                } catch (err) {
+                    console.error(err);
+                } finally {
+                    setMenuVisibility(menu, false);
+                }
+            });
         };
 
         const btnOpenCommentsNewWindow = document.getElementById('ycs_open_all_comments_window');
@@ -794,37 +851,16 @@ export function initApp(): void {
         // Comments save dropdown
         const btnSaveCommentsToFile = document.getElementById('ycs_save_all_comments');
         const btnSaveCommentsToFileMenu = document.getElementById('ycs_save_all_comments_menu');
-        btnSaveCommentsToFile?.addEventListener('click', (e) => {
-            try {
-                e.stopPropagation();
-                if (!btnSaveCommentsToFileMenu) return;
-                // close others first
-                closeAllDropdowns(btnSaveCommentsToFileMenu);
-                btnSaveCommentsToFileMenu.classList.toggle('show');
-            } catch (err) {
-                console.error(err);
-            }
-        });
+        setupDropdown(btnSaveCommentsToFile, btnSaveCommentsToFileMenu, (format) => {
+            const comments = getComments(state);
+            if (!comments || comments.length === 0) return;
 
-        btnSaveCommentsToFileMenu?.addEventListener('click', (ev) => {
-            try {
-                const target = ev.target as HTMLElement | null;
-                if (!target) return;
-                const fmt = target.dataset.format;
-                const comments = getComments(state);
-                if (!comments || comments.length === 0) return;
-
-                if (fmt === 'txt') {
-                    downloadCommentsFile(comments, buildExportMeta());
-                } else if (fmt === 'json') {
-                    downloadCommentsFileJSON(comments, buildExportMeta());
-                } else if (fmt === 'xlsx') {
-                    downloadCommentsFileXLSX(comments, buildExportMeta());
-                }
-
-                btnSaveCommentsToFileMenu.classList.remove('show');
-            } catch (err) {
-                console.error(err);
+            if (format === EXPORT_FORMAT.TXT) {
+                downloadCommentsFile(comments, buildExportMeta());
+            } else if (format === EXPORT_FORMAT.JSON) {
+                downloadCommentsFileJSON(comments, buildExportMeta());
+            } else if (format === EXPORT_FORMAT.XLSX) {
+                downloadCommentsFileXLSX(comments, buildExportMeta());
             }
         });
 
@@ -844,38 +880,17 @@ export function initApp(): void {
         // Chat save dropdown
         const btnSaveCommentsChatToFile = document.getElementById('ycs_save_all_comments_chat');
         const btnSaveCommentsChatToFileMenu = document.getElementById('ycs_save_all_comments_chat_menu');
-        btnSaveCommentsChatToFile?.addEventListener('click', (e) => {
-            try {
-                e.stopPropagation();
-                if (!btnSaveCommentsChatToFileMenu) return;
-                // close others first
-                closeAllDropdowns(btnSaveCommentsChatToFileMenu);
-                btnSaveCommentsChatToFileMenu.classList.toggle('show');
-            } catch (err) {
-                console.error(err);
-            }
-        });
+        setupDropdown(btnSaveCommentsChatToFile, btnSaveCommentsChatToFileMenu, (format) => {
+            const commentsChat = getCommentsChat(state);
+            if (!commentsChat || commentsChat.size === 0) return;
+            const arr = [...commentsChat.values()];
 
-        btnSaveCommentsChatToFileMenu?.addEventListener('click', (ev) => {
-            try {
-                const target = ev.target as HTMLElement | null;
-                if (!target) return;
-                const fmt = target.dataset.format;
-                const commentsChat = getCommentsChat(state);
-                if (!commentsChat || commentsChat.size === 0) return;
-                const arr = [...commentsChat.values()];
-
-                if (fmt === 'txt') {
-                    downloadChatFile(arr, buildExportMeta());
-                } else if (fmt === 'json') {
-                    downloadChatFileJSON(arr, buildExportMeta());
-                } else if (fmt === 'xlsx') {
-                    downloadChatFileXLSX(arr, buildExportMeta());
-                }
-
-                btnSaveCommentsChatToFileMenu.classList.remove('show');
-            } catch (err) {
-                console.error(err);
+            if (format === EXPORT_FORMAT.TXT) {
+                downloadChatFile(arr, buildExportMeta());
+            } else if (format === EXPORT_FORMAT.JSON) {
+                downloadChatFileJSON(arr, buildExportMeta());
+            } else if (format === EXPORT_FORMAT.XLSX) {
+                downloadChatFileXLSX(arr, buildExportMeta());
             }
         });
 
@@ -898,52 +913,32 @@ export function initApp(): void {
         // Transcript save dropdown
         const btnSaveCommentsTrVideoToFile = document.getElementById('ycs_save_all_comments_trvideo');
         const btnSaveCommentsTrVideoToFileMenu = document.getElementById('ycs_save_all_comments_trvideo_menu');
-        btnSaveCommentsTrVideoToFile?.addEventListener('click', (e) => {
-            try {
-                e.stopPropagation();
-                if (!btnSaveCommentsTrVideoToFileMenu) return;
-                // close others first
-                closeAllDropdowns(btnSaveCommentsTrVideoToFileMenu);
-                btnSaveCommentsTrVideoToFileMenu.classList.toggle('show');
-            } catch (err) {
-                console.error(err);
-            }
-        });
+        setupDropdown(btnSaveCommentsTrVideoToFile, btnSaveCommentsTrVideoToFileMenu, (format) => {
+            const commentsTrVideo = getCommentsTrVideo(state);
+            const cueGroups = extractCueGroups(commentsTrVideo);
+            if (!cueGroups || cueGroups.length === 0) return;
 
-        btnSaveCommentsTrVideoToFileMenu?.addEventListener('click', (ev) => {
-            try {
-                const target = ev.target as HTMLElement | null;
-                if (!target) return;
-                const fmt = target.dataset.format;
-                const commentsTrVideo = getCommentsTrVideo(state);
-                const cueGroups = extractCueGroups(commentsTrVideo);
-                if (!cueGroups || cueGroups.length === 0) return;
-
-                if (fmt === 'txt') {
-                    downloadTranscriptFile(cueGroups, buildExportMeta());
-                } else if (fmt === 'json') {
-                    downloadTranscriptFileJSON(cueGroups, buildExportMeta());
-                } else if (fmt === 'xlsx') {
-                    downloadTranscriptFileXLSX(cueGroups, buildExportMeta());
-                }
-
-                btnSaveCommentsTrVideoToFileMenu.classList.remove('show');
-            } catch (err) {
-                console.error(err);
+            if (format === EXPORT_FORMAT.TXT) {
+                downloadTranscriptFile(cueGroups, buildExportMeta());
+            } else if (format === EXPORT_FORMAT.JSON) {
+                downloadTranscriptFileJSON(cueGroups, buildExportMeta());
+            } else if (format === EXPORT_FORMAT.XLSX) {
+                downloadTranscriptFileXLSX(cueGroups, buildExportMeta());
             }
         });
 
         // Close dropdowns when clicking outside
-        document.addEventListener('click', (ev) => {
+        handleDocumentClick = (event) => {
             try {
-                const t = ev.target as HTMLElement | null;
-                if (t && t.closest && t.closest('.ycs_dropdown_wrap')) return;
+                const target = event.target as HTMLElement | null;
+                if (target?.closest('.ycs_dropdown_wrap')) return;
 
                 closeAllDropdowns();
             } catch (err) {
                 // ignore
             }
-        });
+        };
+        document.addEventListener('click', handleDocumentClick);
 
         const runCommentsPipeline = (selector: string, query: string, param?: IParamSearch) => {
             const context = buildSearchContext();

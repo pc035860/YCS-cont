@@ -8,6 +8,14 @@ import {
 import type { ChatItem, CommentItem, TranscriptCueGroup } from '../../utils/interfaces/i_types';
 import type { ExportMeta, ResolvedExportMeta } from '../../utils/formatting';
 
+export const EXPORT_FORMAT = {
+    TXT: 'txt',
+    JSON: 'json',
+    XLSX: 'xlsx'
+} as const;
+
+export type ExportFormat = (typeof EXPORT_FORMAT)[keyof typeof EXPORT_FORMAT];
+
 function buildDocument(sectionTitle: string, meta: ResolvedExportMeta, count: number, body: string): string {
     return `\nYCS - YouTube Comment Search\n\n${sectionTitle}\nFile created by ${meta.generatedAt}\nVideo URL: ${meta.url}\nTitle: ${meta.title}\nTotal: ${count}\n${body}`;
 }
