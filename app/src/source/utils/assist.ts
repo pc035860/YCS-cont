@@ -94,6 +94,7 @@ export {
     getParams,
     getAllCommentsModeV2,
     getTranscriptVideo,
+    getTranscriptTracks,
     getParamsForChat,
     getChatComments,
     getInitYtData,

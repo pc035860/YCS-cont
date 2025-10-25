@@ -52,6 +52,44 @@
           </div>
         </div>
 
+        <div>
+          <label for="y_opts_transcript_language_select">Default transcript language:</label>
+          <select id="y_opts_transcript_language_select" class="ycs_opts_select">
+            <option value="">YouTube default</option>
+            <option value="en">English (en)</option>
+            <option value="zh">中文 (zh)</option>
+            <option value="zh-Hant">繁體中文 (zh-Hant)</option>
+            <option value="ja">日本語 (ja)</option>
+            <option value="ko">한국어 (ko)</option>
+            <option value="es">Español (es)</option>
+            <option value="fr">Français (fr)</option>
+            <option value="de">Deutsch (de)</option>
+            <option value="pt">Português (pt)</option>
+            <option value="ru">Русский (ru)</option>
+            <option value="ar">العربية (ar)</option>
+            <option value="hi">हिन्दी (hi)</option>
+            <option value="it">Italiano (it)</option>
+            <option value="th">ไทย (th)</option>
+            <option value="vi">Tiếng Việt (vi)</option>
+          </select>
+
+          <div class="ycs_custom_language_input">
+            <label for="y_opts_transcript_language">Or enter custom code:</label>
+            <input
+              type="text"
+              name="Default transcript language code"
+              id="y_opts_transcript_language"
+              class="ycs_opts_input_quota"
+              placeholder="e.g. en-US"
+              maxlength="10"
+            />
+          </div>
+
+          <div class="ycs_description_option">
+            <p>(Select a language or enter a custom BCP-47 code like <code>en</code> or <code>ja</code>.)</p>
+          </div>
+        </div>
+
         <div class="ycs_filter_buttons_wrap">
           <div>
             <label>Filter Buttons:</label>

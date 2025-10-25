@@ -437,3 +437,71 @@ tbody#ycs_all_cache_body_table > tr > td > div {
   cursor: pointer;
   margin: 0;
 }
+
+/* Transcript Language Options */
+.ycs_opts_select {
+  height: 30px;
+  width: 220px;
+  font-size: 16px;
+  border: 1px solid #adadad;
+  padding: 0px 8px;
+  margin: 0;
+  vertical-align: middle;
+  background-color: #2f3640;
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.ycs_opts_select:focus {
+  outline: none;
+  border-color: #ffa500;
+  box-shadow: 0 0 0 2px rgba(255, 165, 0, 0.2);
+}
+
+.ycs_custom_language_input {
+  margin-top: 20px;
+  margin-left: 0px;
+  padding-left: 20px;
+  border-left: 3px solid #adadad;
+}
+
+.ycs_custom_language_input label {
+  font-size: 15px;
+  color: #adadad;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.ycs_custom_language_input input {
+  width: 180px;
+  height: 30px;
+  font-size: 16px;
+  padding: 0px 8px;
+  background-color: #1f1f1f;
+  color: #fff;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+}
+
+.ycs_custom_language_input input:focus {
+  outline: none;
+  border-color: #ffa500;
+  box-shadow: 0 0 0 2px rgba(255, 165, 0, 0.2);
+}
+
+.ycs_custom_language_input input::placeholder {
+  color: #666;
+  font-size: 14px;
+}
+
+/* Code tag styling */
+code {
+  background-color: #1f1f1f;
+  color: #ffa500;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-family: 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  border: 1px solid #3a3a3a;
+}
