@@ -189,8 +189,7 @@ function filterLinksComments(comments: any): [] {
                 if (urlRegex().test(c.commentRenderer.contentText.fullText)) {
                     fLinks.push({ item: c, refIndex: (c as any)._index });
                 }
-            } catch (err) {
-                console.error(err);
+            } catch {
                 continue;
             }
         }
@@ -216,8 +215,7 @@ function filterLinksTrpVideoComments(comments: any): [] {
                         refIndex: c.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs
                     });
                 }
-            } catch (err) {
-                console.error(err);
+            } catch {
                 continue;
             }
         }
@@ -241,8 +239,7 @@ function filterAllTrpVideoComments(comments: any): [] {
                     item: c,
                     refIndex: c.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs
                 });
-            } catch (err) {
-                console.error(err);
+            } catch {
                 continue;
             }
         }
@@ -268,8 +265,7 @@ function filterNewestFirst(comments: any): ICommentsFuseResult[] | void {
                         refIndex: (comment as any)?._index as number
                     });
                 }
-            } catch (err) {
-                console.error(err);
+            } catch {
                 continue;
             }
         }

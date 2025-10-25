@@ -215,7 +215,6 @@ export async function getChatComments(
             let next = true;
 
             while (next) {
-                console.log('Loop chat comments (Legacy API)');
                 const params = await getParamsForChat(window, continuationData, signal, true, currentOffsetTimeMsec);
 
                 if (!params) {
@@ -230,7 +229,6 @@ export async function getChatComments(
 
                 const response = await res.json();
                 const cmnts = response?.continuationContents?.liveChatContinuation?.actions;
-                console.log('Chat comments (Legacy): ', cmnts);
 
                 if (cmnts && cmnts.length > 0) {
                     const lastOffsetTimeInCmnts = wrapTryCatch(() => {
@@ -238,10 +236,7 @@ export async function getChatComments(
                         return (Object as any).entries(offsetData)[0][1];
                     }) as number | undefined;
 
-                    console.log('lastOffsetTimeInCmnts: ', lastOffsetTimeInCmnts);
-
                     if (currentOffsetTimeMsec === lastOffsetTimeInCmnts) {
-                        console.log('BREAK! Reached end of chat replay (Legacy API)');
                         next = false;
                         break;
                     }
@@ -325,7 +320,6 @@ export async function getChatComments(
             let next = true;
 
             while (next) {
-                console.log('Loop chat comments (New API with playerOffsetMs)');
                 const params = await getParamsForChat(
                     window,
                     playerSeekToken,
@@ -359,12 +353,8 @@ export async function getChatComments(
                         return (Object as any).entries(offsetData)[0][1];
                     }) as number | undefined;
 
-                    console.log('currentOffsetTimeMsec:', currentOffsetTimeMsec);
-                    console.log('lastOffsetTimeInCmnts:', lastOffsetTimeInCmnts);
-
                     // Check termination condition
                     if (currentOffsetTimeMsec === lastOffsetTimeInCmnts) {
-                        console.log('BREAK! Reached end of chat replay (New API with playerOffsetMs)');
                         next = false;
                         break;
                     }
@@ -385,7 +375,7 @@ export async function getChatComments(
                     if (playerSeekData?.continuation) {
                         playerSeekToken = { continuation: playerSeekData.continuation };
                     } else {
-                        console.warn('No playerSeekContinuationData in response, stopping');
+                        console.warn('[YCS] No playerSeekContinuationData in response, stopping');
                         next = false;
                         break;
                     }
@@ -398,7 +388,6 @@ export async function getChatComments(
             let nextContinuation: any = playerSeekToken;
 
             while (nextContinuation) {
-                console.log('Loop chat comments (New API - fallback mode)');
                 const params = await getParamsForChat(window, nextContinuation, signal, false);
 
                 if (!params) break;
@@ -426,7 +415,6 @@ export async function getChatComments(
                 if (continuationToken) {
                     nextContinuation = { continuation: continuationToken };
                 } else {
-                    console.log('No more continuation, finished loading chat (fallback mode)');
                     break;
                 }
             }

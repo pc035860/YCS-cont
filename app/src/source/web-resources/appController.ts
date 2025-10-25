@@ -454,7 +454,6 @@ export function initApp(): void {
         if (elLoadComments) {
             elLoadComments.addEventListener('click', async function (e: MouseEvent): Promise<void> {
                 if (!elLiveApp.parentNode || !elLiveApp.parentElement) return;
-                console.log('CLICK');
 
                 // Capture URL and videoId at the start of async operation
                 const startUrl = window.location.href;
@@ -481,8 +480,6 @@ export function initApp(): void {
                         const controller = getController(state);
 
                         await getAllCommentsModeV2(elLoadCmnts, controller.signal, comments);
-
-                        console.log('ORIGIN COMMENTS: ', comments);
 
                         // Verify video hasn't changed before saving cache
                         const currentVideoId = getVideoId(window.location.href);
@@ -561,8 +558,6 @@ export function initApp(): void {
                         const controller = getController(state);
 
                         await getChatComments(controller.signal, elLoadChat, commentsChat);
-
-                        console.log('CHAT COMMENTS: ', commentsChat);
 
                         // Verify video hasn't changed before saving cache
                         const currentVideoId = getVideoId(window.location.href);
@@ -1126,8 +1121,6 @@ export function initApp(): void {
 
                 const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement;
 
-                console.log('click');
-
                 if (elSelectOptSearch) {
                     const activeParam = getActiveFilterParam();
                     executeSearchBasedOnType(activeParam);
@@ -1230,8 +1223,6 @@ export function initApp(): void {
             }
 
             if (e.data?.type === 'YCS_CACHE_STORAGE_GET_RESPONSE') {
-                console.log('YCS_CACHE_STORAGE_GET_RESPONSE:', e.data);
-
                 if (e.data?.body) {
                     const body = e.data.body as CacheStorageBody;
 

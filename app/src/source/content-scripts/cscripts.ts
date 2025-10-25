@@ -1,5 +1,7 @@
 import { insertFileScriptWithLoad, removeInjectionYCS, removeInjections } from '../utils/injections';
 
+const DEBUG = false;
+
 (function (): void {
     removeInjectionYCS();
 
@@ -8,7 +10,7 @@ import { insertFileScriptWithLoad, removeInjectionYCS, removeInjections } from '
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             try {
                 if (message?.type === 'YCS_CACHE_STORAGE_GET_SEND' && message?.body) {
-                    console.log('GET CACHE FROM IDB', message);
+                    if (DEBUG) console.log('[YCS] GET CACHE FROM IDB', message);
 
                     window.postMessage(
                         { type: 'YCS_CACHE_STORAGE_GET_RESPONSE', body: message.body },
@@ -17,7 +19,7 @@ import { insertFileScriptWithLoad, removeInjectionYCS, removeInjections } from '
                 }
 
                 if (message?.type === 'YCS_AUTOLOAD') {
-                    console.log('RESPONSE BG SEND AUTOLOAD. Now postMessage in Window');
+                    if (DEBUG) console.log('[YCS] RESPONSE BG SEND AUTOLOAD. Now postMessage in Window');
                     window.postMessage({ type: 'YCS_AUTOLOAD' }, window.location.origin);
                 }
             } catch (err) {
@@ -31,7 +33,6 @@ import { insertFileScriptWithLoad, removeInjectionYCS, removeInjections } from '
                 try {
                     if (e.source != window) return;
                     if (e.data.type && e.data.type === 'NUMBER_COMMENTS') {
-                        console.info('1111111111111111111111111111111111111111111111111111111111111111111111111111', e);
                         chrome.runtime.sendMessage(`${chrome.runtime.id}`, {
                             type: 'YCS_SET_BADGE',
                             text: e.data.text.toString() || ''
@@ -40,7 +41,7 @@ import { insertFileScriptWithLoad, removeInjectionYCS, removeInjections } from '
 
                     if (e.data?.type === 'GET_OPTIONS') {
                         try {
-                            console.log('GET_OPTIONS', e.data);
+                            if (DEBUG) console.log('[YCS] GET_OPTIONS', e.data);
 
                             const opts = await chrome.storage.local.get();
 
@@ -52,13 +53,13 @@ import { insertFileScriptWithLoad, removeInjectionYCS, removeInjections } from '
 
                     if (e.data?.type === 'YCS_CACHE_STORAGE_SET' && e.data?.body) {
                         chrome.runtime.sendMessage(`${chrome.runtime.id}`, e.data, (res) => {
-                            console.log('Response YCS_CACHE_STORAGE SET: ', res);
+                            if (DEBUG) console.log('[YCS] Response YCS_CACHE_STORAGE SET:', res);
                         });
                     }
 
                     if (e.data?.type === 'YCS_CACHE_STORAGE_GET' && e.data?.body) {
                         chrome.runtime.sendMessage(`${chrome.runtime.id}`, e.data, (res) => {
-                            console.log('Response YCS_CACHE_STORAGE GET: ', res);
+                            if (DEBUG) console.log('[YCS] Response YCS_CACHE_STORAGE GET:', res);
                         });
                     }
                 } catch (err) {
