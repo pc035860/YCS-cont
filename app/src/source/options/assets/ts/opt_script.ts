@@ -190,7 +190,7 @@ window.onload = async (): Promise<void> => {
             });
 
             // Drag end
-            listContainer.addEventListener('dragend', (e: DragEvent) => {
+            listContainer.addEventListener('dragend', (_e: DragEvent) => {
                 if (draggedElement) {
                     draggedElement.classList.remove('dragging');
                     draggedElement = null;

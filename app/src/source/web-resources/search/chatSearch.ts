@@ -328,7 +328,7 @@ export function runSearch(
         }
     } else {
         // Convert all chat items to search results format
-        const allResults: ICommentsFuseResult<ChatItem>[] = cmntsChat.map((item, index) => {
+        const allResults: ICommentsFuseResult<ChatItem>[] = cmntsChat.map((item, _index) => {
             const firstAction = item.replayChatItemAction.actions?.[0];
             const liveChatRenderer = firstAction?.addChatItemAction?.item?.liveChatTextMessageRenderer;
 
