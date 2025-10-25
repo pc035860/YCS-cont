@@ -169,6 +169,7 @@ async function getTranscriptTrackInfo(
     let defaultTrack: TranscriptTrackInfo | undefined;
     const captionTracks: any[] = Array.isArray(captions?.captionTracks) ? captions.captionTracks : [];
 
+    // First, check if there's a direct defaultCaptionTrackIndex at root level
     const defaultCaptionIndex =
         typeof captions?.defaultCaptionTrackIndex === 'number' ? captions.defaultCaptionTrackIndex : undefined;
 
@@ -177,15 +178,20 @@ async function getTranscriptTrackInfo(
         defaultTrack = tracks.find((track) => track.languageCode === defaultCaption?.languageCode);
     }
 
+    // If no direct default, check the default audio track's defaultCaptionTrackIndex
     if (!defaultTrack && typeof captions?.defaultAudioTrackIndex === 'number') {
         const defaultAudioTrack = Array.isArray(captions?.audioTracks)
             ? captions.audioTracks[captions.defaultAudioTrackIndex]
             : undefined;
-        const firstCaptionIndex = Array.isArray(defaultAudioTrack?.captionTrackIndices)
-            ? defaultAudioTrack.captionTrackIndices[0]
-            : undefined;
-        if (typeof firstCaptionIndex === 'number' && captionTracks[firstCaptionIndex]) {
-            const defaultCaption = captionTracks[firstCaptionIndex];
+
+        // Use the audio track's defaultCaptionTrackIndex, not the first caption index
+        const audioDefaultCaptionIndex =
+            typeof defaultAudioTrack?.defaultCaptionTrackIndex === 'number'
+                ? defaultAudioTrack.defaultCaptionTrackIndex
+                : undefined;
+
+        if (typeof audioDefaultCaptionIndex === 'number' && captionTracks[audioDefaultCaptionIndex]) {
+            const defaultCaption = captionTracks[audioDefaultCaptionIndex];
             defaultTrack = tracks.find((track) => track.languageCode === defaultCaption?.languageCode);
         }
     }
