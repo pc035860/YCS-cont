@@ -93,10 +93,10 @@ window.onload = async (): Promise<void> => {
             const listContainer = document.getElementById('ycs_filter_buttons_list');
             if (!listContainer) return;
 
-            // 清空現有內容
+            // Clear existing content
             listContainer.innerHTML = '';
 
-            // 根據設定重新渲染列表
+            // Re-render list based on settings
             filterButtons.forEach((button) => {
                 const item = document.createElement('div');
                 item.className = 'ycs_filter_button_item';
@@ -114,7 +114,7 @@ window.onload = async (): Promise<void> => {
                 listContainer.appendChild(item);
             });
 
-            // 重新綁定事件
+            // Re-bind events
             initFilterButtonsEvents();
         };
 
@@ -181,7 +181,7 @@ window.onload = async (): Promise<void> => {
 
             let draggedElement: HTMLElement | null = null;
 
-            // 拖曳開始
+            // Drag start
             listContainer.addEventListener('dragstart', (e: DragEvent) => {
                 draggedElement = e.target as HTMLElement;
                 if (draggedElement) {
@@ -189,7 +189,7 @@ window.onload = async (): Promise<void> => {
                 }
             });
 
-            // 拖曳結束
+            // Drag end
             listContainer.addEventListener('dragend', (e: DragEvent) => {
                 if (draggedElement) {
                     draggedElement.classList.remove('dragging');
@@ -197,7 +197,7 @@ window.onload = async (): Promise<void> => {
                 }
             });
 
-            // 拖曳經過
+            // Drag over
             listContainer.addEventListener('dragover', (e: DragEvent) => {
                 e.preventDefault();
                 const afterElement = getDragAfterElement(listContainer, e.clientX, e.clientY);
@@ -208,13 +208,13 @@ window.onload = async (): Promise<void> => {
                 }
             });
 
-            // 拖曳放下
+            // Drag drop
             listContainer.addEventListener('drop', (e: DragEvent) => {
                 e.preventDefault();
                 saveFilterButtons();
             });
 
-            // Checkbox 變更事件
+            // Checkbox change event
             listContainer.addEventListener('change', (e: Event) => {
                 const target = e.target as HTMLInputElement;
                 if (target.type === 'checkbox') {
@@ -563,7 +563,7 @@ window.onload = async (): Promise<void> => {
 
         await showUsageMemory();
 
-        // 初始化 filter buttons 事件（如果沒有從 storage 載入設定）
+        // Initialize filter buttons events (if not loaded from storage settings)
         if (!storageOpts.filterButtons) {
             setRenderFilterButtons(options.filterButtons);
         }

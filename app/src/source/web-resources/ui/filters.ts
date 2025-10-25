@@ -130,7 +130,7 @@ export function registerFilterButtons({
         const button = document.getElementById(config.elementId) as HTMLElement | null;
         if (!button) return;
 
-        // 移除舊的事件監聽器（如果存在）
+        // Remove old event listeners (if they exist)
         const oldHandler = (button as any).__ycsClickHandler;
         if (oldHandler) {
             button.removeEventListener('click', oldHandler);
@@ -161,14 +161,14 @@ export function registerFilterButtons({
                     searchParam.sortOrder = sortOrder;
                 }
 
-                // 如果有指定搜尋類型，則強制使用該類型
+                // If search type is specified, force use that type
                 executeSearch(searchParam, config.searchType);
             } catch (error) {
                 console.error(error);
             }
         };
 
-        // 儲存事件處理器引用以便後續移除
+        // Store event handler reference for later removal
         (button as any).__ycsClickHandler = clickHandler;
         button.addEventListener('click', clickHandler);
     });
@@ -180,12 +180,12 @@ export function registerFilterButtons({
     };
 }
 
-// 根據使用者設定動態生成按鈕配置
+// Generate button configurations dynamically based on user settings
 function getDynamicFilterButtonConfigs(filterButtons?: Array<{ id: string; enabled: boolean }>): FilterButtonConfig[] {
     try {
         const buttonsToUse = filterButtons || options.filterButtons;
 
-        // 只返回已啟用的按鈕配置
+        // Only return enabled button configurations
         const enabledButtons = buttonsToUse.filter((button: { id: string; enabled: boolean }) => button.enabled);
 
         return FILTER_BUTTONS.filter((config) =>
@@ -193,7 +193,7 @@ function getDynamicFilterButtonConfigs(filterButtons?: Array<{ id: string; enabl
         );
     } catch (err) {
         console.error('Error loading filter buttons settings:', err);
-        // 如果載入失敗，使用預設設定
+        // If loading fails, use default settings
         return FILTER_BUTTONS.filter((config) =>
             options.filterButtons.some((button) => button.id === config.elementId && button.enabled)
         );

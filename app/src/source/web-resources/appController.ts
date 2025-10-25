@@ -228,7 +228,7 @@ export function initApp(): void {
         const elSearch = document.getElementById('ycs-search');
         if (elSearch) {
             renderSearch(elSearch);
-            // 初始載入按鈕（使用預設設定）
+            // Initial button loading (using default settings)
             loadFilterButtons();
             // Toggle collapsed/expand of app
             try {
@@ -373,7 +373,7 @@ export function initApp(): void {
                 });
             } catch (err) {
                 console.error('Error loading dynamic filter button configs:', err);
-                // 如果載入失敗，使用預設配置
+                // If loading fails, use default configuration
                 filterRegistry = registerFilterButtons({
                     state: {
                         get: () => state,
@@ -389,7 +389,7 @@ export function initApp(): void {
 
             const clearButton = document.getElementById('ycs_btn_clear');
             if (clearButton) {
-                // 移除舊的事件監聽器（如果存在）
+                // Remove old event listeners (if they exist)
                 const oldHandler = (clearButton as any).__ycsClearHandler;
                 if (oldHandler) {
                     clearButton.removeEventListener('click', oldHandler);
@@ -427,7 +427,7 @@ export function initApp(): void {
                     }
                 };
 
-                // 儲存事件處理器引用以便後續移除
+                // Store event handler reference for later removal
                 (clearButton as any).__ycsClearHandler = clearHandler;
                 clearButton.addEventListener('click', clearHandler);
             }
@@ -1256,9 +1256,9 @@ export function initApp(): void {
 
                             case 'filterButtons':
                                 if (opts.filterButtons) {
-                                    // 先重新載入按鈕面板
+                                    // First reload button panel
                                     loadFilterButtons(opts.filterButtons);
-                                    // 然後重新初始化按鈕配置（綁定事件）
+                                    // Then re-initialize button configuration (bind events)
                                     initFilterButtons(opts.filterButtons);
                                 }
                                 break;
