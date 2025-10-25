@@ -14,7 +14,7 @@ import { IParamSearch, ISelectedSearch, IYCSOptions } from '../utils/interfaces/
 import type { ChatItem, CommentItem, TranscriptCueGroup, TranscriptData } from '../utils/interfaces/i_types';
 
 import { iconOk, iconReload } from '../utils/icons';
-import { renderLoadComments, renderSearch } from '../utils/renderView';
+import { renderLoadComments, renderSearch, loadFilterButtons } from '../utils/renderView';
 import { loadFromCache, saveToCache, updateBadge } from './services/cacheService';
 import type { CacheData } from './services/cacheService';
 import {
@@ -54,7 +54,13 @@ import {
     setSearchCount,
     WebResourcesState
 } from './state';
-import { FILTER_BUTTONS, FilterButtonRegistry, FilterParamKey, registerFilterButtons } from './ui/filters';
+import {
+    FILTER_BUTTONS,
+    FilterButtonRegistry,
+    FilterParamKey,
+    registerFilterButtons,
+    getDynamicFilterButtonConfigs
+} from './ui/filters';
 import { registerCommentInteractions } from './ui/commentInteractions';
 import { runSearch as runCommentsSearch } from './search/commentsSearch';
 import { runSearch as runChatSearch } from './search/chatSearch';
@@ -222,6 +228,8 @@ export function initApp(): void {
         const elSearch = document.getElementById('ycs-search');
         if (elSearch) {
             renderSearch(elSearch);
+            // 初始載入按鈕（使用預設設定）
+            loadFilterButtons();
             // Toggle collapsed/expand of app
             try {
                 const toggles = document.getElementsByClassName('ycs-btn-toggle-app');
@@ -348,51 +356,81 @@ export function initApp(): void {
                 }
             }
         };
-        const initFilterButtons = (): void => {
-            filterRegistry = registerFilterButtons({
-                state: {
-                    get: () => state,
-                    set: (nextState: WebResourcesState) => {
-                        state = nextState;
-                    }
-                },
-                executeSearch: executeSearchBasedOnType,
-                setActiveFilter: setActiveFilterByElement,
-                buttonConfigs: FILTER_BUTTONS
-            });
+        const initFilterButtons = (filterButtons?: Array<{ id: string; enabled: boolean }>): void => {
+            try {
+                const dynamicButtonConfigs = getDynamicFilterButtonConfigs(filterButtons);
+
+                filterRegistry = registerFilterButtons({
+                    state: {
+                        get: () => state,
+                        set: (nextState: WebResourcesState) => {
+                            state = nextState;
+                        }
+                    },
+                    executeSearch: executeSearchBasedOnType,
+                    setActiveFilter: setActiveFilterByElement,
+                    buttonConfigs: dynamicButtonConfigs
+                });
+            } catch (err) {
+                console.error('Error loading dynamic filter button configs:', err);
+                // 如果載入失敗，使用預設配置
+                filterRegistry = registerFilterButtons({
+                    state: {
+                        get: () => state,
+                        set: (nextState: WebResourcesState) => {
+                            state = nextState;
+                        }
+                    },
+                    executeSearch: executeSearchBasedOnType,
+                    setActiveFilter: setActiveFilterByElement,
+                    buttonConfigs: FILTER_BUTTONS
+                });
+            }
 
             const clearButton = document.getElementById('ycs_btn_clear');
-            clearButton?.addEventListener('click', () => {
-                try {
-                    setActiveFilterByElement(null);
-
-                    state = resetSearchCounts(state);
-
-                    const eInputSearch = document.getElementById('ycs-input-search') as HTMLInputElement;
-
-                    if (eInputSearch?.value && eInputSearch.value.trim()) {
-                        requestAnimationFrame(() => {
-                            const searchBtn = document.getElementById('ycs_btn_search');
-                            searchBtn?.click();
-                        });
-                    } else {
-                        const elSearchRes = document.getElementById('ycs-search-result');
-                        const elSearchTotalRes = document.getElementById(
-                            'ycs-search-total-result'
-                        ) as HTMLElement | null;
-
-                        if (elSearchRes && elSearchTotalRes) {
-                            elSearchRes.innerText = '';
-                            elSearchTotalRes.innerText = 'Search cleared';
-                        }
-                    }
-
-                    const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
-                    if (btnClear) btnClear.style.visibility = 'hidden';
-                } catch (err) {
-                    console.error(err);
+            if (clearButton) {
+                // 移除舊的事件監聽器（如果存在）
+                const oldHandler = (clearButton as any).__ycsClearHandler;
+                if (oldHandler) {
+                    clearButton.removeEventListener('click', oldHandler);
                 }
-            });
+
+                const clearHandler = () => {
+                    try {
+                        setActiveFilterByElement(null);
+
+                        state = resetSearchCounts(state);
+
+                        const eInputSearch = document.getElementById('ycs-input-search') as HTMLInputElement;
+
+                        if (eInputSearch?.value && eInputSearch.value.trim()) {
+                            requestAnimationFrame(() => {
+                                const searchBtn = document.getElementById('ycs_btn_search');
+                                searchBtn?.click();
+                            });
+                        } else {
+                            const elSearchRes = document.getElementById('ycs-search-result');
+                            const elSearchTotalRes = document.getElementById(
+                                'ycs-search-total-result'
+                            ) as HTMLElement | null;
+
+                            if (elSearchRes && elSearchTotalRes) {
+                                elSearchRes.innerText = '';
+                                elSearchTotalRes.innerText = 'Search cleared';
+                            }
+                        }
+
+                        const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
+                        if (btnClear) btnClear.style.visibility = 'hidden';
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
+                // 儲存事件處理器引用以便後續移除
+                (clearButton as any).__ycsClearHandler = clearHandler;
+                clearButton.addEventListener('click', clearHandler);
+            }
         };
 
         initFilterButtons();
@@ -1214,6 +1252,15 @@ export function initApp(): void {
 
                             case 'hiddenByDefault':
                                 optHiddenByDefault(Boolean(opts.hiddenByDefault));
+                                break;
+
+                            case 'filterButtons':
+                                if (opts.filterButtons) {
+                                    // 先重新載入按鈕面板
+                                    loadFilterButtons(opts.filterButtons);
+                                    // 然後重新初始化按鈕配置（綁定事件）
+                                    initFilterButtons(opts.filterButtons);
+                                }
                                 break;
 
                             default:

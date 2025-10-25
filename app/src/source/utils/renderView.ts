@@ -3,6 +3,7 @@
 import { safeUrl } from '../utils/formatting';
 import { randomString } from '../utils/common';
 import { markTextComment, getPiP } from '../utils/dom';
+import { options } from '../config/options';
 import {
     buildCommentViewModels,
     buildChatMessageViewModels,
@@ -926,6 +927,140 @@ function renderLoadComments(selector: string, preferredInsertionMode?: 'appendCh
     }
 }
 
+// 生成單個按鈕的 HTML
+function generateFilterButtonHTML(buttonId: string): string {
+    const buttonConfigs: Record<
+        string,
+        { name: string; title: string; dataSort?: string; dataSortChat?: string; dataSortTrp?: string; icon?: string }
+    > = {
+        ycs_btn_timestamps: {
+            name: 'timestamps',
+            title: 'Show comments, replies, chat with time stamps (Newest)',
+            dataSort: 'newest',
+            dataSortChat: 'newest'
+        },
+        ycs_btn_author: {
+            name: 'author',
+            title: 'Show comments, replies, chat from the author (Newest)',
+            dataSort: 'newest',
+            dataSortChat: 'newest'
+        },
+        ycs_btn_heart: {
+            name: 'heart',
+            title: 'Show comments and replies that the author likes (Newest)',
+            dataSort: 'newest',
+            icon: '<span class="ycs-creator-heart_icon">❤</span>'
+        },
+        ycs_btn_verified: {
+            name: 'verified',
+            title: 'Show comments, replies and chat from a verified authors (Newest)',
+            dataSort: 'newest',
+            dataSortChat: 'newest',
+            icon: '<span class="ycs-creator-verified_icon">✔</span>'
+        },
+        ycs_btn_links: {
+            name: 'links',
+            title: 'Shows links in comments, replies, chat, video transcript (Newest)',
+            dataSort: 'newest',
+            dataSortChat: 'newest',
+            dataSortTrp: 'newest'
+        },
+        ycs_btn_likes: {
+            name: 'likes',
+            title: 'Show comments, replies by number of likes (sort largest to smallest)'
+        },
+        ycs_btn_replied_comments: {
+            name: 'replied',
+            title: 'Show comments by number of replies (sort largest to smallest)'
+        },
+        ycs_btn_members: {
+            name: 'members',
+            title: 'Show comments, replies, chat from channel members (Newest)',
+            dataSort: 'newest',
+            dataSortChat: 'newest'
+        },
+        ycs_btn_donated: {
+            name: 'donated',
+            title: 'Show chat comments from users who have donated (Newest)',
+            dataSort: 'newest',
+            dataSortChat: 'newest'
+        },
+        ycs_btn_sort_first: {
+            name: 'sortFirst',
+            title: 'Show all comments, chat, video transcript sorted by date (Newest)',
+            dataSort: 'newest',
+            dataSortChat: 'newest',
+            dataSortTrp: 'newest'
+        },
+        ycs_btn_random: {
+            name: 'random',
+            title: 'Show a random comment'
+        },
+        ycs_btn_quick_chat: {
+            name: 'quickChat',
+            title: 'Show chat replay (Newest)',
+            dataSort: 'newest',
+            dataSortChat: 'newest'
+        },
+        ycs_btn_quick_transcript: {
+            name: 'quickTranscript',
+            title: 'Show transcript (Newest)',
+            dataSort: 'newest',
+            dataSortTrp: 'newest'
+        }
+    };
+
+    const config = buttonConfigs[buttonId];
+    if (!config) return '';
+
+    const dataSortAttr = config.dataSort ? `data-sort="${config.dataSort}"` : '';
+    const dataSortChatAttr = config.dataSortChat ? `data-sort-chat="${config.dataSortChat}"` : '';
+    const dataSortTrpAttr = config.dataSortTrp ? `data-sort-trp="${config.dataSortTrp}"` : '';
+    const sortIcon = config.dataSort ? iconSortDown() : '';
+    const icon = config.icon || '';
+
+    return `
+        <button id="${buttonId}"
+            ${dataSortAttr}
+            ${dataSortChatAttr}
+            ${dataSortTrpAttr}
+            class="ycs-btn-search ycs-title"
+            name="${config.name}" type="button"
+            title="${config.title}">
+            ${icon}
+            ${
+                config.name === 'timestamps'
+                    ? 'Time stamps'
+                    : config.name === 'author'
+                      ? 'Author'
+                      : config.name === 'heart'
+                        ? ''
+                        : config.name === 'verified'
+                          ? ''
+                          : config.name === 'links'
+                            ? 'Links'
+                            : config.name === 'likes'
+                              ? 'Likes'
+                              : config.name === 'replied'
+                                ? 'Replied'
+                                : config.name === 'members'
+                                  ? 'Members'
+                                  : config.name === 'donated'
+                                    ? 'Donated'
+                                    : config.name === 'sortFirst'
+                                      ? 'All'
+                                      : config.name === 'random'
+                                        ? 'Random'
+                                        : config.name === 'quickChat'
+                                          ? 'Chat'
+                                          : config.name === 'quickTranscript'
+                                            ? 'Transcript'
+                                            : config.name
+            }
+            ${sortIcon}
+        </button>`;
+}
+
 function renderSearch(node: HTMLElement): void {
     if (!node) return;
 
@@ -977,127 +1112,66 @@ function renderSearch(node: HTMLElement): void {
             </div>
             <div class="ycs-search-result-infobar">
 
-                <div class="ycs-btn-panel ycs_noselect">
-                    <button id="ycs_btn_timestamps"
-                        data-sort="newest"
-                        data-sort-chat="newest"
-                        class="ycs-btn-search ycs-title"
-                        name="timestamps" type="button"
-                        title="Show comments, replies, chat with time stamps (Newest)">
-                        Time stamps
-                        ${iconSortDown()}
-                    </button>
-                    <button id="ycs_btn_author"
-                        data-sort="newest"
-                        data-sort-chat="newest"
-                        class="ycs-btn-search ycs-title"
-                        name="author" type="button"
-                        title="Show comments, replies, chat from the author (Newest)">
-                        Author
-                        ${iconSortDown()}
-                    </button>
-                    <button id="ycs_btn_heart"
-                        data-sort="newest"
-                        class="ycs-btn-search ycs-title"
-                        name="heart" type="button"
-                        title="Show comments and replies that the author likes (Newest)">
-                        <span class="ycs-creator-heart_icon">❤</span>
-                        ${iconSortDown()}
-                    </button>
-                    <button id="ycs_btn_verified"
-                        data-sort="newest"
-                        data-sort-chat="newest"
-                        class="ycs-btn-search ycs-title"
-                        name="verified" type="button"
-                        title="Show comments, replies and chat from a verified authors (Newest)">
-                        <span class="ycs-creator-verified_icon">✔</span>
-                        ${iconSortDown()}
-                    </button>
-                    <button id="ycs_btn_links"
-                        data-sort="newest"
-                        data-sort-chat="newest"
-                        data-sort-trp="newest"
-                        class="ycs-btn-search ycs-title"
-                        name="links" type="button"
-                        title="Shows links in comments, replies, chat, video transcript (Newest)">
-                        Links
-                        ${iconSortDown()}
-                    </button>
-                    <button id="ycs_btn_likes"
-                        class="ycs-btn-search ycs-title"
-                        name="likes" type="button"
-                        title="Show comments, replies by number of likes (sort largest to smallest)">
-                        Likes
-                    </button>
-                    <button id="ycs_btn_replied_comments"
-                        class="ycs-btn-search ycs-title"
-                        name="replied" type="button"
-                        title="Show comments by number of replies (sort largest to smallest)">
-                        Replied
-                    </button>
-                    <button id="ycs_btn_members"
-                        data-sort="newest"
-                        data-sort-chat="newest"
-                        class="ycs-btn-search ycs-title"
-                        name="members" type="button"
-                        title="Show comments, replies, chat from channel members (Newest)">
-                        Members
-                        ${iconSortDown()}
-                    </button>
-                    <button id="ycs_btn_donated"
-                        data-sort="newest"
-                        data-sort-chat="newest"
-                        class="ycs-btn-search ycs-title"
-                        name="donated" type="button"
-                        title="Show chat comments from users who have donated (Newest)">
-                        Donated
-                        ${iconSortDown()}
-                    </button>
-                    <button id="ycs_btn_sort_first"
-                        data-sort="newest"
-                        data-sort-chat="newest"
-                        data-sort-trp="newest"
-                        class="ycs-btn-search ycs-title"
-                        name="sortFirst" type="button"
-                        title="Show all comments, chat, video transcript sorted by date (Newest)">
-                        All
-                        ${iconSortDown()}
-                    </button>
-                    <button id="ycs_btn_random"
-                        class="ycs-btn-search ycs-title"
-                        name="random" type="button"
-                        title="Show a random comment">
-                        Random
-                    </button>
-                    <button id="ycs_btn_quick_chat"
-                        data-sort="newest"
-                        data-sort-chat="newest"
-                        class="ycs-btn-search ycs-title"
-                        name="quickChat" type="button"
-                        title="Show chat replay (Newest)">
-                        Chat
-                        ${iconSortDown()}
-                    </button>
-                    <button id="ycs_btn_quick_transcript"
-                        data-sort="newest"
-                        data-sort-trp="newest"
-                        class="ycs-btn-search ycs-title"
-                        name="quickTranscript" type="button"
-                        title="Show transcript (Newest)">
-                        Transcript
-                        ${iconSortDown()}
-                    </button>
-                    <button id="ycs_btn_clear"
-                        class="ycs-btn-search ycs-title ycs-search-clear"
-                        style="visibility:hidden;"
-                        name="clear" type="button"
-                        title="Clear search">
-                        X
-                    </button>
+                <div class="ycs-btn-panel ycs_noselect" id="ycs-btn-panel">
+                    <!-- 按鈕將由 JavaScript 動態生成 -->
                 </div>
             </div>
         </div>
     `;
 }
 
-export { renderComment, renderLoadComments, renderSearch, renderCommentTrVideo, renderCommentChat };
+// 動態載入 filter buttons
+function loadFilterButtons(filterButtons?: Array<{ id: string; enabled: boolean }>): void {
+    try {
+        const buttonsToUse = filterButtons || options.filterButtons;
+        const enabledButtons = buttonsToUse.filter((button: { id: string; enabled: boolean }) => button.enabled);
+
+        const panel = document.getElementById('ycs-btn-panel');
+        if (!panel) return;
+
+        // 清空現有按鈕
+        panel.innerHTML = '';
+
+        // 生成並插入按鈕
+        enabledButtons.forEach((button: { id: string; enabled: boolean }) => {
+            const buttonHTML = generateFilterButtonHTML(button.id);
+            panel.insertAdjacentHTML('beforeend', buttonHTML);
+        });
+
+        // 添加 Clear 按鈕（始終顯示）
+        panel.insertAdjacentHTML(
+            'beforeend',
+            `
+            <button id="ycs_btn_clear"
+                class="ycs-btn-search ycs-title ycs-search-clear"
+                style="visibility:hidden;"
+                name="clear" type="button"
+                title="Clear search">
+                X
+            </button>
+        `
+        );
+    } catch (err) {
+        console.error('Error loading filter buttons:', err);
+        // 如果載入失敗，使用預設設定
+        const panel = document.getElementById('ycs-btn-panel');
+        if (panel) {
+            panel.innerHTML =
+                options.filterButtons
+                    .filter((button) => button.enabled)
+                    .map((button) => generateFilterButtonHTML(button.id))
+                    .join('') +
+                `
+                <button id="ycs_btn_clear"
+                    class="ycs-btn-search ycs-title ycs-search-clear"
+                    style="visibility:hidden;"
+                    name="clear" type="button"
+                    title="Clear search">
+                    X
+                </button>
+            `;
+        }
+    }
+}
+
+export { renderComment, renderLoadComments, renderSearch, renderCommentTrVideo, renderCommentChat, loadFilterButtons };

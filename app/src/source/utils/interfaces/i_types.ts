@@ -294,4 +294,5 @@ export interface IYCSOptions {
     cache?: boolean;
     autoClear?: number;
     hiddenByDefault?: boolean;
+    filterButtons?: Array<{ id: string; enabled: boolean }>;
 }

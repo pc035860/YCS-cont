@@ -87,6 +87,156 @@ window.onload = async (): Promise<void> => {
             (document.getElementById('y_opts_hidden_by_default') as HTMLInputElement).checked = param;
         };
 
+        const setRenderFilterButtons = (filterButtons: Array<{ id: string; enabled: boolean }>): void => {
+            if (!Array.isArray(filterButtons)) return;
+
+            const listContainer = document.getElementById('ycs_filter_buttons_list');
+            if (!listContainer) return;
+
+            // 清空現有內容
+            listContainer.innerHTML = '';
+
+            // 根據設定重新渲染列表
+            filterButtons.forEach((button) => {
+                const item = document.createElement('div');
+                item.className = 'ycs_filter_button_item';
+                item.draggable = true;
+                item.dataset.buttonId = button.id;
+
+                const buttonName = getButtonDisplayName(button.id);
+
+                item.innerHTML = `
+                    <span class="ycs_drag_handle">⋮⋮</span>
+                    <input type="checkbox" id="filter_opt_${button.id.replace('ycs_btn_', '')}" ${button.enabled ? 'checked' : ''} />
+                    <label for="filter_opt_${button.id.replace('ycs_btn_', '')}">${buttonName}</label>
+                `;
+
+                listContainer.appendChild(item);
+            });
+
+            // 重新綁定事件
+            initFilterButtonsEvents();
+        };
+
+        const getButtonDisplayName = (buttonId: string): string => {
+            const nameMap: Record<string, string> = {
+                ycs_btn_timestamps: 'Timestamps',
+                ycs_btn_author: 'Author',
+                ycs_btn_heart: '❤ (Heart)',
+                ycs_btn_verified: '✔ (Verified)',
+                ycs_btn_links: 'Links',
+                ycs_btn_likes: 'Likes',
+                ycs_btn_replied_comments: 'Replied',
+                ycs_btn_members: 'Members',
+                ycs_btn_donated: 'Donated',
+                ycs_btn_random: 'Random',
+                ycs_btn_sort_first: 'All',
+                ycs_btn_quick_chat: 'Chat',
+                ycs_btn_quick_transcript: 'Transcript'
+            };
+            return nameMap[buttonId] || buttonId;
+        };
+
+        const saveFilterButtons = async (): Promise<void> => {
+            try {
+                const listContainer = document.getElementById('ycs_filter_buttons_list');
+                if (!listContainer) return;
+
+                const filterButtons: Array<{ id: string; enabled: boolean }> = [];
+
+                Array.from(listContainer.children).forEach((item) => {
+                    const buttonId = (item as HTMLElement).dataset.buttonId;
+                    const checkbox = item.querySelector('input[type="checkbox"]') as HTMLInputElement;
+
+                    if (buttonId && checkbox) {
+                        filterButtons.push({
+                            id: buttonId,
+                            enabled: checkbox.checked
+                        });
+                    }
+                });
+
+                await chrome.storage.local.set({
+                    filterButtons: filterButtons
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        const resetFilterButtonsToDefault = async (): Promise<void> => {
+            try {
+                await chrome.storage.local.set({
+                    filterButtons: options.filterButtons
+                });
+                setRenderFilterButtons(options.filterButtons);
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        const initFilterButtonsEvents = (): void => {
+            const listContainer = document.getElementById('ycs_filter_buttons_list');
+            if (!listContainer) return;
+
+            let draggedElement: HTMLElement | null = null;
+
+            // 拖曳開始
+            listContainer.addEventListener('dragstart', (e: DragEvent) => {
+                draggedElement = e.target as HTMLElement;
+                if (draggedElement) {
+                    draggedElement.classList.add('dragging');
+                }
+            });
+
+            // 拖曳結束
+            listContainer.addEventListener('dragend', (e: DragEvent) => {
+                if (draggedElement) {
+                    draggedElement.classList.remove('dragging');
+                    draggedElement = null;
+                }
+            });
+
+            // 拖曳經過
+            listContainer.addEventListener('dragover', (e: DragEvent) => {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(listContainer, e.clientY);
+                if (draggedElement && afterElement == null) {
+                    listContainer.appendChild(draggedElement);
+                } else if (draggedElement && afterElement) {
+                    listContainer.insertBefore(draggedElement, afterElement);
+                }
+            });
+
+            // 拖曳放下
+            listContainer.addEventListener('drop', (e: DragEvent) => {
+                e.preventDefault();
+                saveFilterButtons();
+            });
+
+            // Checkbox 變更事件
+            listContainer.addEventListener('change', (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                if (target.type === 'checkbox') {
+                    saveFilterButtons();
+                }
+            });
+        };
+
+        const getDragAfterElement = (container: HTMLElement, y: number): HTMLElement | null => {
+            const draggableElements = [...container.querySelectorAll('.ycs_filter_button_item:not(.dragging)')];
+
+            return draggableElements.reduce((closest: HTMLElement | null, child: Element) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+
+                if (offset < 0 && offset > (closest ? closest.getBoundingClientRect().top - y : -Infinity)) {
+                    return child as HTMLElement;
+                }
+                return closest;
+            }, null);
+        };
+
         const optSetCache = async (opt: HTMLInputElement): Promise<void> => {
             try {
                 // const opts = JSON.parse(localStorage.getItem('ycs_options') as string);
@@ -216,6 +366,10 @@ window.onload = async (): Promise<void> => {
                         setRenderHiddenByDefault(storageOpts[key]);
                         break;
 
+                    case 'filterButtons':
+                        setRenderFilterButtons(storageOpts[key]);
+                        break;
+
                     default:
                         break;
                 }
@@ -256,6 +410,10 @@ window.onload = async (): Promise<void> => {
                     optSetHiddenByDefault(e.target as HTMLInputElement);
                     break;
 
+                case 'ycs_opts_btn_reset_filters':
+                    await resetFilterButtonsToDefault();
+                    break;
+
                 default:
                     break;
             }
@@ -274,6 +432,11 @@ window.onload = async (): Promise<void> => {
         };
 
         await showUsageMemory();
+
+        // 初始化 filter buttons 事件（如果沒有從 storage 載入設定）
+        if (!storageOpts.filterButtons) {
+            setRenderFilterButtons(options.filterButtons);
+        }
     } catch (err) {
         console.error(err);
     }

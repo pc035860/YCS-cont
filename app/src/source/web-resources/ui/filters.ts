@@ -1,6 +1,7 @@
 import { iconSortDown, iconSortUp } from '../../utils/icons';
 import { IParamSearch, ISelectedSearch } from '../../utils/interfaces/i_types';
 import { resetSearchCounts, WebResourcesState } from '../state';
+import { options } from '../../config/options';
 
 export type FilterParamKey = Exclude<keyof IParamSearch, 'sortOrder'>;
 
@@ -129,6 +130,12 @@ export function registerFilterButtons({
         const button = document.getElementById(config.elementId) as HTMLElement | null;
         if (!button) return;
 
+        // 移除舊的事件監聽器（如果存在）
+        const oldHandler = (button as any).__ycsClickHandler;
+        if (oldHandler) {
+            button.removeEventListener('click', oldHandler);
+        }
+
         if (config.supportsSort) {
             SORT_DATASET_KEYS.forEach((key) => {
                 const value = button.dataset[key];
@@ -138,7 +145,7 @@ export function registerFilterButtons({
             });
         }
 
-        button.addEventListener('click', (event: Event) => {
+        const clickHandler = (event: Event) => {
             try {
                 const currentTarget = event.currentTarget as HTMLElement;
                 const wasActive = currentTarget.classList.contains('ycs_btn_active');
@@ -159,7 +166,11 @@ export function registerFilterButtons({
             } catch (error) {
                 console.error(error);
             }
-        });
+        };
+
+        // 儲存事件處理器引用以便後續移除
+        (button as any).__ycsClickHandler = clickHandler;
+        button.addEventListener('click', clickHandler);
     });
 
     return {
@@ -168,3 +179,25 @@ export function registerFilterButtons({
         sortButtonIds
     };
 }
+
+// 根據使用者設定動態生成按鈕配置
+function getDynamicFilterButtonConfigs(filterButtons?: Array<{ id: string; enabled: boolean }>): FilterButtonConfig[] {
+    try {
+        const buttonsToUse = filterButtons || options.filterButtons;
+
+        // 只返回已啟用的按鈕配置
+        const enabledButtons = buttonsToUse.filter((button: { id: string; enabled: boolean }) => button.enabled);
+
+        return FILTER_BUTTONS.filter((config) =>
+            enabledButtons.some((button: { id: string; enabled: boolean }) => button.id === config.elementId)
+        );
+    } catch (err) {
+        console.error('Error loading filter buttons settings:', err);
+        // 如果載入失敗，使用預設設定
+        return FILTER_BUTTONS.filter((config) =>
+            options.filterButtons.some((button) => button.id === config.elementId && button.enabled)
+        );
+    }
+}
+
+export { getDynamicFilterButtonConfigs };
