@@ -1,4 +1,4 @@
-import type { ChatItem, CommentItem, TranscriptData } from '../utils/interfaces/i_types';
+import type { ChatItem, CommentItem, TranscriptData, TranscriptTrackInfo } from '../utils/interfaces/i_types';
 
 export interface CountBuckets {
     comments: number;
@@ -10,6 +10,8 @@ export interface WebResourcesState {
     comments: CommentItem[];
     commentsChat: Map<number, ChatItem>;
     commentsTrVideo?: TranscriptData;
+    transcriptTracks?: TranscriptTrackInfo[];
+    selectedTranscriptLanguage?: string;
     count: CountBuckets;
     countSearch: CountBuckets;
     controller: AbortController;
@@ -28,6 +30,8 @@ export function createState(): WebResourcesState {
         comments: [],
         commentsChat: new Map<number, ChatItem>(),
         commentsTrVideo: undefined,
+        transcriptTracks: undefined,
+        selectedTranscriptLanguage: undefined,
         count: createCounts(),
         countSearch: createCounts(),
         controller: new AbortController()
@@ -79,6 +83,35 @@ export function setCommentsTrVideo(state: WebResourcesState, transcript?: Transc
 
 export function clearCommentsTrVideo(state: WebResourcesState): WebResourcesState {
     return setCommentsTrVideo(state, undefined);
+}
+
+export function getTranscriptTracks(state: WebResourcesState): TranscriptTrackInfo[] | undefined {
+    return state.transcriptTracks;
+}
+
+export function setTranscriptTracks(
+    state: WebResourcesState,
+    transcriptTracks?: TranscriptTrackInfo[]
+): WebResourcesState {
+    return {
+        ...state,
+        transcriptTracks
+    };
+}
+
+export function clearTranscriptTracks(state: WebResourcesState): WebResourcesState {
+    return setTranscriptTracks(state, undefined);
+}
+
+export function getSelectedTranscriptLanguage(state: WebResourcesState): string | undefined {
+    return state.selectedTranscriptLanguage;
+}
+
+export function setSelectedTranscriptLanguage(state: WebResourcesState, languageCode?: string): WebResourcesState {
+    return {
+        ...state,
+        selectedTranscriptLanguage: languageCode
+    };
 }
 
 export function getCounts(state: WebResourcesState): CountBuckets {

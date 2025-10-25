@@ -87,6 +87,22 @@ window.onload = async (): Promise<void> => {
             (document.getElementById('y_opts_hidden_by_default') as HTMLInputElement).checked = param;
         };
 
+        const setRenderTranscriptLanguage = (param?: string): void => {
+            const input = document.getElementById('y_opts_transcript_language') as HTMLInputElement | null;
+            if (!input) return;
+            input.value = param ?? '';
+        };
+
+        const optSetTranscriptLanguage = async (value: string): Promise<void> => {
+            try {
+                await chrome.storage.local.set({
+                    transcriptLanguage: value
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
         const setRenderFilterButtons = (filterButtons: Array<{ id: string; enabled: boolean }>): void => {
             if (!Array.isArray(filterButtons)) return;
 
@@ -493,6 +509,10 @@ window.onload = async (): Promise<void> => {
                         setRenderHiddenByDefault(storageOpts[key]);
                         break;
 
+                    case 'transcriptLanguage':
+                        setRenderTranscriptLanguage(storageOpts[key]);
+                        break;
+
                     case 'filterButtons':
                         setRenderFilterButtons(storageOpts[key]);
                         break;
@@ -551,6 +571,18 @@ window.onload = async (): Promise<void> => {
 
         const elCacheQuota = document.getElementById('y_opts_cache_quota') as HTMLInputElement;
         elCacheQuota?.addEventListener('input', optSetAutoClearCache);
+
+        const transcriptLanguageInput = document.getElementById(
+            'y_opts_transcript_language'
+        ) as HTMLInputElement | null;
+        const handleTranscriptLanguageChange = (event: Event): void => {
+            const target = event.target as HTMLInputElement | null;
+            if (!target) return;
+            const nextValue = target.value.trim();
+            optSetTranscriptLanguage(nextValue);
+        };
+        transcriptLanguageInput?.addEventListener('input', handleTranscriptLanguageChange);
+        transcriptLanguageInput?.addEventListener('change', handleTranscriptLanguageChange);
 
         const elPageCache = document.getElementById('ycs_opts_btn_export_page') as HTMLElement;
         elPageCache.onclick = () => {

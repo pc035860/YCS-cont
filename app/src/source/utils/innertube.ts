@@ -6,4 +6,4 @@ export {
     applyFrameworkUpdatesToComment,
     generateCommentObjectFromFW
 } from './innertube/comments';
-export { getTranscriptVideo } from './innertube/transcript';
+export { getTranscriptVideo, getTranscriptTracks } from './innertube/transcript';

@@ -8,10 +8,16 @@ import {
     removeNodeList,
     showLoadComments
 } from '../utils/dom';
-import { getAllCommentsModeV2, getChatComments, getTranscriptVideo } from '../utils/innertube';
+import { getAllCommentsModeV2, getChatComments, getTranscriptTracks, getTranscriptVideo } from '../utils/innertube';
 
 import { IParamSearch, ISelectedSearch, IYCSOptions } from '../utils/interfaces/i_types';
-import type { ChatItem, CommentItem, TranscriptCueGroup, TranscriptData } from '../utils/interfaces/i_types';
+import type {
+    ChatItem,
+    CommentItem,
+    TranscriptCueGroup,
+    TranscriptData,
+    TranscriptTrackInfo
+} from '../utils/interfaces/i_types';
 
 import { iconOk, iconReload } from '../utils/icons';
 import { renderLoadComments, renderSearch, loadFilterButtons } from '../utils/renderView';
@@ -43,6 +49,8 @@ import {
     getCommentsChat,
     getCommentsTrVideo,
     getController,
+    getSelectedTranscriptLanguage,
+    getTranscriptTracks as getStateTranscriptTracks,
     getCounts,
     getSearchCounts,
     resetController,
@@ -50,6 +58,8 @@ import {
     setComments,
     setCommentsChat,
     setCommentsTrVideo,
+    setSelectedTranscriptLanguage,
+    setTranscriptTracks,
     setCount,
     setSearchCount,
     WebResourcesState
@@ -645,100 +655,206 @@ export function initApp(): void {
         }
 
         const elLoadTranscriptVideo = document.getElementById('ycs-load-transcript-video');
-        if (elLoadTranscriptVideo) {
-            elLoadTranscriptVideo.addEventListener('click', async function (e: MouseEvent): Promise<void> {
-                if (!elLiveApp.parentNode || !elLiveApp.parentElement) return;
+        const elTranscriptLangButton = document.getElementById('ycs_transcript_language');
+        const elTranscriptLangMenu = document.getElementById('ycs_transcript_language_menu');
 
-                // Capture URL and videoId at the start of async operation
-                const startUrl = window.location.href;
-                const startVideoId = getVideoId(startUrl);
+        const loadTranscript = async (trigger: HTMLElement, languageCode?: string): Promise<void> => {
+            if (!elLiveApp.parentNode || !elLiveApp.parentElement) return;
 
-                const currentTarget = e.currentTarget as HTMLButtonElement;
-                const defaultLabel = currentTarget.innerText;
+            const startUrl = window.location.href;
+            const startVideoId = getVideoId(startUrl);
 
-                currentTarget.disabled = true;
-                currentTarget.innerText = 'reload';
+            const currentTarget = trigger as HTMLButtonElement;
+            const defaultLabel = currentTarget.innerText;
 
-                try {
-                    const elStatusTrVideo = document.getElementById('ycs_status_trvideo');
-                    const elLoadTrVideo = document.getElementById('ycs_cmnts_video');
+            currentTarget.disabled = true;
+            currentTarget.innerText = 'reload';
 
-                    if (elLoadTrVideo && elStatusTrVideo) {
-                        elLoadTrVideo.textContent = '0';
+            try {
+                const elStatusTrVideo = document.getElementById('ycs_status_trvideo');
+                const elLoadTrVideo = document.getElementById('ycs_cmnts_video');
 
-                        elStatusTrVideo.innerHTML = iconReload();
+                if (elLoadTrVideo && elStatusTrVideo) {
+                    elLoadTrVideo.textContent = '0';
 
-                        // Load transcript with robust fallback,
-                        // ensure old buffer won't leak when current load fails
-                        const controller = getController(state);
-                        const tr = (await getTranscriptVideo(controller.signal)) as TranscriptData | undefined;
-                        state = clearCommentsTrVideo(state);
-                        if (getCueGroupCount(tr) > 0) {
-                            state = setCommentsTrVideo(state, tr);
-                        }
+                    elStatusTrVideo.innerHTML = iconReload();
 
-                        // Verify video hasn't changed before saving cache
-                        const currentVideoId = getVideoId(window.location.href);
-                        if (startVideoId && currentVideoId && startVideoId !== currentVideoId) {
-                            console.warn(
-                                '[YCS] Video changed during transcript loading, skipping cache save:',
-                                startVideoId,
-                                '→',
-                                currentVideoId
+                    const controller = getController(state);
+                    const normalizedLanguage = languageCode?.trim();
+                    const preferredLanguage = normalizedLanguage || getSelectedTranscriptLanguage(state);
+                    const tr = (await getTranscriptVideo(controller.signal, { languageCode: preferredLanguage })) as
+                        | TranscriptData
+                        | undefined;
+                    state = clearCommentsTrVideo(state);
+                    if (getCueGroupCount(tr) > 0) {
+                        state = setCommentsTrVideo(state, tr);
+                    }
+
+                    const currentVideoId = getVideoId(window.location.href);
+                    if (startVideoId && currentVideoId && startVideoId !== currentVideoId) {
+                        console.warn(
+                            '[YCS] Video changed during transcript loading, skipping cache save:',
+                            startVideoId,
+                            '→',
+                            currentVideoId
+                        );
+                        return;
+                    }
+
+                    try {
+                        const transcript = getCommentsTrVideo(state);
+                        const cueGroups = extractCueGroups(transcript);
+                        if (transcript && elLoadTrVideo && cueGroups && cueGroups.length > 0) {
+                            showLoadComments(cueGroups.length, elLoadTrVideo);
+                            saveToCache(
+                                {
+                                    videoId: startVideoId,
+                                    comments: getComments(state),
+                                    commentsChat: JSON.stringify(Array.from(getCommentsChat(state).entries())),
+                                    commentsTrVideo: transcript,
+                                    channelId: extractChannelId()
+                                },
+                                buildCacheMeta()
                             );
-                            return;
-                        }
-
-                        try {
-                            const transcript = getCommentsTrVideo(state);
-                            const cueGroups = extractCueGroups(transcript);
-                            if (transcript && elLoadTrVideo && cueGroups && cueGroups.length > 0) {
-                                showLoadComments(cueGroups.length, elLoadTrVideo);
-                                saveToCache(
-                                    {
-                                        videoId: startVideoId,
-                                        comments: getComments(state),
-                                        commentsChat: JSON.stringify(Array.from(getCommentsChat(state).entries())),
-                                        commentsTrVideo: transcript,
-                                        channelId: extractChannelId()
-                                    },
-                                    buildCacheMeta()
-                                );
-                            } else {
-                                state = clearCommentsTrVideo(state);
-                            }
-                        } catch (err) {
-                            console.error(err);
+                        } else {
                             state = clearCommentsTrVideo(state);
                         }
-
-                        const transcript = getCommentsTrVideo(state);
-                        console.log('Transcript: ', transcript);
-
-                        if (getCueGroupCount(transcript) > 0) {
-                            elStatusTrVideo.innerHTML = iconOk();
-                        }
+                    } catch (err) {
+                        console.error(err);
+                        state = clearCommentsTrVideo(state);
                     }
 
-                    if (
-                        getCueGroupCount(getCommentsTrVideo(state)) > 0 &&
-                        (elLiveApp.parentNode || elLiveApp.parentElement)
-                    ) {
-                        const transcript = getCommentsTrVideo(state);
-                        state = setCount(state, 'commentsTrVideo', getCueGroupCount(transcript));
+                    const transcript = getCommentsTrVideo(state);
+                    if (getCueGroupCount(transcript) > 0) {
+                        elStatusTrVideo.innerHTML = iconOk();
                     }
-
-                    const counts = getCounts(state);
-                    const totalCount = counts.comments + counts.commentsChat + counts.commentsTrVideo;
-                    updateBadge('NUMBER_COMMENTS', totalCount);
-
-                    updateTitleCount(totalCount);
-                } finally {
-                    currentTarget.disabled = false;
-                    currentTarget.innerText = defaultLabel;
                 }
+
+                if (
+                    getCueGroupCount(getCommentsTrVideo(state)) > 0 &&
+                    (elLiveApp.parentNode || elLiveApp.parentElement)
+                ) {
+                    const transcript = getCommentsTrVideo(state);
+                    state = setCount(state, 'commentsTrVideo', getCueGroupCount(transcript));
+                }
+
+                const counts = getCounts(state);
+                const totalCount = counts.comments + counts.commentsChat + counts.commentsTrVideo;
+                updateBadge('NUMBER_COMMENTS', totalCount);
+
+                updateTitleCount(totalCount);
+            } finally {
+                currentTarget.disabled = false;
+                currentTarget.innerText = defaultLabel;
+            }
+        };
+
+        if (elLoadTranscriptVideo) {
+            elLoadTranscriptVideo.addEventListener('click', async function (e: MouseEvent): Promise<void> {
+                const currentTarget = e.currentTarget as HTMLButtonElement;
+                await loadTranscript(currentTarget, getSelectedTranscriptLanguage(state));
             });
         }
+
+        const renderTranscriptLanguageMenu = (tracks: TranscriptTrackInfo[], selected?: string): void => {
+            if (!elTranscriptLangMenu) return;
+
+            elTranscriptLangMenu.innerHTML = '';
+
+            if (!tracks.length) {
+                const emptyItem = document.createElement('div');
+                emptyItem.className = 'ycs_dropdown_item ycs_disabled';
+                emptyItem.textContent = 'No languages available';
+                elTranscriptLangMenu.appendChild(emptyItem);
+                return;
+            }
+
+            const createItem = (track: TranscriptTrackInfo | undefined, label: string, value?: string) => {
+                const item = document.createElement('div');
+                item.className = 'ycs_dropdown_item';
+                item.dataset.value = value ?? '';
+                item.textContent = label;
+                if ((value ?? '') === (selected ?? '')) {
+                    item.classList.add('ycs_dropdown_item--active');
+                }
+                item.addEventListener('click', () => {
+                    const normalizedValue = value?.trim();
+                    const nextLanguage = normalizedValue ? normalizedValue : undefined;
+                    state = setSelectedTranscriptLanguage(state, nextLanguage);
+                    closeAllDropdowns();
+                    setMenuVisibility(elTranscriptLangMenu, false);
+                    if (elLoadTranscriptVideo instanceof HTMLElement) {
+                        loadTranscript(elLoadTranscriptVideo, nextLanguage).catch((err) => console.error(err));
+                    }
+                });
+                return item;
+            };
+
+            const preferredOption = createItem(undefined, 'Default (YouTube / options)', '');
+            elTranscriptLangMenu.appendChild(preferredOption);
+
+            tracks.forEach((track) => {
+                const code = track.languageCode ?? '';
+                const labelParts = [track.displayName || code];
+                if (track.isAutoGenerated) {
+                    labelParts.push('(auto)');
+                }
+                if (code && !labelParts.includes(code)) {
+                    labelParts.push(`[${code}]`);
+                }
+                const label = labelParts.join(' ');
+                const item = createItem(track, label, code);
+                elTranscriptLangMenu.appendChild(item);
+            });
+        };
+
+        const handleTranscriptLanguageDropdown = (button: HTMLElement): void => {
+            const controller = getController(state);
+            let tracks = getStateTranscriptTracks(state) ?? [];
+            const selectedLanguage = getSelectedTranscriptLanguage(state);
+
+            const toggleMenu = () => {
+                if (!elTranscriptLangMenu) return;
+                const shouldShow = !elTranscriptLangMenu.classList.contains('show');
+                closeAllDropdowns(elTranscriptLangMenu);
+                setMenuVisibility(elTranscriptLangMenu, shouldShow);
+            };
+
+            const ensureTracks = async () => {
+                if (!tracks.length) {
+                    const fetched = await getTranscriptTracks(controller.signal);
+                    tracks = fetched ?? [];
+                    state = setTranscriptTracks(state, tracks);
+                }
+                renderTranscriptLanguageMenu(tracks, selectedLanguage);
+            };
+
+            button.addEventListener('click', () => {
+                const buttonElement = button as HTMLButtonElement;
+                const originalText = buttonElement.innerText;
+                const originalDisabled = buttonElement.disabled;
+
+                // Set loading state
+                buttonElement.disabled = true;
+                buttonElement.innerText = 'loading...';
+
+                ensureTracks()
+                    .then(() => {
+                        // Restore button state
+                        buttonElement.disabled = originalDisabled;
+                        buttonElement.innerText = originalText;
+                        toggleMenu();
+                    })
+                    .catch((err) => {
+                        console.error('Failed to load transcript tracks', err);
+                        // Restore button state
+                        buttonElement.disabled = originalDisabled;
+                        buttonElement.innerText = originalText;
+                        renderTranscriptLanguageMenu([], selectedLanguage);
+                        toggleMenu();
+                    });
+            });
+        };
 
         const elLoadAll = document.getElementById('ycs-load-all');
         if (elLoadAll) {
@@ -998,6 +1114,12 @@ export function initApp(): void {
 
             return result;
         };
+
+        if (elTranscriptLangButton instanceof HTMLElement && elTranscriptLangMenu instanceof HTMLElement) {
+            dropdownMenus.add(elTranscriptLangMenu);
+            setMenuVisibility(elTranscriptLangMenu, false);
+            handleTranscriptLanguageDropdown(elTranscriptLangButton);
+        }
 
         const runChatPipeline = (selector: string, query: string, param?: IParamSearch) => {
             const context = buildSearchContext();
@@ -1261,6 +1383,15 @@ export function initApp(): void {
                                     // Then re-initialize button configuration (bind events)
                                     initFilterButtons(opts.filterButtons);
                                 }
+                                break;
+
+                            case 'transcriptLanguage':
+                                state = setSelectedTranscriptLanguage(
+                                    state,
+                                    typeof opts.transcriptLanguage === 'string' && opts.transcriptLanguage.trim()
+                                        ? opts.transcriptLanguage.trim()
+                                        : undefined
+                                );
                                 break;
 
                             default:

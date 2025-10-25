@@ -5,6 +5,7 @@ const options = {
     cache: true,
     autoClear: 200,
     hiddenByDefault: false,
+    transcriptLanguage: '',
     filterButtons: [
         { id: 'ycs_btn_timestamps', enabled: true },
         { id: 'ycs_btn_author', enabled: true },

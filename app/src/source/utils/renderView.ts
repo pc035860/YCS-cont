@@ -836,6 +836,12 @@ function renderLoadComments(selector: string, preferredInsertionMode?: 'appendCh
                                         <div class="ycs_dropdown_item" data-format="${EXPORT_FORMAT.XLSX}">.XLSX</div>
                                     </div>
                                 </div>
+                                <div class="ycs_language_wrap ycs_dropdown_wrap">
+                                    <button id="ycs_transcript_language" class="ycs-btn-search ycs-title" type="button">
+                                        language ▾
+                                    </button>
+                                    <div id="ycs_transcript_language_menu" class="ycs_dropdown_menu" aria-hidden="true"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
