@@ -40,7 +40,7 @@ const BASE_FUSE_OPTIONS: Fuse.IFuseOptions<any> = {
     distance: 100000
 };
 
-const UNSUPPORTED_FILTERS: (keyof IParamSearch)[] = ['heart', 'likes', 'replied', 'random'];
+const UNSUPPORTED_FILTERS: (keyof IParamSearch)[] = ['heart', 'likes', 'replied', 'random', 'quickTranscript'];
 
 function cloneFuseOptions(): Fuse.IFuseOptions<any> {
     return JSON.parse(JSON.stringify(BASE_FUSE_OPTIONS));
@@ -327,17 +327,37 @@ export function runSearch(
             );
         }
     } else {
-        const fuse = new Fuse<ChatItem>(cmntsChat, options);
-        resultSearch = fuse.search(trimmedQuery).map((entry): ICommentsFuseResult<ChatItem> => {
-            const firstAction = entry.item.replayChatItemAction.actions?.[0];
+        // Convert all chat items to search results format
+        const allResults: ICommentsFuseResult<ChatItem>[] = cmntsChat.map((item, _index) => {
+            const firstAction = item.replayChatItemAction.actions?.[0];
             const liveChatRenderer = firstAction?.addChatItemAction?.item?.liveChatTextMessageRenderer;
 
             return {
-                item: entry.item,
+                item,
                 refIndex: toTimestampRef(liveChatRenderer?.timestampUsec),
-                score: entry.score
+                score: 0
             };
         });
+
+        // Use filterWithQuery to handle empty queries properly
+        resultSearch = filterWithQuery(allResults, trimmedQuery, options);
+
+        // Apply sorting for quickChat filter
+        if (param.quickChat && resultSearch.length > 0) {
+            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
+
+            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_quick_chat']);
+            if (resolvedOrder === 'oldest') {
+                resultSearch = Array.from(resultSearch).reverse();
+            }
+
+            updateButtonState(
+                'ycs_btn_quick_chat',
+                resolvedOrder,
+                resolvedOrder === 'oldest' ? 'Show chat replay (Oldest)' : 'Show chat replay (Newest)',
+                'Chat'
+            );
+        }
     }
 
     const total = resultSearch.length;

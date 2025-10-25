@@ -87,6 +87,283 @@ window.onload = async (): Promise<void> => {
             (document.getElementById('y_opts_hidden_by_default') as HTMLInputElement).checked = param;
         };
 
+        const setRenderFilterButtons = (filterButtons: Array<{ id: string; enabled: boolean }>): void => {
+            if (!Array.isArray(filterButtons)) return;
+
+            const listContainer = document.getElementById('ycs_filter_buttons_list');
+            if (!listContainer) return;
+
+            // Clear existing content
+            listContainer.innerHTML = '';
+
+            // Re-render list based on settings
+            filterButtons.forEach((button) => {
+                const item = document.createElement('div');
+                item.className = 'ycs_filter_button_item';
+                item.draggable = true;
+                item.dataset.buttonId = button.id;
+
+                const buttonName = getButtonDisplayName(button.id);
+
+                item.innerHTML = `
+                    <span class="ycs_drag_handle">⋮⋮</span>
+                    <input type="checkbox" id="filter_opt_${button.id.replace('ycs_btn_', '')}" ${button.enabled ? 'checked' : ''} />
+                    <label for="filter_opt_${button.id.replace('ycs_btn_', '')}">${buttonName}</label>
+                `;
+
+                listContainer.appendChild(item);
+            });
+        };
+
+        const getButtonDisplayName = (buttonId: string): string => {
+            const nameMap: Record<string, string> = {
+                ycs_btn_timestamps: 'Timestamps',
+                ycs_btn_author: 'Author',
+                ycs_btn_heart: '❤ (Heart)',
+                ycs_btn_verified: '✔ (Verified)',
+                ycs_btn_links: 'Links',
+                ycs_btn_likes: 'Likes',
+                ycs_btn_replied_comments: 'Replied',
+                ycs_btn_members: 'Members',
+                ycs_btn_donated: 'Donated',
+                ycs_btn_random: 'Random',
+                ycs_btn_sort_first: 'All',
+                ycs_btn_quick_chat: 'Chat (Quick chat search)',
+                ycs_btn_quick_transcript: 'Transcript (Quick transcript search)'
+            };
+            return nameMap[buttonId] || buttonId;
+        };
+
+        const saveFilterButtons = async (): Promise<void> => {
+            try {
+                const listContainer = document.getElementById('ycs_filter_buttons_list');
+                if (!listContainer) return;
+
+                const filterButtons: Array<{ id: string; enabled: boolean }> = [];
+
+                Array.from(listContainer.children).forEach((item) => {
+                    const buttonId = (item as HTMLElement).dataset.buttonId;
+                    const checkbox = item.querySelector('input[type="checkbox"]') as HTMLInputElement;
+
+                    if (buttonId && checkbox) {
+                        filterButtons.push({
+                            id: buttonId,
+                            enabled: checkbox.checked
+                        });
+                    }
+                });
+
+                await chrome.storage.local.set({
+                    filterButtons: filterButtons
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        const resetFilterButtonsToDefault = async (): Promise<void> => {
+            try {
+                await chrome.storage.local.set({
+                    filterButtons: options.filterButtons
+                });
+                setRenderFilterButtons(options.filterButtons);
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        const initFilterButtonsEvents = (): void => {
+            const listContainer = document.getElementById('ycs_filter_buttons_list');
+            if (!listContainer) return;
+
+            let draggedElement: HTMLElement | null = null;
+
+            // Drag start
+            listContainer.addEventListener('dragstart', (e: DragEvent) => {
+                draggedElement = e.target as HTMLElement;
+                if (draggedElement) {
+                    draggedElement.classList.add('dragging');
+                }
+            });
+
+            // Drag end
+            listContainer.addEventListener('dragend', (_e: DragEvent) => {
+                if (draggedElement) {
+                    draggedElement.classList.remove('dragging');
+                    draggedElement = null;
+                }
+            });
+
+            // Drag over
+            listContainer.addEventListener('dragover', (e: DragEvent) => {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(listContainer, e.clientX, e.clientY);
+                if (draggedElement && afterElement == null) {
+                    listContainer.appendChild(draggedElement);
+                } else if (draggedElement && afterElement) {
+                    listContainer.insertBefore(draggedElement, afterElement);
+                }
+            });
+
+            // Drag drop
+            listContainer.addEventListener('drop', (e: DragEvent) => {
+                e.preventDefault();
+                saveFilterButtons();
+            });
+
+            // Checkbox change event
+            listContainer.addEventListener('change', (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                if (target.type === 'checkbox') {
+                    saveFilterButtons();
+                }
+            });
+        };
+
+        const getDragAfterElement = (container: HTMLElement, clientX: number, clientY: number): HTMLElement | null => {
+            const items = [...container.querySelectorAll('.ycs_filter_button_item:not(.dragging)')];
+            if (!items.length) {
+                return null;
+            }
+
+            const computedStyle = window.getComputedStyle(container);
+            const columnCount = Math.max(
+                1,
+                computedStyle.gridTemplateColumns.split(' ').filter((part) => part.trim().length > 0).length
+            );
+
+            type GridItem = {
+                element: HTMLElement;
+                rect: DOMRect;
+                row: number;
+                column: number;
+                order: number;
+            };
+
+            const allChildren = Array.from(container.querySelectorAll('.ycs_filter_button_item')) as HTMLElement[];
+
+            const rowBounds: Array<{ top: number; bottom: number; order: number }> = [];
+            const columnBounds: Array<{ left: number; right: number; center: number; order: number }> = [];
+
+            const gridItems: GridItem[] = items
+                .map((child) => {
+                    const element = child as HTMLElement;
+                    const rect = element.getBoundingClientRect();
+                    const domIndex = allChildren.indexOf(element);
+                    const order = domIndex >= 0 ? domIndex : Number.MAX_SAFE_INTEGER;
+                    const row = Math.floor(order / columnCount);
+                    const column = order % columnCount;
+
+                    const existingRow = rowBounds[row];
+                    if (existingRow) {
+                        existingRow.top = Math.min(existingRow.top, rect.top);
+                        existingRow.bottom = Math.max(existingRow.bottom, rect.bottom);
+                    } else {
+                        rowBounds[row] = {
+                            top: rect.top,
+                            bottom: rect.bottom,
+                            order: row
+                        };
+                    }
+
+                    const existingColumn = columnBounds[column];
+                    if (existingColumn) {
+                        existingColumn.left = Math.min(existingColumn.left, rect.left);
+                        existingColumn.right = Math.max(existingColumn.right, rect.right);
+                        existingColumn.center = (existingColumn.left + existingColumn.right) / 2;
+                    } else {
+                        columnBounds[column] = {
+                            left: rect.left,
+                            right: rect.right,
+                            center: rect.left + rect.width / 2,
+                            order: column
+                        };
+                    }
+
+                    return {
+                        element,
+                        rect,
+                        row,
+                        column,
+                        order
+                    };
+                })
+                .sort((a, b) => a.order - b.order)
+                .map((item, index) => ({
+                    ...item,
+                    row: Math.floor(index / columnCount),
+                    column: index % columnCount,
+                    order: index
+                }));
+
+            const pointerRow = resolveTargetRow(rowBounds, clientY);
+            const pointerColumn = resolveTargetColumn(columnBounds, clientX);
+
+            for (const item of gridItems) {
+                if (item.row > pointerRow || (item.row === pointerRow && item.column >= pointerColumn)) {
+                    return item.element;
+                }
+            }
+
+            return null;
+        };
+
+        const resolveTargetRow = (
+            rows: Array<{ top: number; bottom: number; order: number }>,
+            pointerY: number
+        ): number => {
+            if (!rows.length) return 0;
+
+            const sortedRows = [...rows].sort((a, b) => a.top - b.top);
+
+            if (pointerY < sortedRows[0].top) {
+                return 0;
+            }
+
+            for (let i = 0; i < sortedRows.length; i++) {
+                const row = sortedRows[i];
+                const nextRow = sortedRows[i + 1];
+
+                if (pointerY <= row.bottom) {
+                    return row.order;
+                }
+
+                if (nextRow && pointerY < nextRow.top) {
+                    return nextRow.order;
+                }
+            }
+
+            return sortedRows[sortedRows.length - 1].order + 1;
+        };
+
+        const resolveTargetColumn = (
+            columns: Array<{ left: number; right: number; center: number; order: number }>,
+            pointerX: number
+        ): number => {
+            if (!columns.length) return 0;
+
+            const sortedColumns = [...columns].sort((a, b) => a.left - b.left);
+
+            const firstColumn = sortedColumns[0];
+            const lastColumn = sortedColumns[sortedColumns.length - 1];
+
+            if (pointerX <= firstColumn.center) {
+                return firstColumn.order;
+            }
+
+            for (let i = 0; i < sortedColumns.length - 1; i++) {
+                const current = sortedColumns[i];
+                const next = sortedColumns[i + 1];
+                const boundary = (current.center + next.center) / 2;
+
+                if (pointerX < boundary) {
+                    return current.order;
+                }
+            }
+
+            return pointerX >= lastColumn.right ? lastColumn.order + 1 : lastColumn.order;
+        };
+
         const optSetCache = async (opt: HTMLInputElement): Promise<void> => {
             try {
                 // const opts = JSON.parse(localStorage.getItem('ycs_options') as string);
@@ -216,11 +493,18 @@ window.onload = async (): Promise<void> => {
                         setRenderHiddenByDefault(storageOpts[key]);
                         break;
 
+                    case 'filterButtons':
+                        setRenderFilterButtons(storageOpts[key]);
+                        break;
+
                     default:
                         break;
                 }
             }
         }
+
+        // Initialize filter buttons events once after initial render
+        initFilterButtonsEvents();
 
         const elAutoload = document.getElementsByClassName('ycs_inner_wrap')[0];
         elAutoload?.addEventListener('click', async (e: Event) => {
@@ -256,6 +540,10 @@ window.onload = async (): Promise<void> => {
                     optSetHiddenByDefault(e.target as HTMLInputElement);
                     break;
 
+                case 'ycs_opts_btn_reset_filters':
+                    await resetFilterButtonsToDefault();
+                    break;
+
                 default:
                     break;
             }
@@ -274,6 +562,11 @@ window.onload = async (): Promise<void> => {
         };
 
         await showUsageMemory();
+
+        // Initialize filter buttons events (if not loaded from storage settings)
+        if (!storageOpts.filterButtons) {
+            setRenderFilterButtons(options.filterButtons);
+        }
     } catch (err) {
         console.error(err);
     }

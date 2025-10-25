@@ -1,6 +1,7 @@
 import { iconSortDown, iconSortUp } from '../../utils/icons';
-import { IParamSearch } from '../../utils/interfaces/i_types';
+import { IParamSearch, ISelectedSearch } from '../../utils/interfaces/i_types';
 import { resetSearchCounts, WebResourcesState } from '../state';
+import { options } from '../../config/options';
 
 export type FilterParamKey = Exclude<keyof IParamSearch, 'sortOrder'>;
 
@@ -8,6 +9,7 @@ export interface FilterButtonConfig {
     elementId: string;
     param: FilterParamKey;
     supportsSort?: boolean;
+    searchType?: ISelectedSearch;
 }
 
 export const FILTER_BUTTONS: FilterButtonConfig[] = [
@@ -21,7 +23,9 @@ export const FILTER_BUTTONS: FilterButtonConfig[] = [
     { elementId: 'ycs_btn_members', param: 'members', supportsSort: true },
     { elementId: 'ycs_btn_donated', param: 'donated', supportsSort: true },
     { elementId: 'ycs_btn_random', param: 'random' },
-    { elementId: 'ycs_btn_sort_first', param: 'sortFirst', supportsSort: true }
+    { elementId: 'ycs_btn_sort_first', param: 'sortFirst', supportsSort: true },
+    { elementId: 'ycs_btn_quick_chat', param: 'quickChat', supportsSort: true, searchType: 'chat' },
+    { elementId: 'ycs_btn_quick_transcript', param: 'quickTranscript', supportsSort: true, searchType: 'video' }
 ];
 
 export interface RegisterFilterButtonsOptions {
@@ -29,7 +33,7 @@ export interface RegisterFilterButtonsOptions {
         get(): WebResourcesState;
         set(next: WebResourcesState): void;
     };
-    executeSearch(param: IParamSearch): void;
+    executeSearch(param: IParamSearch, forceType?: ISelectedSearch): void;
     setActiveFilter(param: FilterParamKey | null, element?: HTMLElement): void;
     buttonConfigs: FilterButtonConfig[];
 }
@@ -126,6 +130,12 @@ export function registerFilterButtons({
         const button = document.getElementById(config.elementId) as HTMLElement | null;
         if (!button) return;
 
+        // Remove old event listeners (if they exist)
+        const oldHandler = (button as any).__ycsClickHandler;
+        if (oldHandler) {
+            button.removeEventListener('click', oldHandler);
+        }
+
         if (config.supportsSort) {
             SORT_DATASET_KEYS.forEach((key) => {
                 const value = button.dataset[key];
@@ -135,7 +145,7 @@ export function registerFilterButtons({
             });
         }
 
-        button.addEventListener('click', (event: Event) => {
+        const clickHandler = (event: Event) => {
             try {
                 const currentTarget = event.currentTarget as HTMLElement;
                 const wasActive = currentTarget.classList.contains('ycs_btn_active');
@@ -151,11 +161,16 @@ export function registerFilterButtons({
                     searchParam.sortOrder = sortOrder;
                 }
 
-                executeSearch(searchParam);
+                // If search type is specified, force use that type
+                executeSearch(searchParam, config.searchType);
             } catch (error) {
                 console.error(error);
             }
-        });
+        };
+
+        // Store event handler reference for later removal
+        (button as any).__ycsClickHandler = clickHandler;
+        button.addEventListener('click', clickHandler);
     });
 
     return {
@@ -164,3 +179,25 @@ export function registerFilterButtons({
         sortButtonIds
     };
 }
+
+// Generate button configurations dynamically based on user settings
+function getDynamicFilterButtonConfigs(filterButtons?: Array<{ id: string; enabled: boolean }>): FilterButtonConfig[] {
+    try {
+        const buttonsToUse = filterButtons || options.filterButtons;
+
+        // Only return enabled button configurations
+        const enabledButtons = buttonsToUse.filter((button: { id: string; enabled: boolean }) => button.enabled);
+
+        return FILTER_BUTTONS.filter((config) =>
+            enabledButtons.some((button: { id: string; enabled: boolean }) => button.id === config.elementId)
+        );
+    } catch (err) {
+        console.error('Error loading filter buttons settings:', err);
+        // If loading fails, use default settings
+        return FILTER_BUTTONS.filter((config) =>
+            options.filterButtons.some((button) => button.id === config.elementId && button.enabled)
+        );
+    }
+}
+
+export { getDynamicFilterButtonConfigs };

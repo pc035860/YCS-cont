@@ -14,7 +14,7 @@ import { IParamSearch, ISelectedSearch, IYCSOptions } from '../utils/interfaces/
 import type { ChatItem, CommentItem, TranscriptCueGroup, TranscriptData } from '../utils/interfaces/i_types';
 
 import { iconOk, iconReload } from '../utils/icons';
-import { renderLoadComments, renderSearch } from '../utils/renderView';
+import { renderLoadComments, renderSearch, loadFilterButtons } from '../utils/renderView';
 import { loadFromCache, saveToCache, updateBadge } from './services/cacheService';
 import type { CacheData } from './services/cacheService';
 import {
@@ -54,7 +54,13 @@ import {
     setSearchCount,
     WebResourcesState
 } from './state';
-import { FILTER_BUTTONS, FilterButtonRegistry, FilterParamKey, registerFilterButtons } from './ui/filters';
+import {
+    FILTER_BUTTONS,
+    FilterButtonRegistry,
+    FilterParamKey,
+    registerFilterButtons,
+    getDynamicFilterButtonConfigs
+} from './ui/filters';
 import { registerCommentInteractions } from './ui/commentInteractions';
 import { runSearch as runCommentsSearch } from './search/commentsSearch';
 import { runSearch as runChatSearch } from './search/chatSearch';
@@ -64,7 +70,7 @@ import { renderCommentsResult, renderChatResult, renderTranscriptResult } from '
 
 const DEBUG = false;
 
-const CHAT_UNSUPPORTED_FILTERS = ['heart', 'likes', 'replied', 'random'] as const;
+const CHAT_UNSUPPORTED_FILTERS = ['heart', 'likes', 'replied', 'random', 'quickTranscript'] as const;
 const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'heart',
     'likes',
@@ -73,7 +79,8 @@ const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'author',
     'donated',
     'members',
-    'verified'
+    'verified',
+    'quickChat'
 ] as const;
 
 type SortAttribute = 'sort' | 'sortChat' | 'sortTrp';
@@ -221,6 +228,8 @@ export function initApp(): void {
         const elSearch = document.getElementById('ycs-search');
         if (elSearch) {
             renderSearch(elSearch);
+            // Initial button loading (using default settings)
+            loadFilterButtons();
             // Toggle collapsed/expand of app
             try {
                 const toggles = document.getElementsByClassName('ycs-btn-toggle-app');
@@ -314,13 +323,15 @@ export function initApp(): void {
             }
         };
 
-        const executeSearchBasedOnType = (param?: IParamSearch): void => {
+        const executeSearchBasedOnType = (param?: IParamSearch, forceType?: ISelectedSearch): void => {
             const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement | null;
             const query = getSearchQuery();
 
-            const selected = elSelectOptSearch
-                ? (elSelectOptSearch.options[elSelectOptSearch.options.selectedIndex].value as ISelectedSearch)
-                : 'all';
+            const selected =
+                forceType ||
+                (elSelectOptSearch
+                    ? (elSelectOptSearch.options[elSelectOptSearch.options.selectedIndex].value as ISelectedSearch)
+                    : 'all');
 
             switch (selected) {
                 case 'comments': {
@@ -345,51 +356,81 @@ export function initApp(): void {
                 }
             }
         };
-        const initFilterButtons = (): void => {
-            filterRegistry = registerFilterButtons({
-                state: {
-                    get: () => state,
-                    set: (nextState: WebResourcesState) => {
-                        state = nextState;
-                    }
-                },
-                executeSearch: executeSearchBasedOnType,
-                setActiveFilter: setActiveFilterByElement,
-                buttonConfigs: FILTER_BUTTONS
-            });
+        const initFilterButtons = (filterButtons?: Array<{ id: string; enabled: boolean }>): void => {
+            try {
+                const dynamicButtonConfigs = getDynamicFilterButtonConfigs(filterButtons);
+
+                filterRegistry = registerFilterButtons({
+                    state: {
+                        get: () => state,
+                        set: (nextState: WebResourcesState) => {
+                            state = nextState;
+                        }
+                    },
+                    executeSearch: executeSearchBasedOnType,
+                    setActiveFilter: setActiveFilterByElement,
+                    buttonConfigs: dynamicButtonConfigs
+                });
+            } catch (err) {
+                console.error('Error loading dynamic filter button configs:', err);
+                // If loading fails, use default configuration
+                filterRegistry = registerFilterButtons({
+                    state: {
+                        get: () => state,
+                        set: (nextState: WebResourcesState) => {
+                            state = nextState;
+                        }
+                    },
+                    executeSearch: executeSearchBasedOnType,
+                    setActiveFilter: setActiveFilterByElement,
+                    buttonConfigs: FILTER_BUTTONS
+                });
+            }
 
             const clearButton = document.getElementById('ycs_btn_clear');
-            clearButton?.addEventListener('click', () => {
-                try {
-                    setActiveFilterByElement(null);
-
-                    state = resetSearchCounts(state);
-
-                    const eInputSearch = document.getElementById('ycs-input-search') as HTMLInputElement;
-
-                    if (eInputSearch?.value && eInputSearch.value.trim()) {
-                        requestAnimationFrame(() => {
-                            const searchBtn = document.getElementById('ycs_btn_search');
-                            searchBtn?.click();
-                        });
-                    } else {
-                        const elSearchRes = document.getElementById('ycs-search-result');
-                        const elSearchTotalRes = document.getElementById(
-                            'ycs-search-total-result'
-                        ) as HTMLElement | null;
-
-                        if (elSearchRes && elSearchTotalRes) {
-                            elSearchRes.innerText = '';
-                            elSearchTotalRes.innerText = 'Search cleared';
-                        }
-                    }
-
-                    const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
-                    if (btnClear) btnClear.style.visibility = 'hidden';
-                } catch (err) {
-                    console.error(err);
+            if (clearButton) {
+                // Remove old event listeners (if they exist)
+                const oldHandler = (clearButton as any).__ycsClearHandler;
+                if (oldHandler) {
+                    clearButton.removeEventListener('click', oldHandler);
                 }
-            });
+
+                const clearHandler = () => {
+                    try {
+                        setActiveFilterByElement(null);
+
+                        state = resetSearchCounts(state);
+
+                        const eInputSearch = document.getElementById('ycs-input-search') as HTMLInputElement;
+
+                        if (eInputSearch?.value && eInputSearch.value.trim()) {
+                            requestAnimationFrame(() => {
+                                const searchBtn = document.getElementById('ycs_btn_search');
+                                searchBtn?.click();
+                            });
+                        } else {
+                            const elSearchRes = document.getElementById('ycs-search-result');
+                            const elSearchTotalRes = document.getElementById(
+                                'ycs-search-total-result'
+                            ) as HTMLElement | null;
+
+                            if (elSearchRes && elSearchTotalRes) {
+                                elSearchRes.innerText = '';
+                                elSearchTotalRes.innerText = 'Search cleared';
+                            }
+                        }
+
+                        const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
+                        if (btnClear) btnClear.style.visibility = 'hidden';
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
+                // Store event handler reference for later removal
+                (clearButton as any).__ycsClearHandler = clearHandler;
+                clearButton.addEventListener('click', clearHandler);
+            }
         };
 
         initFilterButtons();
@@ -1211,6 +1252,15 @@ export function initApp(): void {
 
                             case 'hiddenByDefault':
                                 optHiddenByDefault(Boolean(opts.hiddenByDefault));
+                                break;
+
+                            case 'filterButtons':
+                                if (opts.filterButtons) {
+                                    // First reload button panel
+                                    loadFilterButtons(opts.filterButtons);
+                                    // Then re-initialize button configuration (bind events)
+                                    initFilterButtons(opts.filterButtons);
+                                }
                                 break;
 
                             default:
