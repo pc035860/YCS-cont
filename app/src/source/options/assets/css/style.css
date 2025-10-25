@@ -387,8 +387,9 @@ tbody#ycs_all_cache_body_table > tr > td > div {
 
 .ycs_filter_buttons_list {
   margin: 15px 0;
-  max-height: 400px;
-  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
 }
 
 .ycs_filter_button_item {

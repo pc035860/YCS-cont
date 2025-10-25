@@ -131,8 +131,8 @@ window.onload = async (): Promise<void> => {
                 ycs_btn_donated: 'Donated',
                 ycs_btn_random: 'Random',
                 ycs_btn_sort_first: 'All',
-                ycs_btn_quick_chat: 'Chat',
-                ycs_btn_quick_transcript: 'Transcript'
+                ycs_btn_quick_chat: 'Chat (Quick chat search)',
+                ycs_btn_quick_transcript: 'Transcript (Quick transcript search)'
             };
             return nameMap[buttonId] || buttonId;
         };
@@ -200,7 +200,7 @@ window.onload = async (): Promise<void> => {
             // 拖曳經過
             listContainer.addEventListener('dragover', (e: DragEvent) => {
                 e.preventDefault();
-                const afterElement = getDragAfterElement(listContainer, e.clientY);
+                const afterElement = getDragAfterElement(listContainer, e.clientX, e.clientY);
                 if (draggedElement && afterElement == null) {
                     listContainer.appendChild(draggedElement);
                 } else if (draggedElement && afterElement) {
@@ -223,18 +223,148 @@ window.onload = async (): Promise<void> => {
             });
         };
 
-        const getDragAfterElement = (container: HTMLElement, y: number): HTMLElement | null => {
-            const draggableElements = [...container.querySelectorAll('.ycs_filter_button_item:not(.dragging)')];
+        const getDragAfterElement = (container: HTMLElement, clientX: number, clientY: number): HTMLElement | null => {
+            const items = [...container.querySelectorAll('.ycs_filter_button_item:not(.dragging)')];
+            if (!items.length) {
+                return null;
+            }
 
-            return draggableElements.reduce((closest: HTMLElement | null, child: Element) => {
-                const box = child.getBoundingClientRect();
-                const offset = y - box.top - box.height / 2;
+            const computedStyle = window.getComputedStyle(container);
+            const columnCount = Math.max(
+                1,
+                computedStyle.gridTemplateColumns.split(' ').filter((part) => part.trim().length > 0).length
+            );
 
-                if (offset < 0 && offset > (closest ? closest.getBoundingClientRect().top - y : -Infinity)) {
-                    return child as HTMLElement;
+            type GridItem = {
+                element: HTMLElement;
+                rect: DOMRect;
+                row: number;
+                column: number;
+                order: number;
+            };
+
+            const allChildren = Array.from(container.querySelectorAll('.ycs_filter_button_item')) as HTMLElement[];
+
+            const rowBounds: Array<{ top: number; bottom: number; order: number }> = [];
+            const columnBounds: Array<{ left: number; right: number; center: number; order: number }> = [];
+
+            const gridItems: GridItem[] = items
+                .map((child) => {
+                    const element = child as HTMLElement;
+                    const rect = element.getBoundingClientRect();
+                    const domIndex = allChildren.indexOf(element);
+                    const order = domIndex >= 0 ? domIndex : Number.MAX_SAFE_INTEGER;
+                    const row = Math.floor(order / columnCount);
+                    const column = order % columnCount;
+
+                    const existingRow = rowBounds[row];
+                    if (existingRow) {
+                        existingRow.top = Math.min(existingRow.top, rect.top);
+                        existingRow.bottom = Math.max(existingRow.bottom, rect.bottom);
+                    } else {
+                        rowBounds[row] = {
+                            top: rect.top,
+                            bottom: rect.bottom,
+                            order: row
+                        };
+                    }
+
+                    const existingColumn = columnBounds[column];
+                    if (existingColumn) {
+                        existingColumn.left = Math.min(existingColumn.left, rect.left);
+                        existingColumn.right = Math.max(existingColumn.right, rect.right);
+                        existingColumn.center = (existingColumn.left + existingColumn.right) / 2;
+                    } else {
+                        columnBounds[column] = {
+                            left: rect.left,
+                            right: rect.right,
+                            center: rect.left + rect.width / 2,
+                            order: column
+                        };
+                    }
+
+                    return {
+                        element,
+                        rect,
+                        row,
+                        column,
+                        order
+                    };
+                })
+                .sort((a, b) => a.order - b.order)
+                .map((item, index) => ({
+                    ...item,
+                    row: Math.floor(index / columnCount),
+                    column: index % columnCount,
+                    order: index
+                }));
+
+            const pointerRow = resolveTargetRow(rowBounds, clientY);
+            const pointerColumn = resolveTargetColumn(columnBounds, clientX);
+
+            for (const item of gridItems) {
+                if (item.row > pointerRow || (item.row === pointerRow && item.column >= pointerColumn)) {
+                    return item.element;
                 }
-                return closest;
-            }, null);
+            }
+
+            return null;
+        };
+
+        const resolveTargetRow = (
+            rows: Array<{ top: number; bottom: number; order: number }>,
+            pointerY: number
+        ): number => {
+            if (!rows.length) return 0;
+
+            const sortedRows = [...rows].sort((a, b) => a.top - b.top);
+
+            if (pointerY < sortedRows[0].top) {
+                return 0;
+            }
+
+            for (let i = 0; i < sortedRows.length; i++) {
+                const row = sortedRows[i];
+                const nextRow = sortedRows[i + 1];
+
+                if (pointerY <= row.bottom) {
+                    return row.order;
+                }
+
+                if (nextRow && pointerY < nextRow.top) {
+                    return nextRow.order;
+                }
+            }
+
+            return sortedRows[sortedRows.length - 1].order + 1;
+        };
+
+        const resolveTargetColumn = (
+            columns: Array<{ left: number; right: number; center: number; order: number }>,
+            pointerX: number
+        ): number => {
+            if (!columns.length) return 0;
+
+            const sortedColumns = [...columns].sort((a, b) => a.left - b.left);
+
+            const firstColumn = sortedColumns[0];
+            const lastColumn = sortedColumns[sortedColumns.length - 1];
+
+            if (pointerX <= firstColumn.center) {
+                return firstColumn.order;
+            }
+
+            for (let i = 0; i < sortedColumns.length - 1; i++) {
+                const current = sortedColumns[i];
+                const next = sortedColumns[i + 1];
+                const boundary = (current.center + next.center) / 2;
+
+                if (pointerX < boundary) {
+                    return current.order;
+                }
+            }
+
+            return pointerX >= lastColumn.right ? lastColumn.order + 1 : lastColumn.order;
         };
 
         const optSetCache = async (opt: HTMLInputElement): Promise<void> => {
