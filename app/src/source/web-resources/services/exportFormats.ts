@@ -169,7 +169,7 @@ function buildCommentsExportPayload(input: {
                 },
                 publishedTimeText: wrapTryCatch(() => cr.publishedTimeText.runs[0].text) || '',
                 commentMessage: cr?.contentText?.fullText || cr?.renderFullText || '',
-                totalLikes: parseLikeCount(cr?.voteCount?.simpleText),
+                totalLikes: parseLikeCount(cr?.voteCount?.simpleText ?? cr?.likeCount),
                 member: wrapTryCatch(() => cr.sponsorCommentBadge.sponsorCommentBadgeRenderer.tooltip) || '',
                 commentReplies: { replies: [] }
             };
@@ -203,7 +203,7 @@ function buildCommentsExportPayload(input: {
             },
             publishedTimeText: wrapTryCatch(() => renderer.publishedTimeText.runs[0].text) || '',
             commentMessage: renderer?.contentText?.fullText || renderer?.renderFullText || '',
-            totalLikes: parseLikeCount(renderer?.voteCount?.simpleText),
+            totalLikes: parseLikeCount(renderer?.voteCount?.simpleText ?? renderer?.likeCount),
             member: wrapTryCatch(() => renderer.sponsorCommentBadge.sponsorCommentBadgeRenderer.tooltip) || '',
             commentReplies: { replies: [] }
         };

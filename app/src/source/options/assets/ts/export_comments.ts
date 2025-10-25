@@ -8,7 +8,8 @@ import {
     getCommentsChatHtmlText,
     getCommentsHtmlText,
     getCommentsTrVideoHtmlText,
-    msToRoundSec
+    msToRoundSec,
+    parseFormattedNumberToInt
 } from '../../../utils/formatting';
 import {
     getSheetChatComments,
@@ -40,21 +41,23 @@ window.onload = async (): Promise<void> => {
             }
         };
 
-        const getTotalLikesText = (cmnt: any): string => {
+        const getTotalLikesCount = (cmnt: any): number => {
             const voteCountText = wrapTryCatch(() => cmnt?.commentRenderer?.voteCount?.simpleText) as
                 | string
                 | undefined;
-            if (typeof voteCountText === 'string' && voteCountText.length > 0) {
-                return voteCountText;
-            }
             const likeCount = wrapTryCatch(() => cmnt?.commentRenderer?.likeCount) as string | number | undefined;
-            if (typeof likeCount === 'number') {
-                return String(likeCount);
+
+            // Use nullish coalescing to get the first available value
+            const value = voteCountText ?? likeCount;
+
+            // Convert to number
+            if (typeof value === 'number' && Number.isFinite(value)) {
+                return value;
             }
-            if (typeof likeCount === 'string' && likeCount.length > 0) {
-                return likeCount;
+            if (typeof value === 'string' && value.length > 0) {
+                return parseFormattedNumberToInt(value);
             }
-            return '0';
+            return 0;
         };
 
         const getProcessShowAllHtml = (): HTMLElement | void => {
@@ -212,7 +215,7 @@ Total: ${c.count}\n${c.html}`;
                             ) as string,
                             commentMessage: (cmnt?.commentRenderer?.contentText?.fullText ||
                                 cmnt?.commentRenderer?.renderFullText) as string,
-                            totalLikes: getTotalLikesText(cmnt),
+                            totalLikes: getTotalLikesCount(cmnt),
                             member: cmnt?.commentRenderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer
                                 ?.tooltip as string,
                             commentReplies: {
@@ -255,7 +258,7 @@ Total: ${c.count}\n${c.html}`;
                             ) as string,
                             commentMessage: (cmnt?.commentRenderer?.contentText?.fullText ||
                                 cmnt?.commentRenderer?.renderFullText) as string,
-                            totalLikes: getTotalLikesText(cmnt),
+                            totalLikes: getTotalLikesCount(cmnt),
                             member: cmnt?.commentRenderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer
                                 ?.tooltip as string
                         });
