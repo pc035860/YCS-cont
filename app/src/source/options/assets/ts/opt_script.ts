@@ -113,9 +113,6 @@ window.onload = async (): Promise<void> => {
 
                 listContainer.appendChild(item);
             });
-
-            // Re-bind events
-            initFilterButtonsEvents();
         };
 
         const getButtonDisplayName = (buttonId: string): string => {
@@ -505,6 +502,9 @@ window.onload = async (): Promise<void> => {
                 }
             }
         }
+
+        // Initialize filter buttons events once after initial render
+        initFilterButtonsEvents();
 
         const elAutoload = document.getElementsByClassName('ycs_inner_wrap')[0];
         elAutoload?.addEventListener('click', async (e: Event) => {
