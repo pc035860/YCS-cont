@@ -286,6 +286,43 @@ function extractChannelId(): string | undefined {
 }
 
 /**
+ * Extract videoId from GlobalStore.getInitYtData
+ *
+ * Handles two common formats:
+ * 1. Direct object access (new API or cached format)
+ * 2. Array access (legacy API, typically index [2] or [3])
+ *
+ * @returns videoId string or undefined if not found
+ *
+ * @example
+ * // New API or cached format (direct object)
+ * GlobalStore.getInitYtData = { playerResponse: { videoDetails: { videoId: "dQw4w9WgXcQ" } } }
+ * extractVideoId() // returns "dQw4w9WgXcQ"
+ *
+ * // Legacy API format (array, videoId typically at index [2] or [3])
+ * GlobalStore.getInitYtData = [{...}, {...}, { playerResponse: { videoDetails: { videoId: "dQw4w9WgXcQ" } } }, {...}]
+ * extractVideoId() // returns "dQw4w9WgXcQ"
+ */
+function extractVideoId(): string | undefined {
+    const ytData = GlobalStore.getInitYtData;
+
+    // Priority 1: Direct object access (new API or cached)
+    if (ytData?.playerResponse?.videoDetails?.videoId) {
+        return ytData.playerResponse.videoDetails.videoId;
+    }
+
+    // Priority 2: Array access (legacy API)
+    if (Array.isArray(ytData)) {
+        for (let i = 0; i < ytData.length; i++) {
+            const videoId = ytData[i]?.playerResponse?.videoDetails?.videoId;
+            if (videoId) return videoId;
+        }
+    }
+
+    return undefined;
+}
+
+/**
  * Converts YouTube's 32-bit RGBA integer color to CSS rgba() string
  * Format: 0xRRGGBBAA (Red, Green, Blue, Alpha in hex)
  *
@@ -332,5 +369,6 @@ export {
     isVideoPage,
     getPaginate,
     extractChannelId,
+    extractVideoId,
     convertColorToRgba
 };
