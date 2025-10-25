@@ -15,7 +15,7 @@ export interface IReply {
     };
     commentMessage: string;
     publishedTimeText: string;
-    totalLikes: string;
+    totalLikes: number;
     member: string;
 }
 
@@ -28,7 +28,7 @@ export interface IComment {
     };
     commentMessage: string;
     publishedTimeText: string;
-    totalLikes: string;
+    totalLikes: number;
     member: string;
     commentReplies?: {
         replies: IReply[];

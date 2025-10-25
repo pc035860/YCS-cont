@@ -14,6 +14,7 @@ import {
     DonatedChipViewModel
 } from './viewModels';
 import { iconExpand, iconExpandShowMore, iconReload, iconSortDown } from './icons';
+import { EXPORT_FORMAT } from '../web-resources/services/exportService';
 
 // Debug mode configuration
 // Set to true for detailed diagnostic logs during development
@@ -756,11 +757,16 @@ function renderLoadComments(selector: string, preferredInsertionMode?: 'appendCh
                                         open
                                     </button>
                                 </div>
-                                <div class="ycs_save_wrap">
-                                    <button id="ycs_save_all_comments" class="ycs-btn-search ycs-title" name="Save comments to file"
+                                <div class="ycs_save_wrap ycs_dropdown_wrap">
+                                    <button id="ycs_save_all_comments" class="ycs-btn-search ycs-title ycs_dropdown_trigger" name="Save comments to file"
                                         title="Save comments to file">
-                                        save
+                                        save ▾
                                     </button>
+                                    <div id="ycs_save_all_comments_menu" class="ycs_dropdown_menu" aria-hidden="true">
+                                        <div class="ycs_dropdown_item" data-format="${EXPORT_FORMAT.TXT}">.TXT</div>
+                                        <div class="ycs_dropdown_item" data-format="${EXPORT_FORMAT.JSON}">.JSON</div>
+                                        <div class="ycs_dropdown_item" data-format="${EXPORT_FORMAT.XLSX}">.XLSX</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -785,11 +791,16 @@ function renderLoadComments(selector: string, preferredInsertionMode?: 'appendCh
                                         open
                                     </button>
                                 </div>
-                                <div class="ycs_save_wrap">
-                                    <button id="ycs_save_all_comments_chat" class="ycs-btn-search ycs-title"
+                                <div class="ycs_save_wrap ycs_dropdown_wrap">
+                                    <button id="ycs_save_all_comments_chat" class="ycs-btn-search ycs-title ycs_dropdown_trigger"
                                         name="Save chat comments to file" title="Save chat comments to file">
-                                        save
+                                        save ▾
                                     </button>
+                                    <div id="ycs_save_all_comments_chat_menu" class="ycs_dropdown_menu" aria-hidden="true">
+                                        <div class="ycs_dropdown_item" data-format="${EXPORT_FORMAT.TXT}">.TXT</div>
+                                        <div class="ycs_dropdown_item" data-format="${EXPORT_FORMAT.JSON}">.JSON</div>
+                                        <div class="ycs_dropdown_item" data-format="${EXPORT_FORMAT.XLSX}">.XLSX</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -813,11 +824,16 @@ function renderLoadComments(selector: string, preferredInsertionMode?: 'appendCh
                                         open
                                     </button>
                                 </div>
-                                <div class="ycs_save_wrap">
-                                    <button id="ycs_save_all_comments_trvideo" class="ycs-btn-search ycs-title"
+                                <div class="ycs_save_wrap ycs_dropdown_wrap">
+                                    <button id="ycs_save_all_comments_trvideo" class="ycs-btn-search ycs-title ycs_dropdown_trigger"
                                         name="Save transcript video to file" title="Save transcript video to file">
-                                        save
+                                        save ▾
                                     </button>
+                                    <div id="ycs_save_all_comments_trvideo_menu" class="ycs_dropdown_menu" aria-hidden="true">
+                                        <div class="ycs_dropdown_item" data-format="${EXPORT_FORMAT.TXT}">.TXT</div>
+                                        <div class="ycs_dropdown_item" data-format="${EXPORT_FORMAT.JSON}">.JSON</div>
+                                        <div class="ycs_dropdown_item" data-format="${EXPORT_FORMAT.XLSX}">.XLSX</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

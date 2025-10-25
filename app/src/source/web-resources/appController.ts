@@ -24,8 +24,16 @@ import {
     openChatWindow,
     openCommentsWindow,
     openTranscriptWindow,
-    ExportMeta
+    ExportMeta,
+    downloadCommentsFileJSON,
+    downloadCommentsFileXLSX,
+    downloadChatFileJSON,
+    downloadChatFileXLSX,
+    downloadTranscriptFileJSON,
+    downloadTranscriptFileXLSX,
+    EXPORT_FORMAT
 } from './services/exportService';
+import type { ExportFormat } from './services/exportService';
 import {
     clearComments,
     clearCommentsChat,
@@ -70,7 +78,14 @@ const TRANSCRIPT_UNSUPPORTED_FILTERS = [
 
 type SortAttribute = 'sort' | 'sortChat' | 'sortTrp';
 
+const dropdownMenus = new Set<HTMLElement>();
+
 let filterRegistry: FilterButtonRegistry | null = null;
+let handleDocumentClick: ((ev: MouseEvent) => void) | null = null;
+
+const isExportFormat = (value: string | undefined): value is ExportFormat => {
+    return value === EXPORT_FORMAT.TXT || value === EXPORT_FORMAT.JSON || value === EXPORT_FORMAT.XLSX;
+};
 
 const getSortableButtonIds = (): string[] => {
     if (filterRegistry?.sortButtonIds?.length) {
@@ -182,6 +197,11 @@ export function initApp(): void {
         updateBadge('NUMBER_COMMENTS', '');
 
         removeNodeList('.ycs-app');
+        dropdownMenus.clear();
+        if (handleDocumentClick) {
+            document.removeEventListener('click', handleDocumentClick);
+            handleDocumentClick = null;
+        }
 
         // Try new insertion points first (between expandable-metadata and ticket-shelf)
         if (document.querySelector('#expandable-metadata.ytd-watch-flexy')) {
@@ -760,6 +780,61 @@ export function initApp(): void {
             });
         }
 
+        const setMenuVisibility = (menu: HTMLElement | null, visible: boolean): void => {
+            if (!menu) return;
+            if (visible) {
+                menu.classList.add('show');
+            } else {
+                menu.classList.remove('show');
+            }
+            menu.setAttribute('aria-hidden', visible ? 'false' : 'true');
+        };
+
+        const closeAllDropdowns = (except?: HTMLElement | null): void => {
+            dropdownMenus.forEach((menu) => {
+                if (menu !== except) {
+                    setMenuVisibility(menu, false);
+                }
+            });
+        };
+
+        const setupDropdown = (
+            trigger: HTMLElement | null,
+            menu: HTMLElement | null,
+            onSelect: (format: ExportFormat) => void
+        ): void => {
+            if (!trigger || !menu) return;
+
+            dropdownMenus.add(menu);
+            setMenuVisibility(menu, false);
+
+            trigger.addEventListener('click', (event) => {
+                try {
+                    event.stopPropagation();
+                    closeAllDropdowns(menu);
+                    const shouldShow = !menu.classList.contains('show');
+                    setMenuVisibility(menu, shouldShow);
+                } catch (err) {
+                    console.error(err);
+                }
+            });
+
+            menu.addEventListener('click', (event) => {
+                try {
+                    const target = event.target as HTMLElement | null;
+                    if (!target) return;
+                    const format = target.dataset.format;
+                    if (!isExportFormat(format)) return;
+
+                    onSelect(format);
+                } catch (err) {
+                    console.error(err);
+                } finally {
+                    setMenuVisibility(menu, false);
+                }
+            });
+        };
+
         const btnOpenCommentsNewWindow = document.getElementById('ycs_open_all_comments_window');
         btnOpenCommentsNewWindow?.addEventListener('click', () => {
             const comments = getComments(state);
@@ -773,16 +848,19 @@ export function initApp(): void {
             }
         });
 
+        // Comments save dropdown
         const btnSaveCommentsToFile = document.getElementById('ycs_save_all_comments');
-        btnSaveCommentsToFile?.addEventListener('click', () => {
+        const btnSaveCommentsToFileMenu = document.getElementById('ycs_save_all_comments_menu');
+        setupDropdown(btnSaveCommentsToFile, btnSaveCommentsToFileMenu, (format) => {
             const comments = getComments(state);
-            if (comments.length === 0) return;
+            if (!comments || comments.length === 0) return;
 
-            try {
+            if (format === EXPORT_FORMAT.TXT) {
                 downloadCommentsFile(comments, buildExportMeta());
-            } catch (e) {
-                console.error(e);
-                return;
+            } else if (format === EXPORT_FORMAT.JSON) {
+                downloadCommentsFileJSON(comments, buildExportMeta());
+            } else if (format === EXPORT_FORMAT.XLSX) {
+                downloadCommentsFileXLSX(comments, buildExportMeta());
             }
         });
 
@@ -799,16 +877,20 @@ export function initApp(): void {
             }
         });
 
+        // Chat save dropdown
         const btnSaveCommentsChatToFile = document.getElementById('ycs_save_all_comments_chat');
-        btnSaveCommentsChatToFile?.addEventListener('click', () => {
+        const btnSaveCommentsChatToFileMenu = document.getElementById('ycs_save_all_comments_chat_menu');
+        setupDropdown(btnSaveCommentsChatToFile, btnSaveCommentsChatToFileMenu, (format) => {
             const commentsChat = getCommentsChat(state);
-            if (commentsChat.size === 0) return;
+            if (!commentsChat || commentsChat.size === 0) return;
+            const arr = [...commentsChat.values()];
 
-            try {
-                downloadChatFile([...commentsChat.values()], buildExportMeta());
-            } catch (e) {
-                console.error(e);
-                return;
+            if (format === EXPORT_FORMAT.TXT) {
+                downloadChatFile(arr, buildExportMeta());
+            } else if (format === EXPORT_FORMAT.JSON) {
+                downloadChatFileJSON(arr, buildExportMeta());
+            } else if (format === EXPORT_FORMAT.XLSX) {
+                downloadChatFileXLSX(arr, buildExportMeta());
             }
         });
 
@@ -828,19 +910,35 @@ export function initApp(): void {
             }
         });
 
+        // Transcript save dropdown
         const btnSaveCommentsTrVideoToFile = document.getElementById('ycs_save_all_comments_trvideo');
-        btnSaveCommentsTrVideoToFile?.addEventListener('click', () => {
-            try {
-                const commentsTrVideo = getCommentsTrVideo(state);
-                const cueGroups = extractCueGroups(commentsTrVideo);
-                if (cueGroups && cueGroups.length > 0) {
-                    downloadTranscriptFile(cueGroups, buildExportMeta());
-                }
-            } catch (e) {
-                console.error(e);
-                return;
+        const btnSaveCommentsTrVideoToFileMenu = document.getElementById('ycs_save_all_comments_trvideo_menu');
+        setupDropdown(btnSaveCommentsTrVideoToFile, btnSaveCommentsTrVideoToFileMenu, (format) => {
+            const commentsTrVideo = getCommentsTrVideo(state);
+            const cueGroups = extractCueGroups(commentsTrVideo);
+            if (!cueGroups || cueGroups.length === 0) return;
+
+            if (format === EXPORT_FORMAT.TXT) {
+                downloadTranscriptFile(cueGroups, buildExportMeta());
+            } else if (format === EXPORT_FORMAT.JSON) {
+                downloadTranscriptFileJSON(cueGroups, buildExportMeta());
+            } else if (format === EXPORT_FORMAT.XLSX) {
+                downloadTranscriptFileXLSX(cueGroups, buildExportMeta());
             }
         });
+
+        // Close dropdowns when clicking outside
+        handleDocumentClick = (event) => {
+            try {
+                const target = event.target as HTMLElement | null;
+                if (target?.closest('.ycs_dropdown_wrap')) return;
+
+                closeAllDropdowns();
+            } catch (err) {
+                // ignore
+            }
+        };
+        document.addEventListener('click', handleDocumentClick);
 
         const runCommentsPipeline = (selector: string, query: string, param?: IParamSearch) => {
             const context = buildSearchContext();
