@@ -64,7 +64,7 @@ import { renderCommentsResult, renderChatResult, renderTranscriptResult } from '
 
 const DEBUG = false;
 
-const CHAT_UNSUPPORTED_FILTERS = ['heart', 'likes', 'replied', 'random'] as const;
+const CHAT_UNSUPPORTED_FILTERS = ['heart', 'likes', 'replied', 'random', 'quickTranscript'] as const;
 const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'heart',
     'likes',
@@ -73,7 +73,8 @@ const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'author',
     'donated',
     'members',
-    'verified'
+    'verified',
+    'quickChat'
 ] as const;
 
 type SortAttribute = 'sort' | 'sortChat' | 'sortTrp';
@@ -314,13 +315,15 @@ export function initApp(): void {
             }
         };
 
-        const executeSearchBasedOnType = (param?: IParamSearch): void => {
+        const executeSearchBasedOnType = (param?: IParamSearch, forceType?: ISelectedSearch): void => {
             const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement | null;
             const query = getSearchQuery();
 
-            const selected = elSelectOptSearch
-                ? (elSelectOptSearch.options[elSelectOptSearch.options.selectedIndex].value as ISelectedSearch)
-                : 'all';
+            const selected =
+                forceType ||
+                (elSelectOptSearch
+                    ? (elSelectOptSearch.options[elSelectOptSearch.options.selectedIndex].value as ISelectedSearch)
+                    : 'all');
 
             switch (selected) {
                 case 'comments': {

@@ -1069,6 +1069,24 @@ function renderSearch(node: HTMLElement): void {
                         title="Show a random comment">
                         Random
                     </button>
+                    <button id="ycs_btn_quick_chat"
+                        data-sort="newest"
+                        data-sort-chat="newest"
+                        class="ycs-btn-search ycs-title"
+                        name="quickChat" type="button"
+                        title="Show chat replay (Newest)">
+                        Chat
+                        ${iconSortDown()}
+                    </button>
+                    <button id="ycs_btn_quick_transcript"
+                        data-sort="newest"
+                        data-sort-trp="newest"
+                        class="ycs-btn-search ycs-title"
+                        name="quickTranscript" type="button"
+                        title="Show transcript (Newest)">
+                        Transcript
+                        ${iconSortDown()}
+                    </button>
                     <button id="ycs_btn_clear"
                         class="ycs-btn-search ycs-title ycs-search-clear"
                         style="visibility:hidden;"

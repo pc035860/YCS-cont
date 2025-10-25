@@ -280,6 +280,8 @@ export interface IParamSearch {
     random?: boolean;
     timestamp?: boolean;
     sortFirst?: boolean;
+    quickChat?: boolean;
+    quickTranscript?: boolean;
     sortOrder?: 'newest' | 'oldest';
 }
 

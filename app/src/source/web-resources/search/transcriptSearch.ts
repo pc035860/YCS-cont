@@ -42,7 +42,8 @@ const UNSUPPORTED_FILTERS: (keyof IParamSearch)[] = [
     'author',
     'donated',
     'members',
-    'verified'
+    'verified',
+    'quickChat'
 ];
 
 function cloneFuseOptions(): Fuse.IFuseOptions<any> {
@@ -253,8 +254,38 @@ export function runSearch(
             resultSearch = mapTranscriptResults(fuse.search(trimmedQuery));
         }
     } else {
-        const fuse = new Fuse(cueGroups, options);
-        resultSearch = mapTranscriptResults(fuse.search(trimmedQuery));
+        // Handle empty query by returning all results
+        if (!trimmedQuery) {
+            resultSearch = mapTranscriptResults(
+                cueGroups.map((item, index) => ({
+                    item,
+                    refIndex: index,
+                    score: 0
+                }))
+            );
+        } else {
+            const fuse = new Fuse(cueGroups, options);
+            resultSearch = mapTranscriptResults(fuse.search(trimmedQuery));
+        }
+
+        // Apply sorting for quickTranscript filter
+        if (param.quickTranscript && resultSearch.length > 0) {
+            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
+
+            const resolvedOrder = ensureSortOrder(
+                param.sortOrder ?? context.sortOrders.transcript['ycs_btn_quick_transcript']
+            );
+            if (resolvedOrder === 'oldest') {
+                resultSearch = Array.from(resultSearch).reverse();
+            }
+
+            updateButtonState(
+                'ycs_btn_quick_transcript',
+                resolvedOrder,
+                resolvedOrder === 'oldest' ? 'Show transcript (Oldest)' : 'Show transcript (Newest)',
+                'Transcript'
+            );
+        }
     }
 
     const total = resultSearch.length;

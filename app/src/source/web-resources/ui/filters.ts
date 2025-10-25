@@ -1,5 +1,5 @@
 import { iconSortDown, iconSortUp } from '../../utils/icons';
-import { IParamSearch } from '../../utils/interfaces/i_types';
+import { IParamSearch, ISelectedSearch } from '../../utils/interfaces/i_types';
 import { resetSearchCounts, WebResourcesState } from '../state';
 
 export type FilterParamKey = Exclude<keyof IParamSearch, 'sortOrder'>;
@@ -8,6 +8,7 @@ export interface FilterButtonConfig {
     elementId: string;
     param: FilterParamKey;
     supportsSort?: boolean;
+    searchType?: ISelectedSearch;
 }
 
 export const FILTER_BUTTONS: FilterButtonConfig[] = [
@@ -21,7 +22,9 @@ export const FILTER_BUTTONS: FilterButtonConfig[] = [
     { elementId: 'ycs_btn_members', param: 'members', supportsSort: true },
     { elementId: 'ycs_btn_donated', param: 'donated', supportsSort: true },
     { elementId: 'ycs_btn_random', param: 'random' },
-    { elementId: 'ycs_btn_sort_first', param: 'sortFirst', supportsSort: true }
+    { elementId: 'ycs_btn_sort_first', param: 'sortFirst', supportsSort: true },
+    { elementId: 'ycs_btn_quick_chat', param: 'quickChat', supportsSort: true, searchType: 'chat' },
+    { elementId: 'ycs_btn_quick_transcript', param: 'quickTranscript', supportsSort: true, searchType: 'video' }
 ];
 
 export interface RegisterFilterButtonsOptions {
@@ -29,7 +32,7 @@ export interface RegisterFilterButtonsOptions {
         get(): WebResourcesState;
         set(next: WebResourcesState): void;
     };
-    executeSearch(param: IParamSearch): void;
+    executeSearch(param: IParamSearch, forceType?: ISelectedSearch): void;
     setActiveFilter(param: FilterParamKey | null, element?: HTMLElement): void;
     buttonConfigs: FilterButtonConfig[];
 }
@@ -151,7 +154,8 @@ export function registerFilterButtons({
                     searchParam.sortOrder = sortOrder;
                 }
 
-                executeSearch(searchParam);
+                // 如果有指定搜尋類型，則強制使用該類型
+                executeSearch(searchParam, config.searchType);
             } catch (error) {
                 console.error(error);
             }
