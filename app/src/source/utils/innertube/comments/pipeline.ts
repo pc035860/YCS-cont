@@ -2,11 +2,11 @@ import objectScan from 'object-scan';
 import Queue from 'p-queue';
 
 import { fetchR } from '../../libs';
-import { getCleanUrlVideo, getVideoId, wrapTryCatch } from '../../common';
+import { GlobalStore, getCleanUrlVideo, getVideoId, wrapTryCatch, extractVideoId } from '../../common';
 import { parseFormattedNumber } from '../../formatting';
 import { normalizeCommentViewModel } from './normalize';
 import { buildInnertubeBody, buildInnertubeHeaders } from '../request';
-import { getInnertubeApiKey, getPageCfgData } from '../core';
+import { getInnertubeApiKey, getInitYtData, getPageCfgData } from '../core';
 
 export interface CommentContinuation {
     token: string;
@@ -1367,32 +1367,150 @@ async function fetchCommentPage(
                 }
             }
 
-            const continuationToken =
-                (wrapTryCatch(() =>
-                    objectScan(
-                        [
-                            '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'
-                        ],
-                        { joined: true, rtn: 'value', abort: true }
-                    )(detailsCmntsVIDV2)
-                ) as string | undefined) ||
-                (wrapTryCatch(() =>
-                    objectScan(
-                        [
-                            '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'
-                        ],
-                        { joined: true, rtn: 'value', abort: true }
-                    )((windowRef as any).ytInitialData)
-                ) as string | undefined);
+            // Phase 2: Use GlobalStore.getInitYtData instead of window.ytInitialData
+            const currentVideoId = getVideoId(windowRef.location.href);
 
-            const fallbackClickTracking = wrapTryCatch(() =>
+            // Try to get token from detailsCmntsVIDV2 first
+            let continuationToken = wrapTryCatch(() =>
                 objectScan(
-                    ['**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.clickTrackingParams'],
+                    ['**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'],
                     { joined: true, rtn: 'value', abort: true }
-                )((windowRef as any).ytInitialData)
-            );
+                )(detailsCmntsVIDV2)
+            ) as string | undefined;
 
-            const clickTrackingParams = tokenComments ?? fallbackClickTracking;
+            if (continuationToken) {
+                console.log(`[YCS] ✓ Got continuation token from detailsCmntsVIDV2 for video: ${currentVideoId}`);
+            } else {
+                console.warn(`[YCS] ✗ detailsCmntsVIDV2 token not found for video: ${currentVideoId}`);
+
+                // Fallback: Use GlobalStore.getInitYtData
+                let globalYtData = (GlobalStore as any).getInitYtData;
+                let needsFetch = false;
+
+                // Check if GlobalStore exists and has sufficient data
+                if (!globalYtData) {
+                    needsFetch = true;
+                    console.log(
+                        `[YCS] 📥 GlobalStore.getInitYtData not available, will fetch for video: ${currentVideoId}`
+                    );
+                } else {
+                    // Validate GlobalStore has necessary data structure
+                    const ytDataSource = Array.isArray(globalYtData)
+                        ? globalYtData.find((item: any) => item?.response || item?.contents)
+                        : globalYtData;
+
+                    const hasSortMenu = wrapTryCatch(() =>
+                        objectScan(['**.sortMenu'], { joined: true, rtn: 'value', abort: true })(ytDataSource)
+                    );
+
+                    if (!hasSortMenu) {
+                        needsFetch = true;
+                        console.log(
+                            `[YCS] 📥 GlobalStore.getInitYtData exists but lacks sortMenu data (likely from cache restore), will refetch for video: ${currentVideoId}`
+                        );
+                    }
+
+                    // Validate videoId to prevent cross-video data pollution
+                    if (!needsFetch) {
+                        const storedVideoId = extractVideoId();
+                        if (storedVideoId && storedVideoId !== currentVideoId) {
+                            needsFetch = true;
+                            globalYtData = undefined; // Clear local variable
+                            (GlobalStore as any).getInitYtData = undefined; // Clear GlobalStore to prevent reuse in subsequent logic
+                            console.log(
+                                `[YCS] 📥 GlobalStore.getInitYtData contains mismatched videoId (stored: ${storedVideoId}, current: ${currentVideoId}), will refetch for video: ${currentVideoId}`
+                            );
+                        }
+                    }
+                }
+
+                // Fetch ytInitialData if needed
+                if (needsFetch) {
+                    try {
+                        globalYtData = await getInitYtData(windowRef.location.href, signal as AbortSignal, windowRef);
+                        if (globalYtData) {
+                            console.log(
+                                `[YCS] ✓ Successfully fetched and populated GlobalStore.getInitYtData for video: ${currentVideoId}`
+                            );
+                        }
+                    } catch (error) {
+                        console.error(
+                            `[YCS] ✗ Failed to fetch GlobalStore.getInitYtData for video: ${currentVideoId}`,
+                            error
+                        );
+                    }
+                }
+
+                if (globalYtData) {
+                    // Handle both array (legacy API) and object (new API) formats
+                    const ytDataSource = Array.isArray(globalYtData)
+                        ? globalYtData.find((item: any) => item?.response || item?.contents)
+                        : globalYtData;
+
+                    continuationToken = wrapTryCatch(() =>
+                        objectScan(
+                            [
+                                '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'
+                            ],
+                            { joined: true, rtn: 'value', abort: true }
+                        )(ytDataSource)
+                    ) as string | undefined;
+
+                    if (continuationToken) {
+                        console.warn(
+                            `[YCS] ⚠️  Using GlobalStore.getInitYtData fallback token for video: ${currentVideoId}`,
+                            {
+                                currentUrl: windowRef.location.href,
+                                isArray: Array.isArray(globalYtData),
+                                wasFetched: needsFetch
+                            }
+                        );
+                    }
+                } else {
+                    console.warn(
+                        `[YCS] ⚠️  GlobalStore.getInitYtData not available after fetch for video: ${currentVideoId}`
+                    );
+                }
+
+                if (!continuationToken) {
+                    console.error(`[YCS] ✗ Both token sources failed for video: ${currentVideoId}`);
+                }
+            }
+
+            // ClickTrackingParams: try detailsCmntsVIDV2 first, then GlobalStore
+            let clickTrackingParams = tokenComments;
+
+            if (!clickTrackingParams) {
+                // Fallback: Use GlobalStore (which may have been fetched above)
+                const globalYtData = (GlobalStore as any).getInitYtData;
+
+                if (globalYtData) {
+                    // Handle both array (legacy API) and object (new API) formats
+                    const ytDataSource = Array.isArray(globalYtData)
+                        ? globalYtData.find((item: any) => item?.response || item?.contents)
+                        : globalYtData;
+
+                    clickTrackingParams = wrapTryCatch(() =>
+                        objectScan(
+                            [
+                                '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.clickTrackingParams'
+                            ],
+                            { joined: true, rtn: 'value', abort: true }
+                        )(ytDataSource)
+                    );
+                }
+            }
+
+            // Log clickTrackingParams source
+            if (tokenComments) {
+                console.log(`[YCS] ✓ Using clickTrackingParams from detailsCmntsVIDV2 for video: ${currentVideoId}`);
+            } else if (clickTrackingParams) {
+                console.warn(
+                    `[YCS] ⚠️  Using fallback clickTrackingParams from GlobalStore.getInitYtData for video: ${currentVideoId}`
+                );
+            } else {
+                console.warn(`[YCS] ⚠️  No clickTrackingParams found for video: ${currentVideoId}`);
+            }
 
             paramsCmnts = await getParamsForComments(
                 windowRef,
