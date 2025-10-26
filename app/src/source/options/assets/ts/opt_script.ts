@@ -150,6 +150,7 @@ window.onload = async (): Promise<void> => {
         const getButtonDisplayName = (buttonId: string): string => {
             const nameMap: Record<string, string> = {
                 ycs_btn_timestamps: 'Timestamps',
+                ycs_btn_timestamp_viz: 'Stamp Dist',
                 ycs_btn_author: 'Author',
                 ycs_btn_heart: '❤ (Heart)',
                 ycs_btn_verified: '✔ (Verified)',

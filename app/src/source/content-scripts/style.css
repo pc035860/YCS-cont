@@ -89,6 +89,11 @@ html[dark] .ycs-app {
   word-break: break-word;
 }
 
+#ycs_btn_timestamp_viz > svg {
+  position: relative;
+  top: 1px;
+}
+
 .ycs-searchbox {
   width: 55%;
   float: left;
