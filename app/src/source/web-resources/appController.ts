@@ -89,6 +89,7 @@ import {
     filterCommentsByInterval,
     formatTime
 } from './search/timestampAnalysis';
+import { showFloatingButton } from './ui/timestampFloatingButton';
 import { renderTimestampChart } from './ui/timestampChart';
 import { SearchContext, SortOrder } from './search/types';
 import { renderCommentsResult, renderChatResult, renderTranscriptResult } from './ui/render';
@@ -471,7 +472,7 @@ export function initApp(): void {
                         intervalData,
                         videoDurationMs,
                         filteredComments,
-                        (startMs, endMs) => {
+                        (startMs: number, endMs: number) => {
                             // Filter comments by interval
                             const intervalComments = filterCommentsByInterval(filteredComments, startMs, endMs);
 
@@ -510,6 +511,24 @@ export function initApp(): void {
                                     },
                                     () => query.trim()
                                 );
+                            }
+
+                            // Scroll to results and show floating button
+                            const searchResultContainer = document.getElementById('ycs-search-result');
+                            if (searchResultContainer) {
+                                // Find the results container and scroll to it
+                                const resultsContainer = document.getElementById('ycs-timestamp-interval-results');
+                                if (resultsContainer) {
+                                    // Calculate the position of the results container relative to the scrollable container
+                                    const containerRect = searchResultContainer.getBoundingClientRect();
+                                    const resultsRect = resultsContainer.getBoundingClientRect();
+                                    const scrollTop =
+                                        searchResultContainer.scrollTop + (resultsRect.top - containerRect.top);
+
+                                    // Scroll to the results container
+                                    searchResultContainer.scrollTop = scrollTop;
+                                }
+                                showFloatingButton(searchResultContainer, startMs, endMs, intervalComments.length);
                             }
                         }
                     );

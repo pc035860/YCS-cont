@@ -194,6 +194,7 @@ html[dark] .ycs_btn_active {
   overflow-y: auto;
   overflow-x: hidden;
   max-height: 700px;
+  position: relative;
 }
 
 .ycs-infobar__search button:disabled {
@@ -1280,4 +1281,72 @@ html[dark] #ycs-timestamp-interval-results .ycs-chart-title {
 /* Ensure proper spacing between chart and results */
 #ycs-timestamp-chart-container {
   margin-bottom: 0;
+}
+
+/* Floating back button for timestamp chart */
+.ycs-floating-back-button {
+  position: sticky;
+  bottom: 20px;
+  float: right;
+  margin-top: -50px;
+  margin-right: 10px;
+  background: rgba(60, 60, 60, 0.6);
+  color: white;
+  border: 1px solid rgba(60, 60, 60, 0.3);
+  border-radius: 20px;
+  padding: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+  max-width: 250px;
+  word-wrap: break-word;
+  backdrop-filter: blur(4px);
+}
+
+.ycs-floating-back-button:hover {
+  background: rgba(80, 80, 80, 0.7);
+  border-color: rgba(80, 80, 80, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.ycs-floating-button-icon {
+  font-size: 14px;
+  font-weight: bold;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ycs-floating-button-icon svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+}
+
+.ycs-floating-button-text {
+  line-height: 1.1;
+  text-align: left;
+}
+
+/* Dark mode styles for floating button */
+html[dark='true'] .ycs-floating-back-button,
+html[dark] .ycs-floating-back-button {
+  background: rgba(60, 60, 60, 0.6);
+  border-color: rgba(60, 60, 60, 0.3);
+  color: white;
+}
+
+html[dark='true'] .ycs-floating-back-button:hover,
+html[dark] .ycs-floating-back-button:hover {
+  background: rgba(80, 80, 80, 0.7);
+  border-color: rgba(80, 80, 80, 0.5);
 }
