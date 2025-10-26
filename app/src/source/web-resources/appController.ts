@@ -679,6 +679,14 @@ export function initApp(): void {
             }
         };
 
+        const clearButtonLabelDataset = (button: HTMLButtonElement): void => {
+            if (!button) return;
+            if (button.dataset.labelHtml !== undefined) {
+                delete button.dataset.labelHtml;
+                button.removeAttribute('data-label-html');
+            }
+        };
+
         const elLoadComments = document.getElementById('ycs-load-cmnts');
         if (elLoadComments) {
             elLoadComments.addEventListener('click', async function (e: MouseEvent): Promise<void> {
@@ -693,6 +701,8 @@ export function initApp(): void {
 
                 const currentTarget = e.currentTarget as HTMLButtonElement;
                 const defaultLabel = currentTarget.innerText;
+
+                clearButtonLabelDataset(currentTarget);
 
                 currentTarget.disabled = true;
                 currentTarget.innerText = 'reload';
@@ -772,6 +782,8 @@ export function initApp(): void {
                 const currentTarget = e.currentTarget as HTMLButtonElement;
                 const defaultLabel = currentTarget.innerText;
 
+                clearButtonLabelDataset(currentTarget);
+
                 currentTarget.disabled = true;
                 currentTarget.innerText = 'reload';
 
@@ -844,6 +856,8 @@ export function initApp(): void {
 
             const currentTarget = trigger as HTMLButtonElement;
             const defaultLabel = currentTarget.innerText;
+
+            clearButtonLabelDataset(currentTarget);
 
             currentTarget.disabled = true;
             currentTarget.innerText = 'reload';
