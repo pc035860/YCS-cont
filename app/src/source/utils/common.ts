@@ -323,16 +323,41 @@ function extractVideoId(): string | undefined {
 }
 
 /**
- * Converts YouTube's 32-bit RGBA integer color to CSS rgba() string
- * Format: 0xRRGGBBAA (Red, Green, Blue, Alpha in hex)
+ * Extract video duration from GlobalStore.getInitYtData
+ * Falls back to HTML video element if GlobalStore data is unavailable
  *
- * @param color - 32-bit unsigned integer representing RGBA color
- * @returns CSS rgba() string, e.g., "rgba(255,229,0,0.694)"
- *
- * @example
- * convertColorToRgba(4293296689) // returns "rgba(255,229,0,0.694)"
- * convertColorToRgba(4294967295) // returns "rgba(255,255,255,1.000)"
+ * @returns duration in milliseconds or undefined if not found
  */
+function extractVideoDuration(): number | undefined {
+    const ytData = GlobalStore.getInitYtData;
+
+    // Priority 1: Direct object access (new API or cached)
+    if (ytData?.playerResponse?.videoDetails?.lengthSeconds) {
+        return Number(ytData.playerResponse.videoDetails.lengthSeconds) * 1000;
+    }
+
+    // Priority 2: Array access (legacy API)
+    if (Array.isArray(ytData)) {
+        for (let i = 0; i < ytData.length; i++) {
+            const lengthSeconds = ytData[i]?.playerResponse?.videoDetails?.lengthSeconds;
+            if (lengthSeconds) {
+                return Number(lengthSeconds) * 1000;
+            }
+        }
+    }
+
+    // Priority 3: Fallback to HTML video element
+    try {
+        const video = document.querySelector('video') as HTMLVideoElement;
+        if (video && video.duration && !isNaN(video.duration) && video.duration > 0) {
+            return video.duration * 1000; // Convert seconds to milliseconds
+        }
+    } catch (error) {
+        console.warn('[YCS] Failed to get video duration from HTML video element:', error);
+    }
+
+    return undefined;
+}
 function convertColorToRgba(color: number): string {
     const r = (color & 0xff0000) >>> 16; // Red channel
     const g = (color & 0x00ff00) >>> 8; // Green channel
@@ -370,5 +395,6 @@ export {
     getPaginate,
     extractChannelId,
     extractVideoId,
+    extractVideoDuration,
     convertColorToRgba
 };

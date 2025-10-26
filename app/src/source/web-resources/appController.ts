@@ -1,6 +1,13 @@
 import 'abort-controller/polyfill';
 
-import { GlobalStore, extractChannelId, getCleanUrlVideo, getVideoId, isVideoPage } from '../utils/common';
+import {
+    GlobalStore,
+    extractChannelId,
+    getCleanUrlVideo,
+    getVideoId,
+    isVideoPage,
+    extractVideoDuration
+} from '../utils/common';
 import {
     initShowBarFAQ,
     initShowViewMode,
@@ -75,12 +82,14 @@ import { registerCommentInteractions } from './ui/commentInteractions';
 import { runSearch as runCommentsSearch } from './search/commentsSearch';
 import { runSearch as runChatSearch } from './search/chatSearch';
 import { runSearch as runTranscriptSearch } from './search/transcriptSearch';
+import { extractTimestamps, createTimeIntervals, aggregateTimestamps } from './search/timestampAnalysis';
+import { renderTimestampChart } from './ui/timestampChart';
 import { SearchContext, SortOrder } from './search/types';
 import { renderCommentsResult, renderChatResult, renderTranscriptResult } from './ui/render';
 
 const DEBUG = false;
 
-const CHAT_UNSUPPORTED_FILTERS = ['heart', 'likes', 'replied', 'random', 'quickTranscript'] as const;
+const CHAT_UNSUPPORTED_FILTERS = ['heart', 'likes', 'replied', 'random', 'quickTranscript', 'timestampViz'] as const;
 const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'heart',
     'likes',
@@ -90,7 +99,8 @@ const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'donated',
     'members',
     'verified',
-    'quickChat'
+    'quickChat',
+    'timestampViz'
 ] as const;
 
 type SortAttribute = 'sort' | 'sortChat' | 'sortTrp';
@@ -337,6 +347,12 @@ export function initApp(): void {
             const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement | null;
             const query = getSearchQuery();
 
+            // Special handling for timestampViz
+            if (param?.timestampViz) {
+                handleTimestampViz();
+                return;
+            }
+
             const selected =
                 forceType ||
                 (elSelectOptSearch
@@ -366,6 +382,69 @@ export function initApp(): void {
                 }
             }
         };
+
+        const handleTimestampViz = (): void => {
+            try {
+                const comments = getComments(state);
+                if (!comments || comments.length === 0) {
+                    const container = document.getElementById('ycs-search-result');
+                    if (container) {
+                        container.innerHTML =
+                            '<div class="ycs-timestamp-chart"><div class="ycs-chart-title">No comments loaded</div></div>';
+                    }
+                    updateTotalResultDisplay('No comments available for timestamp analysis');
+                    return;
+                }
+
+                // Extract timestamps
+                const timestamps = extractTimestamps(comments);
+                if (timestamps.length === 0) {
+                    const container = document.getElementById('ycs-search-result');
+                    if (container) {
+                        container.innerHTML =
+                            '<div class="ycs-timestamp-chart"><div class="ycs-chart-title">No timestamps found in comments</div></div>';
+                    }
+                    updateTotalResultDisplay('No timestamps found in comments');
+                    return;
+                }
+
+                // Get video duration
+                const videoDurationMs = extractVideoDuration();
+                if (!videoDurationMs) {
+                    const container = document.getElementById('ycs-search-result');
+                    if (container) {
+                        container.innerHTML =
+                            '<div class="ycs-timestamp-chart"><div class="ycs-chart-title">Unable to get video duration</div></div>';
+                    }
+                    updateTotalResultDisplay('Unable to get video duration');
+                    return;
+                }
+
+                // Create time intervals
+                const intervals = createTimeIntervals(timestamps, videoDurationMs);
+                const intervalData = aggregateTimestamps(timestamps, intervals);
+
+                // Render chart
+                const container = document.getElementById('ycs-search-result');
+                if (container) {
+                    renderTimestampChart(container, intervalData, videoDurationMs);
+                }
+
+                // Update statistics
+                const totalTimestamps = timestamps.length;
+                const totalIntervals = intervals.length;
+                updateTotalResultDisplay(`Found ${totalTimestamps} timestamps across ${totalIntervals} intervals`);
+            } catch (error) {
+                console.error('Error in handleTimestampViz:', error);
+                const container = document.getElementById('ycs-search-result');
+                if (container) {
+                    container.innerHTML =
+                        '<div class="ycs-timestamp-chart"><div class="ycs-chart-title">Error generating timestamp chart</div></div>';
+                }
+                updateTotalResultDisplay('Error generating timestamp chart');
+            }
+        };
+
         const initFilterButtons = (filterButtons?: Array<{ id: string; enabled: boolean }>): void => {
             try {
                 const dynamicButtonConfigs = getDynamicFilterButtonConfigs(filterButtons);

@@ -81,7 +81,7 @@ html[dark] .ycs-app {
 
 #ycs-search-total-result {
   font-size: 13px;
-  width: 245px;
+  width: 280px;
   margin: 0;
   padding: 0;
   display: inline-block;
@@ -1104,4 +1104,124 @@ html[dark] .ycs-ext-search_link {
 }
 .ycs-chip .ycs-yt-icon > .yt-icon {
   height: 12px;
+}
+
+/* Timestamp Chart Styles */
+.ycs-timestamp-chart {
+  margin: 20px 0;
+  padding: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+html[dark='true'] .ycs-timestamp-chart,
+html[dark] .ycs-timestamp-chart {
+  background: #282828;
+  border-color: #404040;
+}
+
+.ycs-chart-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 30px;
+  text-align: center;
+  color: #333;
+}
+
+html[dark='true'] .ycs-chart-title,
+html[dark] .ycs-chart-title {
+  color: #fff;
+}
+
+.ycs-chart-container {
+  position: relative;
+  height: 200px;
+}
+
+.ycs-chart-bars {
+  display: flex;
+  align-items: flex-end;
+  height: 180px;
+  gap: 2px;
+  padding: 0 10px;
+}
+
+.ycs-chart-bar {
+  flex: 1;
+  position: relative;
+  cursor: pointer;
+  border-radius: 2px 2px 0 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.ycs-chart-bar:hover {
+  background-color: rgba(52, 73, 94, 0.1);
+}
+
+html[dark='true'] .ycs-chart-bar:hover,
+html[dark] .ycs-chart-bar:hover {
+  background-color: rgba(52, 73, 94, 0.2);
+}
+
+.ycs-bar-fill {
+  background: #3ea6ff;
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.ycs-chart-bar:hover .ycs-bar-fill {
+  background: #1770e4;
+}
+
+html[dark='true'] .ycs-bar-fill,
+html[dark] .ycs-bar-fill {
+  background: #1770e4;
+}
+
+html[dark='true'] .ycs-chart-bar:hover .ycs-bar-fill,
+html[dark] .ycs-chart-bar:hover .ycs-bar-fill {
+  background: #3ea6ff;
+}
+
+.ycs-bar-label {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-family: monospace;
+  color: #333;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+html[dark='true'] .ycs-bar-label,
+html[dark] .ycs-bar-label {
+  color: #fff;
+}
+
+.ycs-chart-x-axis {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 10px;
+  margin-top: 5px;
+}
+
+.ycs-chart-x-axis span {
+  font-size: 10px;
+  color: #666;
+  font-family: monospace;
+}
+
+html[dark='true'] .ycs-chart-x-axis span,
+html[dark] .ycs-chart-x-axis span {
+  color: #ccc;
 }

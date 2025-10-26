@@ -8,6 +8,7 @@ const options = {
     transcriptLanguage: '',
     filterButtons: [
         { id: 'ycs_btn_timestamps', enabled: true },
+        { id: 'ycs_btn_timestamp_viz', enabled: true },
         { id: 'ycs_btn_author', enabled: true },
         { id: 'ycs_btn_heart', enabled: true },
         { id: 'ycs_btn_verified', enabled: true },

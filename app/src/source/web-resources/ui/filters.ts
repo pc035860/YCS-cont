@@ -14,6 +14,7 @@ export interface FilterButtonConfig {
 
 export const FILTER_BUTTONS: FilterButtonConfig[] = [
     { elementId: 'ycs_btn_timestamps', param: 'timestamp', supportsSort: true },
+    { elementId: 'ycs_btn_timestamp_viz', param: 'timestampViz' },
     { elementId: 'ycs_btn_author', param: 'author', supportsSort: true },
     { elementId: 'ycs_btn_heart', param: 'heart', supportsSort: true },
     { elementId: 'ycs_btn_verified', param: 'verified', supportsSort: true },
