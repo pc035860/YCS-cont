@@ -1186,7 +1186,7 @@ async function getDetailsVideoIDV2(
         const ytcfgData = await getPageCfgData(w, signal, url);
         const videoId = getVideoId(url);
         const params: RequestInit = {
-            headers: buildInnertubeHeaders(ytcfgData),
+            headers: buildInnertubeHeaders(ytcfgData, {}, w),
             referrer: url,
             referrerPolicy: 'strict-origin-when-cross-origin',
             body: JSON.stringify(
@@ -1226,7 +1226,7 @@ async function getDetailsCommentsVideoIDV2(
         const ytcfgData = await getPageCfgData(w, signal, ps?.url);
 
         const params: RequestInit = {
-            headers: buildInnertubeHeaders(ytcfgData),
+            headers: buildInnertubeHeaders(ytcfgData, {}, w),
             referrer: ps.url,
             referrerPolicy: 'strict-origin-when-cross-origin',
             body: JSON.stringify(
@@ -1272,7 +1272,7 @@ async function getParamsForComments(
         });
 
         return {
-            headers: buildInnertubeHeaders(ytcfgData),
+            headers: buildInnertubeHeaders(ytcfgData, {}, w),
             referrerPolicy: 'strict-origin-when-cross-origin',
             body: JSON.stringify(bodyPayload),
             method: 'POST',
@@ -1301,7 +1301,7 @@ async function getParamsForReplies(
         });
 
         return {
-            headers: buildInnertubeHeaders(ytcfgData),
+            headers: buildInnertubeHeaders(ytcfgData, {}, w),
             referrerPolicy: 'strict-origin-when-cross-origin',
             body: JSON.stringify(bodyPayload),
             method: 'POST',

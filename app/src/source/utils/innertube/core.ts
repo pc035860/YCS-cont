@@ -182,4 +182,83 @@ export async function getInitYtData(
     }
 }
 
+export async function getInitYtDataFromHtml(
+    url: string,
+    signal: AbortSignal | undefined,
+    globalContext: Window & typeof globalThis = window
+): Promise<{ response: [object] } | undefined> {
+    try {
+        if (!url) return undefined;
+
+        const paramsTemplate = (await getParams(globalContext, signal)).params;
+        const headers = { ...paramsTemplate.headers };
+        delete headers['content-type'];
+
+        const requestInit: InnertubeRequestParams = {
+            ...paramsTemplate,
+            method: 'GET',
+            headers
+        };
+
+        delete (requestInit as Partial<InnertubeRequestParams>).body;
+
+        // 不使用 pbj=1 參數，直接取得 HTML
+        const targetUrl = getCleanUrlVideo(url) ?? url;
+        const res = await fetch(targetUrl, { ...requestInit, signal, cache: 'no-store' });
+        const html = await res.text();
+
+        // 使用更安全的方法找出 ytInitialData
+        // 先找到開始位置
+        const startPattern = '>var ytInitialData = {';
+        const startIndex = html.indexOf(startPattern);
+
+        if (startIndex === -1) {
+            console.error('Failed to find ytInitialData start pattern in HTML');
+            return undefined;
+        }
+
+        // 從開始位置開始，計算大括號的平衡來找到結束位置
+        let braceCount = 0;
+        let endIndex = startIndex + startPattern.length;
+        let foundStart = false;
+
+        for (let i = startIndex; i < html.length; i++) {
+            if (html[i] === '{') {
+                braceCount++;
+                foundStart = true;
+            } else if (html[i] === '}') {
+                braceCount--;
+                if (foundStart && braceCount === 0) {
+                    endIndex = i + 1;
+                    break;
+                }
+            }
+        }
+
+        // 檢查是否找到對應的 </script> 標籤
+        const scriptEndPattern = '</script>';
+        const scriptEndIndex = html.indexOf(scriptEndPattern, endIndex);
+
+        if (scriptEndIndex === -1) {
+            console.error('Failed to find closing script tag');
+            return undefined;
+        }
+
+        // 提取 JSON 部分
+        const jsonStr = html.substring(startIndex + startPattern.length - 1, endIndex);
+
+        try {
+            const result = JSON.parse(jsonStr) as [object];
+            (GlobalStore as any).getInitYtData = result;
+            return { response: result };
+        } catch (parseError) {
+            console.error('Failed to parse ytInitialData JSON:', parseError);
+            return undefined;
+        }
+    } catch (e) {
+        console.error(e);
+        return undefined;
+    }
+}
+
 export type { InnertubeRequestParams };

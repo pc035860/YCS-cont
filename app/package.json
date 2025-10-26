@@ -43,6 +43,7 @@
   },
   "dependencies": {
     "abort-controller": "^3.0.0",
+    "crypto-js": "^4.2.0",
     "fetch-retry": "^5.0.3",
     "fuse.js": "^6.6.2",
     "html-entities": "^2.6.0",
@@ -56,6 +57,7 @@
   "type": "module",
   "devDependencies": {
     "@types/chrome": "^0.0.193",
+    "@types/crypto-js": "^4.2.2",
     "@types/mark.js": "^8.11.6",
     "@typescript-eslint/eslint-plugin": "^5.6.0",
     "@typescript-eslint/parser": "^5.6.0",
