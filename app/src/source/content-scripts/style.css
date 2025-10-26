@@ -1230,3 +1230,54 @@ html[dark='true'] .ycs-chart-x-axis span,
 html[dark] .ycs-chart-x-axis span {
   color: #ccc;
 }
+
+/* Timestamp chart selected bar styling */
+.ycs-chart-bar.ycs-selected {
+  background-color: rgba(255, 107, 107, 0.15) !important;
+}
+
+.ycs-chart-bar.ycs-selected .ycs-bar-fill {
+  background-color: #ff4757 !important;
+}
+
+html[dark='true'] .ycs-chart-bar.ycs-selected,
+html[dark] .ycs-chart-bar.ycs-selected {
+  background-color: rgba(255, 107, 107, 0.15) !important;
+}
+
+html[dark='true'] .ycs-chart-bar.ycs-selected .ycs-bar-fill,
+html[dark] .ycs-chart-bar.ycs-selected .ycs-bar-fill {
+  background-color: #ff4757 !important;
+}
+
+/* Timestamp interval results container */
+#ycs-timestamp-interval-results {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+html[dark='true'] #ycs-timestamp-interval-results,
+html[dark] #ycs-timestamp-interval-results {
+  border-top-color: #404040;
+}
+
+#ycs-timestamp-interval-results .ycs-chart-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+html[dark='true'] #ycs-timestamp-interval-results .ycs-chart-title,
+html[dark] #ycs-timestamp-interval-results .ycs-chart-title {
+  color: #fff;
+  border-bottom-color: #404040;
+}
+
+/* Ensure proper spacing between chart and results */
+#ycs-timestamp-chart-container {
+  margin-bottom: 0;
+}

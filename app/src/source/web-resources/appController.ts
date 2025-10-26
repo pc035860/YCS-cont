@@ -82,7 +82,13 @@ import { registerCommentInteractions } from './ui/commentInteractions';
 import { runSearch as runCommentsSearch } from './search/commentsSearch';
 import { runSearch as runChatSearch } from './search/chatSearch';
 import { runSearch as runTranscriptSearch } from './search/transcriptSearch';
-import { extractTimestamps, createTimeIntervals, aggregateTimestamps } from './search/timestampAnalysis';
+import {
+    extractTimestamps,
+    createTimeIntervals,
+    aggregateTimestamps,
+    filterCommentsByInterval,
+    formatTime
+} from './search/timestampAnalysis';
 import { renderTimestampChart } from './ui/timestampChart';
 import { SearchContext, SortOrder } from './search/types';
 import { renderCommentsResult, renderChatResult, renderTranscriptResult } from './ui/render';
@@ -396,15 +402,28 @@ export function initApp(): void {
                     return;
                 }
 
-                // Extract timestamps
-                const timestamps = extractTimestamps(comments);
+                // Get search query and filter comments if needed
+                const query = getSearchQuery();
+                let filteredComments = comments;
+
+                if (query.trim()) {
+                    // Use existing search logic to filter comments by search query
+                    const context: SearchContext = {
+                        extendedSearch: { enabled: false, title: false, main: false },
+                        sortOrders: { comments: {}, chat: {}, transcript: {} }
+                    };
+                    const searchResult = runCommentsSearch(query.trim(), {}, state, context);
+                    filteredComments = searchResult.results.map((result) => result.item as CommentItem);
+                }
+
+                // Extract timestamps from filtered comments
+                const timestamps = extractTimestamps(filteredComments);
                 if (timestamps.length === 0) {
                     const container = document.getElementById('ycs-search-result');
                     if (container) {
-                        container.innerHTML =
-                            '<div class="ycs-timestamp-chart"><div class="ycs-chart-title">No timestamps found in comments</div></div>';
+                        container.innerHTML = `<div class="ycs-timestamp-chart"><div class="ycs-chart-title">No timestamps found in comments</div></div>`;
                     }
-                    updateTotalResultDisplay('No timestamps found in comments');
+                    updateTotalResultDisplay(`No timestamps found in comments`);
                     return;
                 }
 
@@ -424,16 +443,77 @@ export function initApp(): void {
                 const intervals = createTimeIntervals(timestamps, videoDurationMs);
                 const intervalData = aggregateTimestamps(timestamps, intervals);
 
-                // Render chart
+                // Create result container for interval results
                 const container = document.getElementById('ycs-search-result');
                 if (container) {
-                    renderTimestampChart(container, intervalData, videoDurationMs);
-                }
+                    // Clear previous results
+                    container.innerHTML = '';
 
-                // Update statistics
-                const totalTimestamps = timestamps.length;
-                const totalIntervals = intervals.length;
-                updateTotalResultDisplay(`Found ${totalTimestamps} timestamps across ${totalIntervals} intervals`);
+                    // Create chart container
+                    const chartContainer = document.createElement('div');
+                    chartContainer.id = 'ycs-timestamp-chart-container';
+
+                    // Create results container
+                    const resultsContainer = document.createElement('div');
+                    resultsContainer.id = 'ycs-timestamp-interval-results';
+
+                    container.appendChild(chartContainer);
+                    container.appendChild(resultsContainer);
+
+                    // Update statistics after DOM is updated
+                    const totalTimestamps = timestamps.length;
+                    const totalIntervals = intervals.length;
+                    updateTotalResultDisplay(`Found ${totalTimestamps} timestamps across ${totalIntervals} intervals`);
+
+                    // Render chart with click handler
+                    renderTimestampChart(
+                        chartContainer,
+                        intervalData,
+                        videoDurationMs,
+                        filteredComments,
+                        (startMs, endMs) => {
+                            // Filter comments by interval
+                            const intervalComments = filterCommentsByInterval(filteredComments, startMs, endMs);
+
+                            // Convert to ICommentsFuseResult format
+                            const fuseResults = intervalComments.map((comment, index) => {
+                                const originalIndex = Number((comment as any)?._index);
+                                return {
+                                    item: comment,
+                                    refIndex: Number.isFinite(originalIndex) ? originalIndex : index,
+                                    score: 0
+                                };
+                            });
+
+                            // Create search result object
+                            const searchResult = {
+                                results: fuseResults,
+                                total: intervalComments.length,
+                                summary: `${intervalComments.length} items in ${formatTime(startMs)} - ${formatTime(endMs)}`,
+                                query: query.trim(),
+                                buttonStates: {}
+                            };
+
+                            // Render results
+                            renderCommentsResult('#ycs-timestamp-interval-results', searchResult);
+
+                            // Update statistics display with the interval summary
+                            updateTotalResultDisplay(searchResult.summary);
+
+                            // Register comment interactions for the new results
+                            const resultsContainer = document.getElementById('ycs-timestamp-interval-results');
+                            if (resultsContainer) {
+                                registerCommentInteractions(
+                                    resultsContainer,
+                                    {
+                                        getComments: () => getComments(state)
+                                    },
+                                    () => query.trim()
+                                );
+                            }
+                        }
+                    );
+                }
             } catch (error) {
                 console.error('Error in handleTimestampViz:', error);
                 const container = document.getElementById('ycs-search-result');

@@ -131,6 +131,57 @@ export function aggregateTimestamps(timestamps: number[], intervals: Interval[])
 }
 
 /**
+ * Filter comments by time interval
+ * Returns comments that have timestamps within the specified interval
+ */
+export function filterCommentsByInterval(comments: CommentItem[], startMs: number, endMs: number): CommentItem[] {
+    const filteredComments: CommentItem[] = [];
+
+    for (const comment of comments) {
+        // Check if this is a timestamp comment
+        if (comment?.commentRenderer?.isTimeLine === 'timeline') {
+            // Extract timestamps from navigationEndpoint
+            const runs = comment.commentRenderer?.contentText?.runs;
+            if (runs && runs.length > 0) {
+                let hasTimestampInInterval = false;
+
+                for (const run of runs) {
+                    if (run.navigationEndpoint?.watchEndpoint?.startTimeSeconds) {
+                        const timestampMs = run.navigationEndpoint.watchEndpoint.startTimeSeconds * 1000;
+                        // Check if timestamp is within the interval [startMs, endMs)
+                        if (timestampMs >= startMs && timestampMs < endMs) {
+                            hasTimestampInInterval = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hasTimestampInInterval) {
+                    filteredComments.push(comment);
+                }
+            }
+        }
+    }
+
+    // Sort by timestamp (earliest first)
+    return filteredComments.sort((a, b) => {
+        const getFirstTimestamp = (comment: CommentItem): number => {
+            const runs = comment.commentRenderer?.contentText?.runs;
+            if (runs && runs.length > 0) {
+                for (const run of runs) {
+                    if (run.navigationEndpoint?.watchEndpoint?.startTimeSeconds) {
+                        return run.navigationEndpoint.watchEndpoint.startTimeSeconds * 1000;
+                    }
+                }
+            }
+            return 0;
+        };
+
+        return getFirstTimestamp(a) - getFirstTimestamp(b);
+    });
+}
+
+/**
  * Format time as HH:MM:SS or MM:SS format
  */
 export function formatTime(ms: number): string {

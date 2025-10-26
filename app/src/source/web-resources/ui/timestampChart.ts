@@ -1,11 +1,17 @@
-import { navigateVideoToTimestamp } from '../../utils/dom';
 import type { IntervalData } from '../search/timestampAnalysis';
 import { formatTime } from '../search/timestampAnalysis';
+import type { CommentItem } from '../../utils/interfaces/i_types';
 
 /**
  * Render timestamp distribution chart
  */
-export function renderTimestampChart(container: HTMLElement, data: IntervalData[], _videoDurationMs: number): void {
+export function renderTimestampChart(
+    container: HTMLElement,
+    data: IntervalData[],
+    videoDurationMs: number,
+    comments: CommentItem[],
+    onIntervalClick?: (startMs: number, endMs: number) => void
+): void {
     if (data.length === 0) {
         container.innerHTML =
             '<div class="ycs-timestamp-chart"><div class="ycs-chart-title">No timestamps found</div></div>';
@@ -68,24 +74,22 @@ export function renderTimestampChart(container: HTMLElement, data: IntervalData[
     const bars = container.querySelectorAll('.ycs-chart-bar');
     bars.forEach((bar) => {
         bar.addEventListener('click', () => {
-            const timestampsStr = bar.getAttribute('data-timestamps');
-            if (timestampsStr) {
+            // Remove selection from all bars
+            bars.forEach((b) => b.classList.remove('ycs-selected'));
+            // Add selection to clicked bar
+            bar.classList.add('ycs-selected');
+
+            const startMsStr = bar.getAttribute('data-start-ms');
+            if (startMsStr && onIntervalClick) {
                 try {
-                    const timestamps: number[] = JSON.parse(timestampsStr);
-                    if (timestamps.length > 0) {
-                        // Jump to the first timestamp in this interval
-                        const firstTimestamp = timestamps[0];
-                        const video = document.getElementsByTagName('video')[0] as HTMLVideoElement;
-                        if (video) {
-                            // Create a temporary HTML element to satisfy function signature
-                            const tempElement = document.createElement('div');
-                            tempElement.dataset.offsetvideo = firstTimestamp.toString();
-                            tempElement.classList.add('ycs_goto_chat'); // Mark as milliseconds format
-                            navigateVideoToTimestamp(tempElement, video);
-                        }
+                    const startMs = parseInt(startMsStr, 10);
+                    // Find the corresponding interval to get endMs
+                    const interval = data.find((d) => d.startMs === startMs);
+                    if (interval) {
+                        onIntervalClick(startMs, interval.endMs);
                     }
                 } catch (error) {
-                    console.error('Error parsing timestamps:', error);
+                    console.error('Error parsing startMs:', error);
                 }
             }
         });
