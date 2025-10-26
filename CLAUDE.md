@@ -79,7 +79,7 @@ MV3 security restrictions require web page code to run in isolated context. The 
     - `innertube/`: Modularized YouTube API integration
       - `comments/`: Comment fetching and processing pipeline
       - `chat/`: Chat replay modules (live/replay)
-      - `core.ts`, `request.ts`, `transcript.ts`: Core utilities
+      - `core.ts`, `request.ts`, `authHeaders.ts`, `transcript.ts`: Core utilities
     - `filters/`: Comment and chat filtering modules
     - `sheets.ts`: Excel export functionality
     - `renderView.ts`, `viewModels.ts`: HTML rendering and view models
@@ -111,6 +111,8 @@ MV3 security restrictions require web page code to run in isolated context. The 
 | `html-entities` v2.6.0 | HTML entity encoding/decoding |
 | `url-regex` v5.0.0 | URL pattern matching |
 | `object-scan` v18.3.4 | Deep object scanning utility |
+| `crypto-js` v4.2.0 | SHA-1 hashing for authorization headers |
+| `@types/crypto-js` v4.2.2 | TypeScript definitions for crypto-js |
 
 ## Build System
 
@@ -277,6 +279,7 @@ The extension integrates with YouTube's internal Innertube API for fetching comm
 
 - **Dual-track support**: Legacy and frameworkUpdates-driven response formats
 - **Key modules**: Comment fetching, chat replay, pagination handling
-- **Documentation**: See `app/docs/innertube-*.md` for detailed implementation guides
+- **Authorization**: SAPISID-based authorization headers for authenticated requests
+- **Documentation**: See `app/docs/innertube-*.md` and `app/docs/sap-sid-authorization.md` for detailed implementation guides
 
 Implementation: `app/src/source/utils/innertube/` with type definitions in `utils/interfaces/i_assist.ts`
