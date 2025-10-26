@@ -2,6 +2,8 @@ export interface BuildInnertubeHeadersOverrides {
     [header: string]: string | undefined;
 }
 
+import { buildSapSidAuthorizationHeader } from './authHeaders';
+
 export interface YtcfgData {
     GOOGLE_FEEDBACK_PRODUCT_DATA?: {
         accept_language?: string;
@@ -30,11 +32,13 @@ export interface BuildInnertubeBodyOptions {
  *
  * @param ytcfgData - YTCFG configuration data captured from the page context.
  * @param overrides - Header overrides, for example to adjust x-youtube-client-version.
+ * @param globalContext - Optional window context for generating authorization headers.
  * @returns Headers object that can be used with fetch requests.
  */
 export function buildInnertubeHeaders(
     ytcfgData: YtcfgData | undefined,
-    overrides: BuildInnertubeHeadersOverrides = {}
+    overrides: BuildInnertubeHeadersOverrides = {},
+    globalContext?: Window & typeof globalThis
 ): Record<string, string> {
     const headers: Record<string, string | undefined> = {
         accept: '*/*',
@@ -46,6 +50,14 @@ export function buildInnertubeHeaders(
         'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION,
         ...overrides
     };
+
+    // Generate authorization header if globalContext is provided
+    if (globalContext) {
+        const authHeader = buildSapSidAuthorizationHeader({ context: globalContext });
+        if (authHeader) {
+            headers.authorization = authHeader;
+        }
+    }
 
     const normalizedHeaders: Record<string, string> = {};
     for (const [key, value] of Object.entries(headers)) {

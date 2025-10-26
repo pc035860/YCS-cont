@@ -6,7 +6,7 @@ import { buildInnertubeBody, buildInnertubeHeaders } from './request';
 import { processLiveChatActions } from './chat/liveChat';
 import { processReplayBatch } from './chat/replayChat';
 import type { ChatProcessingContext } from './chat/utils';
-import { getInitYtData, getInnertubeApiKey, getPageCfgData, type InnertubeRequestParams } from './core';
+import { getInitYtDataFromHtml, getInnertubeApiKey, getPageCfgData, type InnertubeRequestParams } from './core';
 
 export async function getParamsForChat(
     globalContext: Window & typeof globalThis,
@@ -38,7 +38,7 @@ export async function getParamsForChat(
         });
 
         return {
-            headers: buildInnertubeHeaders(ytcfgData),
+            headers: buildInnertubeHeaders(ytcfgData, {}, globalContext),
             referrerPolicy: 'strict-origin-when-cross-origin',
             referrer,
             body: JSON.stringify(bodyPayload),
@@ -68,7 +68,7 @@ async function getParamsForLiveChat(
         }
 
         return {
-            headers: buildInnertubeHeaders(ytcfgData),
+            headers: buildInnertubeHeaders(ytcfgData, {}, globalContext),
             referrerPolicy: 'strict-origin-when-cross-origin',
             referrer,
             body: JSON.stringify(
@@ -89,7 +89,7 @@ async function getParamsForLiveChat(
 
 async function getCDChat(signal: AbortSignal): Promise<ChatContinuationResult> {
     try {
-        const ytData = (await getInitYtData(window.location.href, signal)) as any;
+        const ytData = (await getInitYtDataFromHtml(window.location.href, signal)) as any;
 
         if (ytData) {
             const newApiData = wrapTryCatch(
@@ -186,6 +186,8 @@ export async function getChatComments(
             console.log('STOP CHAT CD!!!! No continuation data available');
             return undefined;
         }
+
+        console.log('[getChatComments] continuationData', result.continuationData);
 
         const continuationData = result.continuationData;
         const useLegacyApi = result.apiVersion === 'old';

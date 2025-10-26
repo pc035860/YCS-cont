@@ -2,6 +2,7 @@ import { deepFindObjKey, getCleanUrlVideo, wrapTryCatch } from '../common';
 import type { TranscriptData, TranscriptTrackInfo } from '../interfaces/i_types';
 import { buildInnertubeBody, buildInnertubeHeaders } from './request';
 import { getInitYtData, getInnertubeApiKey, getPageCfgData, type InnertubeRequestParams } from './core';
+import { buildSapSidAuthorizationHeader } from './authHeaders';
 
 async function findInitYParams(initData: [object]): Promise<string | undefined> {
     try {
@@ -39,9 +40,13 @@ async function getParamsForTranscript(
         }
 
         return {
-            headers: buildInnertubeHeaders(ytcfgData, {
-                'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION || ''
-            }),
+            headers: buildInnertubeHeaders(
+                ytcfgData,
+                {
+                    'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION || ''
+                },
+                globalContext
+            ),
             referrer: cleanUrl,
             referrerPolicy: 'origin-when-cross-origin',
             body: JSON.stringify(
@@ -346,10 +351,18 @@ function selectTranscriptTrack(
 }
 
 async function fetchTranscriptFromTimedText(baseUrl: string, signal: AbortSignal): Promise<TranscriptData | undefined> {
+    // Generate authorization header for timedtext request
+    const authHeader = buildSapSidAuthorizationHeader({ context: window });
+    const headers: Record<string, string> = {};
+    if (authHeader) {
+        headers.authorization = authHeader;
+    }
+
     const viaTimedText = await fetch(baseUrl, {
         method: 'GET',
-        mode: 'no-cors' as RequestMode,
+        mode: 'cors' as RequestMode,
         credentials: 'include',
+        headers,
         signal,
         cache: 'no-store'
     } as RequestInit);
@@ -437,10 +450,18 @@ export async function getTranscriptVideo(
             const pot = getTranscriptPot();
             if (pot && trackBaseUrl) {
                 try {
+                    // Generate authorization header for timedtext request with pot
+                    const authHeader = buildSapSidAuthorizationHeader({ context: window });
+                    const headers: Record<string, string> = {};
+                    if (authHeader) {
+                        headers.authorization = authHeader;
+                    }
+
                     const viaTimedText = await fetch(`${trackBaseUrl}&potc=1&pot=${pot}&c=WEB`, {
                         method: 'GET',
-                        mode: 'no-cors' as RequestMode,
+                        mode: 'cors' as RequestMode,
                         credentials: 'include',
+                        headers,
                         signal,
                         cache: 'no-store'
                     } as RequestInit);
