@@ -697,6 +697,24 @@ export function initApp(): void {
             }
         };
 
+        const resetLoadButtonLabel = (buttonId: string, label: string): void => {
+            const button = document.getElementById(buttonId) as HTMLButtonElement | null;
+            if (!button) return;
+            clearButtonLabelDataset(button);
+            button.textContent = label;
+        };
+
+        const resetLoadButtonLabels = (): void => {
+            // Prevent stale dataset.labelHtml from reintroducing HTML into load buttons after rerenders
+            resetLoadButtonLabel('ycs-load-cmnts', 'load');
+            resetLoadButtonLabel('ycs-load-chat', 'load');
+            resetLoadButtonLabel('ycs-load-transcript-video', 'load');
+            resetLoadButtonLabel('ycs-load-all', 'Load all');
+            resetLoadButtonLabel('ycs_load_stop', 'stop');
+        };
+
+        resetLoadButtonLabels();
+
         const elLoadComments = document.getElementById('ycs-load-cmnts');
         if (elLoadComments) {
             elLoadComments.addEventListener('click', async function (e: MouseEvent): Promise<void> {
