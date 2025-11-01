@@ -6,7 +6,7 @@ const DEBUG = false;
     removeInjectionYCS();
 
     function initContentScript(): void {
-        // 設定允許的 runtime 訊息白名單
+        // Whitelist of allowed runtime message types
         const ALLOWED_RUNTIME_MESSAGE_TYPES = new Set<string>(['YCS_CACHE_STORAGE_GET_SEND', 'YCS_AUTOLOAD']);
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -38,7 +38,7 @@ const DEBUG = false;
             }
         });
 
-        // 允許的 window.postMessage 類型白名單
+        // Whitelist of allowed window.postMessage types
         const ALLOWED_WEB_MESSAGE_TYPES = new Set<string>([
             'NUMBER_COMMENTS',
             'GET_OPTIONS',
