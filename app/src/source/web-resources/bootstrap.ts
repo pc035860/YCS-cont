@@ -1,4 +1,4 @@
-import { isVideoPage } from '../utils/common';
+import { isVideoPage, isShortsPage } from '../utils/common';
 import { initApp, retryApp } from './appController';
 
 const DEBUG = false;
@@ -18,6 +18,10 @@ const POPSTATE_INIT_DELAY_MS = 100; // Wait for YouTube SPA DOM update after pop
 const POLLING_INTERVAL_MS = 2000; // Fallback polling interval (reduced since MutationObserver handles most cases)
 
 const metaElementExists = (): Element | null => {
+    // For shorts pages, check for #anchored-panel instead
+    if (isShortsPage()) {
+        return document.querySelector('#anchored-panel');
+    }
     return document.querySelector(META_SELECTOR);
 };
 
