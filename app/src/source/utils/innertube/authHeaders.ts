@@ -1,4 +1,4 @@
-import { SHA1 } from 'crypto-js';
+import SHA1 from 'crypto-js/sha1.js';
 
 export interface AuthorizationExtra {
     key: string;
