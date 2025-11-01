@@ -1355,6 +1355,10 @@ html[dark] .ycs-floating-back-button:hover {
    Shorts Mode Customizations
    ======================================== */
 
+.ycs-app.ycs-app--shorts {
+  margin-bottom: 0;
+}
+
 /* Load all and stop buttons on same line */
 .ycs-app--shorts #ycs-load-all {
   display: inline-block;
