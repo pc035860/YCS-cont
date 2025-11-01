@@ -224,6 +224,13 @@ export function initApp(): void {
     function adjustSearchResultHeightForShorts(): void {
         if (!isShortsPage()) return;
 
+        // Skip calculation if app is collapsed (hidden by default)
+        // When collapsed, #ycs-search is hidden and getBoundingClientRect() returns incorrect values
+        const app = document.querySelector('.ycs-app') as HTMLElement;
+        if (app && app.classList.contains('ycs-collapsed')) {
+            return;
+        }
+
         const anchoredPanel = document.querySelector('#anchored-panel') as HTMLElement;
         const ycsSearch = document.querySelector('#ycs-search') as HTMLElement;
         const searchResult = document.querySelector('#ycs-search-result') as HTMLElement;
@@ -331,6 +338,12 @@ export function initApp(): void {
                             const app = document.getElementsByClassName('ycs-app')[0] as HTMLElement;
                             if (app) {
                                 app.classList.toggle('ycs-collapsed');
+                                // Recalculate height when app is expanded on Shorts pages
+                                if (isShortsPage() && !app.classList.contains('ycs-collapsed')) {
+                                    setTimeout(() => {
+                                        adjustSearchResultHeightForShorts();
+                                    }, 100);
+                                }
                             }
                         },
                         false
@@ -1621,6 +1634,12 @@ export function initApp(): void {
                         if (!app) return;
                         // Apply collapsed state instead of fully hiding the app to keep the top toggle visible
                         app.classList.toggle('ycs-collapsed', value);
+                        // Recalculate height when app is expanded on Shorts pages
+                        if (isShortsPage() && !value) {
+                            setTimeout(() => {
+                                adjustSearchResultHeightForShorts();
+                            }, 100);
+                        }
                     } catch (err) {
                         console.error(err);
                     }
