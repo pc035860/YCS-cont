@@ -6,19 +6,30 @@ const DEBUG = false;
     removeInjectionYCS();
 
     function initContentScript(): void {
+        // 設定允許的 runtime 訊息白名單
+        const ALLOWED_RUNTIME_MESSAGE_TYPES = new Set<string>(['YCS_CACHE_STORAGE_GET_SEND', 'YCS_AUTOLOAD']);
+
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             try {
-                if (message?.type === 'YCS_CACHE_STORAGE_GET_SEND' && message?.body) {
+                if (typeof message !== 'object' || message === null) return;
+                const type = (message as any).type;
+                if (typeof type !== 'string') return;
+                if (!ALLOWED_RUNTIME_MESSAGE_TYPES.has(type)) {
+                    if (DEBUG) console.warn('[YCS] Unknown runtime message type:', type);
+                    return;
+                }
+
+                if (type === 'YCS_CACHE_STORAGE_GET_SEND' && (message as any)?.body) {
                     if (DEBUG) console.log('[YCS] GET CACHE FROM IDB', message);
 
                     window.postMessage(
-                        { type: 'YCS_CACHE_STORAGE_GET_RESPONSE', body: message.body },
+                        { type: 'YCS_CACHE_STORAGE_GET_RESPONSE', body: (message as any).body },
                         window.location.origin
                     );
                 }
 
-                if (message?.type === 'YCS_AUTOLOAD') {
+                if (type === 'YCS_AUTOLOAD') {
                     if (DEBUG) console.log('[YCS] RESPONSE BG SEND AUTOLOAD. Now postMessage in Window');
                     window.postMessage({ type: 'YCS_AUTOLOAD' }, window.location.origin);
                 }
@@ -27,21 +38,48 @@ const DEBUG = false;
             }
         });
 
+        // 允許的 window.postMessage 類型白名單
+        const ALLOWED_WEB_MESSAGE_TYPES = new Set<string>([
+            'NUMBER_COMMENTS',
+            'GET_OPTIONS',
+            'YCS_CACHE_STORAGE_SET',
+            'YCS_CACHE_STORAGE_GET'
+        ]);
+
+        const VIDEO_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
+        function isValidVideoId(id: unknown): id is string {
+            return typeof id === 'string' && VIDEO_ID_REGEX.test(id);
+        }
+        function truncateString(value: unknown, maxLength: number): string {
+            const str = String(value ?? '');
+            return str.slice(0, maxLength);
+        }
+
         window.addEventListener(
             'message',
             async (e) => {
                 try {
-                    if (e.source != window) return;
-                    if (e.data.type && e.data.type === 'NUMBER_COMMENTS') {
+                    if (e.source !== window) return;
+                    if (e.origin !== window.location.origin) return;
+
+                    if (typeof e.data !== 'object' || e.data === null) return;
+                    const msg: any = e.data;
+                    if (typeof msg.type !== 'string') return;
+                    if (!ALLOWED_WEB_MESSAGE_TYPES.has(msg.type)) {
+                        if (DEBUG) console.warn('[YCS] Unknown message type:', msg.type);
+                        return;
+                    }
+
+                    if (msg.type === 'NUMBER_COMMENTS') {
                         chrome.runtime.sendMessage(`${chrome.runtime.id}`, {
                             type: 'YCS_SET_BADGE',
-                            text: e.data.text.toString() || ''
+                            text: truncateString(msg.text, 100)
                         });
                     }
 
-                    if (e.data?.type === 'GET_OPTIONS') {
+                    if (msg.type === 'GET_OPTIONS') {
                         try {
-                            if (DEBUG) console.log('[YCS] GET_OPTIONS', e.data);
+                            if (DEBUG) console.log('[YCS] GET_OPTIONS', msg);
 
                             const opts = await chrome.storage.local.get();
 
@@ -51,14 +89,22 @@ const DEBUG = false;
                         }
                     }
 
-                    if (e.data?.type === 'YCS_CACHE_STORAGE_SET' && e.data?.body) {
-                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, e.data, (res) => {
+                    if (msg.type === 'YCS_CACHE_STORAGE_SET' && msg?.body) {
+                        if (!isValidVideoId(msg.body?.videoId)) {
+                            if (DEBUG) console.warn('[YCS] Invalid video ID format');
+                            return;
+                        }
+                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg, (res) => {
                             if (DEBUG) console.log('[YCS] Response YCS_CACHE_STORAGE SET:', res);
                         });
                     }
 
-                    if (e.data?.type === 'YCS_CACHE_STORAGE_GET' && e.data?.body) {
-                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, e.data, (res) => {
+                    if (msg.type === 'YCS_CACHE_STORAGE_GET' && msg?.body) {
+                        if (!isValidVideoId(msg.body?.videoId)) {
+                            if (DEBUG) console.warn('[YCS] Invalid video ID format');
+                            return;
+                        }
+                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg, (res) => {
                             if (DEBUG) console.log('[YCS] Response YCS_CACHE_STORAGE GET:', res);
                         });
                     }

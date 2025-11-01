@@ -101,6 +101,9 @@ export {
     extractNextContinuation
 } from './innertube';
 
+export { EXPORT_FORMAT } from './constants';
+export type { ExportFormat } from './constants';
+
 export {
     getSheetDetails,
     getSheetComments,
