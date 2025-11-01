@@ -1,17 +1,19 @@
 import Fuse from '../../../../node_modules/fuse.js/dist/fuse';
 
 import { getRandomComment } from '../../utils/dom';
+import { filterNewestFirst } from '../../utils/filters/comments';
+import { applyFilters } from '../../utils/filters/engine';
 import {
-    filterAuthorComments,
-    filterDonatedComments,
-    filterHeartComments,
-    filterLikesComments,
-    filterLinksComments,
-    filterMemberComments,
-    filterNewestFirst,
-    filterRepliedComments,
-    filterVerifiedComments
-} from '../../utils/filters/comments';
+    createLikesFilter,
+    createRepliesFilter,
+    createVerifiedFilter,
+    createMemberFilter,
+    createCreatorHeartFilter,
+    createLinksFilter,
+    createTimelineFilter,
+    createDonatedFilter,
+    createChannelOwnerFilter
+} from '../../utils/filters/commentsAgg';
 import { ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
 import { getComments, WebResourcesState } from '../state';
 import { SearchContext } from './types';
@@ -46,6 +48,36 @@ const BASE_FUSE_OPTIONS: Fuse.IFuseOptions<any> = {
 
 function cloneFuseOptions(): Fuse.IFuseOptions<any> {
     return JSON.parse(JSON.stringify(BASE_FUSE_OPTIONS));
+}
+
+// Fuse cache keyed by data reference, length, and key signature.
+interface FuseCache {
+    instance: Fuse<any>;
+    dataRef: any[];
+    dataLength: number;
+    keysSig: string;
+}
+
+let fuseCache: FuseCache | null = null;
+
+function getFuseInstance(base: any[], options: Fuse.IFuseOptions<any>): Fuse<any> {
+    const keysSig = Array.isArray(options.keys) ? JSON.stringify(options.keys) : String(options.keys ?? '');
+    if (
+        fuseCache &&
+        fuseCache.dataRef === base &&
+        fuseCache.dataLength === base.length &&
+        fuseCache.keysSig === keysSig
+    ) {
+        return fuseCache.instance;
+    }
+
+    const instance = new Fuse(base, options);
+    fuseCache = { instance, dataRef: base, dataLength: base.length, keysSig };
+    return instance;
+}
+
+export function clearCommentsFuseCache(): void {
+    fuseCache = null;
 }
 
 function mapFuseResults(raw: readonly Fuse.FuseResult<any>[]): ICommentsFuseResult[] {
@@ -123,7 +155,11 @@ export function runSearch(
     };
 
     const matches: Set<any> | null = trimmedQuery
-        ? new Set(new Fuse(comments, options).search(trimmedQuery).map((result) => result.item))
+        ? new Set(
+              getFuseInstance(comments, options)
+                  .search(trimmedQuery)
+                  .map((result) => result.item)
+          )
         : null;
 
     const param = filters ?? {};
@@ -139,7 +175,11 @@ export function runSearch(
     };
 
     if (param.likes) {
-        resultSearch = applyTextMatches(filterLikesComments(comments), matches);
+        const agg = applyFilters(comments, [createLikesFilter({})]);
+        resultSearch = applyTextMatches(
+            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
+            matches
+        );
         resultSearch.sort((a, b) => {
             const likesA = (a.item as any)?.commentRenderer?.likesForSort || 0;
             const likesB = (b.item as any)?.commentRenderer?.likesForSort || 0;
@@ -147,7 +187,11 @@ export function runSearch(
             return (a.refIndex || 0) - (b.refIndex || 0);
         });
     } else if (param.links) {
-        resultSearch = applyTextMatches(filterLinksComments(comments), matches);
+        const agg = applyFilters(comments, [createLinksFilter(true)]);
+        resultSearch = applyTextMatches(
+            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
+            matches
+        );
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -173,7 +217,11 @@ export function runSearch(
             );
         }
     } else if (param.members) {
-        resultSearch = applyTextMatches(filterMemberComments(comments), matches);
+        const agg = applyFilters(comments, [createMemberFilter(true)]);
+        resultSearch = applyTextMatches(
+            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
+            matches
+        );
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -193,7 +241,11 @@ export function runSearch(
             );
         }
     } else if (param.donated) {
-        resultSearch = applyTextMatches(filterDonatedComments(comments), matches);
+        const agg = applyFilters(comments, [createDonatedFilter(true)]);
+        resultSearch = applyTextMatches(
+            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
+            matches
+        );
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -213,7 +265,11 @@ export function runSearch(
             );
         }
     } else if (param.replied) {
-        resultSearch = applyTextMatches(filterRepliedComments(comments), matches);
+        const agg = applyFilters(comments, [createRepliesFilter({ min: 1 })]);
+        resultSearch = applyTextMatches(
+            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
+            matches
+        );
         resultSearch.sort((a, b) => {
             const repliedA = (a.item as any)?.commentRenderer?.repliedForSort || 0;
             const repliedB = (b.item as any)?.commentRenderer?.repliedForSort || 0;
@@ -221,7 +277,11 @@ export function runSearch(
             return (a.refIndex || 0) - (b.refIndex || 0);
         });
     } else if (param.author) {
-        resultSearch = applyTextMatches(filterAuthorComments(comments), matches);
+        const agg = applyFilters(comments, [createChannelOwnerFilter(true)]);
+        resultSearch = applyTextMatches(
+            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
+            matches
+        );
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -241,7 +301,11 @@ export function runSearch(
             );
         }
     } else if (param.heart) {
-        resultSearch = applyTextMatches(filterHeartComments(comments), matches);
+        const agg = applyFilters(comments, [createCreatorHeartFilter(true)]);
+        resultSearch = applyTextMatches(
+            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
+            matches
+        );
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -260,7 +324,11 @@ export function runSearch(
             );
         }
     } else if (param.verified) {
-        resultSearch = applyTextMatches(filterVerifiedComments(comments), matches);
+        const agg = applyFilters(comments, [createVerifiedFilter(true)]);
+        resultSearch = applyTextMatches(
+            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
+            matches
+        );
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -296,14 +364,11 @@ export function runSearch(
             resultSearch = getRandomComment(comments) as ICommentsFuseResult[];
         }
     } else if (param.timestamp) {
-        resultSearch = comments
-            .filter((comment: any) => comment?.commentRenderer?.isTimeLine === 'timeline')
-            .map((comment: any) => ({
-                item: comment,
-                refIndex: (comment as any)?._index ?? 0
-            }));
-
-        resultSearch = applyTextMatches(resultSearch, matches);
+        const agg = applyFilters(comments, [createTimelineFilter(true)]);
+        resultSearch = applyTextMatches(
+            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
+            matches
+        );
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -343,7 +408,7 @@ export function runSearch(
         }
     } else {
         if (trimmedQuery) {
-            const fuse = new Fuse(comments, options);
+            const fuse = getFuseInstance(comments, options);
             resultSearch = mapFuseResults(fuse.search(trimmedQuery));
         } else {
             resultSearch = [];

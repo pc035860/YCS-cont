@@ -20,7 +20,7 @@ async function getAllCommentsModeV2(
     elShowLoading: HTMLElement,
     signal: AbortSignal | undefined = undefined,
     container: object[] | undefined = undefined,
-    maxComments = 100000
+    maxComments = 500000
 ): Promise<object[]> {
     const comments: object[] = container || [];
     const replyQueue = new Queue({ concurrency: 4 });

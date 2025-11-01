@@ -50,6 +50,36 @@ function cloneFuseOptions(): Fuse.IFuseOptions<any> {
     return JSON.parse(JSON.stringify(BASE_FUSE_OPTIONS));
 }
 
+// Fuse cache for the full cueGroups array (subsets still use transient instances).
+interface TranscriptFuseCache<T> {
+    instance: Fuse<T>;
+    dataRef: T[];
+    dataLength: number;
+    keysSig: string;
+}
+
+let transcriptFuseCache: TranscriptFuseCache<any> | null = null;
+
+function getTranscriptFuseInstance<T>(base: T[], options: Fuse.IFuseOptions<any>): Fuse<T> {
+    const keysSig = Array.isArray(options.keys) ? JSON.stringify(options.keys) : String(options.keys ?? '');
+    if (
+        transcriptFuseCache &&
+        transcriptFuseCache.dataRef === base &&
+        transcriptFuseCache.dataLength === base.length &&
+        transcriptFuseCache.keysSig === keysSig
+    ) {
+        return transcriptFuseCache.instance as Fuse<T>;
+    }
+
+    const instance = new Fuse<T>(base, options);
+    transcriptFuseCache = { instance: instance as any, dataRef: base, dataLength: base.length, keysSig };
+    return instance;
+}
+
+export function clearTranscriptFuseCache(): void {
+    transcriptFuseCache = null;
+}
+
 function mapTranscriptResults(raw: readonly Fuse.FuseResult<any>[]): ICommentsFuseResult[] {
     return raw.map((result) => ({
         item: result.item,
@@ -131,7 +161,11 @@ export function runSearch(
     };
 
     const matches: Set<any> | null = trimmedQuery
-        ? new Set(new Fuse(cueGroups, options).search(trimmedQuery).map((entry) => entry.item))
+        ? new Set(
+              getTranscriptFuseInstance<any>(cueGroups, options)
+                  .search(trimmedQuery)
+                  .map((entry) => entry.item)
+          )
         : null;
 
     const buttonStates: Record<string, SearchButtonState> = {};
@@ -157,7 +191,7 @@ export function runSearch(
             const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.transcript['ycs_btn_links']);
             if (resolvedOrder === 'newest') {
                 if (trimmedQuery) {
-                    const fuse = new Fuse(
+                    const fuse = getTranscriptFuseInstance<any>(
                         resultSearch.map((entry) => entry.item),
                         options
                     );
@@ -166,7 +200,7 @@ export function runSearch(
             } else {
                 if (trimmedQuery) {
                     const base = resultSearch.map((entry) => entry.item).reverse();
-                    const fuse = new Fuse(base, options);
+                    const fuse = getTranscriptFuseInstance<any>(base, options);
                     resultSearch = mapTranscriptResults(fuse.search(trimmedQuery));
                 } else {
                     resultSearch = Array.from(resultSearch).reverse();
@@ -250,7 +284,7 @@ export function runSearch(
                 );
             }
         } else {
-            const fuse = new Fuse(cueGroups, options);
+            const fuse = getTranscriptFuseInstance<any>(cueGroups, options);
             resultSearch = mapTranscriptResults(fuse.search(trimmedQuery));
         }
     } else {
@@ -264,7 +298,7 @@ export function runSearch(
                 }))
             );
         } else {
-            const fuse = new Fuse(cueGroups, options);
+            const fuse = getTranscriptFuseInstance<any>(cueGroups, options);
             resultSearch = mapTranscriptResults(fuse.search(trimmedQuery));
         }
 
