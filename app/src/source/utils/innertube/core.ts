@@ -202,13 +202,13 @@ export async function getInitYtDataFromHtml(
 
         delete (requestInit as Partial<InnertubeRequestParams>).body;
 
-        // 不使用 pbj=1 參數，直接取得 HTML
+        // Do not use pbj=1; fetch raw HTML directly
         const targetUrl = getCleanUrlVideo(url) ?? url;
         const res = await fetch(targetUrl, { ...requestInit, signal, cache: 'no-store' });
         const html = await res.text();
 
-        // 使用更安全的方法找出 ytInitialData
-        // 先找到開始位置
+        // Use a safer method to find ytInitialData
+        // First, find the start position of ytInitialData declaration
         const startPattern = '>var ytInitialData = {';
         const startIndex = html.indexOf(startPattern);
 
@@ -217,7 +217,7 @@ export async function getInitYtDataFromHtml(
             return undefined;
         }
 
-        // 從開始位置開始，計算大括號的平衡來找到結束位置
+        // From the start position, count braces to locate the end of JSON object
         let braceCount = 0;
         let endIndex = startIndex + startPattern.length;
         let foundStart = false;
@@ -235,7 +235,7 @@ export async function getInitYtDataFromHtml(
             }
         }
 
-        // 檢查是否找到對應的 </script> 標籤
+        // Check if corresponding closing </script> tag is found after JSON
         const scriptEndPattern = '</script>';
         const scriptEndIndex = html.indexOf(scriptEndPattern, endIndex);
 
@@ -244,7 +244,7 @@ export async function getInitYtDataFromHtml(
             return undefined;
         }
 
-        // 提取 JSON 部分
+        // Extract the JSON part for parsing
         const jsonStr = html.substring(startIndex + startPattern.length - 1, endIndex);
 
         try {
