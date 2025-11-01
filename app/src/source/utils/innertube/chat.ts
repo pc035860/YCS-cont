@@ -6,7 +6,7 @@ import { buildInnertubeBody, buildInnertubeHeaders } from './request';
 import { processLiveChatActions } from './chat/liveChat';
 import { processReplayBatch } from './chat/replayChat';
 import type { ChatProcessingContext } from './chat/utils';
-import { getInitYtDataFromHtml, getInnertubeApiKey, getPageCfgData, type InnertubeRequestParams } from './core';
+import { getInitYtData, getInnertubeApiKey, getPageCfgData, type InnertubeRequestParams } from './core';
 
 export async function getParamsForChat(
     globalContext: Window & typeof globalThis,
@@ -89,7 +89,7 @@ async function getParamsForLiveChat(
 
 async function getCDChat(signal: AbortSignal): Promise<ChatContinuationResult> {
     try {
-        const ytData = (await getInitYtDataFromHtml(window.location.href, signal)) as any;
+        const ytData = (await getInitYtData(window.location.href, signal)) as any;
 
         if (ytData) {
             const newApiData = wrapTryCatch(
