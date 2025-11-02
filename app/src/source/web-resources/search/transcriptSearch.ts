@@ -1,5 +1,7 @@
 import Fuse from '../../../../node_modules/fuse.js/dist/fuse';
 
+import { buildOptionsSignature } from './fuseCacheUtils';
+
 import { filterAllTrpVideoComments, filterLinksTrpVideoComments } from '../../utils/filters/comments';
 import { ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
 import { wrapTryCatch } from '../../utils/common';
@@ -56,23 +58,26 @@ interface TranscriptFuseCache<T> {
     dataRef: T[];
     dataLength: number;
     keysSig: string;
+    optionsSig: string;
 }
 
 let transcriptFuseCache: TranscriptFuseCache<any> | null = null;
 
 function getTranscriptFuseInstance<T>(base: T[], options: Fuse.IFuseOptions<any>): Fuse<T> {
     const keysSig = Array.isArray(options.keys) ? JSON.stringify(options.keys) : String(options.keys ?? '');
+    const optionsSig = buildOptionsSignature(options);
     if (
         transcriptFuseCache &&
         transcriptFuseCache.dataRef === base &&
         transcriptFuseCache.dataLength === base.length &&
-        transcriptFuseCache.keysSig === keysSig
+        transcriptFuseCache.keysSig === keysSig &&
+        transcriptFuseCache.optionsSig === optionsSig
     ) {
         return transcriptFuseCache.instance as Fuse<T>;
     }
 
     const instance = new Fuse<T>(base, options);
-    transcriptFuseCache = { instance: instance as any, dataRef: base, dataLength: base.length, keysSig };
+    transcriptFuseCache = { instance: instance as any, dataRef: base, dataLength: base.length, keysSig, optionsSig };
     return instance;
 }
 

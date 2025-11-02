@@ -1,5 +1,7 @@
 import Fuse from '../../../../node_modules/fuse.js/dist/fuse';
 
+import { buildOptionsSignature } from './fuseCacheUtils';
+
 import { filterChatNewestFirst } from '../../utils/filters/chat';
 import {
     applyChatFilters,
@@ -54,23 +56,26 @@ interface ChatFuseCache<T> {
     dataRef: T[];
     dataLength: number;
     keysSig: string;
+    optionsSig: string;
 }
 
 let chatFuseCache: ChatFuseCache<any> | null = null;
 
 function getChatFuseInstance<T>(base: T[], options: Fuse.IFuseOptions<any>): Fuse<T> {
     const keysSig = Array.isArray(options.keys) ? JSON.stringify(options.keys) : String(options.keys ?? '');
+    const optionsSig = buildOptionsSignature(options);
     if (
         chatFuseCache &&
         chatFuseCache.dataRef === base &&
         chatFuseCache.dataLength === base.length &&
-        chatFuseCache.keysSig === keysSig
+        chatFuseCache.keysSig === keysSig &&
+        chatFuseCache.optionsSig === optionsSig
     ) {
         return chatFuseCache.instance as Fuse<T>;
     }
 
     const instance = new Fuse<T>(base, options);
-    chatFuseCache = { instance: instance as any, dataRef: base, dataLength: base.length, keysSig };
+    chatFuseCache = { instance: instance as any, dataRef: base, dataLength: base.length, keysSig, optionsSig };
     return instance;
 }
 

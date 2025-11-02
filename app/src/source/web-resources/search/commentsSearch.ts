@@ -1,5 +1,7 @@
 import Fuse from '../../../../node_modules/fuse.js/dist/fuse';
 
+import { buildOptionsSignature } from './fuseCacheUtils';
+
 import { getRandomComment } from '../../utils/dom';
 import { filterNewestFirst } from '../../utils/filters/comments';
 import { applyFilters } from '../../utils/filters/engine';
@@ -56,23 +58,26 @@ interface FuseCache {
     dataRef: any[];
     dataLength: number;
     keysSig: string;
+    optionsSig: string;
 }
 
 let fuseCache: FuseCache | null = null;
 
 function getFuseInstance(base: any[], options: Fuse.IFuseOptions<any>): Fuse<any> {
     const keysSig = Array.isArray(options.keys) ? JSON.stringify(options.keys) : String(options.keys ?? '');
+    const optionsSig = buildOptionsSignature(options);
     if (
         fuseCache &&
         fuseCache.dataRef === base &&
         fuseCache.dataLength === base.length &&
-        fuseCache.keysSig === keysSig
+        fuseCache.keysSig === keysSig &&
+        fuseCache.optionsSig === optionsSig
     ) {
         return fuseCache.instance;
     }
 
     const instance = new Fuse(base, options);
-    fuseCache = { instance, dataRef: base, dataLength: base.length, keysSig };
+    fuseCache = { instance, dataRef: base, dataLength: base.length, keysSig, optionsSig };
     return instance;
 }
 
