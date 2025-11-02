@@ -15,7 +15,7 @@ import {
     DonatedChipViewModel
 } from './viewModels';
 import { iconExpand, iconExpandShowMore, iconReload, iconSortDown } from './icons';
-import { EXPORT_FORMAT } from '../web-resources/services/exportService';
+import { EXPORT_FORMAT } from './constants';
 
 // Debug mode configuration
 // Set to true for detailed diagnostic logs during development

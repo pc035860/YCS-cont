@@ -81,6 +81,19 @@ export {
     filterNewestFirst
 } from './filters/comments';
 
+// Aggregate filter facade for gradual migration support.
+export { applyFilters, createFilter } from './filters/engine';
+export {
+    createAuthorFilter,
+    createTextFilter,
+    createLikesFilter,
+    createRepliesFilter,
+    createVerifiedFilter,
+    createMemberFilter,
+    createCreatorHeartFilter,
+    createLinksFilter
+} from './filters/commentsAgg';
+
 export {
     filterAuthorChat,
     filterMembersChat,
@@ -89,6 +102,16 @@ export {
     filterLinksChatComments,
     filterChatNewestFirst
 } from './filters/chat';
+
+export {
+    applyChatFilters,
+    createChatFilter,
+    createChatAuthorFilter,
+    createChatMembersFilter,
+    createChatDonatedFilter,
+    createChatVerifiedFilter,
+    createChatLinksFilter
+} from './filters/chatAgg';
 
 export {
     getParams,
@@ -100,6 +123,9 @@ export {
     getInitYtData,
     extractNextContinuation
 } from './innertube';
+
+export { EXPORT_FORMAT } from './constants';
+export type { ExportFormat } from './constants';
 
 export {
     getSheetDetails,

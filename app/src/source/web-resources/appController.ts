@@ -79,9 +79,9 @@ import {
     getDynamicFilterButtonConfigs
 } from './ui/filters';
 import { registerCommentInteractions } from './ui/commentInteractions';
-import { runSearch as runCommentsSearch } from './search/commentsSearch';
-import { runSearch as runChatSearch } from './search/chatSearch';
-import { runSearch as runTranscriptSearch } from './search/transcriptSearch';
+import { runSearch as runCommentsSearch, clearCommentsFuseCache } from './search/commentsSearch';
+import { runSearch as runChatSearch, clearChatFuseCache } from './search/chatSearch';
+import { runSearch as runTranscriptSearch, clearTranscriptFuseCache } from './search/transcriptSearch';
 import {
     extractTimestamps,
     createTimeIntervals,
@@ -221,6 +221,16 @@ export function initApp(): void {
 
         // Clear GlobalStore to prevent data leakage across videos
         delete GlobalStore.getInitYtData;
+
+        // Clear search caches whenever we switch videos or reinitialize.
+        try {
+            clearCommentsFuseCache();
+            clearChatFuseCache();
+            clearTranscriptFuseCache();
+        } catch (e) {
+            // non-fatal
+            console.warn('[YCS] Failed to clear search caches', e);
+        }
 
         if (handleMessageEvent) {
             window.removeEventListener('message', handleMessageEvent);
@@ -686,6 +696,24 @@ export function initApp(): void {
                 button.removeAttribute('data-label-html');
             }
         };
+
+        const resetLoadButtonLabel = (buttonId: string, label: string): void => {
+            const button = document.getElementById(buttonId) as HTMLButtonElement | null;
+            if (!button) return;
+            clearButtonLabelDataset(button);
+            button.textContent = label;
+        };
+
+        const resetLoadButtonLabels = (): void => {
+            // Prevent stale dataset.labelHtml from reintroducing HTML into load buttons after rerenders
+            resetLoadButtonLabel('ycs-load-cmnts', 'load');
+            resetLoadButtonLabel('ycs-load-chat', 'load');
+            resetLoadButtonLabel('ycs-load-transcript-video', 'load');
+            resetLoadButtonLabel('ycs-load-all', 'Load all');
+            resetLoadButtonLabel('ycs_load_stop', 'stop');
+        };
+
+        resetLoadButtonLabels();
 
         const elLoadComments = document.getElementById('ycs-load-cmnts');
         if (elLoadComments) {

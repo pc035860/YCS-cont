@@ -202,51 +202,74 @@ export async function getInitYtDataFromHtml(
 
         delete (requestInit as Partial<InnertubeRequestParams>).body;
 
-        // Do not use pbj=1; fetch raw HTML directly
+        // Do not use pbj=1 parameter, fetch raw HTML directly
         const targetUrl = getCleanUrlVideo(url) ?? url;
         const res = await fetch(targetUrl, { ...requestInit, signal, cache: 'no-store' });
         const html = await res.text();
 
-        // Use a safer method to find ytInitialData
-        // First, find the start position of ytInitialData declaration
-        const startPattern = '>var ytInitialData = {';
-        const startIndex = html.indexOf(startPattern);
-
-        if (startIndex === -1) {
+        // Use a safer method to locate ytInitialData
+        const tag = 'var ytInitialData = ';
+        const start = html.indexOf(tag);
+        if (start === -1) {
             console.error('Failed to find ytInitialData start pattern in HTML');
             return undefined;
         }
 
-        // From the start position, count braces to locate the end of JSON object
+        const searchStart = start + tag.length;
+        const MAX_ITERATIONS = 1000000; // Prevent extreme cases
         let braceCount = 0;
-        let endIndex = startIndex + startPattern.length;
+        let endIndex = -1;
         let foundStart = false;
+        let inString = false;
+        let stringChar = '';
+        let escapeNext = false;
+        let iterations = 0;
 
-        for (let i = startIndex; i < html.length; i++) {
-            if (html[i] === '{') {
-                braceCount++;
-                foundStart = true;
-            } else if (html[i] === '}') {
-                braceCount--;
-                if (foundStart && braceCount === 0) {
-                    endIndex = i + 1;
-                    break;
+        for (let i = searchStart; i < html.length && iterations < MAX_ITERATIONS; i++) {
+            iterations++;
+            const ch = html[i];
+
+            if (escapeNext) {
+                escapeNext = false;
+                continue;
+            }
+
+            if (ch === '\\') {
+                escapeNext = true;
+                continue;
+            }
+
+            if (ch === '"' || ch === "'" || ch === '`') {
+                if (!inString) {
+                    inString = true;
+                    stringChar = ch;
+                } else if (ch === stringChar) {
+                    inString = false;
+                    stringChar = '';
+                }
+                continue;
+            }
+
+            if (!inString) {
+                if (ch === '{') {
+                    braceCount++;
+                    foundStart = true;
+                } else if (ch === '}') {
+                    braceCount--;
+                    if (foundStart && braceCount === 0) {
+                        endIndex = i + 1;
+                        break;
+                    }
                 }
             }
         }
 
-        // Check if corresponding closing </script> tag is found after JSON
-        const scriptEndPattern = '</script>';
-        const scriptEndIndex = html.indexOf(scriptEndPattern, endIndex);
-
-        if (scriptEndIndex === -1) {
-            console.error('Failed to find closing script tag');
+        if (iterations >= MAX_ITERATIONS || endIndex === -1) {
+            console.error('Failed to locate ytInitialData JSON object boundaries');
             return undefined;
         }
 
-        // Extract the JSON part for parsing
-        const jsonStr = html.substring(startIndex + startPattern.length - 1, endIndex);
-
+        const jsonStr = html.substring(searchStart, endIndex);
         try {
             const result = JSON.parse(jsonStr) as [object];
             (GlobalStore as any).getInitYtData = result;

@@ -506,6 +506,20 @@ function getRandomComment(comments: any): [] {
             }
         }
 
+        // Fallback: if author groups cannot be sampled, pick a random comment from the entire list.
+        if (comments.length > 0) {
+            const fallbackIndex = getRandomInt(0, comments.length - 1);
+            const fallback = comments[fallbackIndex];
+            if (fallback) {
+                return [
+                    {
+                        item: fallback,
+                        refIndex: (fallback as any)?._index ?? fallbackIndex
+                    }
+                ] as any;
+            }
+        }
+
         return [];
     } catch (err) {
         console.error(err);

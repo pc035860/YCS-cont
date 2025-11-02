@@ -1,13 +1,17 @@
 import Fuse from '../../../../node_modules/fuse.js/dist/fuse';
 
+import { buildKeysSignature, buildOptionsSignature, cloneFuseOptions } from './fuseCacheUtils';
+
+import { filterChatNewestFirst } from '../../utils/filters/chat';
 import {
-    filterAuthorChat,
-    filterChatNewestFirst,
-    filterDonatedChat,
-    filterLinksChatComments,
-    filterMembersChat,
-    filterVerifiedChatComments
-} from '../../utils/filters/chat';
+    applyChatFilters,
+    createChatAuthorFilter,
+    createChatMembersFilter,
+    createChatDonatedFilter,
+    createChatVerifiedFilter,
+    createChatLinksFilter,
+    DerivedChatMessage
+} from '../../utils/filters/chatAgg';
 import type { ChatItem, FuseSupportedItem, ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
 import { getCommentsChat, WebResourcesState } from '../state';
 import { SearchContext } from './types';
@@ -27,23 +31,39 @@ export interface ChatSearchResult {
     buttonStates: Record<string, SearchButtonState>;
 }
 
-const BASE_FUSE_OPTIONS: Fuse.IFuseOptions<any> = {
-    isCaseSensitive: false,
-    findAllMatches: false,
-    includeMatches: false,
-    includeScore: true,
-    ignoreLocation: true,
-    useExtendedSearch: false,
-    minMatchCharLength: 1,
-    shouldSort: true,
-    threshold: 0.15,
-    distance: 100000
-};
-
 const UNSUPPORTED_FILTERS: (keyof IParamSearch)[] = ['heart', 'likes', 'replied', 'random', 'quickTranscript'];
 
-function cloneFuseOptions(): Fuse.IFuseOptions<any> {
-    return JSON.parse(JSON.stringify(BASE_FUSE_OPTIONS));
+// Fuse cache for the full chat array (subsets still use transient instances).
+interface ChatFuseCache<T> {
+    instance: Fuse<T>;
+    dataRef: T[];
+    dataLength: number;
+    keysSig: string;
+    optionsSig: string;
+}
+
+let chatFuseCache: ChatFuseCache<any> | null = null;
+
+function getChatFuseInstance<T>(base: T[], options: Fuse.IFuseOptions<any>): Fuse<T> {
+    const keysSig = buildKeysSignature(options.keys);
+    const optionsSig = buildOptionsSignature(options);
+    if (
+        chatFuseCache &&
+        chatFuseCache.dataRef === base &&
+        chatFuseCache.dataLength === base.length &&
+        chatFuseCache.keysSig === keysSig &&
+        chatFuseCache.optionsSig === optionsSig
+    ) {
+        return chatFuseCache.instance as Fuse<T>;
+    }
+
+    const instance = new Fuse<T>(base, options);
+    chatFuseCache = { instance: instance as any, dataRef: base, dataLength: base.length, keysSig, optionsSig };
+    return instance;
+}
+
+export function clearChatFuseCache(): void {
+    chatFuseCache = null;
 }
 
 function mapFuseResults<T extends FuseSupportedItem>(raw: readonly Fuse.FuseResult<T>[]): ICommentsFuseResult<T>[] {
@@ -56,6 +76,14 @@ function mapFuseResults<T extends FuseSupportedItem>(raw: readonly Fuse.FuseResu
 
 function ensureSortOrder(order?: 'newest' | 'oldest'): 'newest' | 'oldest' {
     return order === 'oldest' ? 'oldest' : 'newest';
+}
+
+function mapDerivedToResults(items: DerivedChatMessage[]): ICommentsFuseResult<ChatItem>[] {
+    return items.map((entry) => ({
+        item: entry.origin,
+        refIndex: Number.isFinite(entry.timestamp) ? entry.timestamp : 0,
+        score: 0
+    }));
 }
 
 function filterWithQuery<T extends FuseSupportedItem>(
@@ -161,7 +189,8 @@ export function runSearch(
     };
 
     if (param.author) {
-        resultSearch = filterAuthorChat(cmntsChat) as ICommentsFuseResult<ChatItem>[];
+        const derived = applyChatFilters(cmntsChat, [createChatAuthorFilter()]);
+        resultSearch = mapDerivedToResults(derived);
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -181,7 +210,8 @@ export function runSearch(
             );
         }
     } else if (param.donated) {
-        resultSearch = filterDonatedChat(cmntsChat) as ICommentsFuseResult<ChatItem>[];
+        const derived = applyChatFilters(cmntsChat, [createChatDonatedFilter()]);
+        resultSearch = mapDerivedToResults(derived);
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -203,7 +233,8 @@ export function runSearch(
             );
         }
     } else if (param.members) {
-        resultSearch = filterMembersChat(cmntsChat) as ICommentsFuseResult<ChatItem>[];
+        const derived = applyChatFilters(cmntsChat, [createChatMembersFilter()]);
+        resultSearch = mapDerivedToResults(derived);
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -230,7 +261,7 @@ export function runSearch(
             keys: ['replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine']
         };
 
-        const fuse = new Fuse<ChatItem>(cmntsChat, timestampOptions);
+        const fuse = getChatFuseInstance<ChatItem>(cmntsChat, timestampOptions);
         resultSearch = mapFuseResults(fuse.search('timeline'));
 
         if (resultSearch.length > 0) {
@@ -255,7 +286,7 @@ export function runSearch(
 
         if (trimmedQuery) {
             try {
-                const fuseBase = new Fuse<ChatItem>(cmntsChat, options);
+                const fuseBase = getChatFuseInstance<ChatItem>(cmntsChat, options);
                 const matched = new Set<ChatItem>(fuseBase.search(trimmedQuery).map((entry) => entry.item));
                 resultSearch = resultSearch.filter((entry) => matched.has(entry.item));
             } catch (error) {
@@ -281,7 +312,8 @@ export function runSearch(
             );
         }
     } else if (param.verified) {
-        resultSearch = (filterVerifiedChatComments(commentsChat) as ICommentsFuseResult<ChatItem>[]) || [];
+        const derived = applyChatFilters(cmntsChat, [createChatVerifiedFilter()]);
+        resultSearch = mapDerivedToResults(derived);
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
@@ -305,7 +337,8 @@ export function runSearch(
             );
         }
     } else if (param.links) {
-        resultSearch = (filterLinksChatComments(commentsChat) as ICommentsFuseResult<ChatItem>[]) || [];
+        const derived = applyChatFilters(cmntsChat, [createChatLinksFilter()]);
+        resultSearch = mapDerivedToResults(derived);
 
         if (resultSearch.length > 0) {
             resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));

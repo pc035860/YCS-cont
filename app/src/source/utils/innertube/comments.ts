@@ -19,7 +19,8 @@ import {
 async function getAllCommentsModeV2(
     elShowLoading: HTMLElement,
     signal: AbortSignal | undefined = undefined,
-    container: object[] | undefined = undefined
+    container: object[] | undefined = undefined,
+    maxComments = 500000
 ): Promise<object[]> {
     const comments: object[] = container || [];
     const replyQueue = new Queue({ concurrency: 4 });
@@ -30,7 +31,8 @@ async function getAllCommentsModeV2(
         signal
     });
 
-    while (batch) {
+    let limitReached = false;
+    while (batch && !limitReached) {
         const parentResults: object[] = [];
         const replyContinuations: ReplyContinuation[] = [];
 
@@ -45,24 +47,30 @@ async function getAllCommentsModeV2(
         }
 
         for (const comment of parentResults) {
+            if (comments.length >= maxComments) {
+                limitReached = true;
+                break;
+            }
             comments.push(comment);
             showLoadComments(comments.length, elShowLoading);
         }
 
-        if (replyContinuations.length > 0) {
+        if (!limitReached && replyContinuations.length > 0) {
             void scheduleReplyFetches({
                 continuations: replyContinuations,
                 queue: replyQueue,
                 currentVideoId,
                 fetchContinuation: (continuation) => fetchRepliesBatch({ windowRef: window, signal, continuation }),
                 onReply: (reply) => {
-                    comments.push(reply);
-                    showLoadComments(comments.length, elShowLoading);
+                    if (comments.length < maxComments) {
+                        comments.push(reply);
+                        showLoadComments(comments.length, elShowLoading);
+                    }
                 }
             });
         }
 
-        const nextContinuation = batch.continuations.shift();
+        const nextContinuation = !limitReached ? batch.continuations.shift() : undefined;
         if (nextContinuation) {
             batch = await fetchContinuationBatch({
                 windowRef: window,
@@ -84,6 +92,9 @@ async function getAllCommentsModeV2(
         (comments[idx] as any)._index = idx;
     }
 
+    if (comments.length >= maxComments) {
+        console.warn(`[YCS] Reached comment limit: ${maxComments} for video ${currentVideoId}`);
+    }
     return comments;
 }
 
