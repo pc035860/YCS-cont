@@ -146,7 +146,14 @@ function getVideoId(url: string): string | undefined {
         const host = parsedUrl.hostname;
         const pathname = parsedUrl.pathname || '';
         const segments = pathname.split('/').filter(Boolean);
+
+        // Detect live channel page
         if ((host === 'www.youtube.com' || host.endsWith('youtube.com')) && segments[0] === 'live' && segments[1]) {
+            return segments[1];
+        }
+
+        // Detect shorts page
+        if ((host === 'www.youtube.com' || host.endsWith('youtube.com')) && segments[0] === 'shorts' && segments[1]) {
             return segments[1];
         }
 
@@ -183,7 +190,11 @@ function isWatchVideo(): boolean {
 
 function isVideoPage(): boolean {
     const href = window.location.href;
-    return href.includes('/watch?') || href.includes('/live/');
+    return href.includes('/watch?') || href.includes('/live/') || href.includes('/shorts/');
+}
+
+function isShortsPage(): boolean {
+    return window.location.href.includes('/shorts/');
 }
 
 function getPaginate(
@@ -392,6 +403,7 @@ export {
     getCleanUrlVideo,
     isWatchVideo,
     isVideoPage,
+    isShortsPage,
     getPaginate,
     extractChannelId,
     extractVideoId,

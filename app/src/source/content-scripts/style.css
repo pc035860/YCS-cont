@@ -1350,3 +1350,65 @@ html[dark] .ycs-floating-back-button:hover {
   background: rgba(80, 80, 80, 0.7);
   border-color: rgba(80, 80, 80, 0.5);
 }
+
+/* ========================================
+   Shorts Mode Customizations
+   ======================================== */
+
+.ycs-app.ycs-app--shorts {
+  margin-bottom: 0;
+}
+
+/* Load all and stop buttons on same line */
+.ycs-app--shorts #ycs-load-all {
+  display: inline-block;
+  margin-left: 8px;
+  margin-right: 0;
+}
+
+.ycs-app--shorts .ycs-head-search {
+  overflow: hidden;
+}
+
+.ycs-app--shorts .ycs_btn_load-stop {
+  position: static;
+  display: inline-block;
+  /* Match load-all button styles for alignment */
+  padding: 6px;
+  margin: 0;
+  border: 1px solid #ececec;
+  background-color: #f8f8f8;
+}
+
+html[dark='true'] .ycs-app--shorts .ycs_btn_load-stop,
+html[dark] .ycs-app--shorts .ycs_btn_load-stop {
+  border: 1px solid #303030;
+  background-color: #313131;
+  color: #fff;
+}
+
+/* Add spacing between buttons and infobar */
+.ycs-app--shorts .ycs-infobar {
+  margin-top: 10px;
+}
+
+.ycs-app--shorts #ycs-search {
+  margin-top: 15px;
+}
+
+/* Hide transcript language selector */
+.ycs-app--shorts .ycs_language_wrap {
+  display: none;
+}
+
+/* Hide extra panel (View Mode button) */
+.ycs-app--shorts .ycs_extra_panel {
+  display: none;
+}
+
+/* Search result container adjustments */
+.ycs-app--shorts #ycs-search-result {
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* max-height will be set dynamically via JS */
+}

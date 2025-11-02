@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { safeUrl } from '../utils/formatting';
-import { randomString } from '../utils/common';
+import { randomString, isShortsPage } from '../utils/common';
 import { markTextComment, getPiP } from '../utils/dom';
 import { options } from '../config/options';
 import {
@@ -654,7 +654,10 @@ function isElementVisible(element: Element | null): boolean {
     );
 }
 
-function renderLoadComments(selector: string, preferredInsertionMode?: 'appendChild' | 'insertAfter'): void {
+function renderLoadComments(
+    selector: string,
+    preferredInsertionMode?: 'appendChild' | 'insertAfter' | 'prepend'
+): void {
     if (typeof selector !== 'string') return;
 
     if (DEBUG) {
@@ -678,7 +681,7 @@ function renderLoadComments(selector: string, preferredInsertionMode?: 'appendCh
 
     // Visibility check and fallback mechanism
     let targetElement: HTMLElement | null = node as HTMLElement | null;
-    let insertionMode: 'appendChild' | 'insertAfter' = preferredInsertionMode || 'appendChild';
+    let insertionMode: 'appendChild' | 'insertAfter' | 'prepend' = preferredInsertionMode || 'appendChild';
 
     // Only check visibility and fallback when using appendChild mode
     // insertAfter mode skips visibility check (element may be temporarily hidden during SPA navigation)
@@ -717,7 +720,7 @@ function renderLoadComments(selector: string, preferredInsertionMode?: 'appendCh
     }
 
     const nodeTag = document.createElement('div');
-    nodeTag.className = 'ycs-app';
+    nodeTag.className = isShortsPage() ? 'ycs-app ycs-app--shorts' : 'ycs-app';
     nodeTag.innerHTML = `
         <div class="ycs-app-toggle"><p class="ycs-title ycs-left">YouTube Comment Search <span id="ycs-count-load-collapsed"></span></p><div class="ycs-right"><button class="ycs-btn-toggle-app ycs-btn-search ycs_noselect" type="button">Show YCS</button></div></div>
         <div class="ycs-app-main">
@@ -920,7 +923,10 @@ function renderLoadComments(selector: string, preferredInsertionMode?: 'appendCh
     `;
 
     // Execute based on insertion mode
-    if (insertionMode === 'appendChild') {
+    if (insertionMode === 'prepend') {
+        // prepend implementation: insert as first child
+        targetElement.insertBefore(nodeTag, targetElement.firstChild);
+    } else if (insertionMode === 'appendChild') {
         targetElement.appendChild(nodeTag);
     } else if (insertionMode === 'insertAfter') {
         // insertAfter implementation: check parentNode to avoid TypeError

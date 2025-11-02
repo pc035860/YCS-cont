@@ -6,6 +6,7 @@ import {
     getCleanUrlVideo,
     getVideoId,
     isVideoPage,
+    isShortsPage,
     extractVideoDuration
 } from '../utils/common';
 import {
@@ -197,6 +198,17 @@ const buildSearchContext = (): SearchContext => {
 let appFunction: (() => void) | null = null;
 let observeIntervalId: ReturnType<typeof setInterval> | null = null;
 
+/**
+ * Gets the appropriate meta element for the current page type.
+ * For Shorts pages, checks #anchored-panel, otherwise checks #meta.style-scope.ytd-watch-flexy
+ */
+export function getPageMetaElement(): Element | null {
+    if (isShortsPage()) {
+        return document.querySelector('#anchored-panel');
+    }
+    return document.querySelector('#meta.style-scope.ytd-watch-flexy');
+}
+
 export function retryApp(): boolean {
     if (!appFunction) {
         return false;
@@ -215,6 +227,47 @@ export function initApp(): void {
     let handleMessageEvent: ((ev: MessageEvent<ExtensionMessagePayload>) => void) | null = null;
 
     let state = createState();
+
+    /**
+     * Adjust search result max-height for Shorts pages
+     * Calculates available height based on anchored-panel and ycs-search position
+     */
+    function adjustSearchResultHeightForShorts(): void {
+        if (!isShortsPage()) return;
+
+        // Skip calculation if app is collapsed (hidden by default)
+        // When collapsed, #ycs-search is hidden and getBoundingClientRect() returns incorrect values
+        const app = document.querySelector('.ycs-app') as HTMLElement;
+        if (app && app.classList.contains('ycs-collapsed')) {
+            return;
+        }
+
+        const anchoredPanel = document.querySelector('#anchored-panel') as HTMLElement;
+        const ycsSearch = document.querySelector('#ycs-search') as HTMLElement;
+        const searchResult = document.querySelector('#ycs-search-result') as HTMLElement;
+
+        if (!anchoredPanel || !ycsSearch || !searchResult) return;
+
+        try {
+            // Get anchored-panel height
+            const panelHeight = anchoredPanel.offsetHeight;
+
+            // Get ycs-search bottom position relative to anchored-panel top
+            const ycsSearchRect = ycsSearch.getBoundingClientRect();
+            const panelRect = anchoredPanel.getBoundingClientRect();
+            const ycsSearchBottom = ycsSearchRect.bottom - panelRect.top;
+
+            // Calculate available height
+            const availableHeight = panelHeight - ycsSearchBottom;
+
+            // Set max-height with some padding (20px)
+            if (availableHeight > 100) {
+                searchResult.style.maxHeight = `${availableHeight - 20}px`;
+            }
+        } catch (error) {
+            console.error('YCS: Failed to adjust search result height for Shorts', error);
+        }
+    }
 
     function app(): void {
         if (!isVideoPage()) return;
@@ -247,19 +300,29 @@ export function initApp(): void {
             handleDocumentClick = null;
         }
 
-        // Try new insertion points first (between expandable-metadata and ticket-shelf)
-        if (document.querySelector('#expandable-metadata.ytd-watch-flexy')) {
-            renderLoadComments('#expandable-metadata.ytd-watch-flexy', 'insertAfter');
-        } else if (document.querySelector('#ticket-shelf')) {
-            renderLoadComments('#ticket-shelf', 'insertAfter');
-        } else if (document.querySelector('#meta.style-scope.ytd-watch-flexy')) {
-            renderLoadComments('#meta.style-scope.ytd-watch-flexy');
-        } else if (document.querySelector('#meta.style-scope')) {
-            renderLoadComments('#meta.style-scope');
-        } else if (document.querySelector('ytd-watch-metadata')) {
-            renderLoadComments('ytd-watch-metadata', 'insertAfter');
+        // Handle Shorts pages differently
+        if (isShortsPage()) {
+            if (document.querySelector('#anchored-panel')) {
+                renderLoadComments('#anchored-panel', 'prepend');
+            } else {
+                console.warn('YCS: Shorts page detected but #anchored-panel not found');
+                return;
+            }
         } else {
-            return;
+            // Try new insertion points first (between expandable-metadata and ticket-shelf)
+            if (document.querySelector('#expandable-metadata.ytd-watch-flexy')) {
+                renderLoadComments('#expandable-metadata.ytd-watch-flexy', 'insertAfter');
+            } else if (document.querySelector('#ticket-shelf')) {
+                renderLoadComments('#ticket-shelf', 'insertAfter');
+            } else if (document.querySelector('#meta.style-scope.ytd-watch-flexy')) {
+                renderLoadComments('#meta.style-scope.ytd-watch-flexy');
+            } else if (document.querySelector('#meta.style-scope')) {
+                renderLoadComments('#meta.style-scope');
+            } else if (document.querySelector('ytd-watch-metadata')) {
+                renderLoadComments('ytd-watch-metadata', 'insertAfter');
+            } else {
+                return;
+            }
         }
 
         const elSearch = document.getElementById('ycs-search');
@@ -267,6 +330,15 @@ export function initApp(): void {
             renderSearch(elSearch);
             // Initial button loading (using default settings)
             loadFilterButtons();
+
+            // Adjust height for Shorts pages
+            if (isShortsPage()) {
+                // Use setTimeout to ensure DOM is fully rendered
+                setTimeout(() => {
+                    adjustSearchResultHeightForShorts();
+                }, 100);
+            }
+
             // Toggle collapsed/expand of app
             try {
                 const toggles = document.getElementsByClassName('ycs-btn-toggle-app');
@@ -277,6 +349,12 @@ export function initApp(): void {
                             const app = document.getElementsByClassName('ycs-app')[0] as HTMLElement;
                             if (app) {
                                 app.classList.toggle('ycs-collapsed');
+                                // Recalculate height when app is expanded on Shorts pages
+                                if (isShortsPage() && !app.classList.contains('ycs-collapsed')) {
+                                    setTimeout(() => {
+                                        adjustSearchResultHeightForShorts();
+                                    }, 100);
+                                }
                             }
                         },
                         false
@@ -1567,6 +1645,12 @@ export function initApp(): void {
                         if (!app) return;
                         // Apply collapsed state instead of fully hiding the app to keep the top toggle visible
                         app.classList.toggle('ycs-collapsed', value);
+                        // Recalculate height when app is expanded on Shorts pages
+                        if (isShortsPage() && !value) {
+                            setTimeout(() => {
+                                adjustSearchResultHeightForShorts();
+                            }, 100);
+                        }
                     } catch (err) {
                         console.error(err);
                     }
@@ -1802,11 +1886,7 @@ export function initApp(): void {
 
         // Store interval ID for cleanup on next initApp() call
         observeIntervalId = setInterval(() => {
-            if (
-                isVideoPage() &&
-                document.querySelector('#meta.style-scope.ytd-watch-flexy') &&
-                prevUrl !== getCleanUrlVideo(window.location.href)
-            ) {
+            if (isVideoPage() && getPageMetaElement() && prevUrl !== getCleanUrlVideo(window.location.href)) {
                 const currentUrl = getCleanUrlVideo(window.location.href);
 
                 getController(state).abort();
