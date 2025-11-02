@@ -83,14 +83,14 @@ const authHeader = buildSapSidAuthorizationHeader({
   - document cookies (`SAPISID`, `APISID`, `__Secure-1PAPISID`, `__Secure-3PAPISID`)
   - Optional `__1PSAPISID` / `__3PSAPISID` for first-party and third-party variants
 
-- **Hash Input Assembly**: Each secret is paired with the normalized origin. Optional metadata (`extras`) is supported; when present, the payload also includes a Unix timestamp and the provided values, matching the format that appends suffixes such as `_u`.
+- **Hash Input Assembly**: Each secret is combined with the normalized origin and a Unix timestamp. The timestamp is always included to prevent replay attacks. Optional metadata (`extras`) can be provided to append additional values and suffixes (such as `_u`) to the token.
 
-- **Digest**: The payload string is hashed with SHA-1. The project now delegates hashing to the `crypto-js` library (`SHA1`), ensuring consistent output across environments.
+- **Digest**: The payload string is hashed with SHA-1. The project delegates hashing to the `crypto-js` library (`SHA1`), ensuring consistent output across environments.
 
-- **Header Formatting**: The digest is prefixed with the corresponding header name:
-  - `SAPISIDHASH` / `APISIDHASH` (main token)
-  - `SAPISID1PHASH` (1P cookie, HTTPS contexts only)
-  - `SAPISID3PHASH` (3P cookie, HTTPS contexts only)
+- **Header Formatting**: The digest is formatted as `timestamp_digest` and prefixed with the corresponding header name:
+  - `SAPISIDHASH timestamp_digest` (main token)
+  - `SAPISID1PHASH timestamp_digest` (1P cookie, HTTPS contexts only)
+  - `SAPISID3PHASH timestamp_digest` (3P cookie, HTTPS contexts only)
   Each token is joined with spaces to form the final `Authorization` header.
 
 ## Frequently Asked Questions

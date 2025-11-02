@@ -220,14 +220,9 @@ function buildToken(
         return null;
     }
 
-    if (!Array.isArray(extras)) {
-        const payload = `${secret} ${origin}`;
-        return `${headerName} ${sha1Hex(payload)}`;
-    }
-
-    const usableExtras = extras
-        .filter((item): item is AuthorizationExtra => Boolean(item && item.key && item.value))
-        .map((item) => ({ key: item.key, value: item.value }));
+    const usableExtras = Array.isArray(extras)
+        ? extras.filter((item): item is AuthorizationExtra => Boolean(item && item.key && item.value))
+        : [];
 
     const timestamp = Math.floor(now() / 1000);
     const valuePart = usableExtras.length ? usableExtras.map((item) => item.value).join(':') : '';
