@@ -1,6 +1,6 @@
 import Fuse from '../../../../node_modules/fuse.js/dist/fuse';
 
-import { buildOptionsSignature } from './fuseCacheUtils';
+import { buildKeysSignature, buildOptionsSignature, cloneFuseOptions } from './fuseCacheUtils';
 
 import { getRandomComment } from '../../utils/dom';
 import { filterNewestFirst } from '../../utils/filters/comments';
@@ -35,23 +35,6 @@ export interface CommentsSearchResult {
     buttonStates: Record<string, SearchButtonState>;
 }
 
-const BASE_FUSE_OPTIONS: Fuse.IFuseOptions<any> = {
-    isCaseSensitive: false,
-    findAllMatches: false,
-    includeMatches: false,
-    includeScore: true,
-    ignoreLocation: true,
-    useExtendedSearch: false,
-    minMatchCharLength: 1,
-    shouldSort: true,
-    threshold: 0.15,
-    distance: 100000
-};
-
-function cloneFuseOptions(): Fuse.IFuseOptions<any> {
-    return JSON.parse(JSON.stringify(BASE_FUSE_OPTIONS));
-}
-
 // Fuse cache keyed by data reference, length, and key signature.
 interface FuseCache {
     instance: Fuse<any>;
@@ -64,7 +47,7 @@ interface FuseCache {
 let fuseCache: FuseCache | null = null;
 
 function getFuseInstance(base: any[], options: Fuse.IFuseOptions<any>): Fuse<any> {
-    const keysSig = Array.isArray(options.keys) ? JSON.stringify(options.keys) : String(options.keys ?? '');
+    const keysSig = buildKeysSignature(options.keys);
     const optionsSig = buildOptionsSignature(options);
     if (
         fuseCache &&

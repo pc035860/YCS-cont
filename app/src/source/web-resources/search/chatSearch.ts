@@ -1,6 +1,6 @@
 import Fuse from '../../../../node_modules/fuse.js/dist/fuse';
 
-import { buildOptionsSignature } from './fuseCacheUtils';
+import { buildKeysSignature, buildOptionsSignature, cloneFuseOptions } from './fuseCacheUtils';
 
 import { filterChatNewestFirst } from '../../utils/filters/chat';
 import {
@@ -31,24 +31,7 @@ export interface ChatSearchResult {
     buttonStates: Record<string, SearchButtonState>;
 }
 
-const BASE_FUSE_OPTIONS: Fuse.IFuseOptions<any> = {
-    isCaseSensitive: false,
-    findAllMatches: false,
-    includeMatches: false,
-    includeScore: true,
-    ignoreLocation: true,
-    useExtendedSearch: false,
-    minMatchCharLength: 1,
-    shouldSort: true,
-    threshold: 0.15,
-    distance: 100000
-};
-
 const UNSUPPORTED_FILTERS: (keyof IParamSearch)[] = ['heart', 'likes', 'replied', 'random', 'quickTranscript'];
-
-function cloneFuseOptions(): Fuse.IFuseOptions<any> {
-    return JSON.parse(JSON.stringify(BASE_FUSE_OPTIONS));
-}
 
 // Fuse cache for the full chat array (subsets still use transient instances).
 interface ChatFuseCache<T> {
@@ -62,7 +45,7 @@ interface ChatFuseCache<T> {
 let chatFuseCache: ChatFuseCache<any> | null = null;
 
 function getChatFuseInstance<T>(base: T[], options: Fuse.IFuseOptions<any>): Fuse<T> {
-    const keysSig = Array.isArray(options.keys) ? JSON.stringify(options.keys) : String(options.keys ?? '');
+    const keysSig = buildKeysSignature(options.keys);
     const optionsSig = buildOptionsSignature(options);
     if (
         chatFuseCache &&

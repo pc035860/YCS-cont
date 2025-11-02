@@ -1,6 +1,6 @@
 import Fuse from '../../../../node_modules/fuse.js/dist/fuse';
 
-import { buildOptionsSignature } from './fuseCacheUtils';
+import { buildKeysSignature, buildOptionsSignature, cloneFuseOptions } from './fuseCacheUtils';
 
 import { filterAllTrpVideoComments, filterLinksTrpVideoComments } from '../../utils/filters/comments';
 import { ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
@@ -23,19 +23,6 @@ export interface TranscriptSearchResult {
     buttonStates: Record<string, SearchButtonState>;
 }
 
-const BASE_FUSE_OPTIONS: Fuse.IFuseOptions<any> = {
-    isCaseSensitive: false,
-    findAllMatches: false,
-    includeMatches: false,
-    includeScore: true,
-    ignoreLocation: true,
-    useExtendedSearch: false,
-    minMatchCharLength: 1,
-    shouldSort: true,
-    threshold: 0.15,
-    distance: 100000
-};
-
 const UNSUPPORTED_FILTERS: (keyof IParamSearch)[] = [
     'heart',
     'likes',
@@ -47,10 +34,6 @@ const UNSUPPORTED_FILTERS: (keyof IParamSearch)[] = [
     'verified',
     'quickChat'
 ];
-
-function cloneFuseOptions(): Fuse.IFuseOptions<any> {
-    return JSON.parse(JSON.stringify(BASE_FUSE_OPTIONS));
-}
 
 // Fuse cache for the full cueGroups array (subsets still use transient instances).
 interface TranscriptFuseCache<T> {
@@ -64,7 +47,7 @@ interface TranscriptFuseCache<T> {
 let transcriptFuseCache: TranscriptFuseCache<any> | null = null;
 
 function getTranscriptFuseInstance<T>(base: T[], options: Fuse.IFuseOptions<any>): Fuse<T> {
-    const keysSig = Array.isArray(options.keys) ? JSON.stringify(options.keys) : String(options.keys ?? '');
+    const keysSig = buildKeysSignature(options.keys);
     const optionsSig = buildOptionsSignature(options);
     if (
         transcriptFuseCache &&
