@@ -1,9 +1,7 @@
-import { isVideoPage, isShortsPage } from '../utils/common';
-import { initApp, retryApp } from './appController';
+import { isVideoPage } from '../utils/common';
+import { initApp, retryApp, getPageMetaElement } from './appController';
 
 const DEBUG = false;
-const META_SELECTOR = '#meta.style-scope.ytd-watch-flexy';
-
 let hasStarted = false;
 let mutationObserver: MutationObserver | null = null;
 let isRetryingApp = false;
@@ -16,14 +14,6 @@ const VERIFICATION_DELAY_MS = 300; // Wait for normal re-renders to complete
 const RETRY_STATE_RESET_DELAY_MS = 500; // Prevent immediate re-trigger
 const POPSTATE_INIT_DELAY_MS = 100; // Wait for YouTube SPA DOM update after popstate
 const POLLING_INTERVAL_MS = 2000; // Fallback polling interval (reduced since MutationObserver handles most cases)
-
-const metaElementExists = (): Element | null => {
-    // For shorts pages, check for #anchored-panel instead
-    if (isShortsPage()) {
-        return document.querySelector('#anchored-panel');
-    }
-    return document.querySelector(META_SELECTOR);
-};
 
 /**
  * Throttled version of retryApp with state protection
@@ -168,7 +158,7 @@ export function startWebResources(): void {
     let isInitAppCalled = false;
 
     const ensureAppInitialized = (source: string): void => {
-        if (!isVideoPage() || !metaElementExists()) {
+        if (!isVideoPage() || !getPageMetaElement()) {
             return;
         }
 
@@ -187,7 +177,7 @@ export function startWebResources(): void {
             console.log('YCS: yt-navigate-finish detected');
             console.log('isInitAppCalled: ', isInitAppCalled);
             console.log('isVideoPage: ', isVideoPage());
-            console.log('document.querySelector(#meta.style-scope.ytd-watch-flexy): ', metaElementExists());
+            console.log('document.querySelector(#meta.style-scope.ytd-watch-flexy): ', getPageMetaElement());
         }
 
         ensureAppInitialized('yt-navigate-finish');
@@ -198,7 +188,7 @@ export function startWebResources(): void {
             console.log('YCS: popstate detected');
             console.log('isInitAppCalled: ', isInitAppCalled);
             console.log('isVideoPage: ', isVideoPage());
-            console.log('document.querySelector(#meta.style-scope.ytd-watch-flexy): ', metaElementExists());
+            console.log('document.querySelector(#meta.style-scope.ytd-watch-flexy): ', getPageMetaElement());
         }
 
         setTimeout(() => {
@@ -215,7 +205,7 @@ export function startWebResources(): void {
     // Polling fallback mechanism (runs continuously at lower frequency)
     // No need to store interval ID - runs for entire extension lifecycle
     setInterval(() => {
-        if (!isVideoPage() || !metaElementExists()) {
+        if (!isVideoPage() || !getPageMetaElement()) {
             return;
         }
 

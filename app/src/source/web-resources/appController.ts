@@ -198,6 +198,17 @@ const buildSearchContext = (): SearchContext => {
 let appFunction: (() => void) | null = null;
 let observeIntervalId: ReturnType<typeof setInterval> | null = null;
 
+/**
+ * Gets the appropriate meta element for the current page type.
+ * For Shorts pages, checks #anchored-panel, otherwise checks #meta.style-scope.ytd-watch-flexy
+ */
+export function getPageMetaElement(): Element | null {
+    if (isShortsPage()) {
+        return document.querySelector('#anchored-panel');
+    }
+    return document.querySelector('#meta.style-scope.ytd-watch-flexy');
+}
+
 export function retryApp(): boolean {
     if (!appFunction) {
         return false;
@@ -1875,11 +1886,7 @@ export function initApp(): void {
 
         // Store interval ID for cleanup on next initApp() call
         observeIntervalId = setInterval(() => {
-            if (
-                isVideoPage() &&
-                document.querySelector('#meta.style-scope.ytd-watch-flexy') &&
-                prevUrl !== getCleanUrlVideo(window.location.href)
-            ) {
+            if (isVideoPage() && getPageMetaElement() && prevUrl !== getCleanUrlVideo(window.location.href)) {
                 const currentUrl = getCleanUrlVideo(window.location.href);
 
                 getController(state).abort();
