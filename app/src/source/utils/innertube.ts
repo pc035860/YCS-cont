@@ -7,3 +7,4 @@ export {
     generateCommentObjectFromFW
 } from './innertube/comments';
 export { getTranscriptVideo, getTranscriptTracks } from './innertube/transcript';
+export { buildSapSidAuthorizationHeader } from './innertube/authHeaders';

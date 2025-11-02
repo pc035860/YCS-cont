@@ -182,4 +182,83 @@ export async function getInitYtData(
     }
 }
 
+export async function getInitYtDataFromHtml(
+    url: string,
+    signal: AbortSignal | undefined,
+    globalContext: Window & typeof globalThis = window
+): Promise<{ response: [object] } | undefined> {
+    try {
+        if (!url) return undefined;
+
+        const paramsTemplate = (await getParams(globalContext, signal)).params;
+        const headers = { ...paramsTemplate.headers };
+        delete headers['content-type'];
+
+        const requestInit: InnertubeRequestParams = {
+            ...paramsTemplate,
+            method: 'GET',
+            headers
+        };
+
+        delete (requestInit as Partial<InnertubeRequestParams>).body;
+
+        // Do not use pbj=1; fetch raw HTML directly
+        const targetUrl = getCleanUrlVideo(url) ?? url;
+        const res = await fetch(targetUrl, { ...requestInit, signal, cache: 'no-store' });
+        const html = await res.text();
+
+        // Use a safer method to find ytInitialData
+        // First, find the start position of ytInitialData declaration
+        const startPattern = '>var ytInitialData = {';
+        const startIndex = html.indexOf(startPattern);
+
+        if (startIndex === -1) {
+            console.error('Failed to find ytInitialData start pattern in HTML');
+            return undefined;
+        }
+
+        // From the start position, count braces to locate the end of JSON object
+        let braceCount = 0;
+        let endIndex = startIndex + startPattern.length;
+        let foundStart = false;
+
+        for (let i = startIndex; i < html.length; i++) {
+            if (html[i] === '{') {
+                braceCount++;
+                foundStart = true;
+            } else if (html[i] === '}') {
+                braceCount--;
+                if (foundStart && braceCount === 0) {
+                    endIndex = i + 1;
+                    break;
+                }
+            }
+        }
+
+        // Check if corresponding closing </script> tag is found after JSON
+        const scriptEndPattern = '</script>';
+        const scriptEndIndex = html.indexOf(scriptEndPattern, endIndex);
+
+        if (scriptEndIndex === -1) {
+            console.error('Failed to find closing script tag');
+            return undefined;
+        }
+
+        // Extract the JSON part for parsing
+        const jsonStr = html.substring(startIndex + startPattern.length - 1, endIndex);
+
+        try {
+            const result = JSON.parse(jsonStr) as [object];
+            (GlobalStore as any).getInitYtData = result;
+            return { response: result };
+        } catch (parseError) {
+            console.error('Failed to parse ytInitialData JSON:', parseError);
+            return undefined;
+        }
+    } catch (e) {
+        console.error(e);
+        return undefined;
+    }
+}
+
 export type { InnertubeRequestParams };

@@ -39,6 +39,7 @@ app/
 │   │       │   ├── innertube.ts      # Module facade
 │   │       │   ├── core.ts           # Configuration & initialization
 │   │       │   ├── request.ts        # Request building utilities
+│   │       │   ├── authHeaders.ts    # Authorization header generation
 │   │       │   ├── comments.ts       # Comment module entry
 │   │       │   ├── comments/         # Comment processing
 │   │       │   │   ├── pipeline.ts   # Fetching pipeline
@@ -223,6 +224,7 @@ For detailed information on Innertube API integration and implementation:
 | [API Migration Guide](docs/innertube-migration-guide.md) | Legacy vs new frameworkUpdates model |
 | [Chat Replay API Changes](docs/innertube-chat-replay-api-changes.md) | playerOffsetMs → continuation tokens |
 | [Implementation Alignment](docs/continuation-processing.md) | JS/TS code correspondence |
+| [SAPISID Authorization](docs/sap-sid-authorization.md) | SAPISID/APISID cookie-based auth headers |
 
 **Reading order**: Start with `innertube-comments-integration.md`, then refer to other docs as needed.
 
@@ -237,6 +239,8 @@ For detailed information on Innertube API integration and implementation:
 | fetch-retry | 5.0.3 | HTTP retry with exponential backoff |
 | xlsx | 0.18.2 | Excel export functionality |
 | html-entities | 2.6.0 | HTML entity encoding/decoding |
+| crypto-js | 4.2.0 | SHA-1 hashing for authorization headers |
+| @types/crypto-js | 4.2.2 | TypeScript definitions |
 
 ## Code Style
 

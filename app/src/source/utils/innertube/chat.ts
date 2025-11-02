@@ -38,7 +38,7 @@ export async function getParamsForChat(
         });
 
         return {
-            headers: buildInnertubeHeaders(ytcfgData),
+            headers: buildInnertubeHeaders(ytcfgData, {}, globalContext),
             referrerPolicy: 'strict-origin-when-cross-origin',
             referrer,
             body: JSON.stringify(bodyPayload),
@@ -68,7 +68,7 @@ async function getParamsForLiveChat(
         }
 
         return {
-            headers: buildInnertubeHeaders(ytcfgData),
+            headers: buildInnertubeHeaders(ytcfgData, {}, globalContext),
             referrerPolicy: 'strict-origin-when-cross-origin',
             referrer,
             body: JSON.stringify(
@@ -186,6 +186,8 @@ export async function getChatComments(
             console.log('STOP CHAT CD!!!! No continuation data available');
             return undefined;
         }
+
+        console.log('[getChatComments] continuationData', result.continuationData);
 
         const continuationData = result.continuationData;
         const useLegacyApi = result.apiVersion === 'old';
