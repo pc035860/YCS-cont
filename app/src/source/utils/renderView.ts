@@ -945,6 +945,11 @@ function generateFilterButtonHTML(buttonId: string): string {
             dataSort: 'newest',
             dataSortChat: 'newest'
         },
+        ycs_btn_timestamp_viz: {
+            name: 'timestampViz',
+            title: 'Show timestamp distribution chart',
+            icon: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="12" width="2" height="3"/><rect x="4" y="8" width="2" height="7"/><rect x="7" y="4" width="2" height="11"/><rect x="10" y="6" width="2" height="9"/><rect x="13" y="2" width="2" height="13"/></svg>'
+        },
         ycs_btn_author: {
             name: 'author',
             title: 'Show comments, replies, chat from the author (Newest)',
@@ -1037,31 +1042,33 @@ function generateFilterButtonHTML(buttonId: string): string {
             ${
                 config.name === 'timestamps'
                     ? 'Time stamps'
-                    : config.name === 'author'
-                      ? 'Author'
-                      : config.name === 'heart'
-                        ? ''
-                        : config.name === 'verified'
+                    : config.name === 'timestampViz'
+                      ? 'Stamp Dist'
+                      : config.name === 'author'
+                        ? 'Author'
+                        : config.name === 'heart'
                           ? ''
-                          : config.name === 'links'
-                            ? 'Links'
-                            : config.name === 'likes'
-                              ? 'Likes'
-                              : config.name === 'replied'
-                                ? 'Replied'
-                                : config.name === 'members'
-                                  ? 'Members'
-                                  : config.name === 'donated'
-                                    ? 'Donated'
-                                    : config.name === 'sortFirst'
-                                      ? 'All'
-                                      : config.name === 'random'
-                                        ? 'Random'
-                                        : config.name === 'quickChat'
-                                          ? 'Chat'
-                                          : config.name === 'quickTranscript'
-                                            ? 'Transcript'
-                                            : config.name
+                          : config.name === 'verified'
+                            ? ''
+                            : config.name === 'links'
+                              ? 'Links'
+                              : config.name === 'likes'
+                                ? 'Likes'
+                                : config.name === 'replied'
+                                  ? 'Replied'
+                                  : config.name === 'members'
+                                    ? 'Members'
+                                    : config.name === 'donated'
+                                      ? 'Donated'
+                                      : config.name === 'sortFirst'
+                                        ? 'All'
+                                        : config.name === 'random'
+                                          ? 'Random'
+                                          : config.name === 'quickChat'
+                                            ? 'Chat'
+                                            : config.name === 'quickTranscript'
+                                              ? 'Transcript'
+                                              : config.name
             }
             ${sortIcon}
         </button>`;

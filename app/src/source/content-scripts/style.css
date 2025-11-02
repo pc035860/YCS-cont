@@ -81,12 +81,17 @@ html[dark] .ycs-app {
 
 #ycs-search-total-result {
   font-size: 13px;
-  width: 245px;
+  width: 280px;
   margin: 0;
   padding: 0;
   display: inline-block;
   margin-left: 15px;
   word-break: break-word;
+}
+
+#ycs_btn_timestamp_viz > svg {
+  position: relative;
+  top: 1px;
 }
 
 .ycs-searchbox {
@@ -189,6 +194,7 @@ html[dark] .ycs_btn_active {
   overflow-y: auto;
   overflow-x: hidden;
   max-height: 700px;
+  position: relative;
 }
 
 .ycs-infobar__search button:disabled {
@@ -1104,4 +1110,243 @@ html[dark] .ycs-ext-search_link {
 }
 .ycs-chip .ycs-yt-icon > .yt-icon {
   height: 12px;
+}
+
+/* Timestamp Chart Styles */
+.ycs-timestamp-chart {
+  margin: 20px 0;
+  padding: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+html[dark='true'] .ycs-timestamp-chart,
+html[dark] .ycs-timestamp-chart {
+  background: #282828;
+  border-color: #404040;
+}
+
+.ycs-chart-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 30px;
+  text-align: center;
+  color: #333;
+}
+
+html[dark='true'] .ycs-chart-title,
+html[dark] .ycs-chart-title {
+  color: #fff;
+}
+
+.ycs-chart-container {
+  position: relative;
+  height: 200px;
+}
+
+.ycs-chart-bars {
+  display: flex;
+  align-items: flex-end;
+  height: 180px;
+  gap: 2px;
+  padding: 0 10px;
+}
+
+.ycs-chart-bar {
+  flex: 1;
+  position: relative;
+  cursor: pointer;
+  border-radius: 2px 2px 0 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.ycs-chart-bar:hover {
+  background-color: rgba(52, 73, 94, 0.1);
+}
+
+html[dark='true'] .ycs-chart-bar:hover,
+html[dark] .ycs-chart-bar:hover {
+  background-color: rgba(52, 73, 94, 0.2);
+}
+
+.ycs-bar-fill {
+  background: #3ea6ff;
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.ycs-chart-bar:hover .ycs-bar-fill {
+  background: #1770e4;
+}
+
+html[dark='true'] .ycs-bar-fill,
+html[dark] .ycs-bar-fill {
+  background: #1770e4;
+}
+
+html[dark='true'] .ycs-chart-bar:hover .ycs-bar-fill,
+html[dark] .ycs-chart-bar:hover .ycs-bar-fill {
+  background: #3ea6ff;
+}
+
+.ycs-bar-label {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-family: monospace;
+  color: #333;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+html[dark='true'] .ycs-bar-label,
+html[dark] .ycs-bar-label {
+  color: #fff;
+}
+
+.ycs-chart-x-axis {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 10px;
+  margin-top: 5px;
+}
+
+.ycs-chart-x-axis span {
+  font-size: 10px;
+  color: #666;
+  font-family: monospace;
+}
+
+html[dark='true'] .ycs-chart-x-axis span,
+html[dark] .ycs-chart-x-axis span {
+  color: #ccc;
+}
+
+/* Timestamp chart selected bar styling */
+.ycs-chart-bar.ycs-selected {
+  background-color: rgba(255, 107, 107, 0.15) !important;
+}
+
+.ycs-chart-bar.ycs-selected .ycs-bar-fill {
+  background-color: #ff4757 !important;
+}
+
+html[dark='true'] .ycs-chart-bar.ycs-selected,
+html[dark] .ycs-chart-bar.ycs-selected {
+  background-color: rgba(255, 107, 107, 0.15) !important;
+}
+
+html[dark='true'] .ycs-chart-bar.ycs-selected .ycs-bar-fill,
+html[dark] .ycs-chart-bar.ycs-selected .ycs-bar-fill {
+  background-color: #ff4757 !important;
+}
+
+/* Timestamp interval results container */
+#ycs-timestamp-interval-results {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+html[dark='true'] #ycs-timestamp-interval-results,
+html[dark] #ycs-timestamp-interval-results {
+  border-top-color: #404040;
+}
+
+#ycs-timestamp-interval-results .ycs-chart-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+html[dark='true'] #ycs-timestamp-interval-results .ycs-chart-title,
+html[dark] #ycs-timestamp-interval-results .ycs-chart-title {
+  color: #fff;
+  border-bottom-color: #404040;
+}
+
+/* Ensure proper spacing between chart and results */
+#ycs-timestamp-chart-container {
+  margin-bottom: 0;
+}
+
+/* Floating back button for timestamp chart */
+.ycs-floating-back-button {
+  position: sticky;
+  bottom: 20px;
+  float: right;
+  margin-top: -50px;
+  margin-right: 10px;
+  background: rgba(60, 60, 60, 0.6);
+  color: white;
+  border: 1px solid rgba(60, 60, 60, 0.3);
+  border-radius: 20px;
+  padding: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+  max-width: 250px;
+  word-wrap: break-word;
+  backdrop-filter: blur(4px);
+}
+
+.ycs-floating-back-button:hover {
+  background: rgba(80, 80, 80, 0.7);
+  border-color: rgba(80, 80, 80, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.ycs-floating-button-icon {
+  font-size: 14px;
+  font-weight: bold;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ycs-floating-button-icon svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+}
+
+.ycs-floating-button-text {
+  line-height: 1.1;
+  text-align: left;
+}
+
+/* Dark mode styles for floating button */
+html[dark='true'] .ycs-floating-back-button,
+html[dark] .ycs-floating-back-button {
+  background: rgba(60, 60, 60, 0.6);
+  border-color: rgba(60, 60, 60, 0.3);
+  color: white;
+}
+
+html[dark='true'] .ycs-floating-back-button:hover,
+html[dark] .ycs-floating-back-button:hover {
+  background: rgba(80, 80, 80, 0.7);
+  border-color: rgba(80, 80, 80, 0.5);
 }

@@ -289,6 +289,7 @@ export interface IParamSearch {
     donated?: boolean;
     random?: boolean;
     timestamp?: boolean;
+    timestampViz?: boolean;
     sortFirst?: boolean;
     quickChat?: boolean;
     quickTranscript?: boolean;
