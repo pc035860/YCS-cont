@@ -7,6 +7,7 @@ import { parseFormattedNumber } from '../../formatting';
 import { normalizeCommentViewModel } from './normalize';
 import { buildInnertubeBody, buildInnertubeHeaders } from '../request';
 import { getInnertubeApiKey, getInitYtData, getPageCfgData } from '../core';
+import { isMemberOnlyFromYtInitialData, setCurrentVideoMemberOnly, clearCurrentVideoMemberOnly } from '../memberOnly';
 
 export interface CommentContinuation {
     token: string;
@@ -1187,8 +1188,14 @@ async function getDetailsVideoIDV2(
 
         const ytcfgData = await getPageCfgData(w, signal, url);
         const videoId = getVideoId(url);
+
+        // Determine if we should disable Authorization header (same logic as getParamsForComments)
+        // Conservative strategy: if status is undefined, don't send Authorization (to reduce request size)
+        const currentStatus = (GlobalStore as any).isMemberOnly;
+        const disableAuth = currentStatus !== true; // true = send auth, false/undefined = don't send
+
         const params: RequestInit = {
-            headers: buildInnertubeHeaders(ytcfgData, {}, w),
+            headers: buildInnertubeHeaders(ytcfgData, {}, w, { disableAuth }),
             referrer: url,
             referrerPolicy: 'strict-origin-when-cross-origin',
             body: JSON.stringify(
@@ -1227,8 +1234,13 @@ async function getDetailsCommentsVideoIDV2(
 
         const ytcfgData = await getPageCfgData(w, signal, ps?.url);
 
+        // Determine if we should disable Authorization header (same logic as getParamsForComments)
+        // Conservative strategy: if status is undefined, don't send Authorization (to reduce request size)
+        const currentStatus = (GlobalStore as any).isMemberOnly;
+        const disableAuth = currentStatus !== true; // true = send auth, false/undefined = don't send
+
         const params: RequestInit = {
-            headers: buildInnertubeHeaders(ytcfgData, {}, w),
+            headers: buildInnertubeHeaders(ytcfgData, {}, w, { disableAuth }),
             referrer: ps.url,
             referrerPolicy: 'strict-origin-when-cross-origin',
             body: JSON.stringify(
@@ -1273,8 +1285,55 @@ async function getParamsForComments(
             clickTrackingParams: clickTrackingParams ?? undefined
         });
 
+        // Determine if we should disable Authorization header
+        // Conservative strategy: if we can't determine, don't send Authorization (to reduce request size)
+        let currentStatus = (GlobalStore as any).isMemberOnly;
+
+        // If status is not set yet, try to determine from available sources
+        if (currentStatus === undefined) {
+            console.log(
+                '[YCS] [Comments] getParamsForComments: isMemberOnly is undefined, attempting to determine from available sources'
+            );
+
+            // Use GlobalStore.getInitYtData (window.ytInitialData is not reliable in SPA navigation)
+            const ytData: any = (GlobalStore as any).getInitYtData;
+            if (ytData) {
+                console.log(
+                    '[YCS] [Comments] getParamsForComments: Using GlobalStore.getInitYtData for members-only check'
+                );
+            } else {
+                console.log(
+                    "[YCS] [Comments] getParamsForComments: No ytInitialData available, will use conservative strategy (don't send Authorization to reduce request size)"
+                );
+            }
+
+            if (ytData) {
+                // Handle both array (PBJ format) and object formats
+                let dataForMemberCheck: any = ytData;
+                if (Array.isArray(ytData)) {
+                    const found = ytData.find((item: any) => item?.response || item?.contents);
+                    if (found) {
+                        dataForMemberCheck = found;
+                    } else {
+                        const foundResponse = ytData.find((item: any) => item?.response);
+                        if (foundResponse && (foundResponse as any).response) {
+                            dataForMemberCheck = (foundResponse as any).response;
+                        }
+                    }
+                }
+                const result = isMemberOnlyFromYtInitialData(dataForMemberCheck);
+                setCurrentVideoMemberOnly(result);
+                currentStatus = result;
+            }
+        }
+
+        // Disable auth if we're CERTAIN it's not a members-only video, OR if status is undefined (conservative: reduce request size)
+        const disableAuth = currentStatus !== true; // true = send auth, false/undefined = don't send
+
+        const headers = buildInnertubeHeaders(ytcfgData, {}, w, { disableAuth });
+
         return {
-            headers: buildInnertubeHeaders(ytcfgData, {}, w),
+            headers,
             referrerPolicy: 'strict-origin-when-cross-origin',
             body: JSON.stringify(bodyPayload),
             method: 'POST',
@@ -1302,8 +1361,13 @@ async function getParamsForReplies(
             clickTrackingParams: clickTrackingParams ?? undefined
         });
 
+        // Determine if we should disable Authorization header (same logic as getParamsForComments)
+        // Conservative strategy: if status is undefined, don't send Authorization (to reduce request size)
+        const currentStatus = (GlobalStore as any).isMemberOnly;
+        const disableAuth = currentStatus !== true; // true = send auth, false/undefined = don't send
+
         return {
-            headers: buildInnertubeHeaders(ytcfgData, {}, w),
+            headers: buildInnertubeHeaders(ytcfgData, {}, w, { disableAuth }),
             referrerPolicy: 'strict-origin-when-cross-origin',
             body: JSON.stringify(bodyPayload),
             method: 'POST',
@@ -1324,6 +1388,79 @@ async function fetchCommentPage(
     try {
         let paramsCmnts;
         if (continuation) {
+            // Ensure members-only status is updated before calling getParamsForComments
+            const currentStatus = (GlobalStore as any).isMemberOnly;
+            if (currentStatus === undefined) {
+                const currentVideoId = getVideoId(windowRef.location.href);
+                console.log(
+                    `[YCS] [Comments] fetchCommentPage (continuation): Updating members-only status for video: ${currentVideoId}`
+                );
+                // Priority 1: Try GlobalStore.getInitYtData (window.ytInitialData is not reliable in SPA navigation)
+                let ytData: any = (GlobalStore as any).getInitYtData;
+                let dataSource = 'GlobalStore.getInitYtData';
+
+                // Validate that GlobalStore.getInitYtData belongs to current video
+                if (ytData) {
+                    const storedVideoId = extractVideoId();
+                    if (!storedVideoId || storedVideoId !== currentVideoId) {
+                        console.log(
+                            `[YCS] [Comments] fetchCommentPage (continuation): GlobalStore.getInitYtData contains mismatched videoId (stored: ${storedVideoId}, current: ${currentVideoId}), will refetch`
+                        );
+                        ytData = undefined; // Clear to trigger refetch
+                        (GlobalStore as any).getInitYtData = undefined; // Clear GlobalStore to prevent reuse
+                        clearCurrentVideoMemberOnly(); // Clear members-only status when data is mismatched
+                    }
+                }
+
+                if (!ytData) {
+                    // Priority 2: Fetch getInitYtData if not available or mismatched
+                    console.log(
+                        `[YCS] [Comments] fetchCommentPage (continuation): No valid ytInitialData available, fetching getInitYtData for video: ${currentVideoId}`
+                    );
+                    try {
+                        const fetchedData = await getInitYtData(
+                            windowRef.location.href,
+                            signal as AbortSignal,
+                            windowRef
+                        );
+                        if (fetchedData) {
+                            ytData = fetchedData;
+                            dataSource = 'getInitYtData (fetched)';
+                        }
+                    } catch (error) {
+                        console.error(
+                            `[YCS] [Comments] fetchCommentPage (continuation): Failed to fetch getInitYtData for video: ${currentVideoId}`,
+                            error
+                        );
+                    }
+                }
+
+                if (ytData) {
+                    console.log(
+                        `[YCS] [Comments] fetchCommentPage (continuation): Using ${dataSource} for video: ${currentVideoId}`
+                    );
+                    // Handle both array (PBJ format) and object formats
+                    let dataForMemberCheck: any = ytData;
+                    if (Array.isArray(ytData)) {
+                        const found = ytData.find((item: any) => item?.response || item?.contents);
+                        if (found) {
+                            dataForMemberCheck = found;
+                        } else {
+                            const foundResponse = ytData.find((item: any) => item?.response);
+                            if (foundResponse && (foundResponse as any).response) {
+                                dataForMemberCheck = (foundResponse as any).response;
+                            }
+                        }
+                    }
+                    const result = isMemberOnlyFromYtInitialData(dataForMemberCheck);
+                    setCurrentVideoMemberOnly(result);
+                } else {
+                    console.log(
+                        `[YCS] [Comments] fetchCommentPage (continuation): No ytInitialData available after all attempts for video: ${currentVideoId}`
+                    );
+                }
+            }
+
             const continuationParams = {
                 continue: (continuation as any).continue ?? continuation.token,
                 clickTrackingParams:
@@ -1334,6 +1471,80 @@ async function fetchCommentPage(
             paramsCmnts = await getParamsForComments(windowRef, continuationParams, signal);
         } else {
             const url = getCleanUrlVideo(windowRef.location.href) as string;
+            const currentVideoIdForStatus = getVideoId(windowRef.location.href);
+
+            // Ensure members-only status is set before calling getDetailsVideoIDV2/getDetailsCommentsVideoIDV2
+            // These APIs need correct Authorization header for members-only videos
+            let membersOnlyStatus = (GlobalStore as any).isMemberOnly;
+            if (membersOnlyStatus === undefined) {
+                console.log(
+                    `[YCS] [Comments] fetchCommentPage: Ensuring members-only status before getDetailsVideoIDV2 for video: ${currentVideoIdForStatus}`
+                );
+                // Priority 1: Try GlobalStore.getInitYtData (window.ytInitialData is not reliable in SPA navigation)
+                let ytData: any = (GlobalStore as any).getInitYtData;
+                let dataSource = 'GlobalStore.getInitYtData';
+
+                // Validate that GlobalStore.getInitYtData belongs to current video
+                if (ytData) {
+                    const storedVideoId = extractVideoId();
+                    if (!storedVideoId || storedVideoId !== currentVideoIdForStatus) {
+                        console.log(
+                            `[YCS] [Comments] fetchCommentPage: GlobalStore.getInitYtData contains mismatched videoId (stored: ${storedVideoId}, current: ${currentVideoIdForStatus}), will refetch`
+                        );
+                        ytData = undefined; // Clear to trigger refetch
+                        (GlobalStore as any).getInitYtData = undefined; // Clear GlobalStore to prevent reuse
+                        clearCurrentVideoMemberOnly(); // Clear members-only status when data is mismatched
+                    }
+                }
+
+                if (!ytData) {
+                    // Priority 2: Fetch getInitYtData if not available or mismatched
+                    console.log(
+                        `[YCS] [Comments] fetchCommentPage: No valid ytInitialData available, fetching getInitYtData for video: ${currentVideoIdForStatus}`
+                    );
+                    try {
+                        const fetchedData = await getInitYtData(
+                            windowRef.location.href,
+                            signal as AbortSignal,
+                            windowRef
+                        );
+                        if (fetchedData) {
+                            ytData = fetchedData;
+                            dataSource = 'getInitYtData (fetched)';
+                        }
+                    } catch (error) {
+                        console.error(
+                            `[YCS] [Comments] fetchCommentPage: Failed to fetch getInitYtData for video: ${currentVideoIdForStatus}`,
+                            error
+                        );
+                    }
+                }
+
+                if (ytData) {
+                    console.log(`[YCS] [Comments] fetchCommentPage: Using ${dataSource} before getDetailsVideoIDV2`);
+                    // Handle both array (PBJ format) and object formats
+                    let dataForMemberCheck: any = ytData;
+                    if (Array.isArray(ytData)) {
+                        const found = ytData.find((item: any) => item?.response || item?.contents);
+                        if (found) {
+                            dataForMemberCheck = found;
+                        } else {
+                            const foundResponse = ytData.find((item: any) => item?.response);
+                            if (foundResponse && (foundResponse as any).response) {
+                                dataForMemberCheck = (foundResponse as any).response;
+                            }
+                        }
+                    }
+                    const result = isMemberOnlyFromYtInitialData(dataForMemberCheck);
+                    setCurrentVideoMemberOnly(result);
+                    membersOnlyStatus = result;
+                } else {
+                    console.log(
+                        `[YCS] [Comments] fetchCommentPage: No ytInitialData available after all attempts for video: ${currentVideoIdForStatus}`
+                    );
+                }
+            }
+
             const detailsVideoV2 = await getDetailsVideoIDV2(windowRef, url, signal as AbortSignal);
             const detailsVideoV2Token = objectScan(
                 [
@@ -1434,6 +1645,22 @@ async function fetchCommentPage(
                             console.log(
                                 `[YCS] ✓ Successfully fetched and populated GlobalStore.getInitYtData for video: ${currentVideoId}`
                             );
+                            // Status is already updated by getInitYtData, but ensure it's set if we have the data
+                            // Handle both array (PBJ format) and object formats
+                            let dataForMemberCheck: any = globalYtData;
+                            if (Array.isArray(globalYtData)) {
+                                const found = globalYtData.find((item: any) => item?.response || item?.contents);
+                                if (found) {
+                                    dataForMemberCheck = found;
+                                } else {
+                                    const foundResponse = globalYtData.find((item: any) => item?.response);
+                                    if (foundResponse && (foundResponse as any).response) {
+                                        dataForMemberCheck = (foundResponse as any).response;
+                                    }
+                                }
+                            }
+                            const isMemberOnly = isMemberOnlyFromYtInitialData(dataForMemberCheck);
+                            setCurrentVideoMemberOnly(isMemberOnly);
                         }
                     } catch (error) {
                         console.error(
@@ -1441,6 +1668,23 @@ async function fetchCommentPage(
                             error
                         );
                     }
+                } else if (globalYtData) {
+                    // If we're using cached data, ensure members-only status is updated
+                    // Handle both array (PBJ format) and object formats
+                    let dataForMemberCheck: any = globalYtData;
+                    if (Array.isArray(globalYtData)) {
+                        const found = globalYtData.find((item: any) => item?.response || item?.contents);
+                        if (found) {
+                            dataForMemberCheck = found;
+                        } else {
+                            const foundResponse = globalYtData.find((item: any) => item?.response);
+                            if (foundResponse && (foundResponse as any).response) {
+                                dataForMemberCheck = (foundResponse as any).response;
+                            }
+                        }
+                    }
+                    const isMemberOnly = isMemberOnlyFromYtInitialData(dataForMemberCheck);
+                    setCurrentVideoMemberOnly(isMemberOnly);
                 }
 
                 if (globalYtData) {
@@ -1512,6 +1756,31 @@ async function fetchCommentPage(
                 );
             } else {
                 console.warn(`[YCS] ⚠️  No clickTrackingParams found for video: ${currentVideoId}`);
+            }
+
+            // Ensure members-only status is updated before calling getParamsForComments
+            // (Status should already be updated above, but double-check here)
+            const currentStatus = (GlobalStore as any).isMemberOnly;
+            if (currentStatus === undefined) {
+                // Use GlobalStore.getInitYtData (window.ytInitialData is not reliable in SPA navigation)
+                const finalYtData: any = (GlobalStore as any).getInitYtData;
+                if (finalYtData) {
+                    // Handle both array (PBJ format) and object formats
+                    let dataForMemberCheck: any = finalYtData;
+                    if (Array.isArray(finalYtData)) {
+                        const found = finalYtData.find((item: any) => item?.response || item?.contents);
+                        if (found) {
+                            dataForMemberCheck = found;
+                        } else {
+                            const foundResponse = finalYtData.find((item: any) => item?.response);
+                            if (foundResponse && (foundResponse as any).response) {
+                                dataForMemberCheck = (foundResponse as any).response;
+                            }
+                        }
+                    }
+                    const result = isMemberOnlyFromYtInitialData(dataForMemberCheck);
+                    setCurrentVideoMemberOnly(result);
+                }
             }
 
             paramsCmnts = await getParamsForComments(

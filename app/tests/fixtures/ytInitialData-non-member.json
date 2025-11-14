@@ -1,0 +1,29 @@
+{
+  "currentVideoEndpoint": {
+    "watchEndpoint": {
+      "videoId": "C5TaWkJjPLg"
+    }
+  },
+  "contents": {
+    "twoColumnWatchNextResults": {
+      "results": {
+        "results": {
+          "contents": [
+            {
+              "videoPrimaryInfoRenderer": {
+                "title": {
+                  "runs": [
+                    {
+                      "text": "Non-member video"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+

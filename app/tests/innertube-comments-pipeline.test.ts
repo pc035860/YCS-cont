@@ -11,6 +11,7 @@ import {
     type ReplyContinuation
 } from '../src/source/utils/innertube/comments/pipeline';
 import { setFetchImplementation } from '../src/source/utils/libs';
+import { GlobalStore } from '../src/source/utils/common';
 
 const createStubQueue = () => {
     const pending: Promise<unknown>[] = [];
@@ -498,6 +499,16 @@ test('fetchInitialCommentBatch prefers API continuation token', async () => {
     const originalWindow = (globalThis as any).window;
     (globalThis as any).window = windowRef;
 
+    // Pre-set GlobalStore.getInitYtData to prevent additional getInitYtData call
+    const originalGetInitYtData = (GlobalStore as any).getInitYtData;
+    (GlobalStore as any).getInitYtData = {
+        playerResponse: {
+            videoDetails: {
+                videoId: 'videoB'
+            }
+        }
+    };
+
     const capturedRequests: Array<{ url: unknown; init: RequestInit | undefined }> = [];
     const originalFetch = globalThis.fetch;
 
@@ -580,6 +591,12 @@ test('fetchInitialCommentBatch prefers API continuation token', async () => {
     } finally {
         setFetchImplementation(originalFetch as typeof fetch);
         globalThis.fetch = originalFetch;
+        // Restore GlobalStore.getInitYtData
+        if (originalGetInitYtData === undefined) {
+            delete (GlobalStore as any).getInitYtData;
+        } else {
+            (GlobalStore as any).getInitYtData = originalGetInitYtData;
+        }
         if (originalWindow === undefined) {
             delete (globalThis as any).window;
         } else {

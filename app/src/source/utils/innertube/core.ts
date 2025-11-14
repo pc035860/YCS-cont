@@ -1,5 +1,6 @@
 import type { GetParams, InnertubeRequestParams } from '../interfaces/i_assist';
 import { GlobalStore, getCleanUrlVideo, getVideoId } from '../common';
+import { isMemberOnlyFromYtInitialData, setCurrentVideoMemberOnly } from './memberOnly';
 import type { YtcfgData } from './request';
 
 export interface PageCfgData extends YtcfgData {
@@ -175,6 +176,30 @@ export async function getInitYtData(
         const result = (await res.json()) as [object];
         (GlobalStore as any).getInitYtData = result;
 
+        // Update members-only status
+        // Handle both array (PBJ format) and object formats
+        console.log('[YCS] [Core] getInitYtData: Updating members-only status from ytInitialData');
+        let dataForMemberCheck: any = result;
+        if (Array.isArray(result)) {
+            // PBJ format: find the object with response or contents
+            const found = result.find((item: any) => item?.response || item?.contents);
+            if (found) {
+                dataForMemberCheck = found;
+                console.log('[YCS] [Core] getInitYtData: Found data object in array (PBJ format)');
+            } else {
+                // Try to find in response property
+                const foundResponse = result.find((item: any) => item?.response);
+                if (foundResponse && (foundResponse as any).response) {
+                    dataForMemberCheck = (foundResponse as any).response;
+                    console.log('[YCS] [Core] getInitYtData: Found data object in response property');
+                } else {
+                    console.log('[YCS] [Core] getInitYtData: No valid data object found in array, using array itself');
+                }
+            }
+        }
+        const isMemberOnly = isMemberOnlyFromYtInitialData(dataForMemberCheck);
+        setCurrentVideoMemberOnly(isMemberOnly);
+
         return result;
     } catch (e) {
         console.error(e);
@@ -273,6 +298,12 @@ export async function getInitYtDataFromHtml(
         try {
             const result = JSON.parse(jsonStr) as [object];
             (GlobalStore as any).getInitYtData = result;
+
+            // Update members-only status
+            console.log('[YCS] [Core] getInitYtDataFromHtml: Updating members-only status from ytInitialData');
+            const isMemberOnly = isMemberOnlyFromYtInitialData(result);
+            setCurrentVideoMemberOnly(isMemberOnly);
+
             return { response: result };
         } catch (parseError) {
             console.error('Failed to parse ytInitialData JSON:', parseError);

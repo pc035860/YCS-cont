@@ -2,6 +2,10 @@ export interface BuildInnertubeHeadersOverrides {
     [header: string]: string | undefined;
 }
 
+export interface BuildInnertubeHeadersOptions {
+    disableAuth?: boolean; // When true, do not include Authorization header even if globalContext is provided
+}
+
 import { buildSapSidAuthorizationHeader } from './authHeaders';
 
 export interface YtcfgData {
@@ -33,12 +37,14 @@ export interface BuildInnertubeBodyOptions {
  * @param ytcfgData - YTCFG configuration data captured from the page context.
  * @param overrides - Header overrides, for example to adjust x-youtube-client-version.
  * @param globalContext - Optional window context for generating authorization headers.
+ * @param options - Optional configuration, including disableAuth flag.
  * @returns Headers object that can be used with fetch requests.
  */
 export function buildInnertubeHeaders(
     ytcfgData: YtcfgData | undefined,
     overrides: BuildInnertubeHeadersOverrides = {},
-    globalContext?: Window & typeof globalThis
+    globalContext?: Window & typeof globalThis,
+    options?: BuildInnertubeHeadersOptions
 ): Record<string, string> {
     const headers: Record<string, string | undefined> = {
         accept: '*/*',
@@ -51,8 +57,8 @@ export function buildInnertubeHeaders(
         ...overrides
     };
 
-    // Generate authorization header if globalContext is provided
-    if (globalContext) {
+    // Generate authorization header if globalContext is provided and disableAuth is not true
+    if (globalContext && options?.disableAuth !== true) {
         const authHeader = buildSapSidAuthorizationHeader({ context: globalContext });
         if (authHeader) {
             headers.authorization = authHeader;
