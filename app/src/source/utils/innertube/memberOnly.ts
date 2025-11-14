@@ -132,6 +132,9 @@ export function setCurrentVideoMemberOnly(isMemberOnly: boolean): void {
 /**
  * Gets the current video's members-only status from GlobalStore
  *
+ * NOTE: This uses "last loaded" semantics, not per-video tracking.
+ * Status is only cleared when videoId mismatch is detected during validation.
+ *
  * @returns true if current video is members-only, false otherwise
  */
 export function isCurrentVideoMemberOnly(): boolean {
@@ -155,4 +158,66 @@ export function clearCurrentVideoMemberOnly(): void {
     } catch (error) {
         console.error('[YCS] Failed to clear current video members-only status:', error);
     }
+}
+
+/**
+ * Normalizes ytInitialData to handle both PBJ and legacy formats
+ * Extracts the actual data object from array format if needed
+ *
+ * @param ytData - Raw ytInitialData (can be array or object)
+ * @returns Normalized data object, or null if invalid
+ */
+export function normalizeYtInitialData(ytData: any): any {
+    if (!ytData) {
+        return null;
+    }
+
+    if (Array.isArray(ytData)) {
+        // PBJ format: find object with response or contents
+        const found = ytData.find((item: any) => item?.response || item?.contents);
+        if (found) {
+            return found;
+        }
+
+        // Try to find in response property
+        const foundResponse = ytData.find((item: any) => item?.response);
+        if (foundResponse?.response) {
+            return foundResponse.response;
+        }
+    }
+
+    return ytData;
+}
+
+/**
+ * Updates member-only status from ytInitialData
+ * Handles both PBJ and legacy formats automatically
+ *
+ * @param ytData - Raw ytInitialData from API responses (supports):
+ *   - PBJ array format: `[{response: {...}}, {playerResponse: {...}}]`
+ *   - PBJ object format: `{response: {...}, playerResponse: {...}}`
+ *   - Legacy object format: `{contents: {...}, currentVideoEndpoint: {...}}`
+ *   - `null` or `undefined`: safe to pass, will set status to false
+ *
+ *   NOTE: Does NOT support direct `window.ytInitialData` input.
+ *   Use `getInitYtData()` or `getInitYtDataFromHtml()` to obtain proper format.
+ *
+ * @returns The determined member-only status
+ */
+export function updateMemberOnlyStatus(ytData: any): boolean {
+    const normalizedData = normalizeYtInitialData(ytData);
+    const isMemberOnly = isMemberOnlyFromYtInitialData(normalizedData);
+    setCurrentVideoMemberOnly(isMemberOnly);
+    return isMemberOnly;
+}
+
+/**
+ * Determines whether to disable Authorization header
+ * Conservative strategy: only send auth if CERTAIN it's members-only
+ *
+ * @returns true if auth should be disabled, false if auth should be sent
+ */
+export function shouldDisableAuth(): boolean {
+    const status = (GlobalStore as any).isMemberOnly;
+    return status !== true;
 }

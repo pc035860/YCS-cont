@@ -125,7 +125,10 @@ export {
     isMemberOnlyFromYtInitialData,
     isCurrentVideoMemberOnly,
     setCurrentVideoMemberOnly,
-    clearCurrentVideoMemberOnly
+    clearCurrentVideoMemberOnly,
+    normalizeYtInitialData,
+    updateMemberOnlyStatus,
+    shouldDisableAuth
 } from './innertube';
 
 export { EXPORT_FORMAT } from './constants';
