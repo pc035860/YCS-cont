@@ -7,9 +7,7 @@ import {
     formatBytes,
     getCommentsChatHtmlText,
     getCommentsHtmlText,
-    getCommentsTrVideoHtmlText,
-    msToRoundSec,
-    parseFormattedNumberToInt
+    getCommentsTrVideoHtmlText
 } from '../../../utils/formatting';
 import {
     getSheetChatComments,
@@ -20,9 +18,13 @@ import {
     getSheetTrVideo,
     getSheetTrVideoDetails
 } from '../../../utils/sheets';
-import { IComment, IReplyComment } from '../../../utils/interfaces/i_export_comments';
 import { IStorageEstimate } from '../../../utils/interfaces/i_types';
 import { idb } from '../../../utils/libs';
+import {
+    buildChatExportPayloadFromCache,
+    buildCommentsExportPayloadFromCache,
+    buildTranscriptExportPayloadFromCache
+} from '../../../utils/export-core';
 
 const STORE_CACHE_YCS = 'STORE_CACHE_YCS';
 
@@ -39,25 +41,6 @@ window.onload = async (): Promise<void> => {
             for (const btn of btns) {
                 btn.disabled = edis;
             }
-        };
-
-        const getTotalLikesCount = (cmnt: any): number => {
-            const voteCountText = wrapTryCatch(() => cmnt?.commentRenderer?.voteCount?.simpleText) as
-                | string
-                | undefined;
-            const likeCount = wrapTryCatch(() => cmnt?.commentRenderer?.likeCount) as string | number | undefined;
-
-            // Use nullish coalescing to get the first available value
-            const value = voteCountText ?? likeCount;
-
-            // Convert to number
-            if (typeof value === 'number' && Number.isFinite(value)) {
-                return value;
-            }
-            if (typeof value === 'string' && value.length > 0) {
-                return parseFormattedNumberToInt(value);
-            }
-            return 0;
         };
 
         const getProcessShowAllHtml = (): HTMLElement | void => {
@@ -178,111 +161,13 @@ Total: ${c.count}\n${c.html}`;
             length: number;
         } | void => {
             try {
-                if (body.comments.length === 0) return;
+                const payload = buildCommentsExportPayloadFromCache(body);
+                if (!payload) return;
 
-                const cmnts = {
-                    urlVideo: body?.url as string,
-                    titleVideo: body?.titleVideo as string,
-                    videoId: body?.videoId as string,
-                    cachedDate: body?.date as number,
-                    totalComments: 0,
-                    totalReplies: 0,
-                    total: body?.comments.length as number,
-                    comments: [] as IComment[]
-                };
-
-                const cmntsMap = new Map<string, IComment>();
-                const repliesSet = new Set<IReplyComment>();
-                for (const cmnt of body.comments) {
-                    if (cmnt?.typeComment === 'C') {
-                        cmntsMap.set(cmnt?.commentRenderer?.commentId, {
-                            commentUrl: ('youtube.com' +
-                                (wrapTryCatch(
-                                    () =>
-                                        cmnt.commentRenderer.publishedTimeText.runs[0].navigationEndpoint
-                                            .commandMetadata.webCommandMetadata.url
-                                ) || `/watch?v=${cmnts?.videoId}&lc=${cmnt?.commentRenderer?.commentId}`)) as string,
-                            author: {
-                                nameAuthor: cmnt?.commentRenderer?.authorText?.simpleText as string,
-                                authorIsChannelOwner: cmnt?.commentRenderer?.authorIsChannelOwner as boolean,
-                                channel:
-                                    'youtube.com' +
-                                    (cmnt?.commentRenderer?.authorEndpoint?.browseEndpoint?.canonicalBaseUrl ||
-                                        cmnt?.commentRenderer?.authorEndpoint?.commandMetadata?.webCommandMetadata?.url)
-                            },
-                            publishedTimeText: wrapTryCatch(
-                                () => cmnt.commentRenderer.publishedTimeText.runs[0].text
-                            ) as string,
-                            commentMessage: (cmnt?.commentRenderer?.contentText?.fullText ||
-                                cmnt?.commentRenderer?.renderFullText) as string,
-                            totalLikes: getTotalLikesCount(cmnt),
-                            member: cmnt?.commentRenderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer
-                                ?.tooltip as string,
-                            commentReplies: {
-                                replies: []
-                            }
-                        });
-                    } else if (cmnt?.typeComment === 'R') {
-                        repliesSet.add(cmnt);
-                    }
-                }
-
-                console.log('cmnts IS:', cmnts);
-                console.log('cmntsMap IS:', cmntsMap);
-                console.log('repliesSet IS:', repliesSet);
-
-                for (const reply of repliesSet) {
-                    const replyCommentIdOrigComment = reply?.originComment?.commentRenderer?.commentId;
-
-                    const origComment = cmntsMap.get(replyCommentIdOrigComment) as IComment;
-                    if (origComment) {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const cmnt: any = reply;
-                        origComment?.commentReplies?.replies?.push({
-                            commentUrl: ('youtube.com' +
-                                (wrapTryCatch(
-                                    () =>
-                                        cmnt.commentRenderer.publishedTimeText.runs[0].navigationEndpoint
-                                            .commandMetadata.webCommandMetadata.url
-                                ) || `/watch?v=${cmnts?.videoId}&lc=${cmnt?.commentRenderer?.commentId}`)) as string,
-                            author: {
-                                nameAuthor: cmnt?.commentRenderer?.authorText?.simpleText as string,
-                                authorIsChannelOwner: cmnt?.commentRenderer?.authorIsChannelOwner as boolean,
-                                channel:
-                                    'youtube.com' +
-                                    (cmnt?.commentRenderer?.authorEndpoint?.browseEndpoint?.canonicalBaseUrl ||
-                                        cmnt?.commentRenderer?.authorEndpoint?.commandMetadata?.webCommandMetadata?.url)
-                            },
-                            publishedTimeText: wrapTryCatch(
-                                () => cmnt.commentRenderer.publishedTimeText.runs[0].text
-                            ) as string,
-                            commentMessage: (cmnt?.commentRenderer?.contentText?.fullText ||
-                                cmnt?.commentRenderer?.renderFullText) as string,
-                            totalLikes: getTotalLikesCount(cmnt),
-                            member: cmnt?.commentRenderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer
-                                ?.tooltip as string
-                        });
-                    }
-                }
-
-                cmnts.totalReplies = repliesSet.size;
-                repliesSet.clear();
-
-                for (const [k, v] of cmntsMap) {
-                    cmnts.comments.push(v);
-
-                    cmntsMap.delete(k);
-                }
-
-                cmnts.totalComments = cmnts.comments.length;
-
-                cmntsMap.clear();
-
-                const json = JSON.stringify(cmnts);
-
+                const length = Array.isArray(body?.comments) ? body.comments.length : payload.total;
                 return {
-                    json: json,
-                    length: body.comments.length
+                    json: JSON.stringify(payload),
+                    length
                 };
             } catch (err) {
                 console.error(err);
@@ -327,106 +212,12 @@ Total: ${c.count}\n${c.html}`;
             length: number;
         } | void => {
             try {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const commentsChat = new Map<number, any>(JSON.parse(body.commentsChat));
-                if (commentsChat.size === 0) return;
-
-                interface Chat {
-                    author: {
-                        nameAuthor: string;
-                        channel: string;
-                        member: string;
-                    };
-                    commentMessage: string;
-                    timestampUsec: number;
-                    timestampText: string;
-                }
-
-                const cmntsChat = {
-                    urlVideo: body?.url as string,
-                    titleVideo: body?.titleVideo as string,
-                    videoId: body?.videoId as string,
-                    cachedDate: body?.date as number,
-                    total: 0,
-                    commentsChat: [] as Chat[]
-                };
-
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const getMember = (aBadges: any): any => {
-                    try {
-                        if (aBadges && aBadges.length > 0) {
-                            let member;
-                            for (const m of aBadges) {
-                                if (m?.liveChatAuthorBadgeRenderer?.customThumbnail) {
-                                    member = m;
-                                    break;
-                                }
-                            }
-
-                            if (member) return member;
-                        }
-                    } catch (err) {
-                        console.error(err);
-                    }
-                };
-
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                for (const [k, cmnt] of commentsChat) {
-                    try {
-                        const member = getMember(
-                            wrapTryCatch(
-                                () =>
-                                    cmnt.replayChatItemAction.actions[0].addChatItemAction.item
-                                        .liveChatTextMessageRenderer.authorBadges
-                            )
-                        );
-
-                        cmntsChat.commentsChat.push({
-                            author: {
-                                nameAuthor: wrapTryCatch(
-                                    () =>
-                                        cmnt.replayChatItemAction.actions[0].addChatItemAction.item
-                                            .liveChatTextMessageRenderer.authorName.simpleText
-                                ) as string,
-                                channel:
-                                    `youtube.com/channel/${wrapTryCatch(() => cmnt.replayChatItemAction.actions[0].addChatItemAction.item.liveChatTextMessageRenderer.authorExternalChannelId)}` as string,
-                                member:
-                                    wrapTryCatch(() => member.liveChatAuthorBadgeRenderer.tooltip) ||
-                                    (wrapTryCatch(
-                                        () => member.liveChatAuthorBadgeRenderer.accessibility.accessibilityData.label
-                                    ) as string)
-                            },
-                            commentMessage: wrapTryCatch(
-                                () =>
-                                    cmnt.replayChatItemAction.actions[0].addChatItemAction.item
-                                        .liveChatTextMessageRenderer.message.fullText ||
-                                    cmnt.replayChatItemAction.actions[0].addChatItemAction.item
-                                        .liveChatTextMessageRenderer.message.renderFullText
-                            ) as string,
-                            timestampUsec: wrapTryCatch(
-                                () =>
-                                    cmnt.replayChatItemAction.actions[0].addChatItemAction.item
-                                        .liveChatTextMessageRenderer.timestampUsec
-                            ) as number,
-                            timestampText: wrapTryCatch(
-                                () =>
-                                    cmnt.replayChatItemAction.actions[0].addChatItemAction.item
-                                        .liveChatTextMessageRenderer.timestampText.simpleText
-                            ) as string
-                        });
-                    } catch (err) {
-                        console.error(err);
-                        continue;
-                    }
-                }
-
-                cmntsChat.total = cmntsChat.commentsChat.length;
-
-                const json = JSON.stringify(cmntsChat);
+                const payload = buildChatExportPayloadFromCache(body);
+                if (!payload) return;
 
                 return {
-                    json: json,
-                    length: cmntsChat.total
+                    json: JSON.stringify(payload),
+                    length: payload.total
                 };
             } catch (err) {
                 console.error(err);
@@ -475,62 +266,12 @@ Total: ${c.count}\n${c.html}`;
             length: number;
         } | void => {
             try {
-                if (body?.commentsTrVideo?.actions?.length === 0) return;
-
-                interface TrVideo {
-                    formattedStartOffset: string;
-                    message: string;
-                    startOffsetMs: number;
-                    durationMs: number;
-                    urlShare: string;
-                }
-
-                const transcriptVideo = {
-                    titleTrVideo: wrapTryCatch(
-                        () =>
-                            body.commentsTrVideo.actions[0].updateEngagementPanelAction.content.transcriptRenderer
-                                .footer.transcriptFooterRenderer.languageMenu.sortFilterSubMenuRenderer.subMenuItems[0]
-                                .title
-                    ) as string,
-                    urlVideo: body?.url as string,
-                    titleVideo: body?.titleVideo as string,
-                    videoId: body?.videoId as string,
-                    cachedDate: body?.date as number,
-                    total: 0,
-                    trVideo: [] as TrVideo[]
-                };
-
-                const arrTrVideo = wrapTryCatch(
-                    () =>
-                        body.commentsTrVideo.actions[0].updateEngagementPanelAction.content.transcriptRenderer.body
-                            .transcriptBodyRenderer.cueGroups
-                );
-
-                for (const trVideo of arrTrVideo) {
-                    transcriptVideo.trVideo.push({
-                        message: wrapTryCatch(
-                            () => trVideo.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.cue.simpleText
-                        ) as string,
-                        formattedStartOffset: wrapTryCatch(
-                            () => trVideo.transcriptCueGroupRenderer.formattedStartOffset.simpleText
-                        ) as string,
-                        startOffsetMs: wrapTryCatch(
-                            () => trVideo.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs
-                        ) as number,
-                        durationMs: wrapTryCatch(
-                            () => trVideo.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.durationMs
-                        ) as number,
-                        urlShare: `youtu.be/${body?.videoId}?t=${msToRoundSec(wrapTryCatch(() => trVideo.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs) as number) || 0}`
-                    });
-                }
-
-                transcriptVideo.total = transcriptVideo.trVideo.length;
-
-                const json = JSON.stringify(transcriptVideo);
+                const payload = buildTranscriptExportPayloadFromCache(body);
+                if (!payload) return;
 
                 return {
-                    json: json,
-                    length: transcriptVideo.total
+                    json: JSON.stringify(payload),
+                    length: payload.total
                 };
             } catch (err) {
                 console.error(err);

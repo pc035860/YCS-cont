@@ -29,7 +29,7 @@ export function buildOptionsSignature(options: NullableFuseOptions): string {
         return 'no-options';
     }
 
-    const { keys, ...rest } = options;
+    const { keys: _keys, ...rest } = options;
     const normalized = Object.keys(rest as Record<string, unknown>)
         .sort()
         .reduce<Record<string, unknown>>((acc, key) => {

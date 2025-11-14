@@ -422,7 +422,9 @@ export function generateCommentObjectFromFW(params: {
                 replyCount,
                 authorText: { simpleText: wrapTryCatch(() => author.displayName) },
                 authorThumbnail: { thumbnails: [{ url: wrapTryCatch(() => author.avatarThumbnailUrl) }] },
-                authorEndpoint: wrapTryCatch(() => author.channelCommand?.innertubeCommand),
+                authorEndpoint:
+                    wrapTryCatch(() => author.channelPageEndpoint?.innertubeCommand) ||
+                    wrapTryCatch(() => author.channelCommand?.innertubeCommand),
                 contentText: { runs, fullText: baseText }
             }
         };
