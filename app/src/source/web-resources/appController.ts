@@ -16,7 +16,13 @@ import {
     removeNodeList,
     showLoadComments
 } from '../utils/dom';
-import { getAllCommentsModeV2, getChatComments, getTranscriptTracks, getTranscriptVideo } from '../utils/innertube';
+import {
+    getAllCommentsModeV2,
+    getChatComments,
+    getTranscriptTracks,
+    getTranscriptVideo,
+    clearCurrentVideoMemberOnly
+} from '../utils/innertube';
 
 import { IParamSearch, ISelectedSearch, IYCSOptions } from '../utils/interfaces/i_types';
 import type {
@@ -274,6 +280,7 @@ export function initApp(): void {
 
         // Clear GlobalStore to prevent data leakage across videos
         delete GlobalStore.getInitYtData;
+        clearCurrentVideoMemberOnly(); // Clear members-only status when switching videos
 
         // Clear search caches whenever we switch videos or reinitialize.
         try {

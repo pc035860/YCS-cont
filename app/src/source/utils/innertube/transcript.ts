@@ -4,11 +4,13 @@ import { buildInnertubeBody, buildInnertubeHeaders } from './request';
 import { getInitYtData, getInnertubeApiKey, getPageCfgData, type InnertubeRequestParams } from './core';
 import { buildSapSidAuthorizationHeader } from './authHeaders';
 
-async function findInitYParams(initData: [object]): Promise<string | undefined> {
+async function findInitYParams(initData: object | [object]): Promise<string | undefined> {
     try {
         if (initData) {
+            // Handle both object and legacy array formats
+            const dataArray = Array.isArray(initData) ? initData : [initData];
             let param;
-            for (const obj of initData) {
+            for (const obj of dataArray) {
                 const findObj = deepFindObjKey(obj, 'serializedShareEntity')[0];
                 if (findObj) {
                     [, param] = (Object as any).entries(findObj)[0];

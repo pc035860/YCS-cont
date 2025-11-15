@@ -121,7 +121,14 @@ export {
     getParamsForChat,
     getChatComments,
     getInitYtData,
-    extractNextContinuation
+    extractNextContinuation,
+    isMemberOnlyFromYtInitialData,
+    isCurrentVideoMemberOnly,
+    setCurrentVideoMemberOnly,
+    clearCurrentVideoMemberOnly,
+    normalizeYtInitialData,
+    updateMemberOnlyStatus,
+    shouldDisableAuth
 } from './innertube';
 
 export { EXPORT_FORMAT } from './constants';

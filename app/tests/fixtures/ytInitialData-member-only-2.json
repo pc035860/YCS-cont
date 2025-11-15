@@ -1,0 +1,45 @@
+{
+  "currentVideoEndpoint": {
+    "watchEndpoint": {
+      "videoId": "mTwkBAgvj-c"
+    }
+  },
+  "contents": {
+    "twoColumnBrowseResultsRenderer": {
+      "tabs": [
+        {
+          "tabRenderer": {
+            "content": {
+              "richGridRenderer": {
+                "contents": [
+                  {
+                    "richItemRenderer": {
+                      "content": {
+                        "videoRenderer": {
+                          "videoId": "mTwkBAgvj-c",
+                          "badges": [
+                            {
+                              "metadataBadgeRenderer": {
+                                "icon": {
+                                  "iconType": "SPONSORSHIP_STAR"
+                                },
+                                "style": "BADGE_STYLE_TYPE_MEMBERS_ONLY",
+                                "label": "頻道會員專屬",
+                                "iconSourceUrl": "https://www.youtube.com/img/sponsorships/sponsors_default_badge.png"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+

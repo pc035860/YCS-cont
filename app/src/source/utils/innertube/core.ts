@@ -1,5 +1,6 @@
 import type { GetParams, InnertubeRequestParams } from '../interfaces/i_assist';
 import { GlobalStore, getCleanUrlVideo, getVideoId } from '../common';
+import { updateMemberOnlyStatus } from './memberOnly';
 import type { YtcfgData } from './request';
 
 export interface PageCfgData extends YtcfgData {
@@ -153,7 +154,7 @@ export async function getInitYtData(
     url: string,
     signal: AbortSignal | undefined,
     globalContext: Window & typeof globalThis = window
-): Promise<[object] | undefined> {
+): Promise<object | undefined> {
     try {
         if (!url) return undefined;
 
@@ -172,8 +173,12 @@ export async function getInitYtData(
         const targetUrl = `${getCleanUrlVideo(url) ?? url}&pbj=1`;
         const res = await fetch(targetUrl, { ...requestInit, signal, cache: 'no-store' });
 
-        const result = (await res.json()) as [object];
+        const result = (await res.json()) as object;
         (GlobalStore as any).getInitYtData = result;
+
+        // Update members-only status
+        console.log('[YCS] [Core] getInitYtData: Updating members-only status from ytInitialData');
+        updateMemberOnlyStatus(result);
 
         return result;
     } catch (e) {
@@ -273,6 +278,11 @@ export async function getInitYtDataFromHtml(
         try {
             const result = JSON.parse(jsonStr) as [object];
             (GlobalStore as any).getInitYtData = result;
+
+            // Update members-only status
+            console.log('[YCS] [Core] getInitYtDataFromHtml: Updating members-only status from ytInitialData');
+            updateMemberOnlyStatus(result);
+
             return { response: result };
         } catch (parseError) {
             console.error('Failed to parse ytInitialData JSON:', parseError);

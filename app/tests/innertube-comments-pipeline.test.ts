@@ -11,6 +11,7 @@ import {
     type ReplyContinuation
 } from '../src/source/utils/innertube/comments/pipeline';
 import { setFetchImplementation } from '../src/source/utils/libs';
+import { GlobalStore } from '../src/source/utils/common';
 
 const createStubQueue = () => {
     const pending: Promise<unknown>[] = [];
@@ -498,6 +499,19 @@ test('fetchInitialCommentBatch prefers API continuation token', async () => {
     const originalWindow = (globalThis as any).window;
     (globalThis as any).window = windowRef;
 
+    // Pre-set GlobalStore.getInitYtData to prevent additional getInitYtData call
+    const originalGetInitYtData = (GlobalStore as any).getInitYtData;
+    (GlobalStore as any).getInitYtData = {
+        playerResponse: {
+            videoDetails: {
+                videoId: 'videoB'
+            }
+        }
+    };
+
+    // Save GlobalStore.isMemberOnly to restore in cleanup
+    const originalIsMemberOnly = (GlobalStore as any).isMemberOnly;
+
     const capturedRequests: Array<{ url: unknown; init: RequestInit | undefined }> = [];
     const originalFetch = globalThis.fetch;
 
@@ -580,6 +594,18 @@ test('fetchInitialCommentBatch prefers API continuation token', async () => {
     } finally {
         setFetchImplementation(originalFetch as typeof fetch);
         globalThis.fetch = originalFetch;
+        // Restore GlobalStore.getInitYtData
+        if (originalGetInitYtData === undefined) {
+            delete (GlobalStore as any).getInitYtData;
+        } else {
+            (GlobalStore as any).getInitYtData = originalGetInitYtData;
+        }
+        // Restore GlobalStore.isMemberOnly
+        if (originalIsMemberOnly === undefined) {
+            delete (GlobalStore as any).isMemberOnly;
+        } else {
+            (GlobalStore as any).isMemberOnly = originalIsMemberOnly;
+        }
         if (originalWindow === undefined) {
             delete (globalThis as any).window;
         } else {
@@ -604,6 +630,11 @@ test('fetchContinuationBatch includes continuation token and tracking params', a
 
     const originalWindow = (globalThis as any).window;
     (globalThis as any).window = windowRef;
+
+    // Save GlobalStore.isMemberOnly to restore in cleanup
+    const originalIsMemberOnly = (GlobalStore as any).isMemberOnly;
+    // Pre-set isMemberOnly to prevent ensureMemberOnlyStatus from triggering additional fetch
+    (GlobalStore as any).isMemberOnly = false;
 
     const capturedRequests: Array<{ url: unknown; init: RequestInit | undefined }> = [];
     const originalFetch = globalThis.fetch;
@@ -639,6 +670,12 @@ test('fetchContinuationBatch includes continuation token and tracking params', a
     } finally {
         setFetchImplementation(originalFetch as typeof fetch);
         globalThis.fetch = originalFetch;
+        // Restore GlobalStore.isMemberOnly
+        if (originalIsMemberOnly === undefined) {
+            delete (GlobalStore as any).isMemberOnly;
+        } else {
+            (GlobalStore as any).isMemberOnly = originalIsMemberOnly;
+        }
         if (originalWindow === undefined) {
             delete (globalThis as any).window;
         } else {

@@ -7,6 +7,14 @@ import { parseFormattedNumber } from '../../formatting';
 import { normalizeCommentViewModel } from './normalize';
 import { buildInnertubeBody, buildInnertubeHeaders } from '../request';
 import { getInnertubeApiKey, getInitYtData, getPageCfgData } from '../core';
+import {
+    isMemberOnlyFromYtInitialData,
+    setCurrentVideoMemberOnly,
+    clearCurrentVideoMemberOnly,
+    normalizeYtInitialData,
+    updateMemberOnlyStatus,
+    shouldDisableAuth
+} from '../memberOnly';
 
 export interface CommentContinuation {
     token: string;
@@ -1177,6 +1185,74 @@ export function dedupeParentComments(comments: any[]): any[] {
     return deduplicated;
 }
 
+/**
+ * Validates that cached ytInitialData matches current video
+ * Clears cache if mismatch detected
+ *
+ * @param currentVideoId - The video ID to validate against
+ * @returns true if cached data is valid, false otherwise
+ */
+function validateCachedYtData(currentVideoId: string): boolean {
+    const ytData = (GlobalStore as any).getInitYtData;
+    if (!ytData) {
+        return false;
+    }
+
+    const storedVideoId = extractVideoId();
+
+    if (!storedVideoId) {
+        console.log('[YCS] Cached ytInitialData missing videoId; keeping existing cache');
+        return false;
+    }
+
+    if (storedVideoId !== currentVideoId) {
+        console.log(`[YCS] VideoId mismatch (stored: ${storedVideoId}, current: ${currentVideoId}), clearing cache`);
+        (GlobalStore as any).getInitYtData = undefined;
+        clearCurrentVideoMemberOnly();
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Ensures member-only status is set for current video
+ * Fetches ytInitialData if needed
+ *
+ * @param windowRef - Window reference
+ * @param currentVideoId - Current video ID
+ * @param signal - Optional abort signal
+ */
+async function ensureMemberOnlyStatus(
+    windowRef: Window & typeof globalThis,
+    currentVideoId: string,
+    signal?: AbortSignal
+): Promise<void> {
+    // Already set
+    if ((GlobalStore as any).isMemberOnly !== undefined) {
+        return;
+    }
+
+    console.log(`[YCS] Ensuring member-only status for video: ${currentVideoId}`);
+
+    // Try cached data first
+    if (validateCachedYtData(currentVideoId)) {
+        const ytData = (GlobalStore as any).getInitYtData;
+        updateMemberOnlyStatus(ytData);
+        return;
+    }
+
+    // Fetch if needed
+    try {
+        const ytData = await getInitYtData(windowRef.location.href, signal as AbortSignal, windowRef);
+        if (ytData) {
+            updateMemberOnlyStatus(ytData);
+        }
+    } catch (error) {
+        console.error('[YCS] Failed to fetch ytInitialData:', error);
+    }
+}
+
 async function getDetailsVideoIDV2(
     w: Window & typeof globalThis,
     url: string,
@@ -1187,8 +1263,9 @@ async function getDetailsVideoIDV2(
 
         const ytcfgData = await getPageCfgData(w, signal, url);
         const videoId = getVideoId(url);
+
         const params: RequestInit = {
-            headers: buildInnertubeHeaders(ytcfgData, {}, w),
+            headers: buildInnertubeHeaders(ytcfgData, {}, w, { disableAuth: shouldDisableAuth() }),
             referrer: url,
             referrerPolicy: 'strict-origin-when-cross-origin',
             body: JSON.stringify(
@@ -1228,7 +1305,7 @@ async function getDetailsCommentsVideoIDV2(
         const ytcfgData = await getPageCfgData(w, signal, ps?.url);
 
         const params: RequestInit = {
-            headers: buildInnertubeHeaders(ytcfgData, {}, w),
+            headers: buildInnertubeHeaders(ytcfgData, {}, w, { disableAuth: shouldDisableAuth() }),
             referrer: ps.url,
             referrerPolicy: 'strict-origin-when-cross-origin',
             body: JSON.stringify(
@@ -1273,8 +1350,25 @@ async function getParamsForComments(
             clickTrackingParams: clickTrackingParams ?? undefined
         });
 
+        // Update member-only status if not set yet
+        if ((GlobalStore as any).isMemberOnly === undefined) {
+            const ytData: any = (GlobalStore as any).getInitYtData;
+            if (ytData) {
+                console.log(
+                    '[YCS] [Comments] getParamsForComments: Using GlobalStore.getInitYtData for members-only check'
+                );
+                updateMemberOnlyStatus(ytData);
+            } else {
+                console.log(
+                    "[YCS] [Comments] getParamsForComments: No ytInitialData available, will use conservative strategy (don't send Authorization to reduce request size)"
+                );
+            }
+        }
+
+        const headers = buildInnertubeHeaders(ytcfgData, {}, w, { disableAuth: shouldDisableAuth() });
+
         return {
-            headers: buildInnertubeHeaders(ytcfgData, {}, w),
+            headers,
             referrerPolicy: 'strict-origin-when-cross-origin',
             body: JSON.stringify(bodyPayload),
             method: 'POST',
@@ -1303,7 +1397,7 @@ async function getParamsForReplies(
         });
 
         return {
-            headers: buildInnertubeHeaders(ytcfgData, {}, w),
+            headers: buildInnertubeHeaders(ytcfgData, {}, w, { disableAuth: shouldDisableAuth() }),
             referrerPolicy: 'strict-origin-when-cross-origin',
             body: JSON.stringify(bodyPayload),
             method: 'POST',
@@ -1324,6 +1418,12 @@ async function fetchCommentPage(
     try {
         let paramsCmnts;
         if (continuation) {
+            // Ensure members-only status is updated before calling getParamsForComments
+            const videoId = getVideoId(windowRef.location.href);
+            if (videoId) {
+                await ensureMemberOnlyStatus(windowRef, videoId, signal);
+            }
+
             const continuationParams = {
                 continue: (continuation as any).continue ?? continuation.token,
                 clickTrackingParams:
@@ -1334,6 +1434,13 @@ async function fetchCommentPage(
             paramsCmnts = await getParamsForComments(windowRef, continuationParams, signal);
         } else {
             const url = getCleanUrlVideo(windowRef.location.href) as string;
+            const currentVideoId = getVideoId(windowRef.location.href);
+
+            // Ensure members-only status is set before calling getDetailsVideoIDV2/getDetailsCommentsVideoIDV2
+            if (currentVideoId) {
+                await ensureMemberOnlyStatus(windowRef, currentVideoId, signal);
+            }
+
             const detailsVideoV2 = await getDetailsVideoIDV2(windowRef, url, signal as AbortSignal);
             const detailsVideoV2Token = objectScan(
                 [
@@ -1370,7 +1477,7 @@ async function fetchCommentPage(
             }
 
             // Phase 2: Use GlobalStore.getInitYtData instead of window.ytInitialData
-            const currentVideoId = getVideoId(windowRef.location.href);
+            // currentVideoId already declared above
 
             // Try to get token from detailsCmntsVIDV2 first
             let continuationToken = wrapTryCatch(() =>
@@ -1434,6 +1541,8 @@ async function fetchCommentPage(
                             console.log(
                                 `[YCS] ✓ Successfully fetched and populated GlobalStore.getInitYtData for video: ${currentVideoId}`
                             );
+                            // Status is already updated by getInitYtData
+                            updateMemberOnlyStatus(globalYtData);
                         }
                     } catch (error) {
                         console.error(
@@ -1441,6 +1550,9 @@ async function fetchCommentPage(
                             error
                         );
                     }
+                } else if (globalYtData) {
+                    // If we're using cached data, ensure members-only status is updated
+                    updateMemberOnlyStatus(globalYtData);
                 }
 
                 if (globalYtData) {
@@ -1512,6 +1624,14 @@ async function fetchCommentPage(
                 );
             } else {
                 console.warn(`[YCS] ⚠️  No clickTrackingParams found for video: ${currentVideoId}`);
+            }
+
+            // Ensure members-only status is updated before calling getParamsForComments
+            if ((GlobalStore as any).isMemberOnly === undefined) {
+                const finalYtData: any = (GlobalStore as any).getInitYtData;
+                if (finalYtData) {
+                    updateMemberOnlyStatus(finalYtData);
+                }
             }
 
             paramsCmnts = await getParamsForComments(
