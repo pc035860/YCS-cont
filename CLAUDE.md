@@ -298,6 +298,7 @@ The extension uses a conservative strategy for sending Authorization headers to 
   - Sending Authorization header increases request size by 3-4x, which is costly for the majority of non-member videos
   - Member-only videos are a small subset, and the combination of member-only + PBJ failure is extremely unlikely
   - This trade-off prioritizes cost efficiency over handling edge cases
+- **Scope**: This strategy currently applies **only to comments requests**. Chat and transcript requests always send Authorization headers when available, as their request size remains nearly the same regardless of the header presence
 - **Implementation**: See `utils/innertube/memberOnly.ts` for detection logic and `utils/innertube/comments/pipeline.ts` for `ensureMemberOnlyStatus()` function
 
 ### ytInitialData Format Handling
