@@ -161,10 +161,12 @@ export function clearCurrentVideoMemberOnly(): void {
 }
 
 /**
- * Normalizes ytInitialData to handle both PBJ and legacy formats
- * Extracts the actual data object from array format if needed
+ * Normalizes ytInitialData to handle both modern PBJ and legacy formats
  *
- * @param ytData - Raw ytInitialData (can be array or object)
+ * Modern PBJ format (object): {response: {...}, playerResponse: {...}, ...}
+ * Legacy format (array): [{response: {...}}, {playerResponse: {...}}] - rarely seen, kept for compatibility
+ *
+ * @param ytData - Raw ytInitialData (primarily object, array for legacy compatibility)
  * @returns Normalized data object, or null if invalid
  */
 export function normalizeYtInitialData(ytData: any): any {
@@ -173,16 +175,16 @@ export function normalizeYtInitialData(ytData: any): any {
     }
 
     if (Array.isArray(ytData)) {
-        // PBJ format: find object with response or contents
-        const found = ytData.find((item: any) => item?.response || item?.contents);
-        if (found) {
-            return found;
+        // Legacy array format: merge all elements to preserve both response and playerResponse
+        const merged: any = {};
+        for (const item of ytData) {
+            if (item && typeof item === 'object') {
+                Object.assign(merged, item);
+            }
         }
-
-        // Try to find in response property
-        const foundResponse = ytData.find((item: any) => item?.response);
-        if (foundResponse?.response) {
-            return foundResponse.response;
+        // Return merged object if it has response or contents, otherwise return original
+        if (merged.response || merged.contents) {
+            return merged;
         }
     }
 
@@ -191,11 +193,11 @@ export function normalizeYtInitialData(ytData: any): any {
 
 /**
  * Updates member-only status from ytInitialData
- * Handles both PBJ and legacy formats automatically
+ * Handles both modern PBJ and legacy formats automatically
  *
  * @param ytData - Raw ytInitialData from API responses (supports):
- *   - PBJ array format: `[{response: {...}}, {playerResponse: {...}}]`
- *   - PBJ object format: `{response: {...}, playerResponse: {...}}`
+ *   - Modern PBJ format (object): `{response: {...}, playerResponse: {...}, ...}` (primary)
+ *   - Legacy array format: `[{response: {...}}, {playerResponse: {...}}]` (rarely seen)
  *   - Legacy object format: `{contents: {...}, currentVideoEndpoint: {...}}`
  *   - `null` or `undefined`: safe to pass, will set status to false
  *

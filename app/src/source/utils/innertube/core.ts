@@ -154,7 +154,7 @@ export async function getInitYtData(
     url: string,
     signal: AbortSignal | undefined,
     globalContext: Window & typeof globalThis = window
-): Promise<[object] | undefined> {
+): Promise<object | undefined> {
     try {
         if (!url) return undefined;
 
@@ -173,7 +173,7 @@ export async function getInitYtData(
         const targetUrl = `${getCleanUrlVideo(url) ?? url}&pbj=1`;
         const res = await fetch(targetUrl, { ...requestInit, signal, cache: 'no-store' });
 
-        const result = (await res.json()) as [object];
+        const result = (await res.json()) as object;
         (GlobalStore as any).getInitYtData = result;
 
         // Update members-only status
