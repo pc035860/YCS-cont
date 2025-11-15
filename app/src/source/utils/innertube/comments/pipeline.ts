@@ -1199,7 +1199,13 @@ function validateCachedYtData(currentVideoId: string): boolean {
     }
 
     const storedVideoId = extractVideoId();
-    if (!storedVideoId || storedVideoId !== currentVideoId) {
+
+    if (!storedVideoId) {
+        console.log('[YCS] Cached ytInitialData missing videoId; keeping existing cache');
+        return false;
+    }
+
+    if (storedVideoId !== currentVideoId) {
         console.log(`[YCS] VideoId mismatch (stored: ${storedVideoId}, current: ${currentVideoId}), clearing cache`);
         (GlobalStore as any).getInitYtData = undefined;
         clearCurrentVideoMemberOnly();
