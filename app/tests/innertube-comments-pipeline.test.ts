@@ -509,6 +509,9 @@ test('fetchInitialCommentBatch prefers API continuation token', async () => {
         }
     };
 
+    // Save GlobalStore.isMemberOnly to restore in cleanup
+    const originalIsMemberOnly = (GlobalStore as any).isMemberOnly;
+
     const capturedRequests: Array<{ url: unknown; init: RequestInit | undefined }> = [];
     const originalFetch = globalThis.fetch;
 
@@ -596,6 +599,12 @@ test('fetchInitialCommentBatch prefers API continuation token', async () => {
             delete (GlobalStore as any).getInitYtData;
         } else {
             (GlobalStore as any).getInitYtData = originalGetInitYtData;
+        }
+        // Restore GlobalStore.isMemberOnly
+        if (originalIsMemberOnly === undefined) {
+            delete (GlobalStore as any).isMemberOnly;
+        } else {
+            (GlobalStore as any).isMemberOnly = originalIsMemberOnly;
         }
         if (originalWindow === undefined) {
             delete (globalThis as any).window;
