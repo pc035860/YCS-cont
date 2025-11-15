@@ -631,6 +631,11 @@ test('fetchContinuationBatch includes continuation token and tracking params', a
     const originalWindow = (globalThis as any).window;
     (globalThis as any).window = windowRef;
 
+    // Save GlobalStore.isMemberOnly to restore in cleanup
+    const originalIsMemberOnly = (GlobalStore as any).isMemberOnly;
+    // Pre-set isMemberOnly to prevent ensureMemberOnlyStatus from triggering additional fetch
+    (GlobalStore as any).isMemberOnly = false;
+
     const capturedRequests: Array<{ url: unknown; init: RequestInit | undefined }> = [];
     const originalFetch = globalThis.fetch;
 
@@ -665,6 +670,12 @@ test('fetchContinuationBatch includes continuation token and tracking params', a
     } finally {
         setFetchImplementation(originalFetch as typeof fetch);
         globalThis.fetch = originalFetch;
+        // Restore GlobalStore.isMemberOnly
+        if (originalIsMemberOnly === undefined) {
+            delete (GlobalStore as any).isMemberOnly;
+        } else {
+            (GlobalStore as any).isMemberOnly = originalIsMemberOnly;
+        }
         if (originalWindow === undefined) {
             delete (globalThis as any).window;
         } else {
