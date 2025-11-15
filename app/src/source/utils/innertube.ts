@@ -12,5 +12,8 @@ export {
     isMemberOnlyFromYtInitialData,
     isCurrentVideoMemberOnly,
     setCurrentVideoMemberOnly,
-    clearCurrentVideoMemberOnly
+    clearCurrentVideoMemberOnly,
+    normalizeYtInitialData,
+    updateMemberOnlyStatus,
+    shouldDisableAuth
 } from './innertube/memberOnly';

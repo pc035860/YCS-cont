@@ -1217,7 +1217,11 @@ function validateCachedYtData(currentVideoId: string): boolean {
  * @param currentVideoId - Current video ID
  * @param signal - Optional abort signal
  */
-async function ensureMemberOnlyStatus(windowRef: Window, currentVideoId: string, signal?: AbortSignal): Promise<void> {
+async function ensureMemberOnlyStatus(
+    windowRef: Window & typeof globalThis,
+    currentVideoId: string,
+    signal?: AbortSignal
+): Promise<void> {
     // Already set
     if ((GlobalStore as any).isMemberOnly !== undefined) {
         return;
@@ -1409,7 +1413,10 @@ async function fetchCommentPage(
         let paramsCmnts;
         if (continuation) {
             // Ensure members-only status is updated before calling getParamsForComments
-            await ensureMemberOnlyStatus(windowRef, getVideoId(windowRef.location.href), signal);
+            const videoId = getVideoId(windowRef.location.href);
+            if (videoId) {
+                await ensureMemberOnlyStatus(windowRef, videoId, signal);
+            }
 
             const continuationParams = {
                 continue: (continuation as any).continue ?? continuation.token,
@@ -1424,7 +1431,9 @@ async function fetchCommentPage(
             const currentVideoId = getVideoId(windowRef.location.href);
 
             // Ensure members-only status is set before calling getDetailsVideoIDV2/getDetailsCommentsVideoIDV2
-            await ensureMemberOnlyStatus(windowRef, currentVideoId, signal);
+            if (currentVideoId) {
+                await ensureMemberOnlyStatus(windowRef, currentVideoId, signal);
+            }
 
             const detailsVideoV2 = await getDetailsVideoIDV2(windowRef, url, signal as AbortSignal);
             const detailsVideoV2Token = objectScan(
