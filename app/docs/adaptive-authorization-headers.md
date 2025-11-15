@@ -59,10 +59,55 @@ export function isCurrentVideoMemberOnly(): boolean
 export function clearCurrentVideoMemberOnly(): void
 ```
 
-**Lifecycle**:
-- **Set**: When `ytInitialData` is fetched or cached data is validated
-- **Used**: Before building request headers for comment API calls
-- **Cleared**: When user navigates to a different video (in `web-resources/appController.ts:283`)
+**State Initialization** (Three Mechanisms):
+
+1. **Automatic Update** (Primary):
+   - When `getInitYtData()` fetches `ytInitialData` via PBJ request (`utils/innertube/core.ts:181`)
+   - When `getInitYtDataFromHtml()` parses `ytInitialData` from HTML (`utils/innertube/core.ts:284`)
+   - Status is automatically updated via `updateMemberOnlyStatus()` after data retrieval
+
+2. **Lazy Initialization** (On-Demand):
+   - `ensureMemberOnlyStatus()` function ensures status is set before comment requests (`utils/innertube/comments/pipeline.ts:1226-1254`)
+   - First checks if status is already set (early return if `isMemberOnly !== undefined`)
+   - Tries cached `ytData` first via `validateCachedYtData()`
+   - Only fetches new data if cache is invalid or missing
+
+3. **Fallback Check** (Request-Time):
+   - `getParamsForComments()` checks and updates status if undefined (`utils/innertube/comments/pipeline.ts:1354-1366`)
+   - `fetchCommentPage()` ensures status before building request params (`utils/innertube/comments/pipeline.ts:1630-1635`)
+   - Uses conservative strategy (no auth header) if `ytInitialData` is unavailable
+
+**State Lifecycle**:
+
+- **Set**: 
+  - Automatically when `ytInitialData` is fetched (`getInitYtData()`, `getInitYtDataFromHtml()`)
+  - On-demand via `ensureMemberOnlyStatus()` before comment requests
+  - Fallback check in request functions if status is still undefined
+  
+- **Used**: 
+  - Before building request headers for comment API calls via `shouldDisableAuth()`
+  - Decision logic: `status !== true` → disable auth header (conservative strategy)
+  
+- **Cleared**: 
+  - **Primary**: When user navigates to a different video (`web-resources/appController.ts:283`)
+  - **Secondary**: When `validateCachedYtData()` detects videoId mismatch (`utils/innertube/comments/pipeline.ts:1211`)
+
+**State Validation**:
+
+The system prevents state pollution across videos through `validateCachedYtData()`:
+
+- Extracts `videoId` from cached `ytInitialData` using `extractVideoId()`
+- Compares with current video ID
+- **Clears both cache and `isMemberOnly` status** if mismatch detected
+- This ensures status always corresponds to the current video
+
+**State Characteristics**:
+
+- **Single Video Scope**: Status only applies to current video, cleared on navigation
+- **Lazy Initialization**: Set only when needed, avoiding unnecessary requests
+- **Cache-First**: Prefers cached `ytData` to minimize API calls
+- **Validation**: VideoId comparison prevents cross-video state pollution
+- **Conservative**: `undefined` status defaults to no authorization header
 
 ### 3. Authorization Decision
 
@@ -202,17 +247,25 @@ export function normalizeYtInitialData(ytData: any): any
 
 To prevent stale member-only status across video navigation, the system validates cached `ytInitialData` against the current video ID.
 
-**Implementation**: `utils/innertube/comments/pipeline.ts:1195-1215`
+**Implementation**: `utils/innertube/comments/pipeline.ts:1195-1216`
 
 ```typescript
 function validateCachedYtData(currentVideoId: string): boolean
 ```
 
 **Validation Logic**:
-- Extract video ID from cached `ytInitialData`
+- Extract video ID from cached `ytInitialData` using `extractVideoId()`
 - Compare with current video ID
 - Clear cache and member-only status on mismatch
 - Keep cache if video ID is missing (to preserve channel ID data)
+
+**State Synchronization**:
+
+When `validateCachedYtData()` detects a videoId mismatch, it performs a **coordinated cleanup**:
+1. Clears cached `ytInitialData`: `(GlobalStore as any).getInitYtData = undefined`
+2. Clears member-only status: `clearCurrentVideoMemberOnly()`
+
+This ensures both the cached data and the authorization decision state remain synchronized with the current video, preventing authorization headers from being sent for the wrong video.
 
 ## Testing
 
