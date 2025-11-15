@@ -1,1 +1,1 @@
-cd app && npm run typecheck && npx lint-staged
+cd app && npm run typecheck && npm test && npx lint-staged
