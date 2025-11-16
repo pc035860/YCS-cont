@@ -219,10 +219,18 @@ function buildTranscriptFromTimedText(xmlText: string): object | undefined {
             duration: parseFloat(n.getAttribute('dur') || '0'),
             text: n.textContent || ''
         }));
-        const cueGroups = entries.map(({ text, start }) => ({
+        const cueGroups = entries.map(({ text, start, duration }) => ({
             transcriptCueGroupRenderer: {
                 formattedStartOffset: { simpleText: toFormatted(start) },
-                cues: [{ transcriptCueRenderer: { startOffsetMs: start * 1000, cue: { simpleText: text } } }]
+                cues: [
+                    {
+                        transcriptCueRenderer: {
+                            startOffsetMs: start * 1000,
+                            durationMs: duration * 1000,
+                            cue: { simpleText: text }
+                        }
+                    }
+                ]
             }
         }));
         return {
@@ -248,13 +256,22 @@ function buildTranscriptFromTimedText(xmlText: string): object | undefined {
             let m: RegExpExecArray | null;
             while ((m = regex.exec(xmlText))) {
                 const start = parseFloat(m[1]);
+                const duration = parseFloat(m[2]);
                 const text = m[3].replace(/<\/?\w+[^>]*>/g, '');
-                entries.push({ start, text });
+                entries.push({ start, duration, text });
             }
-            const cueGroups = entries.map(({ text, start }) => ({
+            const cueGroups = entries.map(({ text, start, duration }) => ({
                 transcriptCueGroupRenderer: {
                     formattedStartOffset: { simpleText: toFormatted(start) },
-                    cues: [{ transcriptCueRenderer: { startOffsetMs: start * 1000, cue: { simpleText: text } } }]
+                    cues: [
+                        {
+                            transcriptCueRenderer: {
+                                startOffsetMs: start * 1000,
+                                durationMs: duration * 1000,
+                                cue: { simpleText: text }
+                            }
+                        }
+                    ]
                 }
             }));
             return {
