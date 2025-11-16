@@ -1412,3 +1412,7 @@ html[dark] .ycs-app--shorts .ycs_btn_load-stop {
   overflow-x: hidden;
   /* max-height will be set dynamically via JS */
 }
+
+#anchored-panel {
+  overflow: hidden;
+}
