@@ -49,12 +49,14 @@ fi
 echo ""
 
 # Step 4: Clean and build
+# Use rebuild instead of build to ensure clean, reproducible releases
+# and avoid Parcel cache pollution issues (prevents bundle size inconsistencies)
 echo "🧹 Step 3: Cleaning dist/..."
 rm -rf dist/
 echo ""
 
-echo "📦 Step 4: Running npm build..."
-npm run build
+echo "📦 Step 4: Running clean rebuild..."
+npm run rebuild
 echo ""
 
 echo "✅ $PLATFORM extension built successfully!"
