@@ -1,5 +1,4 @@
 import Queue from 'p-queue';
-import * as XLSX from 'xlsx';
 
 import { delayMs, isNumeric, getPaginate, wrapTryCatch } from '../../../utils/common';
 import { downloadFile, removeNodeList } from '../../../utils/dom';
@@ -905,7 +904,8 @@ Total: ${c.count}\n${c.html}`;
 
                                                 if (json) {
                                                     const body = cacheSel.body;
-                                                    filesQueue.add(() => {
+                                                    filesQueue.add(async () => {
+                                                        const XLSX = await import('xlsx');
                                                         const cmnt = JSON.parse(json.json);
 
                                                         const wb = XLSX.utils.book_new();
@@ -960,7 +960,8 @@ Total: ${c.count}\n${c.html}`;
                                                     // downloadFile(commentsChatJSON.json, `Comments chat, ${cacheSel.body.titleVideo} (${commentsChatJSON.length}).json`, 'text/plain');
 
                                                     const body = cacheSel.body;
-                                                    filesQueue.add(() => {
+                                                    filesQueue.add(async () => {
+                                                        const XLSX = await import('xlsx');
                                                         const cmnt = JSON.parse(commentsChatJSON.json);
 
                                                         const wb = XLSX.utils.book_new();
@@ -1005,7 +1006,8 @@ Total: ${c.count}\n${c.html}`;
                                                     // downloadFile(trVideoText.text, `Transcript video, ${cacheSel.body.titleVideo} (${trVideoText.length}).txt`, 'text/plain');
 
                                                     const body = cacheSel.body;
-                                                    filesQueue.add(() => {
+                                                    filesQueue.add(async () => {
+                                                        const XLSX = await import('xlsx');
                                                         const trVideo = JSON.parse(trVideoJSON.json);
 
                                                         const wb = XLSX.utils.book_new();
@@ -1354,7 +1356,8 @@ Total: ${c.count}\n${c.html}`;
 
                                     if (json) {
                                         const body = cursor.value.body;
-                                        filesQueue.add(() => {
+                                        filesQueue.add(async () => {
+                                            const XLSX = await import('xlsx');
                                             const cmnt = JSON.parse(json.json);
 
                                             const wb = XLSX.utils.book_new();
@@ -1402,7 +1405,8 @@ Total: ${c.count}\n${c.html}`;
                                         // downloadFile(commentsChatJSON.json, `Comments chat, ${cacheSel.body.titleVideo} (${commentsChatJSON.length}).json`, 'text/plain');
 
                                         const body = cursor.value.body;
-                                        filesQueue.add(() => {
+                                        filesQueue.add(async () => {
+                                            const XLSX = await import('xlsx');
                                             const cmnt = JSON.parse(commentsChatJSON.json);
 
                                             const wb = XLSX.utils.book_new();
@@ -1447,7 +1451,8 @@ Total: ${c.count}\n${c.html}`;
                                         // downloadFile(trVideoText.text, `Transcript video, ${cacheSel.body.titleVideo} (${trVideoText.length}).txt`, 'text/plain');
 
                                         const body = cursor.value.body;
-                                        filesQueue.add(() => {
+                                        filesQueue.add(async () => {
+                                            const XLSX = await import('xlsx');
                                             const trVideo = JSON.parse(trVideoJSON.json);
 
                                             const wb = XLSX.utils.book_new();
