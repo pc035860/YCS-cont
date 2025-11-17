@@ -1709,10 +1709,16 @@ export function initApp(): void {
                     }
                 };
 
-                const optHiddenByDefault = (value: boolean): void => {
+                const optHiddenByDefault = (opts: IYCSOptions): void => {
                     try {
                         const app = document.querySelector('.ycs-app') as HTMLElement;
                         if (!app) return;
+
+                        // Use hiddenByDefaultShorts for Shorts pages, hiddenByDefault for regular video pages
+                        const value = isShortsPage()
+                            ? Boolean(opts.hiddenByDefaultShorts)
+                            : Boolean(opts.hiddenByDefault);
+
                         // Apply collapsed state instead of fully hiding the app to keep the top toggle visible
                         app.classList.toggle('ycs-collapsed', value);
                         // Recalculate height when app visibility changes on Shorts pages
@@ -1748,7 +1754,11 @@ export function initApp(): void {
                                 break;
 
                             case 'hiddenByDefault':
-                                optHiddenByDefault(Boolean(opts.hiddenByDefault));
+                                optHiddenByDefault(opts);
+                                break;
+
+                            case 'hiddenByDefaultShorts':
+                                optHiddenByDefault(opts);
                                 break;
 
                             case 'filterButtons':

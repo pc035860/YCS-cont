@@ -87,6 +87,12 @@ window.onload = async (): Promise<void> => {
             (document.getElementById('y_opts_hidden_by_default') as HTMLInputElement).checked = param;
         };
 
+        const setRenderHiddenByDefaultShorts = (param: boolean): void => {
+            if (typeof param !== 'boolean') return;
+
+            (document.getElementById('y_opts_hidden_by_default_shorts') as HTMLInputElement).checked = param;
+        };
+
         const setRenderTranscriptLanguage = (param?: string): void => {
             const select = document.getElementById('y_opts_transcript_language_select') as HTMLSelectElement | null;
             const input = document.getElementById('y_opts_transcript_language') as HTMLInputElement | null;
@@ -424,6 +430,16 @@ window.onload = async (): Promise<void> => {
             }
         };
 
+        const optSetHiddenByDefaultShorts = async (opt: HTMLInputElement): Promise<void> => {
+            try {
+                await chrome.storage.local.set({
+                    hiddenByDefaultShorts: opt.checked
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
         const setRenderAutoClearCacheOpt = (param: number): void => {
             if (!param) return;
 
@@ -526,6 +542,10 @@ window.onload = async (): Promise<void> => {
                         setRenderHiddenByDefault(storageOpts[key]);
                         break;
 
+                    case 'hiddenByDefaultShorts':
+                        setRenderHiddenByDefaultShorts(storageOpts[key]);
+                        break;
+
                     case 'transcriptLanguage':
                         setRenderTranscriptLanguage(storageOpts[key]);
                         break;
@@ -575,6 +595,10 @@ window.onload = async (): Promise<void> => {
 
                 case 'y_opts_hidden_by_default':
                     optSetHiddenByDefault(e.target as HTMLInputElement);
+                    break;
+
+                case 'y_opts_hidden_by_default_shorts':
+                    optSetHiddenByDefaultShorts(e.target as HTMLInputElement);
                     break;
 
                 case 'ycs_opts_btn_reset_filters':

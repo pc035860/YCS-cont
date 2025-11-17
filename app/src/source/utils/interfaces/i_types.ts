@@ -305,6 +305,7 @@ export interface IYCSOptions {
     cache?: boolean;
     autoClear?: number;
     hiddenByDefault?: boolean;
+    hiddenByDefaultShorts?: boolean;
     filterButtons?: Array<{ id: string; enabled: boolean }>;
     transcriptLanguage?: string;
 }
