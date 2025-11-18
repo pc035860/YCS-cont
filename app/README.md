@@ -18,28 +18,38 @@ app/
 │   │   │   ├── appController.ts  # Core application logic
 │   │   │   ├── state.ts          # State management
 │   │   │   ├── search/           # Search pipeline modules
-│   │   │   │   ├── types.ts           # Search context types
-│   │   │   │   ├── commentsSearch.ts  # Comments search
-│   │   │   │   ├── chatSearch.ts      # Chat replay search
-│   │   │   │   └── transcriptSearch.ts # Transcript search
+│   │   │   │   ├── types.ts              # Search context types
+│   │   │   │   ├── commentsSearch.ts     # Comments search
+│   │   │   │   ├── chatSearch.ts         # Chat replay search
+│   │   │   │   ├── transcriptSearch.ts   # Transcript search
+│   │   │   │   ├── timestampAnalysis.ts  # Timestamp analysis
+│   │   │   │   └── fuseCacheUtils.ts     # Fuse cache utilities
 │   │   │   ├── ui/               # UI components
-│   │   │   │   ├── render.ts            # Result rendering
-│   │   │   │   ├── filters.ts           # Filter button management
-│   │   │   │   └── commentInteractions.ts # Comment interactions
+│   │   │   │   ├── render.ts                  # Result rendering
+│   │   │   │   ├── filters.ts                 # Filter button management
+│   │   │   │   ├── commentInteractions.ts     # Comment interactions
+│   │   │   │   ├── timestampChart.ts          # Timestamp chart visualization
+│   │   │   │   └── timestampFloatingButton.ts # Timestamp floating button
 │   │   │   └── services/         # Service layer
 │   │   │       ├── cacheService.ts      # Cache operations
-│   │   │       └── exportService.ts     # Export/download
+│   │   │       ├── exportService.ts     # Export/download
+│   │   │       └── exportFormats.ts     # Export format handling
 │   │   ├── browser-action/  # Extension popup UI
 │   │   ├── options/         # Settings page and comment export
+│   │   ├── config/          # Configuration modules
+│   │   │   └── options.ts   # Extension options and defaults
 │   │   └── utils/           # Modular utility system
 │   │       ├── assist.ts     # Module facade and unified export point
 │   │       ├── common.ts     # Shared utilities and GlobalStore
+│   │       ├── constants.ts  # Application constants
 │   │       ├── libs.ts       # External library wrappers (fetchR, IndexedDB)
+│   │       ├── export-core.ts # Core export functionality
 │   │       ├── innertube/    # Modularized YouTube API integration
 │   │       │   ├── innertube.ts      # Module facade
 │   │       │   ├── core.ts           # Configuration & initialization
 │   │       │   ├── request.ts        # Request building utilities
 │   │       │   ├── authHeaders.ts    # Authorization header generation
+│   │       │   ├── memberOnly.ts     # Member-only video detection
 │   │       │   ├── comments.ts       # Comment module entry
 │   │       │   ├── comments/         # Comment processing
 │   │       │   │   ├── pipeline.ts   # Fetching pipeline
@@ -225,6 +235,7 @@ For detailed information on Innertube API integration and implementation:
 | [Chat Replay API Changes](docs/innertube-chat-replay-api-changes.md) | playerOffsetMs → continuation tokens |
 | [Implementation Alignment](docs/continuation-processing.md) | JS/TS code correspondence |
 | [SAPISID Authorization](docs/sap-sid-authorization.md) | SAPISID/APISID cookie-based auth headers |
+| [Adaptive Authorization Headers](docs/adaptive-authorization-headers.md) | Member-only video detection and conditional auth |
 
 **Reading order**: Start with `innertube-comments-integration.md`, then refer to other docs as needed.
 
