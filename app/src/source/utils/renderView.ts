@@ -656,7 +656,7 @@ function isElementVisible(element: Element | null): boolean {
 
 function renderLoadComments(
     selector: string,
-    preferredInsertionMode?: 'appendChild' | 'insertAfter' | 'prepend'
+    preferredInsertionMode?: 'appendChild' | 'insertAfter' | 'prepend' | 'insertBefore'
 ): void {
     if (typeof selector !== 'string') return;
 
@@ -681,7 +681,8 @@ function renderLoadComments(
 
     // Visibility check and fallback mechanism
     let targetElement: HTMLElement | null = node as HTMLElement | null;
-    let insertionMode: 'appendChild' | 'insertAfter' | 'prepend' = preferredInsertionMode || 'appendChild';
+    let insertionMode: 'appendChild' | 'insertAfter' | 'prepend' | 'insertBefore' =
+        preferredInsertionMode || 'appendChild';
 
     // Only check visibility and fallback when using appendChild mode
     // insertAfter mode skips visibility check (element may be temporarily hidden during SPA navigation)
@@ -934,6 +935,14 @@ function renderLoadComments(
             targetElement.parentNode.insertBefore(nodeTag, targetElement.nextSibling);
         } else {
             console.error('YCS: Cannot insertAfter - parent node not found');
+            return;
+        }
+    } else if (insertionMode === 'insertBefore') {
+        // insertBefore implementation: check parentNode to avoid TypeError
+        if (targetElement.parentNode) {
+            targetElement.parentNode.insertBefore(nodeTag, targetElement);
+        } else {
+            console.error('YCS: Cannot insertBefore - parent node not found');
             return;
         }
     }

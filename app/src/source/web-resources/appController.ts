@@ -352,8 +352,11 @@ export function initApp(): void {
                 return;
             }
         } else {
-            // Try new insertion points first (between expandable-metadata and ticket-shelf)
-            if (document.querySelector('#expandable-metadata.ytd-watch-flexy')) {
+            // Priority: ytd-comments#comments (highest priority)
+            if (document.querySelector('ytd-comments#comments')) {
+                renderLoadComments('ytd-comments#comments', 'insertBefore');
+            } else if (document.querySelector('#expandable-metadata.ytd-watch-flexy')) {
+                // Try new insertion points first (between expandable-metadata and ticket-shelf)
                 renderLoadComments('#expandable-metadata.ytd-watch-flexy', 'insertAfter');
             } else if (document.querySelector('#ticket-shelf')) {
                 renderLoadComments('#ticket-shelf', 'insertAfter');
