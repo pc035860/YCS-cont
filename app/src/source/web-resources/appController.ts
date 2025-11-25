@@ -341,15 +341,14 @@ export function initApp(): void {
             resizeObserver = null;
         }
 
-        // Clean up recording intervals if active
+        // Clean up recording timeouts/intervals unconditionally
+        // (don't rely on isRecording flag to prevent edge case leaks)
         const liveRecording = getLiveRecording(state);
-        if (liveRecording.isRecording) {
-            if (liveRecording.pollIntervalId !== null) {
-                clearInterval(liveRecording.pollIntervalId);
-            }
-            if (liveRecording.timerIntervalId !== null) {
-                clearInterval(liveRecording.timerIntervalId);
-            }
+        if (liveRecording.pollTimeoutId !== null) {
+            clearTimeout(liveRecording.pollTimeoutId);
+        }
+        if (liveRecording.timerIntervalId !== null) {
+            clearInterval(liveRecording.timerIntervalId);
         }
 
         // Abort old controller BEFORE creating new state to prevent race conditions
@@ -1129,15 +1128,18 @@ export function initApp(): void {
         async function stopLiveChatRecording(): Promise<void> {
             const liveRecording = getLiveRecording(state);
 
-            // Clear poll interval
-            if (liveRecording.pollIntervalId !== null) {
-                clearInterval(liveRecording.pollIntervalId);
+            // Clear poll timeout (serial pattern uses setTimeout, not setInterval)
+            if (liveRecording.pollTimeoutId !== null) {
+                clearTimeout(liveRecording.pollTimeoutId);
             }
 
             // Clear timer interval
             if (liveRecording.timerIntervalId !== null) {
                 clearInterval(liveRecording.timerIntervalId);
             }
+
+            // Abort in-flight requests to prevent them from continuing after stop
+            getController(state).abort();
 
             // Update UI
             if (elRecordChat) {
@@ -1175,6 +1177,9 @@ export function initApp(): void {
 
             // Reset recording state
             state = resetLiveRecording(state);
+
+            // Create new AbortController for future operations
+            state = resetController(state);
 
             console.log('[YCS] Live chat recording stopped. Total messages:', commentsChat.size);
         }
@@ -1228,16 +1233,21 @@ export function initApp(): void {
                     liveRecording.broadcastStartTime ?? undefined
                 );
 
-                // Check abort before saving to prevent race condition
+                // Check abort to stop processing
                 if (controller.signal.aborted) {
                     if (DEBUG) {
-                        console.log('[YCS] pollAndSaveChat aborted, skipping cache save');
+                        console.log('[YCS] pollAndSaveChat aborted');
                     }
                     return;
                 }
 
-                // Save to cache after each successful poll
-                if (commentsChat.size > 0 && startVideoId) {
+                // Throttled cache save: every 1 minute instead of every poll
+                // This reduces memory pressure from frequent JSON.stringify + postMessage structured clone
+                const CACHE_SAVE_INTERVAL_MS = 60000; // 1 minute
+                const lastSaveTime = liveRecording.lastSaveTime ?? 0;
+                const now = Date.now();
+
+                if (commentsChat.size > 0 && startVideoId && now - lastSaveTime >= CACHE_SAVE_INTERVAL_MS) {
                     saveToCache(
                         {
                             videoId: startVideoId,
@@ -1249,11 +1259,43 @@ export function initApp(): void {
                         },
                         buildCacheMeta()
                     );
+                    state = setLiveRecording(state, { lastSaveTime: now });
+                    console.log('[YCS] Periodic cache save:', commentsChat.size, 'messages');
                 }
             } catch (e) {
                 // Silent retry - just log error and continue polling
                 console.error('[YCS] pollAndSaveChat error:', e);
             }
+        }
+
+        /**
+         * Schedule next poll using setTimeout (serial pattern)
+         * Prevents request stacking when polls take longer than interval
+         */
+        async function scheduleNextPoll(startVideoId: string): Promise<void> {
+            const liveRecording = getLiveRecording(state);
+
+            // Check if still recording before polling
+            if (!liveRecording.isRecording) {
+                return;
+            }
+
+            // Execute poll
+            await pollAndSaveChat(startVideoId);
+
+            // Re-check after poll (recording may have stopped during poll)
+            const currentRecording = getLiveRecording(state);
+            if (!currentRecording.isRecording) {
+                return;
+            }
+
+            // Schedule next poll
+            const timeoutId = setTimeout(() => {
+                scheduleNextPoll(startVideoId);
+            }, RECORDING_POLL_INTERVAL);
+
+            // Update timeout ID in state
+            state = setLiveRecording(state, { pollTimeoutId: timeoutId });
         }
 
         /**
@@ -1318,24 +1360,20 @@ export function initApp(): void {
 
                 const recordingStartTime = Date.now();
 
-                // Start polling interval
-                const pollIntervalId = setInterval(() => {
-                    pollAndSaveChat(startVideoId);
-                }, RECORDING_POLL_INTERVAL);
-
-                // Start timer interval
+                // Start timer interval (pure UI update, doesn't need serial pattern)
                 const timerIntervalId = setInterval(() => {
                     updateRecordingTimer();
                 }, RECORDING_TIMER_INTERVAL);
 
-                // Update state
+                // Update state (pollTimeoutId starts as null, updated by scheduleNextPoll)
                 state = setLiveRecording(state, {
                     isRecording: true,
-                    pollIntervalId,
+                    pollTimeoutId: null,
                     timerIntervalId,
                     broadcastStartTime,
                     recordingStartTime,
-                    lastContinuation: null
+                    lastContinuation: null,
+                    lastSaveTime: null
                 });
 
                 // Re-enable button AFTER isRecording is set to prevent double-click race condition
@@ -1343,8 +1381,8 @@ export function initApp(): void {
 
                 console.log('[YCS] Live chat recording started. Broadcast start time:', broadcastStartTime);
 
-                // Perform first poll immediately
-                await pollAndSaveChat(startVideoId);
+                // Start serial polling (first poll runs immediately, then schedules next)
+                scheduleNextPoll(startVideoId);
             } catch (e) {
                 console.error('[YCS] startLiveChatRecording error:', e);
                 // Restore button and UI state on error
@@ -2361,9 +2399,9 @@ export function initApp(): void {
                 const liveRecording = getLiveRecording(state);
                 if (liveRecording.isRecording) {
                     console.log('[YCS] Video switch detected, stopping live recording...');
-                    // Clear intervals
-                    if (liveRecording.pollIntervalId !== null) {
-                        clearInterval(liveRecording.pollIntervalId);
+                    // Clear timeout/intervals
+                    if (liveRecording.pollTimeoutId !== null) {
+                        clearTimeout(liveRecording.pollTimeoutId);
                     }
                     if (liveRecording.timerIntervalId !== null) {
                         clearInterval(liveRecording.timerIntervalId);

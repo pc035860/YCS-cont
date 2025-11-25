@@ -12,11 +12,12 @@ export interface CountBuckets {
  */
 export interface LiveRecordingState {
     isRecording: boolean;
-    pollIntervalId: ReturnType<typeof setInterval> | null; // 5s polling interval
+    pollTimeoutId: ReturnType<typeof setTimeout> | null; // Serial polling timeout (not interval)
     timerIntervalId: ReturnType<typeof setInterval> | null; // 1s timer display interval
     broadcastStartTime: string | null; // ISO timestamp from YouTube API
     recordingStartTime: number | null; // Local timestamp when recording started
     lastContinuation: unknown; // Continuation token for next poll
+    lastSaveTime: number | null; // Timestamp of last cache save (throttle saves to reduce memory pressure)
 }
 
 export interface WebResourcesState {
@@ -43,11 +44,12 @@ function createCounts(): CountBuckets {
 function createLiveRecordingState(): LiveRecordingState {
     return {
         isRecording: false,
-        pollIntervalId: null,
+        pollTimeoutId: null,
         timerIntervalId: null,
         broadcastStartTime: null,
         recordingStartTime: null,
-        lastContinuation: null
+        lastContinuation: null,
+        lastSaveTime: null
     };
 }
 
