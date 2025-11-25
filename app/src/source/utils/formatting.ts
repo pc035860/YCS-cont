@@ -206,7 +206,14 @@ function tmUsecToDateTime(microSec: string | number): string {
     if (!Number.isNaN(value) && value > 0) {
         const dateTime = new Date((value as any) / 1000);
 
-        return `${dateTime.toISOString().split('T')[0]}, ${dateTime.toISOString().split('T')[1].split('.')[0].slice(0, 5)}`;
+        // Format as local time: YYYY-MM-DD, HH:MM
+        const year = dateTime.getFullYear();
+        const month = String(dateTime.getMonth() + 1).padStart(2, '0');
+        const day = String(dateTime.getDate()).padStart(2, '0');
+        const hours = String(dateTime.getHours()).padStart(2, '0');
+        const minutes = String(dateTime.getMinutes()).padStart(2, '0');
+
+        return `${year}-${month}-${day}, ${hours}:${minutes}`;
     }
 
     return '';

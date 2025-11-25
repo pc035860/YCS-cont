@@ -796,7 +796,7 @@ function renderLoadComments(
                                         record
                                     </button>
                                     <span id="ycs-record-timer" class="ycs-record-timer" style="display: none;">
-                                        00:00:00 (0)
+                                        00:00:00
                                     </span>
                                 </div>
                                 <div class="ycs_open_wrap">

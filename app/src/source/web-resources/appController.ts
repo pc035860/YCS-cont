@@ -1115,11 +1115,10 @@ export function initApp(): void {
          */
         function updateRecordingTimer(): void {
             const liveRecording = getLiveRecording(state);
-            const commentsChat = getCommentsChat(state);
 
             if (liveRecording.recordingStartTime && elRecordTimer) {
                 const duration = formatRecordingDuration(liveRecording.recordingStartTime);
-                elRecordTimer.textContent = `${duration} (${commentsChat.size})`;
+                elRecordTimer.textContent = duration;
             }
         }
 
@@ -1137,26 +1136,34 @@ export function initApp(): void {
 
             const controller = getController(state);
             const commentsChat = getCommentsChat(state);
+            const liveRecording = getLiveRecording(state);
 
             try {
-                await pollLiveChat(controller.signal, commentsChat, (newCount, totalCount) => {
-                    // Update counter display
-                    const elLoadChat = document.getElementById('ycs_cmnts_chat');
-                    if (elLoadChat) {
-                        elLoadChat.textContent = totalCount.toString();
-                    }
+                await pollLiveChat(
+                    controller.signal,
+                    commentsChat,
+                    (newCount, totalCount) => {
+                        // Update counter display
+                        const elLoadChat = document.getElementById('ycs_cmnts_chat');
+                        if (elLoadChat) {
+                            elLoadChat.textContent = totalCount.toString();
+                        }
 
-                    // Update state count
-                    state = setCount(state, 'commentsChat', totalCount);
+                        // Update state count
+                        state = setCount(state, 'commentsChat', totalCount);
 
-                    if (newCount > 0) {
-                        console.log(`[YCS] Recording: +${newCount} new messages, total: ${totalCount}`);
-                    }
-                });
+                        if (DEBUG && newCount > 0) {
+                            console.log(`[YCS] Recording: +${newCount} new messages, total: ${totalCount}`);
+                        }
+                    },
+                    liveRecording.broadcastStartTime ?? undefined
+                );
 
                 // Check abort before saving to prevent race condition
                 if (controller.signal.aborted) {
-                    console.log('[YCS] pollAndSaveChat aborted, skipping cache save');
+                    if (DEBUG) {
+                        console.log('[YCS] pollAndSaveChat aborted, skipping cache save');
+                    }
                     return;
                 }
 
@@ -1196,8 +1203,17 @@ export function initApp(): void {
             elRecordChat.textContent = 'loading...';
 
             try {
-                // Clear previous chat data
-                state = clearCommentsChat(state);
+                // Check if we have cached chat data to resume recording
+                const existingCommentsChat = getCommentsChat(state);
+                const hasCachedData = existingCommentsChat.size > 0;
+
+                if (hasCachedData) {
+                    console.log('[YCS] Resuming recording with existing data:', existingCommentsChat.size, 'messages');
+                } else {
+                    // Clear chat data only if no cached data exists
+                    state = clearCommentsChat(state);
+                    console.log('[YCS] Starting new recording session');
+                }
 
                 // Get broadcast start time
                 const controller = getController(state);
@@ -1213,7 +1229,7 @@ export function initApp(): void {
 
                 if (elRecordTimer) {
                     elRecordTimer.style.display = 'inline';
-                    elRecordTimer.textContent = '00:00:00 (0)';
+                    elRecordTimer.textContent = '00:00:00';
                 }
 
                 // Update status icon
@@ -1223,7 +1239,8 @@ export function initApp(): void {
                     elStatusChat.innerHTML = iconReload();
                 }
                 if (elLoadChat) {
-                    elLoadChat.textContent = '0';
+                    // Show current count if resuming, otherwise 0
+                    elLoadChat.textContent = hasCachedData ? existingCommentsChat.size.toString() : '0';
                 }
 
                 const recordingStartTime = Date.now();
@@ -1269,25 +1286,34 @@ export function initApp(): void {
 
         /**
          * Check if current video is live and show/hide record button
+         * Load and record buttons are mutually exclusive
          */
         async function updateRecordButtonVisibility(): Promise<void> {
             if (!elRecordChat) return;
+
+            const elLoadChat = document.getElementById('ycs-load-chat');
+            if (!elLoadChat) return;
 
             try {
                 const controller = getController(state);
                 const isLive = await checkIsLiveStream(controller.signal);
 
                 if (isLive) {
+                    // Show record button, hide load button (mutually exclusive)
                     elRecordChat.style.display = 'inline-block';
+                    elLoadChat.style.display = 'none';
                     console.log('[YCS] Live stream detected, showing Record button');
                 } else {
+                    // Show load button, hide record button (mutually exclusive)
                     elRecordChat.style.display = 'none';
-                    console.log('[YCS] Not a live stream, hiding Record button');
+                    elLoadChat.style.display = 'inline-block';
+                    console.log('[YCS] Not a live stream, showing Load button');
                 }
             } catch (e) {
                 console.error('[YCS] updateRecordButtonVisibility error:', e);
-                // Hide on error
+                // Default to load button on error
                 elRecordChat.style.display = 'none';
+                elLoadChat.style.display = 'inline-block';
             }
         }
 

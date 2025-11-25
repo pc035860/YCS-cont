@@ -493,7 +493,8 @@ export async function getLiveBroadcastStartTime(signal?: AbortSignal): Promise<s
 export async function pollLiveChat(
     signal: AbortSignal,
     existingChatMap: Map<number, object>,
-    onNewMessages?: (newCount: number, totalCount: number) => void
+    onNewMessages?: (newCount: number, totalCount: number) => void,
+    broadcastStartTime?: string
 ): Promise<{ continuation: unknown } | undefined> {
     try {
         const result = await getCDChat(signal);
@@ -516,6 +517,7 @@ export async function pollLiveChat(
         const context: ChatProcessingContext = {
             chatMap: existingChatMap,
             currentVideoId,
+            broadcastStartTime,
             onCommentAdded: (count: number) => {
                 if (onNewMessages) {
                     onNewMessages(count - previousSize, count);
