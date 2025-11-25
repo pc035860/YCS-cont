@@ -21,7 +21,10 @@ import {
     getChatComments,
     getTranscriptTracks,
     getTranscriptVideo,
-    clearCurrentVideoMemberOnly
+    clearCurrentVideoMemberOnly,
+    checkIsLiveStream,
+    getLiveBroadcastStartTime,
+    pollLiveChat
 } from '../utils/innertube';
 
 import { IParamSearch, ISelectedSearch, IYCSOptions } from '../utils/interfaces/i_types';
@@ -34,6 +37,7 @@ import type {
 } from '../utils/interfaces/i_types';
 
 import { iconOk, iconReload } from '../utils/icons';
+import { formatRecordingDuration } from '../utils/formatting';
 import { renderLoadComments, renderSearch, loadFilterButtons } from '../utils/renderView';
 import { loadFromCache, saveToCache, updateBadge } from './services/cacheService';
 import type { CacheData } from './services/cacheService';
@@ -76,7 +80,10 @@ import {
     setTranscriptTracks,
     setCount,
     setSearchCount,
-    WebResourcesState
+    WebResourcesState,
+    getLiveRecording,
+    setLiveRecording,
+    resetLiveRecording
 } from './state';
 import {
     FILTER_BUTTONS,
@@ -815,11 +822,13 @@ export function initApp(): void {
 
         const buildExportMeta = (): ExportMeta => {
             const videoUrl = getCleanUrlVideo(window.location.href);
+            const liveRecording = getLiveRecording(state);
 
             return {
                 url: videoUrl ?? window.location.href,
                 title: document.title,
-                generatedAt: new Date()
+                generatedAt: new Date(),
+                broadcastStartTime: liveRecording?.broadcastStartTime ?? undefined
             };
         };
 
@@ -1022,6 +1031,239 @@ export function initApp(): void {
                 }
             });
         }
+
+        // ============================================
+        // Live Chat Recording Logic
+        // ============================================
+        const RECORDING_POLL_INTERVAL = 5000; // 5 seconds
+        const RECORDING_TIMER_INTERVAL = 1000; // 1 second
+
+        const elRecordChat = document.getElementById('ycs-record-chat') as HTMLButtonElement | null;
+        const elRecordTimer = document.getElementById('ycs-record-timer');
+
+        /**
+         * Stop live chat recording
+         */
+        async function stopLiveChatRecording(): Promise<void> {
+            const liveRecording = getLiveRecording(state);
+
+            // Clear poll interval
+            if (liveRecording.pollIntervalId !== null) {
+                clearInterval(liveRecording.pollIntervalId);
+            }
+
+            // Clear timer interval
+            if (liveRecording.timerIntervalId !== null) {
+                clearInterval(liveRecording.timerIntervalId);
+            }
+
+            // Update UI
+            if (elRecordChat) {
+                elRecordChat.classList.remove('ycs-recording');
+                elRecordChat.textContent = 'record';
+            }
+
+            if (elRecordTimer) {
+                elRecordTimer.style.display = 'none';
+            }
+
+            // Save final data to cache
+            const commentsChat = getCommentsChat(state);
+            const startVideoId = getVideoId(window.location.href);
+
+            if (commentsChat.size > 0 && startVideoId) {
+                saveToCache(
+                    {
+                        videoId: startVideoId,
+                        comments: getComments(state),
+                        commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
+                        commentsTrVideo: getCommentsTrVideo(state),
+                        channelId: extractChannelId()
+                    },
+                    buildCacheMeta()
+                );
+            }
+
+            // Update badge
+            const counts = getCounts(state);
+            const totalCount = counts.comments + counts.commentsChat + counts.commentsTrVideo;
+            updateBadge('NUMBER_COMMENTS', totalCount);
+            updateTitleCount(totalCount);
+
+            // Reset recording state
+            state = resetLiveRecording(state);
+
+            console.log('[YCS] Live chat recording stopped. Total messages:', commentsChat.size);
+        }
+
+        /**
+         * Update recording timer display
+         */
+        function updateRecordingTimer(): void {
+            const liveRecording = getLiveRecording(state);
+            const commentsChat = getCommentsChat(state);
+
+            if (liveRecording.recordingStartTime && elRecordTimer) {
+                const duration = formatRecordingDuration(liveRecording.recordingStartTime);
+                elRecordTimer.textContent = `${duration} (${commentsChat.size})`;
+            }
+        }
+
+        /**
+         * Poll and save chat messages
+         */
+        async function pollAndSaveChat(startVideoId: string | null): Promise<void> {
+            // Verify video hasn't changed
+            const currentVideoId = getVideoId(window.location.href);
+            if (startVideoId && currentVideoId && startVideoId !== currentVideoId) {
+                console.warn('[YCS] Video changed during recording, stopping...');
+                await stopLiveChatRecording();
+                return;
+            }
+
+            const controller = getController(state);
+            const commentsChat = getCommentsChat(state);
+
+            try {
+                await pollLiveChat(controller.signal, commentsChat, (newCount, totalCount) => {
+                    // Update counter display
+                    const elLoadChat = document.getElementById('ycs_cmnts_chat');
+                    if (elLoadChat) {
+                        elLoadChat.textContent = totalCount.toString();
+                    }
+
+                    // Update state count
+                    state = setCount(state, 'commentsChat', totalCount);
+
+                    if (newCount > 0) {
+                        console.log(`[YCS] Recording: +${newCount} new messages, total: ${totalCount}`);
+                    }
+                });
+
+                // Save to cache after each successful poll
+                if (commentsChat.size > 0 && startVideoId) {
+                    saveToCache(
+                        {
+                            videoId: startVideoId,
+                            comments: getComments(state),
+                            commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
+                            commentsTrVideo: getCommentsTrVideo(state),
+                            channelId: extractChannelId()
+                        },
+                        buildCacheMeta()
+                    );
+                }
+            } catch (e) {
+                // Silent retry - just log error and continue polling
+                console.error('[YCS] pollAndSaveChat error:', e);
+            }
+        }
+
+        /**
+         * Start live chat recording
+         */
+        async function startLiveChatRecording(): Promise<void> {
+            if (!elRecordChat) return;
+
+            const startVideoId = getVideoId(window.location.href);
+            if (!startVideoId) {
+                console.warn('[YCS] Cannot start recording: no video ID');
+                return;
+            }
+
+            // Clear previous chat data
+            state = clearCommentsChat(state);
+
+            // Get broadcast start time
+            const controller = getController(state);
+            const broadcastStartTime = await getLiveBroadcastStartTime(controller.signal);
+
+            // Update UI
+            elRecordChat.classList.add('ycs-recording');
+            elRecordChat.textContent = 'stop';
+
+            if (elRecordTimer) {
+                elRecordTimer.style.display = 'inline';
+                elRecordTimer.textContent = '00:00:00 (0)';
+            }
+
+            // Update status icon
+            const elStatusChat = document.getElementById('ycs_status_chat');
+            const elLoadChat = document.getElementById('ycs_cmnts_chat');
+            if (elStatusChat) {
+                elStatusChat.innerHTML = iconReload();
+            }
+            if (elLoadChat) {
+                elLoadChat.textContent = '0';
+            }
+
+            const recordingStartTime = Date.now();
+
+            // Start polling interval
+            const pollIntervalId = setInterval(() => {
+                pollAndSaveChat(startVideoId);
+            }, RECORDING_POLL_INTERVAL);
+
+            // Start timer interval
+            const timerIntervalId = setInterval(() => {
+                updateRecordingTimer();
+            }, RECORDING_TIMER_INTERVAL);
+
+            // Update state
+            state = setLiveRecording(state, {
+                isRecording: true,
+                pollIntervalId,
+                timerIntervalId,
+                broadcastStartTime,
+                recordingStartTime,
+                lastContinuation: null
+            });
+
+            console.log('[YCS] Live chat recording started. Broadcast start time:', broadcastStartTime);
+
+            // Perform first poll immediately
+            await pollAndSaveChat(startVideoId);
+        }
+
+        /**
+         * Check if current video is live and show/hide record button
+         */
+        async function updateRecordButtonVisibility(): Promise<void> {
+            if (!elRecordChat) return;
+
+            try {
+                const controller = getController(state);
+                const isLive = await checkIsLiveStream(controller.signal);
+
+                if (isLive) {
+                    elRecordChat.style.display = 'inline-block';
+                    console.log('[YCS] Live stream detected, showing Record button');
+                } else {
+                    elRecordChat.style.display = 'none';
+                    console.log('[YCS] Not a live stream, hiding Record button');
+                }
+            } catch (e) {
+                console.error('[YCS] updateRecordButtonVisibility error:', e);
+                // Hide on error
+                elRecordChat.style.display = 'none';
+            }
+        }
+
+        // Record button click handler
+        if (elRecordChat) {
+            elRecordChat.addEventListener('click', async function (): Promise<void> {
+                const liveRecording = getLiveRecording(state);
+
+                if (liveRecording.isRecording) {
+                    await stopLiveChatRecording();
+                } else {
+                    await startLiveChatRecording();
+                }
+            });
+        }
+
+        // Auto-check live stream on page load
+        updateRecordButtonVisibility();
 
         const elLoadTranscriptVideo = document.getElementById('ycs-load-transcript-video');
         const elTranscriptLangButton = document.getElementById('ycs_transcript_language');
@@ -1972,6 +2214,20 @@ export function initApp(): void {
         observeIntervalId = setInterval(() => {
             if (isVideoPage() && getPageMetaElement() && prevUrl !== getCleanUrlVideo(window.location.href)) {
                 const currentUrl = getCleanUrlVideo(window.location.href);
+
+                // Stop live recording if active (video switch detected)
+                const liveRecording = getLiveRecording(state);
+                if (liveRecording.isRecording) {
+                    console.log('[YCS] Video switch detected, stopping live recording...');
+                    // Clear intervals
+                    if (liveRecording.pollIntervalId !== null) {
+                        clearInterval(liveRecording.pollIntervalId);
+                    }
+                    if (liveRecording.timerIntervalId !== null) {
+                        clearInterval(liveRecording.timerIntervalId);
+                    }
+                    state = resetLiveRecording(state);
+                }
 
                 getController(state).abort();
                 app();

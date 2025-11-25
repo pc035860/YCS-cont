@@ -1,6 +1,6 @@
 import type { ChatItem, TranscriptCueGroup, CommentItem } from './interfaces/i_types';
 import type { ISheetChatCommentsParam, ISheetCommentsParam, ISheetRepliesParam } from './interfaces/i_assist';
-import { msToRoundSec, parseFormattedNumberToInt } from './formatting';
+import { msToRoundSec, parseFormattedNumberToInt, formatRelativeTimestamp } from './formatting';
 import { getVideoId, wrapTryCatch } from './common';
 
 export type CommentExportItem = ISheetCommentsParam;
@@ -26,6 +26,7 @@ export interface ChatExportItem {
     commentMessage: string;
     timestampUsec: number;
     timestampText: string;
+    relativeTimestamp?: string; // Format: "+H:MM:SS" (relative to broadcast start)
 }
 
 export interface ChatExportPayload {
@@ -201,17 +202,24 @@ function buildChatAuthorChannel(renderer: any): string {
     return authorChannelId ? `youtube.com/channel/${authorChannelId}` : '';
 }
 
-function createChatExportRow(renderer: any): ISheetChatCommentsParam {
-    return {
+function createChatExportRow(renderer: any, broadcastStartTime?: string): ISheetChatCommentsParam {
+    const timestampUsec = Number(renderer?.timestampUsec || 0);
+    const row: ISheetChatCommentsParam = {
         author: {
             nameAuthor: renderer?.authorName?.simpleText || '',
             channel: buildChatAuthorChannel(renderer),
             member: buildChatMemberText(renderer)
         },
         commentMessage: buildChatMessage(renderer),
-        timestampUsec: Number(renderer?.timestampUsec || 0),
+        timestampUsec,
         timestampText: renderer?.timestampText?.simpleText || ''
     };
+
+    if (broadcastStartTime && timestampUsec > 0) {
+        row.relativeTimestamp = formatRelativeTimestamp(timestampUsec, broadcastStartTime);
+    }
+
+    return row;
 }
 
 function createTranscriptExportItem(group: TranscriptCueGroup, videoId: string): TranscriptExportItem {
@@ -290,7 +298,7 @@ export function buildCommentsExportPayload(input: {
 
 export function buildChatExportPayload(
     chatMessages: ChatItem[],
-    meta: { titleVideo?: string; url?: string; videoId?: string; cachedDate?: number }
+    meta: { titleVideo?: string; url?: string; videoId?: string; cachedDate?: number; broadcastStartTime?: string }
 ): ChatExportPayload {
     const payload = createChatPayloadSkeleton({
         titleVideo: meta?.titleVideo,
@@ -309,7 +317,7 @@ export function buildChatExportPayload(
             (itemData as any)?.liveChatMembershipItemRenderer;
         if (!renderer) continue;
 
-        payload.commentsChat.push(createChatExportRow(renderer));
+        payload.commentsChat.push(createChatExportRow(renderer, meta?.broadcastStartTime));
     }
 
     payload.total = payload.commentsChat.length;

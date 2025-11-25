@@ -6,6 +6,18 @@ export interface CountBuckets {
     commentsTrVideo: number;
 }
 
+/**
+ * State for live chat recording feature
+ */
+export interface LiveRecordingState {
+    isRecording: boolean;
+    pollIntervalId: ReturnType<typeof setInterval> | null; // 5s polling interval
+    timerIntervalId: ReturnType<typeof setInterval> | null; // 1s timer display interval
+    broadcastStartTime: string | null; // ISO timestamp from YouTube API
+    recordingStartTime: number | null; // Local timestamp when recording started
+    lastContinuation: unknown; // Continuation token for next poll
+}
+
 export interface WebResourcesState {
     comments: CommentItem[];
     commentsChat: Map<number, ChatItem>;
@@ -15,6 +27,7 @@ export interface WebResourcesState {
     count: CountBuckets;
     countSearch: CountBuckets;
     controller: AbortController;
+    liveRecording: LiveRecordingState;
 }
 
 function createCounts(): CountBuckets {
@@ -22,6 +35,17 @@ function createCounts(): CountBuckets {
         comments: 0,
         commentsChat: 0,
         commentsTrVideo: 0
+    };
+}
+
+function createLiveRecordingState(): LiveRecordingState {
+    return {
+        isRecording: false,
+        pollIntervalId: null,
+        timerIntervalId: null,
+        broadcastStartTime: null,
+        recordingStartTime: null,
+        lastContinuation: null
     };
 }
 
@@ -34,7 +58,8 @@ export function createState(): WebResourcesState {
         selectedTranscriptLanguage: undefined,
         count: createCounts(),
         countSearch: createCounts(),
-        controller: new AbortController()
+        controller: new AbortController(),
+        liveRecording: createLiveRecordingState()
     };
 }
 
@@ -177,4 +202,28 @@ export function setController(state: WebResourcesState, controller: AbortControl
 
 export function resetController(state: WebResourcesState): WebResourcesState {
     return setController(state, new AbortController());
+}
+
+export function getLiveRecording(state: WebResourcesState): LiveRecordingState {
+    return state.liveRecording;
+}
+
+export function setLiveRecording(
+    state: WebResourcesState,
+    liveRecording: Partial<LiveRecordingState>
+): WebResourcesState {
+    return {
+        ...state,
+        liveRecording: {
+            ...state.liveRecording,
+            ...liveRecording
+        }
+    };
+}
+
+export function resetLiveRecording(state: WebResourcesState): WebResourcesState {
+    return {
+        ...state,
+        liveRecording: createLiveRecordingState()
+    };
 }

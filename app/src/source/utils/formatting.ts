@@ -4,6 +4,7 @@ interface ExportMeta {
     url?: string;
     title?: string;
     generatedAt?: Date | string;
+    broadcastStartTime?: string;
 }
 
 interface ResolvedExportMeta {
@@ -209,6 +210,76 @@ function tmUsecToDateTime(microSec: string | number): string {
     }
 
     return '';
+}
+
+/**
+ * Format duration in milliseconds to H:MM:SS
+ */
+function formatDurationHMS(durationMs: number): string {
+    const totalSeconds = Math.floor(durationMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const mm = minutes.toString().padStart(2, '0');
+    const ss = seconds.toString().padStart(2, '0');
+
+    return `${hours}:${mm}:${ss}`;
+}
+
+/**
+ * Format relative timestamp from broadcast start
+ * @param timestampUsec - Message timestamp in microseconds
+ * @param broadcastStartTime - Broadcast start ISO timestamp
+ * @returns Formatted string like "+0:12:34" or "+1:30:00"
+ */
+function formatRelativeTimestamp(timestampUsec: string | number, broadcastStartTime: string): string {
+    try {
+        const messageTimeMs = Number(timestampUsec) / 1000; // Convert usec to ms
+        const broadcastStartMs = new Date(broadcastStartTime).getTime();
+
+        if (Number.isNaN(messageTimeMs) || Number.isNaN(broadcastStartMs)) {
+            return '';
+        }
+
+        const offsetMs = messageTimeMs - broadcastStartMs;
+        if (offsetMs < 0) {
+            return '-' + formatDurationHMS(Math.abs(offsetMs));
+        }
+
+        return '+' + formatDurationHMS(offsetMs);
+    } catch (e) {
+        console.error('[YCS] formatRelativeTimestamp error:', e);
+        return '';
+    }
+}
+
+/**
+ * Format recording duration for timer display
+ * @param startTimeMs - Recording start timestamp in milliseconds
+ * @returns Formatted string like "00:05:30"
+ */
+function formatRecordingDuration(startTimeMs: number): string {
+    try {
+        const now = Date.now();
+        const durationMs = now - startTimeMs;
+
+        if (durationMs < 0) return '00:00:00';
+
+        const totalSeconds = Math.floor(durationMs / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        const hh = hours.toString().padStart(2, '0');
+        const mm = minutes.toString().padStart(2, '0');
+        const ss = seconds.toString().padStart(2, '0');
+
+        return `${hh}:${mm}:${ss}`;
+    } catch (e) {
+        console.error('[YCS] formatRecordingDuration error:', e);
+        return '00:00:00';
+    }
 }
 
 function formatBytes(bytes: number, decimals = 2): string | void {
@@ -435,6 +506,9 @@ export {
     msToRoundSec,
     msToShareVideo,
     tmUsecToDateTime,
+    formatDurationHMS,
+    formatRelativeTimestamp,
+    formatRecordingDuration,
     formatBytes,
     getCommentsHtmlText,
     getCommentsChatHtmlText,

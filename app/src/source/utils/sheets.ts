@@ -84,7 +84,7 @@ function getSheetChatComments(cmnts: ISheetDetailsChatParam): Array<ISheetChatCo
             const [m, s] = cmnt.timestampText.split(':');
             const second = Number(m) * 60 + Number(s);
 
-            sheetCmnts.push({
+            const row: ISheetChatComments = {
                 'Timestamp Usec': Number(cmnt?.timestampUsec),
                 URL: `https://youtu.be/${cmnts.videoId}?t=${second || 0}`,
                 'Author name': cmnt?.author?.nameAuthor,
@@ -92,7 +92,13 @@ function getSheetChatComments(cmnts: ISheetDetailsChatParam): Array<ISheetChatCo
                 Member: cmnt?.author?.member,
                 'Comment message': cmnt?.commentMessage,
                 'Timestamp comment': cmnt?.timestampText
-            });
+            };
+
+            if (cmnt?.relativeTimestamp) {
+                row['Relative Time'] = cmnt.relativeTimestamp;
+            }
+
+            sheetCmnts.push(row);
         }
 
         return sheetCmnts;

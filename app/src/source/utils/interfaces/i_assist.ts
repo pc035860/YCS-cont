@@ -192,6 +192,7 @@ export interface ISheetChatCommentsParam {
     };
     commentMessage: string;
     timestampText: string;
+    relativeTimestamp?: string;
 }
 
 export interface ISheetChatComments {
@@ -202,6 +203,7 @@ export interface ISheetChatComments {
     Member: string;
     'Comment message': string;
     'Timestamp comment': string;
+    'Relative Time'?: string;
 }
 
 export interface ISheetDetailsTrVideoParam {

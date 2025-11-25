@@ -789,6 +789,16 @@ function renderLoadComments(
                                         load
                                     </button>
                                 </div>
+                                <div class="ycs_record_wrap">
+                                    <button id="ycs-record-chat" class="ycs-btn-search ycs-title ycs-btn-record"
+                                        name="Record live chat" type="button" title="Record live chat (live streams only)"
+                                        style="display: none;">
+                                        record
+                                    </button>
+                                    <span id="ycs-record-timer" class="ycs-record-timer" style="display: none;">
+                                        00:00:00 (0)
+                                    </span>
+                                </div>
                                 <div class="ycs_open_wrap">
                                     <button id="ycs_open_all_comments_chat_window" class="ycs-btn-search ycs-title"
                                         name="Open chat comments in the new popup window"
