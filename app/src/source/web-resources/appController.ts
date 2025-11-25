@@ -339,6 +339,20 @@ export function initApp(): void {
             resizeObserver = null;
         }
 
+        // Clean up recording intervals if active
+        const liveRecording = getLiveRecording(state);
+        if (liveRecording.isRecording) {
+            if (liveRecording.pollIntervalId !== null) {
+                clearInterval(liveRecording.pollIntervalId);
+            }
+            if (liveRecording.timerIntervalId !== null) {
+                clearInterval(liveRecording.timerIntervalId);
+            }
+        }
+
+        // Abort old controller BEFORE creating new state to prevent race conditions
+        getController(state).abort();
+
         state = createState();
 
         updateBadge('NUMBER_COMMENTS', '');
@@ -1140,6 +1154,12 @@ export function initApp(): void {
                     }
                 });
 
+                // Check abort before saving to prevent race condition
+                if (controller.signal.aborted) {
+                    console.log('[YCS] pollAndSaveChat aborted, skipping cache save');
+                    return;
+                }
+
                 // Save to cache after each successful poll
                 if (commentsChat.size > 0 && startVideoId) {
                     saveToCache(
@@ -1171,58 +1191,80 @@ export function initApp(): void {
                 return;
             }
 
-            // Clear previous chat data
-            state = clearCommentsChat(state);
+            // Disable button during initialization
+            elRecordChat.disabled = true;
+            elRecordChat.textContent = 'loading...';
 
-            // Get broadcast start time
-            const controller = getController(state);
-            const broadcastStartTime = await getLiveBroadcastStartTime(controller.signal);
+            try {
+                // Clear previous chat data
+                state = clearCommentsChat(state);
 
-            // Update UI
-            elRecordChat.classList.add('ycs-recording');
-            elRecordChat.textContent = 'stop';
+                // Get broadcast start time
+                const controller = getController(state);
+                const broadcastStartTime = await getLiveBroadcastStartTime(controller.signal);
 
-            if (elRecordTimer) {
-                elRecordTimer.style.display = 'inline';
-                elRecordTimer.textContent = '00:00:00 (0)';
+                if (!broadcastStartTime) {
+                    console.warn('[YCS] Could not get broadcast start time, relative timestamps will be unavailable');
+                }
+
+                // Update UI (but keep button disabled until isRecording is set)
+                elRecordChat.classList.add('ycs-recording');
+                elRecordChat.textContent = 'stop';
+
+                if (elRecordTimer) {
+                    elRecordTimer.style.display = 'inline';
+                    elRecordTimer.textContent = '00:00:00 (0)';
+                }
+
+                // Update status icon
+                const elStatusChat = document.getElementById('ycs_status_chat');
+                const elLoadChat = document.getElementById('ycs_cmnts_chat');
+                if (elStatusChat) {
+                    elStatusChat.innerHTML = iconReload();
+                }
+                if (elLoadChat) {
+                    elLoadChat.textContent = '0';
+                }
+
+                const recordingStartTime = Date.now();
+
+                // Start polling interval
+                const pollIntervalId = setInterval(() => {
+                    pollAndSaveChat(startVideoId);
+                }, RECORDING_POLL_INTERVAL);
+
+                // Start timer interval
+                const timerIntervalId = setInterval(() => {
+                    updateRecordingTimer();
+                }, RECORDING_TIMER_INTERVAL);
+
+                // Update state
+                state = setLiveRecording(state, {
+                    isRecording: true,
+                    pollIntervalId,
+                    timerIntervalId,
+                    broadcastStartTime,
+                    recordingStartTime,
+                    lastContinuation: null
+                });
+
+                // Re-enable button AFTER isRecording is set to prevent double-click race condition
+                elRecordChat.disabled = false;
+
+                console.log('[YCS] Live chat recording started. Broadcast start time:', broadcastStartTime);
+
+                // Perform first poll immediately
+                await pollAndSaveChat(startVideoId);
+            } catch (e) {
+                console.error('[YCS] startLiveChatRecording error:', e);
+                // Restore button and UI state on error
+                elRecordChat.disabled = false;
+                elRecordChat.textContent = 'record';
+                elRecordChat.classList.remove('ycs-recording');
+                if (elRecordTimer) {
+                    elRecordTimer.style.display = 'none';
+                }
             }
-
-            // Update status icon
-            const elStatusChat = document.getElementById('ycs_status_chat');
-            const elLoadChat = document.getElementById('ycs_cmnts_chat');
-            if (elStatusChat) {
-                elStatusChat.innerHTML = iconReload();
-            }
-            if (elLoadChat) {
-                elLoadChat.textContent = '0';
-            }
-
-            const recordingStartTime = Date.now();
-
-            // Start polling interval
-            const pollIntervalId = setInterval(() => {
-                pollAndSaveChat(startVideoId);
-            }, RECORDING_POLL_INTERVAL);
-
-            // Start timer interval
-            const timerIntervalId = setInterval(() => {
-                updateRecordingTimer();
-            }, RECORDING_TIMER_INTERVAL);
-
-            // Update state
-            state = setLiveRecording(state, {
-                isRecording: true,
-                pollIntervalId,
-                timerIntervalId,
-                broadcastStartTime,
-                recordingStartTime,
-                lastContinuation: null
-            });
-
-            console.log('[YCS] Live chat recording started. Broadcast start time:', broadcastStartTime);
-
-            // Perform first poll immediately
-            await pollAndSaveChat(startVideoId);
         }
 
         /**
@@ -2226,10 +2268,35 @@ export function initApp(): void {
                     if (liveRecording.timerIntervalId !== null) {
                         clearInterval(liveRecording.timerIntervalId);
                     }
+
+                    // Save final chat data to cache before video switch
+                    // Use prevUrl (old video) instead of window.location.href (new video)
+                    const commentsChat = getCommentsChat(state);
+                    const oldVideoId = prevUrl ? getVideoId(prevUrl) : null;
+                    if (commentsChat.size > 0 && oldVideoId && prevUrl) {
+                        saveToCache(
+                            {
+                                videoId: oldVideoId,
+                                comments: getComments(state),
+                                commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
+                                commentsTrVideo: getCommentsTrVideo(state),
+                                channelId: extractChannelId()
+                            },
+                            { url: prevUrl, title: document.title }
+                        );
+                        console.log('[YCS] Saved', commentsChat.size, 'chat messages for old video before switch');
+                    }
+
+                    // Abort controller BEFORE resetting to stop pending requests
+                    getController(state).abort();
                     state = resetLiveRecording(state);
                 }
 
-                getController(state).abort();
+                // Note: If recording was active, controller was already aborted above
+                // If not recording, abort here before calling app()
+                if (!liveRecording.isRecording) {
+                    getController(state).abort();
+                }
                 app();
 
                 // Only update prevUrl after confirming .ycs-app was successfully created
