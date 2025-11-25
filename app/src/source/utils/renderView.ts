@@ -930,6 +930,19 @@ function renderLoadComments(
                 </div>
             </div>
 
+            <div id="ycs_confirm_modal" class="ycs_modal">
+                <div class="ycs_modal-content ycs_confirm_content">
+                    <div class="ycs_modal_body">
+                        <h2 id="ycs_confirm_title">Confirm</h2>
+                        <p id="ycs_confirm_message"></p>
+                        <div class="ycs_confirm_buttons">
+                            <button id="ycs_confirm_cancel" class="ycs-btn-search">Cancel</button>
+                            <button id="ycs_confirm_ok" class="ycs-btn-search ycs_btn_primary">Continue</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     `;
 

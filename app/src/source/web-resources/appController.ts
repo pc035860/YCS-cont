@@ -83,7 +83,9 @@ import {
     WebResourcesState,
     getLiveRecording,
     setLiveRecording,
-    resetLiveRecording
+    resetLiveRecording,
+    getChatSource,
+    setChatSource
 } from './state';
 import {
     FILTER_BUTTONS,
@@ -354,6 +356,54 @@ export function initApp(): void {
         getController(state).abort();
 
         state = createState();
+
+        /**
+         * Show confirmation modal and return Promise<boolean>
+         */
+        function showConfirmModal(title: string, message: string): Promise<boolean> {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('ycs_confirm_modal');
+                const titleEl = document.getElementById('ycs_confirm_title');
+                const messageEl = document.getElementById('ycs_confirm_message');
+                const okBtn = document.getElementById('ycs_confirm_ok');
+                const cancelBtn = document.getElementById('ycs_confirm_cancel');
+
+                if (!modal || !titleEl || !messageEl || !okBtn || !cancelBtn) {
+                    resolve(window.confirm(message)); // Fallback
+                    return;
+                }
+
+                titleEl.textContent = title;
+                messageEl.textContent = message;
+                modal.style.display = 'block';
+
+                const cleanup = () => {
+                    modal.style.display = 'none';
+                    okBtn.removeEventListener('click', onOk);
+                    cancelBtn.removeEventListener('click', onCancel);
+                    modal.removeEventListener('click', onBackdrop);
+                };
+
+                const onOk = () => {
+                    cleanup();
+                    resolve(true);
+                };
+                const onCancel = () => {
+                    cleanup();
+                    resolve(false);
+                };
+                const onBackdrop = (e: Event) => {
+                    if (e.target === modal) {
+                        cleanup();
+                        resolve(false);
+                    }
+                };
+
+                okBtn.addEventListener('click', onOk);
+                cancelBtn.addEventListener('click', onCancel);
+                modal.addEventListener('click', onBackdrop);
+            });
+        }
 
         updateBadge('NUMBER_COMMENTS', '');
 
@@ -974,11 +1024,27 @@ export function initApp(): void {
             elLoadCommentsChat.addEventListener('click', async function (e: MouseEvent): Promise<void> {
                 if (!elLiveApp.parentNode || !elLiveApp.parentElement) return;
 
+                // Check for live recording data before proceeding
+                const currentChatSource = getChatSource(state);
+                const currentChatCount = getCommentsChat(state).size;
+
+                if (currentChatSource === 'live-recording' && currentChatCount > 0) {
+                    const confirmed = await showConfirmModal(
+                        'Replace Recorded Chat?',
+                        `You have previously recorded ${currentChatCount.toLocaleString()} live chat messages. Are you sure you want to replace them with new chat replay data?`
+                    );
+
+                    if (!confirmed) {
+                        return; // User cancelled
+                    }
+                }
+
                 // Capture URL and videoId at the start of async operation
                 const startUrl = window.location.href;
                 const startVideoId = getVideoId(startUrl);
 
                 state = clearCommentsChat(state);
+                state = setChatSource(state, undefined); // Clear source when loading new data
                 const commentsChat = getCommentsChat(state);
 
                 const currentTarget = e.currentTarget as HTMLButtonElement;
@@ -1017,13 +1083,15 @@ export function initApp(): void {
                         if (commentsChat.size > 0) {
                             elLoadChat.textContent = commentsChat.size.toString();
                             elStatusChat.innerHTML = iconOk();
+                            state = setChatSource(state, 'chat-replay');
                             saveToCache(
                                 {
                                     videoId: startVideoId,
                                     comments: getComments(state),
                                     commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
                                     commentsTrVideo: getCommentsTrVideo(state),
-                                    channelId: extractChannelId()
+                                    channelId: extractChannelId(),
+                                    chatSource: 'chat-replay'
                                 },
                                 buildCacheMeta()
                             );
@@ -1092,7 +1160,8 @@ export function initApp(): void {
                         comments: getComments(state),
                         commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
                         commentsTrVideo: getCommentsTrVideo(state),
-                        channelId: extractChannelId()
+                        channelId: extractChannelId(),
+                        chatSource: 'live-recording'
                     },
                     buildCacheMeta()
                 );
@@ -1175,7 +1244,8 @@ export function initApp(): void {
                             comments: getComments(state),
                             commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
                             commentsTrVideo: getCommentsTrVideo(state),
-                            channelId: extractChannelId()
+                            channelId: extractChannelId(),
+                            chatSource: 'live-recording'
                         },
                         buildCacheMeta()
                     );
@@ -1214,6 +1284,9 @@ export function initApp(): void {
                     state = clearCommentsChat(state);
                     console.log('[YCS] Starting new recording session');
                 }
+
+                // Mark chat source as live-recording
+                state = setChatSource(state, 'live-recording');
 
                 // Get broadcast start time
                 const controller = getController(state);
@@ -2148,6 +2221,7 @@ export function initApp(): void {
 
                     const chatEntries = JSON.parse(body.commentsChat || '[]') as Array<[number, ChatItem]>;
                     state = setCommentsChat(state, new Map<number, ChatItem>(chatEntries));
+                    state = setChatSource(state, body.chatSource);
                     state = setCommentsTrVideo(state, body.commentsTrVideo);
 
                     // Restore GlobalStore.getInitYtData with minimal structure for author filter
@@ -2306,7 +2380,8 @@ export function initApp(): void {
                                 comments: getComments(state),
                                 commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
                                 commentsTrVideo: getCommentsTrVideo(state),
-                                channelId: extractChannelId()
+                                channelId: extractChannelId(),
+                                chatSource: getChatSource(state)
                             },
                             { url: prevUrl, title: document.title }
                         );

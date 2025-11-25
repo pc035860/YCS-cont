@@ -958,6 +958,32 @@ html[dark] .ycs_modal_body code {
   color: #303030;
 }
 
+/* Confirmation Modal */
+.ycs_confirm_content {
+  max-width: 420px;
+  text-align: center;
+}
+
+.ycs_confirm_buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.ycs_btn_primary {
+  background-color: #065fd4 !important;
+  color: white !important;
+  border-color: #065fd4 !important;
+}
+
+html[dark='true'] .ycs_btn_primary,
+html[dark] .ycs_btn_primary {
+  background-color: #3ea6ff !important;
+  border-color: #3ea6ff !important;
+  color: #0f0f0f !important;
+}
+
 .ycs_donation_block {
   margin: 0;
 }

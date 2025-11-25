@@ -1,4 +1,5 @@
 import type { ChatItem, CommentItem, TranscriptData, TranscriptTrackInfo } from '../utils/interfaces/i_types';
+import type { ChatSource } from './services/cacheService';
 
 export interface CountBuckets {
     comments: number;
@@ -21,6 +22,7 @@ export interface LiveRecordingState {
 export interface WebResourcesState {
     comments: CommentItem[];
     commentsChat: Map<number, ChatItem>;
+    chatSource?: ChatSource;
     commentsTrVideo?: TranscriptData;
     transcriptTracks?: TranscriptTrackInfo[];
     selectedTranscriptLanguage?: string;
@@ -53,6 +55,7 @@ export function createState(): WebResourcesState {
     return {
         comments: [],
         commentsChat: new Map<number, ChatItem>(),
+        chatSource: undefined,
         commentsTrVideo: undefined,
         transcriptTracks: undefined,
         selectedTranscriptLanguage: undefined,
@@ -225,5 +228,16 @@ export function resetLiveRecording(state: WebResourcesState): WebResourcesState 
     return {
         ...state,
         liveRecording: createLiveRecordingState()
+    };
+}
+
+export function getChatSource(state: WebResourcesState): ChatSource | undefined {
+    return state.chatSource;
+}
+
+export function setChatSource(state: WebResourcesState, chatSource?: ChatSource): WebResourcesState {
+    return {
+        ...state,
+        chatSource
     };
 }
