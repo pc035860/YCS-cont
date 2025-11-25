@@ -488,27 +488,44 @@ export async function getLiveBroadcastStartTime(signal?: AbortSignal): Promise<s
 /**
  * Poll live chat for new messages during recording
  * Uses the same endpoint as getLiveChat but designed for incremental polling
- * @returns Object with new items and continuation, or undefined on error
+ * @param existingContinuation - Continuation from previous poll (skips ytInitialData fetch)
+ * @returns Object with continuation and isLiveEnded flag, or undefined on error
  */
 export async function pollLiveChat(
     signal: AbortSignal,
     existingChatMap: Map<number, object>,
     onNewMessages?: (newCount: number, totalCount: number) => void,
-    broadcastStartTime?: string
-): Promise<{ continuation: unknown } | undefined> {
+    broadcastStartTime?: string,
+    existingContinuation?: unknown
+): Promise<{ continuation: unknown; isLiveEnded: boolean } | undefined> {
     try {
-        const result = await getCDChat(signal);
-        if (!result.continuationData) return undefined;
+        let continuationData: unknown;
 
-        const liveChatData: any = await getLiveChat(result.continuationData, signal);
+        if (existingContinuation) {
+            // Reuse continuation from previous poll (avoids ytInitialData fetch)
+            continuationData = existingContinuation;
+        } else {
+            // First poll: get initial continuation from ytInitialData
+            const result = await getCDChat(signal);
+            if (!result.continuationData) return undefined;
+            continuationData = result.continuationData;
+        }
+
+        const liveChatData: any = await getLiveChat(continuationData, signal);
         if (!liveChatData?.actions?.length) {
             // No new messages, return current continuation
             const continuations = liveChatData?.continuations;
+            const hasInvalidationContinuation = continuations?.some((c: any) => c.invalidationContinuationData);
             const nextContinuation =
                 continuations?.find((c: any) => c.invalidationContinuationData)?.invalidationContinuationData ||
                 continuations?.find((c: any) => c.timedContinuationData)?.timedContinuationData ||
                 null;
-            return { continuation: nextContinuation };
+
+            // Live stream is considered ended when invalidationContinuationData disappears
+            // and only timedContinuationData remains (or continuation is null)
+            const isLiveEnded = !hasInvalidationContinuation && nextContinuation !== null;
+
+            return { continuation: nextContinuation, isLiveEnded };
         }
 
         const currentVideoId = (getVideoId(window.location.href) || undefined) as string | undefined;
@@ -530,12 +547,17 @@ export async function pollLiveChat(
 
         // Get continuation for next poll
         const continuations = liveChatData?.continuations;
+        const hasInvalidationContinuation = continuations?.some((c: any) => c.invalidationContinuationData);
         const nextContinuation =
             continuations?.find((c: any) => c.invalidationContinuationData)?.invalidationContinuationData ||
             continuations?.find((c: any) => c.timedContinuationData)?.timedContinuationData ||
             null;
 
-        return { continuation: nextContinuation };
+        // Live stream is considered ended when invalidationContinuationData disappears
+        // and only timedContinuationData remains (or continuation is null)
+        const isLiveEnded = !hasInvalidationContinuation && nextContinuation !== null;
+
+        return { continuation: nextContinuation, isLiveEnded };
     } catch (e) {
         console.error('[YCS] pollLiveChat error:', e);
         return undefined;

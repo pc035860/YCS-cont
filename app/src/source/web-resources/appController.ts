@@ -1213,7 +1213,7 @@ export function initApp(): void {
             const liveRecording = getLiveRecording(state);
 
             try {
-                await pollLiveChat(
+                const pollResult = await pollLiveChat(
                     controller.signal,
                     commentsChat,
                     (newCount, totalCount) => {
@@ -1230,14 +1230,27 @@ export function initApp(): void {
                             console.log(`[YCS] Recording: +${newCount} new messages, total: ${totalCount}`);
                         }
                     },
-                    liveRecording.broadcastStartTime ?? undefined
+                    liveRecording.broadcastStartTime ?? undefined,
+                    liveRecording.lastContinuation ?? undefined
                 );
+
+                // Save continuation for next poll (avoids re-fetching ytInitialData every time)
+                if (pollResult?.continuation) {
+                    state = setLiveRecording(state, { lastContinuation: pollResult.continuation });
+                }
 
                 // Check abort to stop processing
                 if (controller.signal.aborted) {
                     if (DEBUG) {
                         console.log('[YCS] pollAndSaveChat aborted');
                     }
+                    return;
+                }
+
+                // Auto-stop when live stream ends (detected by isLiveEnded flag)
+                if (pollResult?.isLiveEnded) {
+                    console.log('[YCS] Live stream ended, auto-stopping recording...');
+                    await stopLiveChatRecording();
                     return;
                 }
 

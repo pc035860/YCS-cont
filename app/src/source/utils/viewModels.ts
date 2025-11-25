@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { decodeHtml, escapeHtml, wrapTryCatch, convertColorToRgba } from './common';
-import { msToShareVideo, tmUsecToDateTime } from './formatting';
+import { msToShareVideo, tmUsecToDateTime, formatDurationHMS } from './formatting';
 
 export interface MemberBadgeViewModel {
     tooltip: string;
@@ -392,6 +392,18 @@ export function buildCommentViewModels(items: any[], options: { isReply?: boolea
     return models;
 }
 
+/**
+ * Check if a timestamp label is in relative format (e.g., "2:35", "1:02:35")
+ * vs absolute format (e.g., "4:30 PM", "16:30")
+ */
+function isRelativeTimestamp(label: string): boolean {
+    if (!label) return false;
+    // Relative timestamps are typically in format "M:SS" or "H:MM:SS" without AM/PM
+    // and don't contain special characters or excessive digits for hours
+    const relativePattern = /^\d{1,2}:\d{2}(:\d{2})?$/;
+    return relativePattern.test(label.trim());
+}
+
 export function buildChatMessageViewModels(items: any[]): ChatMessageViewModel[] {
     const models: ChatMessageViewModel[] = [];
 
@@ -406,7 +418,7 @@ export function buildChatMessageViewModels(items: any[]): ChatMessageViewModel[]
         const authorAvatarUrl = normalizeUrl(wrapTryCatch(() => renderer.authorPhoto?.thumbnails?.[0]?.url));
         const authorName = coerceString(wrapTryCatch(() => renderer.authorName?.simpleText));
 
-        const timestampLabel = coerceString(
+        const rawTimestampLabel = coerceString(
             wrapTryCatch(() => renderer.timestampText?.simpleText) ??
                 wrapTryCatch(() => renderer.timestampText?.runs?.[0]?.text)
         );
@@ -416,6 +428,17 @@ export function buildChatMessageViewModels(items: any[]): ChatMessageViewModel[]
         const videoOffset = wrapTryCatch(() => item?.item?.replayChatItemAction?.videoOffsetTimeMsec);
         const gotoVideoUrlRaw = videoOffset !== undefined ? msToShareVideo(videoOffset) : undefined;
         const gotoVideoUrl = gotoVideoUrlRaw ? normalizeUrl(gotoVideoUrlRaw) : '';
+
+        // For Live Chat recordings, generate timestampLabel from videoOffsetTimeMsec
+        // since the original timestampText may be in absolute time format (e.g., "4:30 PM")
+        // instead of relative format (e.g., "2:35")
+        let timestampLabel = rawTimestampLabel;
+        if (videoOffset !== undefined && (!timestampLabel || !isRelativeTimestamp(timestampLabel))) {
+            const offsetMs = typeof videoOffset === 'string' ? parseFloat(videoOffset) : videoOffset;
+            if (!Number.isNaN(offsetMs) && offsetMs >= 0) {
+                timestampLabel = formatDurationHMS(offsetMs);
+            }
+        }
 
         models.push({
             authorName,
