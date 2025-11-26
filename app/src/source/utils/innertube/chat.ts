@@ -198,9 +198,16 @@ export async function getChatComments(
         const chatCmnts = container || new Map<number, object>();
         const currentVideoId = (getVideoId(window.location.href) || undefined) as string | undefined;
 
+        // Fetch broadcast start time for live chat videoOffsetTimeMsec calculation
+        const broadcastStartTime = await getLiveBroadcastStartTime(signal);
+        if (broadcastStartTime) {
+            console.log(`[getChatComments] Broadcast start time: ${broadcastStartTime}`);
+        }
+
         const context: ChatProcessingContext = {
             chatMap: chatCmnts,
             currentVideoId,
+            broadcastStartTime: broadcastStartTime ?? undefined,
             onCommentAdded: (count: number) => showLoadComments(count, elShowLoading)
         };
 
