@@ -959,14 +959,19 @@ html[dark] .ycs_modal_body code {
 }
 
 /* Confirmation Modal */
+
+#ycs_confirm_modal {
+  padding-top: 20vh;
+}
+
 .ycs_confirm_content {
-  max-width: 420px;
-  text-align: center;
+  max-width: 600px;
+  text-align: inherit;
 }
 
 .ycs_confirm_buttons {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 12px;
   margin-top: 20px;
 }
