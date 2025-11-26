@@ -515,15 +515,20 @@ export async function pollLiveChat(
         if (!liveChatData?.actions?.length) {
             // No new messages, return current continuation
             const continuations = liveChatData?.continuations;
+            const hasContinuations = continuations && continuations.length > 0;
             const hasInvalidationContinuation = continuations?.some((c: any) => c.invalidationContinuationData);
+            const hasReloadContinuation = continuations?.some((c: any) => c.reloadContinuationData);
+            const hasTimedContinuation = continuations?.some((c: any) => c.timedContinuationData);
             const nextContinuation =
                 continuations?.find((c: any) => c.invalidationContinuationData)?.invalidationContinuationData ||
                 continuations?.find((c: any) => c.timedContinuationData)?.timedContinuationData ||
                 null;
 
-            // Live stream is considered ended when invalidationContinuationData disappears
-            // and only timedContinuationData remains (or continuation is null)
-            const isLiveEnded = !hasInvalidationContinuation && nextContinuation !== null;
+            // Live stream is considered ended when:
+            // 1. No invalidationContinuationData (live-only continuation type)
+            // 2. AND one of: no continuations at all, reloadContinuationData, or timedContinuationData
+            const isLiveEnded =
+                !hasInvalidationContinuation && (!hasContinuations || hasReloadContinuation || hasTimedContinuation);
 
             return { continuation: nextContinuation, isLiveEnded };
         }
@@ -547,15 +552,20 @@ export async function pollLiveChat(
 
         // Get continuation for next poll
         const continuations = liveChatData?.continuations;
+        const hasContinuations = continuations && continuations.length > 0;
         const hasInvalidationContinuation = continuations?.some((c: any) => c.invalidationContinuationData);
+        const hasReloadContinuation = continuations?.some((c: any) => c.reloadContinuationData);
+        const hasTimedContinuation = continuations?.some((c: any) => c.timedContinuationData);
         const nextContinuation =
             continuations?.find((c: any) => c.invalidationContinuationData)?.invalidationContinuationData ||
             continuations?.find((c: any) => c.timedContinuationData)?.timedContinuationData ||
             null;
 
-        // Live stream is considered ended when invalidationContinuationData disappears
-        // and only timedContinuationData remains (or continuation is null)
-        const isLiveEnded = !hasInvalidationContinuation && nextContinuation !== null;
+        // Live stream is considered ended when:
+        // 1. No invalidationContinuationData (live-only continuation type)
+        // 2. AND one of: no continuations at all, reloadContinuationData, or timedContinuationData
+        const isLiveEnded =
+            !hasInvalidationContinuation && (!hasContinuations || hasReloadContinuation || hasTimedContinuation);
 
         return { continuation: nextContinuation, isLiveEnded };
     } catch (e) {
