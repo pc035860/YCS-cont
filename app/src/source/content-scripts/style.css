@@ -958,6 +958,18 @@ html[dark] .ycs_modal_body code {
   color: #303030;
 }
 
+/* Default Modal */
+#ycs_modal_window ol {
+  margin-left: 24px;
+}
+#ycs_modal_window hr {
+  margin: 30px 0;
+}
+html[dark='true'] #ycs_modal_window hr,
+html[dark] #ycs_modal_window hr {
+  opacity: 0.1;
+}
+
 /* Confirmation Modal */
 
 #ycs_confirm_modal {

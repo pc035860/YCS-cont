@@ -16,6 +16,8 @@ export interface LiveRecordingState {
     timerIntervalId: ReturnType<typeof setInterval> | null; // 1s timer display interval
     broadcastStartTime: string | null; // ISO timestamp from YouTube API
     recordingStartTime: number | null; // Local timestamp when recording started
+    startUrl: string | null; // Page URL when recording started (preserve for cache save on navigation)
+    startTitle: string | null; // Document title when recording started
     startVideoId: string | null; // Video ID when recording started (preserved for cache save on navigation)
     lastContinuation: unknown; // Continuation token for next poll
     lastSaveTime: number | null; // Timestamp of last cache save (throttle saves to reduce memory pressure)
@@ -49,6 +51,8 @@ function createLiveRecordingState(): LiveRecordingState {
         timerIntervalId: null,
         broadcastStartTime: null,
         recordingStartTime: null,
+        startUrl: null,
+        startTitle: null,
         startVideoId: null,
         lastContinuation: null,
         lastSaveTime: null

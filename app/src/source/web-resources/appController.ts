@@ -878,9 +878,9 @@ export function initApp(): void {
             }
         };
 
-        const buildCacheMeta = () => ({
-            url: window.location.href,
-            title: document.title
+        const buildCacheMeta = (override?: { url?: string; title?: string }) => ({
+            url: override?.url ?? window.location.href,
+            title: override?.title ?? document.title
         });
 
         const buildExportMeta = (): ExportMeta => {
@@ -1151,9 +1151,13 @@ export function initApp(): void {
                 elRecordTimer.style.display = 'none';
             }
 
-            // Save final data to cache
+            // Save final data to cache using the original video context (preserved on start)
             const commentsChat = getCommentsChat(state);
             const startVideoId = liveRecording.startVideoId;
+            const cacheMeta = buildCacheMeta({
+                url: liveRecording.startUrl ?? undefined,
+                title: liveRecording.startTitle ?? undefined
+            });
 
             if (commentsChat.size > 0 && startVideoId) {
                 saveToCache(
@@ -1165,7 +1169,7 @@ export function initApp(): void {
                         channelId: extractChannelId(),
                         chatSource: 'live-recording'
                     },
-                    buildCacheMeta()
+                    cacheMeta
                 );
             }
 
@@ -1261,6 +1265,11 @@ export function initApp(): void {
                 const now = Date.now();
 
                 if (commentsChat.size > 0 && startVideoId && now - lastSaveTime >= CACHE_SAVE_INTERVAL_MS) {
+                    const cacheMeta = buildCacheMeta({
+                        url: liveRecording.startUrl ?? undefined,
+                        title: liveRecording.startTitle ?? undefined
+                    });
+
                     saveToCache(
                         {
                             videoId: startVideoId,
@@ -1270,7 +1279,7 @@ export function initApp(): void {
                             channelId: extractChannelId(),
                             chatSource: 'live-recording'
                         },
-                        buildCacheMeta()
+                        cacheMeta
                     );
                     state = setLiveRecording(state, { lastSaveTime: now });
                     console.log('[YCS] Periodic cache save:', commentsChat.size, 'messages');
@@ -1385,6 +1394,8 @@ export function initApp(): void {
                     timerIntervalId,
                     broadcastStartTime,
                     recordingStartTime,
+                    startUrl: window.location.href,
+                    startTitle: document.title,
                     startVideoId,
                     lastContinuation: null,
                     lastSaveTime: null

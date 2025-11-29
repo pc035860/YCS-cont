@@ -342,6 +342,7 @@ function getPiP(): {
 
 function initShowBarFAQ(): void {
     try {
+        // Keep existing .ycs__faq-title and .ycs__faq-answers handling logic
         const elWrap = document.querySelector('.ycs__faq-title');
         const elTBody = document.querySelector('.ycs__faq-answers');
 
@@ -363,6 +364,52 @@ function initShowBarFAQ(): void {
                 elTBody.classList.toggle('toggle');
             });
         }
+
+        // Add modal open/close functionality
+        const hCloseModalOut = (e: Event): void => {
+            try {
+                const elModalWindow = document.getElementById('ycs_modal_window') as HTMLElement;
+
+                if (e.target === elModalWindow) {
+                    elModalWindow.style.display = 'none';
+
+                    const elYCSApp = document.getElementsByClassName('ycs-app')[0] as HTMLElement;
+                    elYCSApp?.removeEventListener('click', hCloseModalOut);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        const hOpenModal = (): void => {
+            try {
+                const elModalWindow = document.getElementById('ycs_modal_window') as HTMLElement;
+                elModalWindow.style.display = 'block';
+
+                const elYCSApp = document.getElementsByClassName('ycs-app')[0] as HTMLElement;
+                elYCSApp?.addEventListener('click', hCloseModalOut);
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        const hCloseModal = (): void => {
+            try {
+                const elModalWindow = document.getElementById('ycs_modal_window') as HTMLElement;
+                elModalWindow.style.display = 'none';
+
+                const elYCSApp = document.getElementsByClassName('ycs-app')[0] as HTMLElement;
+                elYCSApp?.removeEventListener('click', hCloseModalOut);
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        const btnCloseModal = document.getElementById('ycs_btn_close_modal');
+        const btnOpenModal = document.getElementById('ycs_btn_open_modal');
+
+        btnCloseModal?.addEventListener('click', hCloseModal);
+        btnOpenModal?.addEventListener('click', hOpenModal);
     } catch (err) {
         console.error(err);
     }
