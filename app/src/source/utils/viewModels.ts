@@ -41,7 +41,7 @@ export interface ChatMessageViewModel {
     isVerified: boolean;
     memberBadge?: MemberBadgeViewModel;
     donatedChip?: DonatedChipViewModel;
-    timestampGmtText: string;
+    timestampLocalText: string;
     timestampLabel: string;
     gotoVideoUrl?: string;
     gotoVideoOffset?: string;
@@ -423,7 +423,7 @@ export function buildChatMessageViewModels(items: any[]): ChatMessageViewModel[]
                 wrapTryCatch(() => renderer.timestampText?.runs?.[0]?.text)
         );
         const timestampUsec = wrapTryCatch(() => renderer.timestampUsec) as string | number | undefined;
-        const timestampGmtText = timestampUsec ? tmUsecToDateTime(timestampUsec) : '';
+        const timestampLocalText = timestampUsec ? tmUsecToDateTime(timestampUsec) : '';
 
         const videoOffset = wrapTryCatch(() => item?.item?.replayChatItemAction?.videoOffsetTimeMsec);
         const gotoVideoUrlRaw = videoOffset !== undefined ? msToShareVideo(videoOffset) : undefined;
@@ -447,7 +447,7 @@ export function buildChatMessageViewModels(items: any[]): ChatMessageViewModel[]
             isVerified: Boolean(wrapTryCatch(() => renderer.verifiedAuthor)),
             memberBadge: resolveChatBadge(renderer),
             donatedChip: resolveDonatedChip(renderer),
-            timestampGmtText,
+            timestampLocalText,
             timestampLabel,
             gotoVideoUrl: gotoVideoUrl || undefined,
             gotoVideoOffset: videoOffset !== undefined ? coerceString(videoOffset) : undefined,

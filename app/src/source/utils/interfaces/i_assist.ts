@@ -193,6 +193,7 @@ export interface ISheetChatCommentsParam {
     commentMessage: string;
     timestampText: string;
     relativeTimestamp?: string;
+    videoOffsetMs?: number;
 }
 
 export interface ISheetChatComments {

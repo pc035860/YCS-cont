@@ -254,6 +254,7 @@ function createChatExportRow(
             typeof videoOffsetTimeMsec === 'string' ? parseFloat(videoOffsetTimeMsec) : videoOffsetTimeMsec;
         if (!Number.isNaN(offsetMs) && offsetMs >= 0) {
             row.relativeTimestamp = '+' + formatDurationHMS(offsetMs);
+            row.videoOffsetMs = offsetMs;
         }
     } else if (broadcastStartTime && timestampUsec > 0) {
         // Fallback: Calculate from broadcastStartTime (backward compatibility)

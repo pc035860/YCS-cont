@@ -127,6 +127,41 @@ test('buildChatExportPayload extracts member badge text and channel IDs', () => 
     assert.equal(payload.commentsChat[0].author.member, 'member (1 year)');
 });
 
+test('buildChatExportPayload populates videoOffsetMs from videoOffsetTimeMsec', () => {
+    const chatMessages = [
+        {
+            replayChatItemAction: {
+                videoOffsetTimeMsec: '330000', // 5 minutes 30 seconds
+                actions: [
+                    {
+                        addChatItemAction: {
+                            item: {
+                                liveChatTextMessageRenderer: {
+                                    authorName: { simpleText: 'TestUser' },
+                                    authorExternalChannelId: 'UC456',
+                                    message: { simpleText: 'Test message' },
+                                    timestampUsec: '1234567890',
+                                    timestampText: { simpleText: '' }
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ];
+
+    const payload = buildChatExportPayload(chatMessages, {
+        titleVideo: 'Test video',
+        url: 'https://www.youtube.com/watch?v=test',
+        videoId: 'test'
+    });
+
+    assert.equal(payload.commentsChat[0].videoOffsetMs, 330000);
+    assert.equal(payload.commentsChat[0].timestampText, '0:05:30');
+    assert.equal(payload.commentsChat[0].relativeTimestamp, '+0:05:30');
+});
+
 test('buildCommentsExportPayloadFromCache returns undefined when cache is empty', () => {
     const payload = buildCommentsExportPayloadFromCache({ comments: [] });
     assert.equal(payload, undefined);

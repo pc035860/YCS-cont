@@ -357,11 +357,11 @@ function createChatElement(model: ChatMessageViewModel, index: number): HTMLElem
 
     const timestampLink = document.createElement('a');
     timestampLink.className = 'ycs-datetime-goto';
-    timestampLink.title = 'GMT0';
+    timestampLink.title = 'Local Time';
     timestampLink.href = safeUrl(model.gotoVideoUrl || '');
     timestampLink.target = '_blank';
     timestampLink.rel = 'noopener noreferrer';
-    timestampLink.textContent = model.timestampGmtText;
+    timestampLink.textContent = model.timestampLocalText;
     meta.appendChild(timestampLink);
 
     const chatLabel = document.createElement('span');
