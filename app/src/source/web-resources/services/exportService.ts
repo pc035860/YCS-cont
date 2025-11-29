@@ -107,7 +107,11 @@ export function downloadCommentsFileXLSX(comments: CommentItem[], meta?: ExportM
 
 export function downloadChatFileJSON(chatMessages: ChatItem[], meta?: ExportMeta): void {
     try {
-        const body = { titleVideo: meta?.title || '', url: meta?.url || '' } as any;
+        const body = {
+            titleVideo: meta?.title || '',
+            url: meta?.url || '',
+            broadcastStartTime: meta?.broadcastStartTime
+        } as any;
         const payload = exportChatAsJSON(chatMessages, body);
         if (!payload) return;
 
@@ -119,7 +123,11 @@ export function downloadChatFileJSON(chatMessages: ChatItem[], meta?: ExportMeta
 
 export function downloadChatFileXLSX(chatMessages: ChatItem[], meta?: ExportMeta): void {
     try {
-        const body = { titleVideo: meta?.title || '', url: meta?.url || '' } as any;
+        const body = {
+            titleVideo: meta?.title || '',
+            url: meta?.url || '',
+            broadcastStartTime: meta?.broadcastStartTime
+        } as any;
         const payload = exportChatAsXLSX(chatMessages, body);
         if (!payload || !payload.writeFunc) return;
 

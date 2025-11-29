@@ -958,6 +958,37 @@ html[dark] .ycs_modal_body code {
   color: #303030;
 }
 
+/* Confirmation Modal */
+
+#ycs_confirm_modal {
+  padding-top: 20vh;
+}
+
+.ycs_confirm_content {
+  max-width: 600px;
+  text-align: inherit;
+}
+
+.ycs_confirm_buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.ycs_btn_primary {
+  background-color: #065fd4 !important;
+  color: white !important;
+  border-color: #065fd4 !important;
+}
+
+html[dark='true'] .ycs_btn_primary,
+html[dark] .ycs_btn_primary {
+  background-color: #3ea6ff !important;
+  border-color: #3ea6ff !important;
+  color: #0f0f0f !important;
+}
+
 .ycs_donation_block {
   margin: 0;
 }
@@ -1415,4 +1446,59 @@ html[dark] .ycs-app--shorts .ycs_btn_load-stop {
 
 #anchored-panel {
   overflow: hidden;
+}
+
+/* Live Chat Recording Button Styles */
+.ycs_record_wrap {
+  float: left;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 4px;
+}
+
+.ycs-btn-record {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+/* Recording active state */
+.ycs-btn-record.ycs-recording {
+  background-color: #e74c3c !important;
+  border-color: #c0392b !important;
+  color: #fff !important;
+  animation: ycs-pulse 1.5s infinite ease-in-out;
+}
+
+html[dark='true'] .ycs-btn-record.ycs-recording,
+html[dark] .ycs-btn-record.ycs-recording {
+  background-color: #c0392b !important;
+  border-color: #a93226 !important;
+  color: #fff !important;
+}
+
+/* Pulse animation for recording indicator */
+@keyframes ycs-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Recording timer display */
+.ycs-record-timer {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  color: #e74c3c;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+html[dark='true'] .ycs-record-timer,
+html[dark] .ycs-record-timer {
+  color: #ff6b6b;
 }

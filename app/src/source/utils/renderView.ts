@@ -357,11 +357,11 @@ function createChatElement(model: ChatMessageViewModel, index: number): HTMLElem
 
     const timestampLink = document.createElement('a');
     timestampLink.className = 'ycs-datetime-goto';
-    timestampLink.title = 'GMT0';
+    timestampLink.title = 'Local Time';
     timestampLink.href = safeUrl(model.gotoVideoUrl || '');
     timestampLink.target = '_blank';
     timestampLink.rel = 'noopener noreferrer';
-    timestampLink.textContent = model.timestampGmtText;
+    timestampLink.textContent = model.timestampLocalText;
     meta.appendChild(timestampLink);
 
     const chatLabel = document.createElement('span');
@@ -789,6 +789,16 @@ function renderLoadComments(
                                         load
                                     </button>
                                 </div>
+                                <div class="ycs_record_wrap">
+                                    <button id="ycs-record-chat" class="ycs-btn-search ycs-title ycs-btn-record"
+                                        name="Record live chat" type="button" title="Record live chat (live streams only)"
+                                        style="display: none;">
+                                        record
+                                    </button>
+                                    <span id="ycs-record-timer" class="ycs-record-timer" style="display: none;">
+                                        00:00:00
+                                    </span>
+                                </div>
                                 <div class="ycs_open_wrap">
                                     <button id="ycs_open_all_comments_chat_window" class="ycs-btn-search ycs-title"
                                         name="Open chat comments in the new popup window"
@@ -916,6 +926,19 @@ function renderLoadComments(
                             &nbsp;&nbsp;
                         </div>
 
+                    </div>
+                </div>
+            </div>
+
+            <div id="ycs_confirm_modal" class="ycs_modal">
+                <div class="ycs_modal-content ycs_confirm_content">
+                    <div class="ycs_modal_body">
+                        <h2 id="ycs_confirm_title">Confirm</h2>
+                        <p id="ycs_confirm_message"></p>
+                        <div class="ycs_confirm_buttons">
+                            <button id="ycs_confirm_cancel" class="ycs-btn-search">Cancel</button>
+                            <button id="ycs_confirm_ok" class="ycs-btn-search ycs_btn_primary">Continue</button>
+                        </div>
                     </div>
                 </div>
             </div>

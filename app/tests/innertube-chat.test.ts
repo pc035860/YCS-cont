@@ -4,25 +4,22 @@ import { getChatComments } from '../src/source/utils/innertube/chat';
 import { setFetchImplementation } from '../src/source/utils/libs';
 
 /**
- * Test: Verify that getChatComments does not trigger duplicate pbj=1 requests
+ * Test: Verify that getChatComments triggers expected pbj=1 requests
  *
  * Background:
- * - Previously, clicking Chat Replay button would trigger 2 pbj=1 requests
- * - Root cause: getChatComments called getCDChat twice:
- *   1. Directly at line 186
- *   2. Inside getLiveChat at line 153
+ * - getChatComments calls getInitYtData (pbj=1) to get continuation data
+ * - getLiveBroadcastStartTime also calls getInitYtData (pbj=1) to get broadcast start time
  *
- * Fix:
- * - Modified getLiveChat to accept continuationData as parameter
- * - Removed duplicate getCDChat call inside getLiveChat
+ * Expected behavior:
+ * - Total 2 pbj=1 requests: one for continuation, one for broadcast start time
  *
- * This test verifies the fix by:
+ * This test verifies by:
  * 1. Mocking fetch to track pbj=1 request count
  * 2. Calling getChatComments
- * 3. Asserting pbj=1 is only called once
+ * 3. Asserting pbj=1 is called exactly twice
  */
 
-test('getChatComments should only trigger pbj=1 request once', async () => {
+test('getChatComments should trigger expected pbj=1 requests', async () => {
     let pbj1CallCount = 0;
     let liveChatCallCount = 0;
 
@@ -127,11 +124,11 @@ test('getChatComments should only trigger pbj=1 request once', async () => {
             // We only need to verify pbj=1 call count
         }
 
-        // Assert: pbj=1 should only be called ONCE
+        // Assert: pbj=1 should be called twice (continuation + broadcastStartTime)
         assert.strictEqual(
             pbj1CallCount,
-            1,
-            `Expected pbj=1 to be called once, but was called ${pbj1CallCount} times`
+            2,
+            `Expected pbj=1 to be called twice, but was called ${pbj1CallCount} times`
         );
 
         // Assert: live chat API should be called at least once
@@ -140,7 +137,7 @@ test('getChatComments should only trigger pbj=1 request once', async () => {
             `Expected live chat API to be called at least once, but was called ${liveChatCallCount} times`
         );
 
-        console.log(`✓ pbj=1 request count: ${pbj1CallCount} (expected: 1)`);
+        console.log(`✓ pbj=1 request count: ${pbj1CallCount} (expected: 2)`);
         console.log(`✓ live_chat API call count: ${liveChatCallCount} (expected: >= 1)`);
     } finally {
         // Restore original fetch
@@ -153,9 +150,10 @@ test('getChatComments should only trigger pbj=1 request once', async () => {
 });
 
 test('getChatComments should pass continuation data to getLiveChat', async () => {
-    // This is an indirect test to verify that getLiveChat receives
-    // continuation data from the first getCDChat call, rather than
-    // making its own getCDChat call
+    // This test verifies that getLiveChat receives continuation data
+    // from getCDChat. Note: getChatComments now calls getInitYtData twice:
+    // 1. For continuation data (via getCDChat)
+    // 2. For broadcast start time (via getLiveBroadcastStartTime)
 
     // Mock window object
     (global as any).window = {
@@ -246,11 +244,11 @@ test('getChatComments should pass continuation data to getLiveChat', async () =>
             // Expected
         }
 
-        // Verify no duplicate calls
+        // Verify expected number of calls (continuation + broadcastStartTime)
         assert.strictEqual(
             pbj1Calls.length,
-            1,
-            `pbj=1 should be called exactly once. Calls: ${pbj1Calls.join(', ')}`
+            2,
+            `pbj=1 should be called exactly twice. Calls: ${pbj1Calls.join(', ')}`
         );
 
         // Verify continuation token was passed to getLiveChat
@@ -265,7 +263,7 @@ test('getChatComments should pass continuation data to getLiveChat', async () =>
             `Expected continuation token to be 'test-continuation', but got '${liveChatRequestBody?.continuation}'`
         );
 
-        console.log(`✓ Verified single pbj=1 call: ${pbj1Calls[0]}`);
+        console.log(`✓ Verified pbj=1 calls: ${pbj1Calls.join(', ')}`);
         console.log(`✓ Verified continuation token passed: ${liveChatRequestBody.continuation}`);
     } finally {
         global.fetch = originalFetch;

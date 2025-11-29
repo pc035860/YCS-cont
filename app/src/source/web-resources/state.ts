@@ -1,4 +1,5 @@
 import type { ChatItem, CommentItem, TranscriptData, TranscriptTrackInfo } from '../utils/interfaces/i_types';
+import type { ChatSource } from './services/cacheService';
 
 export interface CountBuckets {
     comments: number;
@@ -6,15 +7,31 @@ export interface CountBuckets {
     commentsTrVideo: number;
 }
 
+/**
+ * State for live chat recording feature
+ */
+export interface LiveRecordingState {
+    isRecording: boolean;
+    pollTimeoutId: ReturnType<typeof setTimeout> | null; // Serial polling timeout (not interval)
+    timerIntervalId: ReturnType<typeof setInterval> | null; // 1s timer display interval
+    broadcastStartTime: string | null; // ISO timestamp from YouTube API
+    recordingStartTime: number | null; // Local timestamp when recording started
+    startVideoId: string | null; // Video ID when recording started (preserved for cache save on navigation)
+    lastContinuation: unknown; // Continuation token for next poll
+    lastSaveTime: number | null; // Timestamp of last cache save (throttle saves to reduce memory pressure)
+}
+
 export interface WebResourcesState {
     comments: CommentItem[];
     commentsChat: Map<number, ChatItem>;
+    chatSource?: ChatSource;
     commentsTrVideo?: TranscriptData;
     transcriptTracks?: TranscriptTrackInfo[];
     selectedTranscriptLanguage?: string;
     count: CountBuckets;
     countSearch: CountBuckets;
     controller: AbortController;
+    liveRecording: LiveRecordingState;
 }
 
 function createCounts(): CountBuckets {
@@ -25,16 +42,31 @@ function createCounts(): CountBuckets {
     };
 }
 
+function createLiveRecordingState(): LiveRecordingState {
+    return {
+        isRecording: false,
+        pollTimeoutId: null,
+        timerIntervalId: null,
+        broadcastStartTime: null,
+        recordingStartTime: null,
+        startVideoId: null,
+        lastContinuation: null,
+        lastSaveTime: null
+    };
+}
+
 export function createState(): WebResourcesState {
     return {
         comments: [],
         commentsChat: new Map<number, ChatItem>(),
+        chatSource: undefined,
         commentsTrVideo: undefined,
         transcriptTracks: undefined,
         selectedTranscriptLanguage: undefined,
         count: createCounts(),
         countSearch: createCounts(),
-        controller: new AbortController()
+        controller: new AbortController(),
+        liveRecording: createLiveRecordingState()
     };
 }
 
@@ -177,4 +209,39 @@ export function setController(state: WebResourcesState, controller: AbortControl
 
 export function resetController(state: WebResourcesState): WebResourcesState {
     return setController(state, new AbortController());
+}
+
+export function getLiveRecording(state: WebResourcesState): LiveRecordingState {
+    return state.liveRecording;
+}
+
+export function setLiveRecording(
+    state: WebResourcesState,
+    liveRecording: Partial<LiveRecordingState>
+): WebResourcesState {
+    return {
+        ...state,
+        liveRecording: {
+            ...state.liveRecording,
+            ...liveRecording
+        }
+    };
+}
+
+export function resetLiveRecording(state: WebResourcesState): WebResourcesState {
+    return {
+        ...state,
+        liveRecording: createLiveRecordingState()
+    };
+}
+
+export function getChatSource(state: WebResourcesState): ChatSource | undefined {
+    return state.chatSource;
+}
+
+export function setChatSource(state: WebResourcesState, chatSource?: ChatSource): WebResourcesState {
+    return {
+        ...state,
+        chatSource
+    };
 }

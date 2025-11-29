@@ -81,10 +81,21 @@ function getSheetChatComments(cmnts: ISheetDetailsChatParam): Array<ISheetChatCo
         const sheetCmnts: Array<ISheetChatComments> = [];
 
         for (const cmnt of cmnts.commentsChat) {
-            const [m, s] = cmnt.timestampText.split(':');
-            const second = Number(m) * 60 + Number(s);
+            // Priority: use numeric offset, fallback to parsing timestampText
+            let second = 0;
+            if (cmnt.videoOffsetMs !== undefined) {
+                second = Math.floor(cmnt.videoOffsetMs / 1000);
+            } else {
+                // Fallback: parse timestampText (supports both MM:SS and H:MM:SS)
+                const parts = cmnt.timestampText.split(':').map(Number);
+                if (parts.length === 3) {
+                    second = parts[0] * 3600 + parts[1] * 60 + parts[2];
+                } else if (parts.length === 2) {
+                    second = parts[0] * 60 + parts[1];
+                }
+            }
 
-            sheetCmnts.push({
+            const row: ISheetChatComments = {
                 'Timestamp Usec': Number(cmnt?.timestampUsec),
                 URL: `https://youtu.be/${cmnts.videoId}?t=${second || 0}`,
                 'Author name': cmnt?.author?.nameAuthor,
@@ -92,7 +103,13 @@ function getSheetChatComments(cmnts: ISheetDetailsChatParam): Array<ISheetChatCo
                 Member: cmnt?.author?.member,
                 'Comment message': cmnt?.commentMessage,
                 'Timestamp comment': cmnt?.timestampText
-            });
+            };
+
+            if (cmnt?.relativeTimestamp) {
+                row['Relative Time'] = cmnt.relativeTimestamp;
+            }
+
+            sheetCmnts.push(row);
         }
 
         return sheetCmnts;

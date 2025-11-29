@@ -1,5 +1,11 @@
 export { getParams, getInitYtData } from './innertube/core';
-export { getParamsForChat, getChatComments } from './innertube/chat';
+export {
+    getParamsForChat,
+    getChatComments,
+    checkIsLiveStream,
+    getLiveBroadcastStartTime,
+    pollLiveChat
+} from './innertube/chat';
 export {
     getAllCommentsModeV2,
     extractNextContinuation,

@@ -198,9 +198,16 @@ export async function getChatComments(
         const chatCmnts = container || new Map<number, object>();
         const currentVideoId = (getVideoId(window.location.href) || undefined) as string | undefined;
 
+        // Fetch broadcast start time for live chat videoOffsetTimeMsec calculation
+        const broadcastStartTime = await getLiveBroadcastStartTime(signal);
+        if (broadcastStartTime) {
+            console.log(`[getChatComments] Broadcast start time: ${broadcastStartTime}`);
+        }
+
         const context: ChatProcessingContext = {
             chatMap: chatCmnts,
             currentVideoId,
+            broadcastStartTime: broadcastStartTime ?? undefined,
             onCommentAdded: (count: number) => showLoadComments(count, elShowLoading)
         };
 
@@ -425,6 +432,151 @@ export async function getChatComments(
         return chatCmnts;
     } catch (e) {
         console.error(e);
+        return undefined;
+    }
+}
+
+/**
+ * Check if current video is a live stream (ongoing broadcast)
+ * Live streams use invalidationContinuationData, replays use timedContinuationData
+ * @returns true if live stream, false if replay or non-live
+ */
+export async function checkIsLiveStream(signal?: AbortSignal): Promise<boolean> {
+    try {
+        const result = await getCDChat(signal as AbortSignal);
+        if (!result.continuationData) return false;
+
+        const liveChatData: any = await getLiveChat(result.continuationData, signal as AbortSignal);
+
+        // Live streams have actions with invalidationContinuationData
+        if (liveChatData?.actions?.length > 0) {
+            const continuations = liveChatData?.continuations;
+            const hasInvalidationContinuation = continuations?.some((c: any) => c.invalidationContinuationData);
+            return hasInvalidationContinuation === true;
+        }
+
+        return false;
+    } catch (e) {
+        console.error('[YCS] checkIsLiveStream error:', e);
+        return false;
+    }
+}
+
+/**
+ * Get broadcast start timestamp from playerResponse
+ * Path: playerResponse.microformat.playerMicroformatRenderer.liveBroadcastDetails.startTimestamp
+ * @returns ISO timestamp string or null if not found
+ */
+export async function getLiveBroadcastStartTime(signal?: AbortSignal): Promise<string | null> {
+    try {
+        const ytData = (await getInitYtData(window.location.href, signal)) as any;
+        if (!ytData) return null;
+
+        // Priority 1: Modern PBJ format (has playerResponse at top level)
+        let startTimestamp =
+            ytData?.playerResponse?.microformat?.playerMicroformatRenderer?.liveBroadcastDetails?.startTimestamp;
+
+        // Priority 2: Array format (legacy)
+        if (!startTimestamp && Array.isArray(ytData)) {
+            for (const item of ytData) {
+                startTimestamp =
+                    item?.playerResponse?.microformat?.playerMicroformatRenderer?.liveBroadcastDetails?.startTimestamp;
+                if (startTimestamp) break;
+            }
+        }
+
+        return startTimestamp || null;
+    } catch (e) {
+        console.error('[YCS] getLiveBroadcastStartTime error:', e);
+        return null;
+    }
+}
+
+/**
+ * Poll live chat for new messages during recording
+ * Uses the same endpoint as getLiveChat but designed for incremental polling
+ * @param existingContinuation - Continuation from previous poll (skips ytInitialData fetch)
+ * @returns Object with continuation and isLiveEnded flag, or undefined on error
+ */
+export async function pollLiveChat(
+    signal: AbortSignal,
+    existingChatMap: Map<number, object>,
+    onNewMessages?: (newCount: number, totalCount: number) => void,
+    broadcastStartTime?: string,
+    existingContinuation?: unknown
+): Promise<{ continuation: unknown; isLiveEnded: boolean } | undefined> {
+    try {
+        let continuationData: unknown;
+
+        if (existingContinuation) {
+            // Reuse continuation from previous poll (avoids ytInitialData fetch)
+            continuationData = existingContinuation;
+        } else {
+            // First poll: get initial continuation from ytInitialData
+            const result = await getCDChat(signal);
+            if (!result.continuationData) return undefined;
+            continuationData = result.continuationData;
+        }
+
+        const liveChatData: any = await getLiveChat(continuationData, signal);
+        if (!liveChatData?.actions?.length) {
+            // No new messages, return current continuation
+            const continuations = liveChatData?.continuations;
+            const hasContinuations = continuations && continuations.length > 0;
+            const hasInvalidationContinuation = continuations?.some((c: any) => c.invalidationContinuationData);
+            const hasReloadContinuation = continuations?.some((c: any) => c.reloadContinuationData);
+            const hasTimedContinuation = continuations?.some((c: any) => c.timedContinuationData);
+            const nextContinuation =
+                continuations?.find((c: any) => c.invalidationContinuationData)?.invalidationContinuationData ||
+                continuations?.find((c: any) => c.timedContinuationData)?.timedContinuationData ||
+                null;
+
+            // Live stream is considered ended when:
+            // 1. No invalidationContinuationData (live-only continuation type)
+            // 2. AND one of: no continuations at all, reloadContinuationData, or timedContinuationData
+            const isLiveEnded =
+                !hasInvalidationContinuation && (!hasContinuations || hasReloadContinuation || hasTimedContinuation);
+
+            return { continuation: nextContinuation, isLiveEnded };
+        }
+
+        const currentVideoId = (getVideoId(window.location.href) || undefined) as string | undefined;
+        const previousSize = existingChatMap.size;
+
+        const context: ChatProcessingContext = {
+            chatMap: existingChatMap,
+            currentVideoId,
+            broadcastStartTime,
+            onCommentAdded: (count: number) => {
+                if (onNewMessages) {
+                    onNewMessages(count - previousSize, count);
+                }
+            }
+        };
+
+        // Process live chat actions
+        processLiveChatActions(liveChatData.actions, context);
+
+        // Get continuation for next poll
+        const continuations = liveChatData?.continuations;
+        const hasContinuations = continuations && continuations.length > 0;
+        const hasInvalidationContinuation = continuations?.some((c: any) => c.invalidationContinuationData);
+        const hasReloadContinuation = continuations?.some((c: any) => c.reloadContinuationData);
+        const hasTimedContinuation = continuations?.some((c: any) => c.timedContinuationData);
+        const nextContinuation =
+            continuations?.find((c: any) => c.invalidationContinuationData)?.invalidationContinuationData ||
+            continuations?.find((c: any) => c.timedContinuationData)?.timedContinuationData ||
+            null;
+
+        // Live stream is considered ended when:
+        // 1. No invalidationContinuationData (live-only continuation type)
+        // 2. AND one of: no continuations at all, reloadContinuationData, or timedContinuationData
+        const isLiveEnded =
+            !hasInvalidationContinuation && (!hasContinuations || hasReloadContinuation || hasTimedContinuation);
+
+        return { continuation: nextContinuation, isLiveEnded };
+    } catch (e) {
+        console.error('[YCS] pollLiveChat error:', e);
         return undefined;
     }
 }

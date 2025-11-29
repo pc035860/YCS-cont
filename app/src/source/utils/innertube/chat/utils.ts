@@ -4,6 +4,7 @@ export interface ChatProcessingContext {
     chatMap: Map<number, object>;
     currentVideoId?: string;
     onCommentAdded?: (count: number) => void;
+    broadcastStartTime?: string; // ISO timestamp for calculating videoOffsetTimeMsec in live chat
 }
 
 export interface FormatChatRunsOptions {

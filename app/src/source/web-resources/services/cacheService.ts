@@ -1,6 +1,8 @@
 import { sendGetCacheInIDB, setCacheToIDB, sendMsgToBadge } from '../../utils/dom';
 import type { CommentItem, TranscriptData } from '../../utils/interfaces/i_types';
 
+export type ChatSource = 'live-recording' | 'chat-replay';
+
 interface CacheMeta {
     url: string;
     title: string;
@@ -12,6 +14,7 @@ interface CacheData {
     commentsChat: string;
     commentsTrVideo?: TranscriptData;
     channelId?: string | null;
+    chatSource?: ChatSource;
 }
 
 export function loadFromCache(url: string): void {

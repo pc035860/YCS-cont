@@ -1,6 +1,6 @@
 import type { ChatItem, TranscriptCueGroup, CommentItem } from './interfaces/i_types';
 import type { ISheetChatCommentsParam, ISheetCommentsParam, ISheetRepliesParam } from './interfaces/i_assist';
-import { msToRoundSec, parseFormattedNumberToInt } from './formatting';
+import { msToRoundSec, parseFormattedNumberToInt, formatRelativeTimestamp, formatDurationHMS } from './formatting';
 import { getVideoId, wrapTryCatch } from './common';
 
 export type CommentExportItem = ISheetCommentsParam;
@@ -26,6 +26,7 @@ export interface ChatExportItem {
     commentMessage: string;
     timestampUsec: number;
     timestampText: string;
+    relativeTimestamp?: string; // Format: "+H:MM:SS" (relative to broadcast start)
 }
 
 export interface ChatExportPayload {
@@ -201,17 +202,66 @@ function buildChatAuthorChannel(renderer: any): string {
     return authorChannelId ? `youtube.com/channel/${authorChannelId}` : '';
 }
 
-function createChatExportRow(renderer: any): ISheetChatCommentsParam {
-    return {
+/**
+ * Check if a timestamp label is in relative format (e.g., "2:35", "1:02:35")
+ * vs absolute format (e.g., "4:30 PM", "16:30")
+ */
+function isRelativeTimestamp(label: string): boolean {
+    if (!label) return false;
+    // Relative timestamps are typically in format "M:SS" or "H:MM:SS" without AM/PM
+    // and don't contain special characters or excessive digits for hours
+    const relativePattern = /^\d{1,2}:\d{2}(:\d{2})?$/;
+    return relativePattern.test(label.trim());
+}
+
+function createChatExportRow(
+    renderer: any,
+    broadcastStartTime?: string,
+    videoOffsetTimeMsec?: string | number
+): ISheetChatCommentsParam {
+    const timestampUsec = Number(renderer?.timestampUsec || 0);
+
+    // Read timestampText with fallback (consistent with viewModels logic)
+    const rawTimestampText =
+        (wrapTryCatch(() => renderer?.timestampText?.simpleText) as string | undefined) ||
+        (wrapTryCatch(() => renderer?.timestampText?.runs?.[0]?.text) as string | undefined) ||
+        '';
+
+    // Generate timestampText from videoOffsetTimeMsec if rawTimestampText is empty or not relative
+    let timestampText = rawTimestampText;
+    if (videoOffsetTimeMsec !== undefined && (!timestampText || !isRelativeTimestamp(timestampText))) {
+        const offsetMs =
+            typeof videoOffsetTimeMsec === 'string' ? parseFloat(videoOffsetTimeMsec) : videoOffsetTimeMsec;
+        if (!Number.isNaN(offsetMs) && offsetMs >= 0) {
+            timestampText = formatDurationHMS(offsetMs);
+        }
+    }
+
+    const row: ISheetChatCommentsParam = {
         author: {
             nameAuthor: renderer?.authorName?.simpleText || '',
             channel: buildChatAuthorChannel(renderer),
             member: buildChatMemberText(renderer)
         },
         commentMessage: buildChatMessage(renderer),
-        timestampUsec: Number(renderer?.timestampUsec || 0),
-        timestampText: renderer?.timestampText?.simpleText || ''
+        timestampUsec,
+        timestampText: timestampText
     };
+
+    // Priority 1: Use pre-calculated videoOffsetTimeMsec (consistent with render logic)
+    if (videoOffsetTimeMsec !== undefined) {
+        const offsetMs =
+            typeof videoOffsetTimeMsec === 'string' ? parseFloat(videoOffsetTimeMsec) : videoOffsetTimeMsec;
+        if (!Number.isNaN(offsetMs) && offsetMs >= 0) {
+            row.relativeTimestamp = '+' + formatDurationHMS(offsetMs);
+            row.videoOffsetMs = offsetMs;
+        }
+    } else if (broadcastStartTime && timestampUsec > 0) {
+        // Fallback: Calculate from broadcastStartTime (backward compatibility)
+        row.relativeTimestamp = formatRelativeTimestamp(timestampUsec, broadcastStartTime);
+    }
+
+    return row;
 }
 
 function createTranscriptExportItem(group: TranscriptCueGroup, videoId: string): TranscriptExportItem {
@@ -290,7 +340,7 @@ export function buildCommentsExportPayload(input: {
 
 export function buildChatExportPayload(
     chatMessages: ChatItem[],
-    meta: { titleVideo?: string; url?: string; videoId?: string; cachedDate?: number }
+    meta: { titleVideo?: string; url?: string; videoId?: string; cachedDate?: number; broadcastStartTime?: string }
 ): ChatExportPayload {
     const payload = createChatPayloadSkeleton({
         titleVideo: meta?.titleVideo,
@@ -309,7 +359,12 @@ export function buildChatExportPayload(
             (itemData as any)?.liveChatMembershipItemRenderer;
         if (!renderer) continue;
 
-        payload.commentsChat.push(createChatExportRow(renderer));
+        const videoOffsetTimeMsec = wrapTryCatch(() => (item as any).replayChatItemAction?.videoOffsetTimeMsec) as
+            | string
+            | number
+            | undefined;
+
+        payload.commentsChat.push(createChatExportRow(renderer, meta?.broadcastStartTime, videoOffsetTimeMsec));
     }
 
     payload.total = payload.commentsChat.length;
@@ -404,7 +459,12 @@ export function buildChatExportPayloadFromCache(body: any): ChatExportPayload | 
             (itemData as any)?.liveChatMembershipItemRenderer;
         if (!renderer) continue;
 
-        payload.commentsChat.push(createChatExportRow(renderer));
+        const videoOffsetTimeMsec = wrapTryCatch(() => entry.replayChatItemAction?.videoOffsetTimeMsec) as
+            | string
+            | number
+            | undefined;
+
+        payload.commentsChat.push(createChatExportRow(renderer, body?.broadcastStartTime, videoOffsetTimeMsec));
     }
 
     payload.total = payload.commentsChat.length;

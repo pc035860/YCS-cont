@@ -52,6 +52,21 @@ export function processLiveChatActions(actions: any[], context: ChatProcessingCo
             if (!hasAuthor) continue;
 
             const prepared = prepareChatCommentFields(comment);
+
+            // Calculate videoOffsetTimeMsec for live chat (enables "Go to" link after stream ends)
+            if (context.broadcastStartTime && timestampUsec) {
+                const messageTimeMs = Number(timestampUsec) / 1000;
+                const broadcastStartMs = new Date(context.broadcastStartTime).getTime();
+                const videoOffsetTimeMsec = messageTimeMs - broadcastStartMs;
+
+                if (!Number.isNaN(videoOffsetTimeMsec) && videoOffsetTimeMsec >= 0) {
+                    // Add to the comment structure for later viewModel processing
+                    if (prepared.replayChatItemAction) {
+                        prepared.replayChatItemAction.videoOffsetTimeMsec = String(Math.floor(videoOffsetTimeMsec));
+                    }
+                }
+            }
+
             context.chatMap.set(timestamp, prepared);
 
             if (context.onCommentAdded) {

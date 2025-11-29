@@ -109,7 +109,7 @@ export function exportCommentsAsXLSX(input: {
 // Chat and Transcript exporters: simple JSON wrappers (XLSX can be added similarly)
 export function exportChatAsJSON(
     chatMessages: ChatItem[],
-    meta: { titleVideo?: string; url?: string; videoId?: string; cachedDate?: number }
+    meta: { titleVideo?: string; url?: string; videoId?: string; cachedDate?: number; broadcastStartTime?: string }
 ): { content: string; fileName: string; mime: string } | void {
     try {
         const payload = buildChatExportPayload(chatMessages, meta);
@@ -122,7 +122,7 @@ export function exportChatAsJSON(
 
 export function exportChatAsXLSX(
     chatMessages: ChatItem[],
-    meta: { titleVideo?: string; url?: string; videoId?: string; cachedDate?: number }
+    meta: { titleVideo?: string; url?: string; videoId?: string; cachedDate?: number; broadcastStartTime?: string }
 ): { writeFunc: () => void } | void {
     try {
         const payload = buildChatExportPayload(chatMessages, meta);
