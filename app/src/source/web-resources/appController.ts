@@ -1153,7 +1153,7 @@ export function initApp(): void {
 
             // Save final data to cache
             const commentsChat = getCommentsChat(state);
-            const startVideoId = getVideoId(window.location.href);
+            const startVideoId = liveRecording.startVideoId;
 
             if (commentsChat.size > 0 && startVideoId) {
                 saveToCache(
@@ -1200,10 +1200,10 @@ export function initApp(): void {
          * Poll and save chat messages
          */
         async function pollAndSaveChat(startVideoId: string | null): Promise<void> {
-            // Verify video hasn't changed
+            // Verify still on the same video page (stop if left video page or navigated to different video)
             const currentVideoId = getVideoId(window.location.href);
-            if (startVideoId && currentVideoId && startVideoId !== currentVideoId) {
-                console.warn('[YCS] Video changed during recording, stopping...');
+            if (!currentVideoId || currentVideoId !== startVideoId) {
+                console.log('[YCS] Left video page during recording, stopping...');
                 await stopLiveChatRecording();
                 return;
             }
@@ -1385,6 +1385,7 @@ export function initApp(): void {
                     timerIntervalId,
                     broadcastStartTime,
                     recordingStartTime,
+                    startVideoId,
                     lastContinuation: null,
                     lastSaveTime: null
                 });
