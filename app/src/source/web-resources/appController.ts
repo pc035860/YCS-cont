@@ -149,6 +149,26 @@ function requestYouTubeApiComments(
     const requestId = crypto.randomUUID();
 
     return new Promise((resolve, reject) => {
+        // Timer ID for abort timeout cleanup
+        let abortTimeoutId: ReturnType<typeof setTimeout> | undefined;
+
+        // Named abort handler for proper cleanup on Promise settle
+        const abortHandler = (): void => {
+            window.postMessage(
+                {
+                    type: 'YCS_YT_API_COMMENTS_ABORT',
+                    body: { requestId }
+                },
+                window.location.origin
+            );
+            // Don't reject immediately - wait for background to send partial results
+            // Safety timeout: if background doesn't respond within 3 seconds, reject
+            abortTimeoutId = setTimeout(() => {
+                window.removeEventListener('message', handleMessage);
+                reject(new DOMException('Aborted', 'AbortError'));
+            }, 3000);
+        };
+
         const handleMessage = (e: MessageEvent): void => {
             if (e.source !== window || e.origin !== window.location.origin) return;
             if (e.data?.body?.requestId !== requestId) return;
@@ -159,6 +179,8 @@ function requestYouTubeApiComments(
                     break;
 
                 case 'YCS_YT_API_COMMENTS_COMPLETE':
+                    if (abortTimeoutId) clearTimeout(abortTimeoutId);
+                    signal?.removeEventListener('abort', abortHandler);
                     window.removeEventListener('message', handleMessage);
                     resolve({
                         comments: e.data.body.comments,
@@ -169,6 +191,8 @@ function requestYouTubeApiComments(
                     break;
 
                 case 'YCS_YT_API_COMMENTS_ERROR': {
+                    if (abortTimeoutId) clearTimeout(abortTimeoutId);
+                    signal?.removeEventListener('abort', abortHandler);
                     window.removeEventListener('message', handleMessage);
                     const error = e.data.body.error;
                     reject(
@@ -181,18 +205,8 @@ function requestYouTubeApiComments(
 
         window.addEventListener('message', handleMessage);
 
-        // Handle external abort signal
-        signal?.addEventListener('abort', () => {
-            window.postMessage(
-                {
-                    type: 'YCS_YT_API_COMMENTS_ABORT',
-                    body: { requestId }
-                },
-                window.location.origin
-            );
-            window.removeEventListener('message', handleMessage);
-            reject(new DOMException('Aborted', 'AbortError'));
-        });
+        // Handle external abort signal (once: true as additional safety)
+        signal?.addEventListener('abort', abortHandler, { once: true });
 
         // Send start request
         window.postMessage(
@@ -1118,6 +1132,17 @@ export function initApp(): void {
                                         alert(
                                             'Invalid YouTube Data API key!\n\nPlease check your API key in extension settings.'
                                         );
+                                    } else if (error.type === 'aborted') {
+                                        // User cancelled via STOP button - silently continue if we have partial comments
+                                        console.log('[YCS] Fetch aborted by user');
+                                        if (!error.partialComments || error.partialComments.length === 0) {
+                                            return;
+                                        }
+                                        // Mark as incomplete so we don't show OK icon or cache as complete
+                                        youtubeApiIncomplete = true;
+                                        elStatusCmnts.innerHTML =
+                                            '<span class="ycs-warning" title="Stopped - partial results">⏹️</span>';
+                                        // Continue to save partial results
                                     } else {
                                         elStatusCmnts.innerHTML = '<span class="ycs-error" title="API error">❌</span>';
                                         console.error('[YCS] YouTube Data API error:', error.message);
@@ -1126,8 +1151,11 @@ export function initApp(): void {
                                         );
                                     }
 
-                                    // If no partial comments, return early
-                                    if (!error.partialComments || error.partialComments.length === 0) {
+                                    // If no partial comments, return early (for non-abort errors)
+                                    if (
+                                        error.type !== 'aborted' &&
+                                        (!error.partialComments || error.partialComments.length === 0)
+                                    ) {
                                         return;
                                     }
                                     // Otherwise continue to save partial results
