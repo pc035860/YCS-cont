@@ -12,7 +12,8 @@ const DEBUG = false;
             'YCS_AUTOLOAD',
             'YCS_YT_API_COMMENTS_PROGRESS',
             'YCS_YT_API_COMMENTS_COMPLETE',
-            'YCS_YT_API_COMMENTS_ERROR'
+            'YCS_YT_API_COMMENTS_ERROR',
+            'YCS_YT_API_COMMENTS_CHUNK'
         ]);
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -44,7 +45,8 @@ const DEBUG = false;
                 if (
                     type === 'YCS_YT_API_COMMENTS_PROGRESS' ||
                     type === 'YCS_YT_API_COMMENTS_COMPLETE' ||
-                    type === 'YCS_YT_API_COMMENTS_ERROR'
+                    type === 'YCS_YT_API_COMMENTS_ERROR' ||
+                    type === 'YCS_YT_API_COMMENTS_CHUNK'
                 ) {
                     if (DEBUG) console.log('[YCS] Forwarding YouTube API response:', type);
                     window.postMessage(message, window.location.origin);

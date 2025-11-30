@@ -156,6 +156,16 @@ function requestYouTubeApiComments(
         // Timer ID for abort timeout cleanup
         let abortTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
+        // Chunk accumulation for large payloads
+        const receivedChunks: CommentItem[][] = [];
+
+        // Cleanup helper
+        const cleanup = (): void => {
+            if (abortTimeoutId) clearTimeout(abortTimeoutId);
+            signal?.removeEventListener('abort', abortHandler);
+            window.removeEventListener('message', handleMessage);
+        };
+
         // Named abort handler for proper cleanup on Promise settle
         const abortHandler = (): void => {
             window.postMessage(
@@ -182,10 +192,37 @@ function requestYouTubeApiComments(
                     onProgress(e.data.body.totalCount);
                     break;
 
+                case 'YCS_YT_API_COMMENTS_CHUNK': {
+                    const { comments, chunkIndex, isLastChunk, isError, error } = e.data.body;
+                    receivedChunks[chunkIndex] = comments;
+
+                    if (isLastChunk) {
+                        // All chunks received - flatten and resolve/reject
+                        const allComments: CommentItem[] = [];
+                        for (const chunk of receivedChunks) {
+                            if (chunk) allComments.push(...chunk);
+                        }
+                        cleanup();
+
+                        if (isError && error) {
+                            // Error with partial comments
+                            reject(new YouTubeApiMessageError(error.type, error.message, allComments, error.code));
+                        } else {
+                            // Success
+                            resolve({
+                                comments: allComments,
+                                quotaUsed: e.data.body.quotaUsed || 0,
+                                incomplete: e.data.body.incomplete || false,
+                                replyFetchErrors: e.data.body.replyFetchErrors || 0
+                            });
+                        }
+                    }
+                    break;
+                }
+
+                // Keep for backward compatibility (small payloads may still use this)
                 case 'YCS_YT_API_COMMENTS_COMPLETE':
-                    if (abortTimeoutId) clearTimeout(abortTimeoutId);
-                    signal?.removeEventListener('abort', abortHandler);
-                    window.removeEventListener('message', handleMessage);
+                    cleanup();
                     resolve({
                         comments: e.data.body.comments,
                         quotaUsed: e.data.body.quotaUsed,
@@ -195,9 +232,7 @@ function requestYouTubeApiComments(
                     break;
 
                 case 'YCS_YT_API_COMMENTS_ERROR': {
-                    if (abortTimeoutId) clearTimeout(abortTimeoutId);
-                    signal?.removeEventListener('abort', abortHandler);
-                    window.removeEventListener('message', handleMessage);
+                    cleanup();
                     const error = e.data.body.error;
                     reject(
                         new YouTubeApiMessageError(error.type, error.message, e.data.body.partialComments, error.code)
@@ -2638,6 +2673,16 @@ export function initApp(): void {
 
         // Store interval ID for cleanup on next initApp() call
         observeIntervalId = setInterval(() => {
+            // Abort pending requests when leaving video page
+            // This handles the case: video page -> non-video page (e.g., homepage) -> back to video
+            if (!isVideoPage() && prevUrl) {
+                getController(state).abort();
+                state = resetController(state);
+                prevUrl = '';
+                console.log('[YCS] Left video page, aborted pending requests');
+                return;
+            }
+
             if (isVideoPage() && getPageMetaElement() && prevUrl !== getCleanUrlVideo(window.location.href)) {
                 const currentUrl = getCleanUrlVideo(window.location.href);
 

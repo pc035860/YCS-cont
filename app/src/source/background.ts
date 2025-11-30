@@ -58,6 +58,92 @@ async function safeSendMessage(tabId: number, message: unknown): Promise<boolean
 }
 
 /**
+ * Chunk size for splitting large comment arrays to avoid Chrome message size limits (~50-64 MB)
+ */
+const CHUNK_SIZE = 20000;
+
+/**
+ * Split an array into chunks of specified size
+ */
+function chunkArray<T>(array: T[], chunkSize: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += chunkSize) {
+        chunks.push(array.slice(i, i + chunkSize));
+    }
+    return chunks;
+}
+
+/**
+ * Send comments in chunks to avoid Chrome's runtime message size limit.
+ * Returns false if any chunk fails to send (tab closed).
+ */
+async function sendCommentsInChunks(
+    tabId: number,
+    requestId: string,
+    comments: CommentItem[],
+    metadata: {
+        quotaUsed?: number;
+        incomplete?: boolean;
+        replyFetchErrors?: number;
+        error?: { type: string; message: string; code?: number };
+        isError?: boolean;
+    }
+): Promise<boolean> {
+    // Handle empty array case - send single chunk with empty array
+    if (comments.length === 0) {
+        const success = await safeSendMessage(tabId, {
+            type: 'YCS_YT_API_COMMENTS_CHUNK',
+            body: {
+                requestId,
+                comments: [],
+                chunkIndex: 0,
+                totalChunks: 1,
+                isLastChunk: true,
+                ...(metadata.quotaUsed !== undefined && { quotaUsed: metadata.quotaUsed }),
+                ...(metadata.incomplete !== undefined && { incomplete: metadata.incomplete }),
+                ...(metadata.replyFetchErrors !== undefined && { replyFetchErrors: metadata.replyFetchErrors }),
+                ...(metadata.error && { error: metadata.error, isError: true })
+            }
+        });
+        if (!success) {
+            console.warn('[YCS Background] Failed to send empty chunk - tab may be closed');
+        }
+        return success;
+    }
+
+    const chunks = chunkArray(comments, CHUNK_SIZE);
+    const totalChunks = chunks.length;
+
+    for (let i = 0; i < totalChunks; i++) {
+        const isLastChunk = i === totalChunks - 1;
+        const success = await safeSendMessage(tabId, {
+            type: 'YCS_YT_API_COMMENTS_CHUNK',
+            body: {
+                requestId,
+                comments: chunks[i],
+                chunkIndex: i,
+                totalChunks,
+                isLastChunk,
+                // Include metadata only in last chunk
+                ...(isLastChunk && {
+                    ...(metadata.quotaUsed !== undefined && { quotaUsed: metadata.quotaUsed }),
+                    ...(metadata.incomplete !== undefined && { incomplete: metadata.incomplete }),
+                    ...(metadata.replyFetchErrors !== undefined && { replyFetchErrors: metadata.replyFetchErrors }),
+                    ...(metadata.error && { error: metadata.error, isError: true })
+                })
+            }
+        });
+
+        if (!success) {
+            console.warn(`[YCS Background] Failed to send chunk ${i + 1}/${totalChunks} - tab may be closed`);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
  * Fetch all replies for a parent comment (background version)
  */
 async function fetchAllRepliesBackground(
@@ -182,18 +268,17 @@ async function fetchAllCommentsBackground(
             comments[idx]._index = idx;
         }
 
-        // Send completion (with incomplete flag if any reply fetches failed)
-        await safeSendMessage(tabId, {
-            type: 'YCS_YT_API_COMMENTS_COMPLETE',
-            body: {
-                requestId,
-                comments,
-                totalCount: comments.length,
-                quotaUsed: fetchState.quotaUsed,
-                incomplete: fetchState.replyFetchErrors > 0,
-                replyFetchErrors: fetchState.replyFetchErrors
-            }
+        // Send completion in chunks (handles Chrome message size limit)
+        const sendSuccess = await sendCommentsInChunks(tabId, requestId, comments, {
+            quotaUsed: fetchState.quotaUsed,
+            incomplete: fetchState.replyFetchErrors > 0,
+            replyFetchErrors: fetchState.replyFetchErrors
         });
+
+        // If send failed (tab closed or message size exceeded), abort gracefully
+        if (!sendSuccess) {
+            return;
+        }
 
         if (fetchState.replyFetchErrors > 0) {
             console.warn(
@@ -206,14 +291,9 @@ async function fetchAllCommentsBackground(
             comments[idx]._index = idx;
         }
 
-        // Send error with partial results
-        await safeSendMessage(tabId, {
-            type: 'YCS_YT_API_COMMENTS_ERROR',
-            body: {
-                requestId,
-                error: mapYouTubeApiError(error),
-                partialComments: comments.length > 0 ? comments : undefined
-            }
+        // Send error with partial comments (if any) using unified chunking
+        await sendCommentsInChunks(tabId, requestId, comments, {
+            error: mapYouTubeApiError(error)
         });
     }
 }
