@@ -505,3 +505,93 @@ code {
   font-size: 13px;
   border: 1px solid #3a3a3a;
 }
+
+/* YouTube Data API Settings */
+.ycs_api_settings_wrap {
+  border: 2px solid #adadad;
+  padding: 16px;
+  margin-bottom: 25px;
+}
+
+.ycs_api_key_input {
+  margin-top: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ycs_api_key_input label {
+  font-size: 18px;
+  min-width: 80px;
+}
+
+.ycs_opts_input_api_key {
+  height: 30px;
+  width: 320px;
+  font-size: 16px;
+  padding: 0px 10px;
+  background-color: #1f1f1f;
+  color: #fff;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  font-family: 'Ubuntu Mono', monospace;
+}
+
+.ycs_opts_input_api_key:focus {
+  outline: none;
+  border-color: #ffa500;
+  box-shadow: 0 0 0 2px rgba(255, 165, 0, 0.2);
+}
+
+.ycs_opts_input_api_key::placeholder {
+  color: #666;
+  font-size: 14px;
+}
+
+.ycs_btn_toggle_key {
+  padding: 4px 12px;
+  font-size: 14px;
+  min-width: 60px;
+}
+
+.ycs_api_status {
+  margin-top: 15px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ycs_api_mode_label {
+  color: #adadad;
+}
+
+.ycs_api_mode_value {
+  color: #ffa500;
+  font-weight: bold;
+}
+
+.ycs_api_mode_value.youtube-api {
+  color: #4caf50;
+}
+
+.ycs_api_note {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #1f1f1f;
+  border-left: 3px solid #ffa500;
+  border-radius: 0 4px 4px 0;
+}
+
+.ycs_api_note p {
+  margin: 0;
+}
+
+.ycs_api_settings_wrap a {
+  color: #4da6ff;
+  text-decoration: none;
+}
+
+.ycs_api_settings_wrap a:hover {
+  text-decoration: underline;
+}

@@ -24,7 +24,12 @@ import {
     clearCurrentVideoMemberOnly,
     checkIsLiveStream,
     getLiveBroadcastStartTime,
-    pollLiveChat
+    pollLiveChat,
+    // YouTube Data API v3
+    getAllCommentsYouTubeApi,
+    isQuotaExceeded,
+    isInvalidApiKey,
+    YouTubeDataApiError
 } from '../utils/innertube';
 
 import { IParamSearch, ISelectedSearch, IYCSOptions } from '../utils/interfaces/i_types';
@@ -969,7 +974,59 @@ export function initApp(): void {
 
                         const controller = getController(state);
 
-                        await getAllCommentsModeV2(elLoadCmnts, controller.signal, comments);
+                        // Check if YouTube Data API key is configured and enabled
+                        const apiKey = GlobalStore.youtubeApiKey;
+                        const apiEnabled = GlobalStore.youtubeApiEnabled !== false; // default true
+                        if (apiKey && apiEnabled && startVideoId) {
+                            // Use YouTube Data API v3
+                            try {
+                                console.log('[YCS] Using YouTube Data API v3');
+                                const result = await getAllCommentsYouTubeApi(
+                                    startVideoId,
+                                    apiKey,
+                                    elLoadCmnts,
+                                    controller.signal,
+                                    comments
+                                );
+                                console.log(
+                                    `[YCS] YouTube API: ${result.totalCount} comments, ${result.quotaUsed} quota units used`
+                                );
+                            } catch (error) {
+                                // Handle YouTube Data API specific errors
+                                if (error instanceof YouTubeDataApiError) {
+                                    if (isQuotaExceeded(error)) {
+                                        elStatusCmnts.innerHTML =
+                                            '<span class="ycs-error" title="Quota exceeded">⚠️</span>';
+                                        console.error(
+                                            '[YCS] YouTube Data API quota exceeded. Please try again tomorrow or use a different API key.'
+                                        );
+                                        alert(
+                                            'YouTube Data API quota exceeded!\n\nYour daily quota (10,000 units) has been exhausted.\nPlease try again tomorrow or temporarily disable YouTube Data API in extension settings.'
+                                        );
+                                    } else if (isInvalidApiKey(error)) {
+                                        elStatusCmnts.innerHTML =
+                                            '<span class="ycs-error" title="Invalid API key">❌</span>';
+                                        console.error(
+                                            '[YCS] Invalid YouTube Data API key. Please check your API key in settings.'
+                                        );
+                                        alert(
+                                            'Invalid YouTube Data API key!\n\nPlease check your API key in extension settings.'
+                                        );
+                                    } else {
+                                        elStatusCmnts.innerHTML = '<span class="ycs-error" title="API error">❌</span>';
+                                        console.error('[YCS] YouTube Data API error:', error.message);
+                                        alert(
+                                            `YouTube Data API error: ${error.message}\n\nYou can temporarily disable YouTube Data API in extension settings to use Innertube instead.`
+                                        );
+                                    }
+                                    return;
+                                }
+                                throw error; // Re-throw non-API errors
+                            }
+                        } else {
+                            // Use Innertube API (default or when YouTube Data API is disabled)
+                            await getAllCommentsModeV2(elLoadCmnts, controller.signal, comments);
+                        }
 
                         // Verify video hasn't changed before saving cache
                         const currentVideoId = getVideoId(window.location.href);
@@ -2226,6 +2283,16 @@ export function initApp(): void {
                                         ? opts.transcriptLanguage.trim()
                                         : undefined
                                 );
+                                break;
+
+                            case 'youtubeApiKey':
+                                // Store YouTube Data API key in GlobalStore for use in comment loading
+                                GlobalStore.youtubeApiKey = opts.youtubeApiKey?.trim() || '';
+                                break;
+
+                            case 'youtubeApiEnabled':
+                                // Store YouTube Data API enabled state in GlobalStore
+                                GlobalStore.youtubeApiEnabled = opts.youtubeApiEnabled !== false; // default true
                                 break;
 
                             default:
