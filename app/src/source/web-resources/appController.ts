@@ -1153,6 +1153,7 @@ export function initApp(): void {
                                     }
 
                                     if (error.isQuotaExceeded) {
+                                        youtubeApiIncomplete = true;
                                         elStatusCmnts.innerHTML = iconWarning('Quota exceeded');
                                         console.error(
                                             '[YCS] YouTube Data API quota exceeded. Please try again tomorrow or use a different API key.'
@@ -1161,6 +1162,7 @@ export function initApp(): void {
                                             'YouTube Data API quota exceeded!\n\nYour daily quota (10,000 units) has been exhausted.\nPlease try again tomorrow or temporarily disable YouTube Data API in extension settings.'
                                         );
                                     } else if (error.isInvalidApiKey) {
+                                        youtubeApiIncomplete = true;
                                         elStatusCmnts.innerHTML = iconError('Invalid API key');
                                         console.error(
                                             '[YCS] Invalid YouTube Data API key. Please check your API key in settings.'
@@ -1187,6 +1189,7 @@ export function initApp(): void {
                                         elStatusCmnts.innerHTML = iconInfo('Comments unavailable');
                                         return;
                                     } else {
+                                        youtubeApiIncomplete = true;
                                         elStatusCmnts.innerHTML = iconError('API error');
                                         console.error('[YCS] YouTube Data API error:', error.message);
                                         alert(
