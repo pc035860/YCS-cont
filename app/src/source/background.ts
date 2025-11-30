@@ -6,7 +6,11 @@ import { fetchCommentThreads, fetchCommentReplies, YouTubeDataApiError } from '.
 import { transformThreadToCommentItems, transformReplyToCommentItem } from './utils/youtubeDataApi/transform';
 
 // Track active YouTube API requests for abort handling
-const activeYouTubeApiRequests = new Map<string, AbortController>();
+interface ActiveRequest {
+    controller: AbortController;
+    tabId: number;
+}
+const activeYouTubeApiRequests = new Map<string, ActiveRequest>();
 
 /**
  * Shared state for tracking fetch progress across async operations
@@ -35,6 +39,19 @@ function mapYouTubeApiError(error: unknown): { type: string; message: string; co
         return { type: 'aborted', message: 'Request was aborted' };
     }
     return { type: 'unknown', message: error instanceof Error ? error.message : 'Unknown error' };
+}
+
+/**
+ * Safely send message to tab, returning false if tab no longer exists
+ */
+async function safeSendMessage(tabId: number, message: unknown): Promise<boolean> {
+    try {
+        await chrome.tabs.sendMessage(tabId, message);
+        return true;
+    } catch {
+        // Tab closed or navigated away - expected behavior
+        return false;
+    }
 }
 
 /**
@@ -133,7 +150,7 @@ async function fetchAllCommentsBackground(
             }
 
             // Send progress update
-            chrome.tabs.sendMessage(tabId, {
+            const tabExists = await safeSendMessage(tabId, {
                 type: 'YCS_YT_API_COMMENTS_PROGRESS',
                 body: {
                     requestId,
@@ -141,6 +158,7 @@ async function fetchAllCommentsBackground(
                     quotaUsed: fetchState.quotaUsed
                 }
             });
+            if (!tabExists) return; // Tab closed or navigated away, exit gracefully
 
             pageToken = response.nextPageToken;
         } while (pageToken && comments.length < maxComments && !signal.aborted);
@@ -155,7 +173,7 @@ async function fetchAllCommentsBackground(
         }
 
         // Send completion (with incomplete flag if any reply fetches failed)
-        chrome.tabs.sendMessage(tabId, {
+        await safeSendMessage(tabId, {
             type: 'YCS_YT_API_COMMENTS_COMPLETE',
             body: {
                 requestId,
@@ -174,7 +192,7 @@ async function fetchAllCommentsBackground(
         }
     } catch (error) {
         // Send error with partial results
-        chrome.tabs.sendMessage(tabId, {
+        await safeSendMessage(tabId, {
             type: 'YCS_YT_API_COMMENTS_ERROR',
             body: {
                 requestId,
@@ -307,7 +325,7 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
 
         // Create AbortController for this request
         const controller = new AbortController();
-        activeYouTubeApiRequests.set(requestId, controller);
+        activeYouTubeApiRequests.set(requestId, { controller, tabId });
 
         // Execute fetch (non-blocking)
         fetchAllCommentsBackground(videoId, apiKey, tabId, requestId, controller.signal).then(
@@ -319,11 +337,22 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
     // YouTube Data API: Abort loading
     if (message?.type === 'YCS_YT_API_COMMENTS_ABORT') {
         const { requestId } = message.body ?? {};
-        const controller = activeYouTubeApiRequests.get(requestId);
-        if (controller) {
-            controller.abort();
+        const request = activeYouTubeApiRequests.get(requestId);
+        if (request) {
+            request.controller.abort();
             activeYouTubeApiRequests.delete(requestId);
             console.log('[YCS Background] Aborted request:', requestId);
+        }
+    }
+});
+
+// Abort all YouTube API requests when tab closes
+chrome.tabs.onRemoved.addListener((closedTabId: number) => {
+    for (const [requestId, request] of activeYouTubeApiRequests) {
+        if (request.tabId === closedTabId) {
+            request.controller.abort();
+            activeYouTubeApiRequests.delete(requestId);
+            console.log('[YCS Background] Aborted request due to tab close:', requestId);
         }
     }
 });
