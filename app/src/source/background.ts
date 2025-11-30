@@ -33,6 +33,9 @@ function mapYouTubeApiError(error: unknown): { type: string; message: string; co
         if (error.isInvalidApiKey) {
             return { type: 'invalidApiKey', message: error.message, code: error.code };
         }
+        if (error.isUnsupported) {
+            return { type: 'unsupported', message: error.message, code: error.code };
+        }
         return { type: 'apiError', message: error.message, code: error.code };
     }
     if (error instanceof DOMException && error.name === 'AbortError') {

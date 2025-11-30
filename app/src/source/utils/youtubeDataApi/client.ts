@@ -21,6 +21,7 @@ export class YouTubeDataApiError extends Error {
     reason: string;
     isQuotaExceeded: boolean;
     isInvalidApiKey: boolean;
+    isUnsupported: boolean;
 
     constructor(error: YouTubeApiError['error']) {
         super(error.message);
@@ -29,6 +30,8 @@ export class YouTubeDataApiError extends Error {
         this.reason = error.errors?.[0]?.reason ?? 'unknown';
         this.isQuotaExceeded = this.reason === 'quotaExceeded' || this.reason === 'dailyLimitExceeded';
         this.isInvalidApiKey = this.code === 400 || this.reason === 'keyInvalid';
+        // Unsupported: comments disabled or video not found (not forbidden - may be fixable)
+        this.isUnsupported = this.reason === 'commentsDisabled' || this.reason === 'videoNotFound';
     }
 }
 

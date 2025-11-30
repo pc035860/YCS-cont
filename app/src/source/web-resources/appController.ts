@@ -135,6 +135,10 @@ class YouTubeApiMessageError extends Error {
     get isInvalidApiKey(): boolean {
         return this.type === 'invalidApiKey';
     }
+
+    get isUnsupported(): boolean {
+        return this.type === 'unsupported';
+    }
 }
 
 /**
@@ -1143,6 +1147,15 @@ export function initApp(): void {
                                         elStatusCmnts.innerHTML =
                                             '<span class="ycs-warning" title="Stopped - partial results">⏹️</span>';
                                         // Continue to save partial results
+                                    } else if (error.isUnsupported) {
+                                        // Comments disabled or video not found - silently skip with info icon
+                                        console.log(
+                                            '[YCS] YouTube Data API not supported for this video:',
+                                            error.message
+                                        );
+                                        elStatusCmnts.innerHTML =
+                                            '<span class="ycs-info" title="Comments unavailable">ℹ️</span>';
+                                        return;
                                     } else {
                                         elStatusCmnts.innerHTML = '<span class="ycs-error" title="API error">❌</span>';
                                         console.error('[YCS] YouTube Data API error:', error.message);
