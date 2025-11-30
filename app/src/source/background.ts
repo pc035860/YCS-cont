@@ -158,7 +158,14 @@ async function fetchAllCommentsBackground(
                     quotaUsed: fetchState.quotaUsed
                 }
             });
-            if (!tabExists) return; // Tab closed or navigated away, exit gracefully
+            if (!tabExists) {
+                // Tab closed or navigated away - abort controller to cancel all in-flight requests
+                const request = activeYouTubeApiRequests.get(requestId);
+                if (request) {
+                    request.controller.abort();
+                }
+                return;
+            }
 
             pageToken = response.nextPageToken;
         } while (pageToken && comments.length < maxComments && !signal.aborted);
