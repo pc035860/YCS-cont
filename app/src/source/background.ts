@@ -198,6 +198,11 @@ async function fetchAllCommentsBackground(
             );
         }
     } catch (error) {
+        // Assign indices to partial results before sending
+        for (let idx = 0; idx < comments.length; idx++) {
+            comments[idx]._index = idx;
+        }
+
         // Send error with partial results
         await safeSendMessage(tabId, {
             type: 'YCS_YT_API_COMMENTS_ERROR',
