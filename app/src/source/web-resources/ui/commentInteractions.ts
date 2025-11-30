@@ -219,13 +219,11 @@ function collectRepliesForComment(
 ): ICommentsFuseResult[] {
     if (!commentId) return [];
 
-    const reference = comments.find((entry) => (entry as any)?.commentRenderer?.commentId === commentId);
-    if (!reference) return [];
-
     const replies: ICommentsFuseResult[] = [];
 
     for (const entry of comments) {
-        if ((entry as any)?.originComment === reference) {
+        // Use commentId comparison instead of object reference (fixes JSON serialization issue)
+        if ((entry as any)?.originComment?.commentRenderer?.commentId === commentId) {
             replies.push({
                 item: entry as any,
                 refIndex: Number((entry as any)?._index ?? refId)

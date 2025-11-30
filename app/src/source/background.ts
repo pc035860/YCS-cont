@@ -1,6 +1,189 @@
 import { options } from './config/options';
-import { IStorageEstimate } from './utils/interfaces/i_types';
+import { IStorageEstimate, CommentItem } from './utils/interfaces/i_types';
 import { idb } from './utils/libs';
+import PQueue from 'p-queue';
+import { fetchCommentThreads, fetchCommentReplies, YouTubeDataApiError } from './utils/youtubeDataApi/client';
+import { transformThreadToCommentItems, transformReplyToCommentItem } from './utils/youtubeDataApi/transform';
+
+// Track active YouTube API requests for abort handling
+const activeYouTubeApiRequests = new Map<string, AbortController>();
+
+/**
+ * Shared state for tracking fetch progress across async operations
+ */
+interface FetchState {
+    quotaUsed: number;
+    maxComments: number;
+    signal: AbortSignal | undefined;
+    replyFetchErrors: number; // Track failed reply fetches
+}
+
+/**
+ * Map YouTube Data API errors to error response format
+ */
+function mapYouTubeApiError(error: unknown): { type: string; message: string; code?: number } {
+    if (error instanceof YouTubeDataApiError) {
+        if (error.isQuotaExceeded) {
+            return { type: 'quotaExceeded', message: error.message, code: error.code };
+        }
+        if (error.isInvalidApiKey) {
+            return { type: 'invalidApiKey', message: error.message, code: error.code };
+        }
+        return { type: 'apiError', message: error.message, code: error.code };
+    }
+    if (error instanceof DOMException && error.name === 'AbortError') {
+        return { type: 'aborted', message: 'Request was aborted' };
+    }
+    return { type: 'unknown', message: error instanceof Error ? error.message : 'Unknown error' };
+}
+
+/**
+ * Fetch all replies for a parent comment (background version)
+ */
+async function fetchAllRepliesBackground(
+    parentId: string,
+    apiKey: string,
+    videoId: string,
+    parentItem: CommentItem,
+    comments: CommentItem[],
+    fetchState: FetchState
+): Promise<void> {
+    let pageToken: string | undefined;
+
+    do {
+        if (fetchState.signal?.aborted) break;
+        if (comments.length >= fetchState.maxComments) break;
+
+        try {
+            const response = await fetchCommentReplies(parentId, apiKey, pageToken, fetchState.signal);
+            fetchState.quotaUsed += 1;
+
+            for (const apiComment of response.items) {
+                if (comments.length >= fetchState.maxComments) break;
+                const replyItem = transformReplyToCommentItem(apiComment, videoId, parentItem);
+                comments.push(replyItem);
+            }
+
+            pageToken = response.nextPageToken;
+        } catch (error) {
+            console.error(`[YCS Background] Failed to fetch replies for ${parentId}:`, error);
+            fetchState.replyFetchErrors += 1;
+            break;
+        }
+    } while (pageToken && comments.length < fetchState.maxComments && !fetchState.signal?.aborted);
+}
+
+/**
+ * Fetch all comments for a video using YouTube Data API v3 (background version)
+ */
+async function fetchAllCommentsBackground(
+    videoId: string,
+    apiKey: string,
+    tabId: number,
+    requestId: string,
+    signal: AbortSignal
+): Promise<void> {
+    const comments: CommentItem[] = [];
+    let pageToken: string | undefined;
+    const maxComments = 500000;
+
+    const fetchState: FetchState = {
+        quotaUsed: 0,
+        maxComments,
+        signal,
+        replyFetchErrors: 0
+    };
+
+    const replyQueue = new PQueue({ concurrency: 4 });
+    const replyPromises: Promise<void>[] = [];
+
+    try {
+        do {
+            if (signal.aborted) break;
+            if (comments.length >= maxComments) break;
+
+            const response = await fetchCommentThreads(videoId, apiKey, pageToken, signal);
+            fetchState.quotaUsed += 1;
+
+            for (const thread of response.items) {
+                if (comments.length >= maxComments) break;
+
+                const threadItems = transformThreadToCommentItems(thread, videoId);
+                const parentItem = threadItems[0];
+                comments.push(parentItem);
+
+                // Add inline replies
+                const inlineReplies = threadItems.slice(1);
+                for (const reply of inlineReplies) {
+                    if (comments.length >= maxComments) break;
+                    comments.push(reply);
+                }
+
+                // Queue additional replies if needed
+                const totalReplyCount = thread.snippet.totalReplyCount;
+                const inlineReplyCount = thread.replies?.comments?.length ?? 0;
+
+                if (totalReplyCount > inlineReplyCount && comments.length < maxComments) {
+                    const parentId = thread.snippet.topLevelComment.id;
+                    const replyPromise = replyQueue.add(async () => {
+                        await fetchAllRepliesBackground(parentId, apiKey, videoId, parentItem, comments, fetchState);
+                    });
+                    replyPromises.push(replyPromise as Promise<void>);
+                }
+            }
+
+            // Send progress update
+            chrome.tabs.sendMessage(tabId, {
+                type: 'YCS_YT_API_COMMENTS_PROGRESS',
+                body: {
+                    requestId,
+                    totalCount: comments.length,
+                    quotaUsed: fetchState.quotaUsed
+                }
+            });
+
+            pageToken = response.nextPageToken;
+        } while (pageToken && comments.length < maxComments && !signal.aborted);
+
+        // Wait for all reply fetches
+        await Promise.all(replyPromises);
+        await replyQueue.onIdle();
+
+        // Assign indices sequentially
+        for (let idx = 0; idx < comments.length; idx++) {
+            comments[idx]._index = idx;
+        }
+
+        // Send completion (with incomplete flag if any reply fetches failed)
+        chrome.tabs.sendMessage(tabId, {
+            type: 'YCS_YT_API_COMMENTS_COMPLETE',
+            body: {
+                requestId,
+                comments,
+                totalCount: comments.length,
+                quotaUsed: fetchState.quotaUsed,
+                incomplete: fetchState.replyFetchErrors > 0,
+                replyFetchErrors: fetchState.replyFetchErrors
+            }
+        });
+
+        if (fetchState.replyFetchErrors > 0) {
+            console.warn(
+                `[YCS Background] Completed with ${fetchState.replyFetchErrors} reply fetch errors - some replies may be missing`
+            );
+        }
+    } catch (error) {
+        // Send error with partial results
+        chrome.tabs.sendMessage(tabId, {
+            type: 'YCS_YT_API_COMMENTS_ERROR',
+            body: {
+                requestId,
+                error: mapYouTubeApiError(error),
+                partialComments: comments.length > 0 ? comments : undefined
+            }
+        });
+    }
+}
 
 const STORE_CACHE_YCS = 'STORE_CACHE_YCS';
 
@@ -93,6 +276,54 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
                 await db.clear(STORE_CACHE_YCS);
                 await db.put(STORE_CACHE_YCS, message, message.body.videoId);
             }
+        }
+    }
+
+    // YouTube Data API: Start loading comments
+    if (message?.type === 'YCS_YT_API_COMMENTS_START') {
+        const { videoId, requestId } = message.body ?? {};
+        const tabId = sender.tab?.id;
+
+        if (!tabId || !videoId || !requestId) {
+            console.warn('[YCS Background] Invalid YCS_YT_API_COMMENTS_START message:', message);
+            return;
+        }
+
+        // Read API key from storage (secure - never sent to web page)
+        const opts = await chrome.storage.local.get(['youtubeApiKey', 'youtubeApiEnabled']);
+        const apiKey = (opts.youtubeApiKey as string)?.trim();
+        const apiEnabled = opts.youtubeApiEnabled !== false;
+
+        if (!apiKey || !apiEnabled) {
+            chrome.tabs.sendMessage(tabId, {
+                type: 'YCS_YT_API_COMMENTS_ERROR',
+                body: {
+                    requestId,
+                    error: { type: 'invalidApiKey', message: 'API key not configured or disabled' }
+                }
+            });
+            return;
+        }
+
+        // Create AbortController for this request
+        const controller = new AbortController();
+        activeYouTubeApiRequests.set(requestId, controller);
+
+        // Execute fetch (non-blocking)
+        fetchAllCommentsBackground(videoId, apiKey, tabId, requestId, controller.signal).then(
+            () => activeYouTubeApiRequests.delete(requestId),
+            () => activeYouTubeApiRequests.delete(requestId)
+        );
+    }
+
+    // YouTube Data API: Abort loading
+    if (message?.type === 'YCS_YT_API_COMMENTS_ABORT') {
+        const { requestId } = message.body ?? {};
+        const controller = activeYouTubeApiRequests.get(requestId);
+        if (controller) {
+            controller.abort();
+            activeYouTubeApiRequests.delete(requestId);
+            console.log('[YCS Background] Aborted request:', requestId);
         }
     }
 });

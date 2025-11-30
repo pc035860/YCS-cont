@@ -24,12 +24,7 @@ import {
     clearCurrentVideoMemberOnly,
     checkIsLiveStream,
     getLiveBroadcastStartTime,
-    pollLiveChat,
-    // YouTube Data API v3
-    getAllCommentsYouTubeApi,
-    isQuotaExceeded,
-    isInvalidApiKey,
-    YouTubeDataApiError
+    pollLiveChat
 } from '../utils/innertube';
 
 import { IParamSearch, ISelectedSearch, IYCSOptions } from '../utils/interfaces/i_types';
@@ -116,6 +111,99 @@ import { SearchContext, SortOrder } from './search/types';
 import { renderCommentsResult, renderChatResult, renderTranscriptResult } from './ui/render';
 
 const DEBUG = false;
+
+/**
+ * Error class for YouTube API message-based errors
+ */
+class YouTubeApiMessageError extends Error {
+    type: string;
+    code?: number;
+    partialComments?: CommentItem[];
+
+    constructor(type: string, message: string, partialComments?: CommentItem[], code?: number) {
+        super(message);
+        this.name = 'YouTubeApiMessageError';
+        this.type = type;
+        this.code = code;
+        this.partialComments = partialComments;
+    }
+
+    get isQuotaExceeded(): boolean {
+        return this.type === 'quotaExceeded';
+    }
+
+    get isInvalidApiKey(): boolean {
+        return this.type === 'invalidApiKey';
+    }
+}
+
+/**
+ * Request YouTube API comments via background service worker
+ * API key is securely stored in background, never exposed to web page
+ */
+function requestYouTubeApiComments(
+    videoId: string,
+    signal: AbortSignal | undefined,
+    onProgress: (count: number) => void
+): Promise<{ comments: CommentItem[]; quotaUsed: number; incomplete: boolean; replyFetchErrors: number }> {
+    const requestId = crypto.randomUUID();
+
+    return new Promise((resolve, reject) => {
+        const handleMessage = (e: MessageEvent): void => {
+            if (e.source !== window || e.origin !== window.location.origin) return;
+            if (e.data?.body?.requestId !== requestId) return;
+
+            switch (e.data.type) {
+                case 'YCS_YT_API_COMMENTS_PROGRESS':
+                    onProgress(e.data.body.totalCount);
+                    break;
+
+                case 'YCS_YT_API_COMMENTS_COMPLETE':
+                    window.removeEventListener('message', handleMessage);
+                    resolve({
+                        comments: e.data.body.comments,
+                        quotaUsed: e.data.body.quotaUsed,
+                        incomplete: e.data.body.incomplete || false,
+                        replyFetchErrors: e.data.body.replyFetchErrors || 0
+                    });
+                    break;
+
+                case 'YCS_YT_API_COMMENTS_ERROR': {
+                    window.removeEventListener('message', handleMessage);
+                    const error = e.data.body.error;
+                    reject(
+                        new YouTubeApiMessageError(error.type, error.message, e.data.body.partialComments, error.code)
+                    );
+                    break;
+                }
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+
+        // Handle external abort signal
+        signal?.addEventListener('abort', () => {
+            window.postMessage(
+                {
+                    type: 'YCS_YT_API_COMMENTS_ABORT',
+                    body: { requestId }
+                },
+                window.location.origin
+            );
+            window.removeEventListener('message', handleMessage);
+            reject(new DOMException('Aborted', 'AbortError'));
+        });
+
+        // Send start request
+        window.postMessage(
+            {
+                type: 'YCS_YT_API_COMMENTS_START',
+                body: { videoId, requestId }
+            },
+            window.location.origin
+        );
+    });
+}
 
 const CHAT_UNSUPPORTED_FILTERS = ['heart', 'likes', 'replied', 'random', 'quickTranscript', 'timestampViz'] as const;
 const TRANSCRIPT_UNSUPPORTED_FILTERS = [
@@ -975,26 +1063,44 @@ export function initApp(): void {
                         const controller = getController(state);
 
                         // Check if YouTube Data API key is configured and enabled
-                        const apiKey = GlobalStore.youtubeApiKey;
+                        const hasApiKey = GlobalStore.hasYoutubeApiKey;
                         const apiEnabled = GlobalStore.youtubeApiEnabled !== false; // default true
-                        if (apiKey && apiEnabled && startVideoId) {
-                            // Use YouTube Data API v3
+                        // Track if YouTube API result was incomplete (for status icon)
+                        let youtubeApiIncomplete = false;
+
+                        if (hasApiKey && apiEnabled && startVideoId) {
+                            // Use YouTube Data API v3 via background service worker
                             try {
-                                console.log('[YCS] Using YouTube Data API v3');
-                                const result = await getAllCommentsYouTubeApi(
+                                console.log('[YCS] Using YouTube Data API v3 (via background)');
+                                const result = await requestYouTubeApiComments(
                                     startVideoId,
-                                    apiKey,
-                                    elLoadCmnts,
                                     controller.signal,
-                                    comments
+                                    (count) => showLoadComments(count, elLoadCmnts)
                                 );
+                                comments.push(...result.comments);
                                 console.log(
-                                    `[YCS] YouTube API: ${result.totalCount} comments, ${result.quotaUsed} quota units used`
+                                    `[YCS] YouTube API: ${result.comments.length} comments, ${result.quotaUsed} quota units used`
                                 );
+
+                                // Track incomplete state for status icon
+                                if (result.incomplete) {
+                                    youtubeApiIncomplete = true;
+                                    console.warn(
+                                        `[YCS] Some replies may be missing (${result.replyFetchErrors} fetch errors)`
+                                    );
+                                    elStatusCmnts.innerHTML =
+                                        '<span class="ycs-warning" title="Some replies may be missing">⚠️</span>';
+                                }
                             } catch (error) {
                                 // Handle YouTube Data API specific errors
-                                if (error instanceof YouTubeDataApiError) {
-                                    if (isQuotaExceeded(error)) {
+                                if (error instanceof YouTubeApiMessageError) {
+                                    // If we have partial comments, keep them
+                                    if (error.partialComments && error.partialComments.length > 0) {
+                                        comments.push(...error.partialComments);
+                                        console.log(`[YCS] Keeping ${error.partialComments.length} partial comments`);
+                                    }
+
+                                    if (error.isQuotaExceeded) {
                                         elStatusCmnts.innerHTML =
                                             '<span class="ycs-error" title="Quota exceeded">⚠️</span>';
                                         console.error(
@@ -1003,7 +1109,7 @@ export function initApp(): void {
                                         alert(
                                             'YouTube Data API quota exceeded!\n\nYour daily quota (10,000 units) has been exhausted.\nPlease try again tomorrow or temporarily disable YouTube Data API in extension settings.'
                                         );
-                                    } else if (isInvalidApiKey(error)) {
+                                    } else if (error.isInvalidApiKey) {
                                         elStatusCmnts.innerHTML =
                                             '<span class="ycs-error" title="Invalid API key">❌</span>';
                                         console.error(
@@ -1019,9 +1125,18 @@ export function initApp(): void {
                                             `YouTube Data API error: ${error.message}\n\nYou can temporarily disable YouTube Data API in extension settings to use Innertube instead.`
                                         );
                                     }
+
+                                    // If no partial comments, return early
+                                    if (!error.partialComments || error.partialComments.length === 0) {
+                                        return;
+                                    }
+                                    // Otherwise continue to save partial results
+                                } else if (error instanceof DOMException && error.name === 'AbortError') {
+                                    // User cancelled, don't show error
                                     return;
+                                } else {
+                                    throw error; // Re-throw non-API errors
                                 }
-                                throw error; // Re-throw non-API errors
                             }
                         } else {
                             // Use Innertube API (default or when YouTube Data API is disabled)
@@ -1041,7 +1156,10 @@ export function initApp(): void {
                         }
 
                         if (comments.length > 0) {
-                            elStatusCmnts.innerHTML = iconOk();
+                            // Only show OK icon if result was complete (don't overwrite warning)
+                            if (!youtubeApiIncomplete) {
+                                elStatusCmnts.innerHTML = iconOk();
+                            }
                             saveToCache(
                                 {
                                     videoId: startVideoId,
@@ -2285,9 +2403,9 @@ export function initApp(): void {
                                 );
                                 break;
 
-                            case 'youtubeApiKey':
-                                // Store YouTube Data API key in GlobalStore for use in comment loading
-                                GlobalStore.youtubeApiKey = opts.youtubeApiKey?.trim() || '';
+                            case 'hasYoutubeApiKey':
+                                // Store whether API key is configured (actual key stays in background)
+                                GlobalStore.hasYoutubeApiKey = Boolean(opts.hasYoutubeApiKey);
                                 break;
 
                             case 'youtubeApiEnabled':

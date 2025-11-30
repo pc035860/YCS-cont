@@ -308,7 +308,8 @@ export interface IYCSOptions {
     hiddenByDefaultShorts?: boolean;
     filterButtons?: Array<{ id: string; enabled: boolean }>;
     transcriptLanguage?: string;
-    youtubeApiKey?: string; // Empty = use Innertube; Filled = use YouTube Data API
+    youtubeApiKey?: string; // Empty = use Innertube; Filled = use YouTube Data API (storage only)
+    hasYoutubeApiKey?: boolean; // Flag exposed to web page (API key never exposed)
     youtubeApiEnabled?: boolean; // Enable YouTube Data API (default: true, requires API key)
 }
 
