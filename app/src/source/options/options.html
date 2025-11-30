@@ -21,8 +21,8 @@
           <label for="y_opts_autoload">Autoloading comments:</label>
           <input type="checkbox" name="Autoloading comments" id="y_opts_autoload" class="ycs_opts_checkbox" />
 
-          <div class="ycs_description_option">
-            <p>(Automatically loading all comments when the user navigates to the video page.)</p>
+          <div class="ycs_description_option ycs_api_desc">
+            <p>Automatically loading all comments when the user navigates to the video page.</p>
           </div>
         </div>
 
@@ -31,15 +31,15 @@
             <label for="y_opts_highlight">Highlight text:</label>
             <input type="checkbox" name="Highlight text" id="y_opts_highlight" class="ycs_opts_checkbox" />
 
-            <div class="ycs_description_option">
-              <p>(Highlight text in search results.)</p>
+            <div class="ycs_description_option ycs_api_desc">
+              <p>Highlight text in search results.</p>
             </div>
           </div>
           <div class="ycs_group_subgroup">
             <label for="y_opts_highlight_exact">Exact:</label>
             <input type="checkbox" name="Highlight text exact" id="y_opts_highlight_exact" class="ycs_opts_checkbox" />
-            <div class="ycs_description_option">
-              <p>(Highlight, be exact.)</p>
+            <div class="ycs_description_option ycs_api_desc">
+              <p>Highlight, be exact.</p>
             </div>
           </div>
         </div>
@@ -47,8 +47,8 @@
         <div>
           <label for="y_opts_hidden_by_default">Hidden by default:</label>
           <input type="checkbox" name="Hidden by default" id="y_opts_hidden_by_default" class="ycs_opts_checkbox" />
-          <div class="ycs_description_option">
-            <p>(Show only the YCS toggle bar by default; click to expand. Applies to regular video pages only.)</p>
+          <div class="ycs_description_option ycs_api_desc">
+            <p>Show only the YCS toggle bar by default; click to expand. Applies to regular video pages only.</p>
           </div>
         </div>
 
@@ -60,8 +60,8 @@
             id="y_opts_hidden_by_default_shorts"
             class="ycs_opts_checkbox"
           />
-          <div class="ycs_description_option">
-            <p>(Show only the YCS toggle bar by default; click to expand. Applies to Shorts pages only.)</p>
+          <div class="ycs_description_option ycs_api_desc">
+            <p>Show only the YCS toggle bar by default; click to expand. Applies to Shorts pages only.</p>
           </div>
         </div>
 
@@ -98,52 +98,50 @@
             />
           </div>
 
-          <div class="ycs_description_option">
-            <p>(Select a language or enter a custom BCP-47 code like <code>en</code> or <code>ja</code>.)</p>
+          <div class="ycs_description_option ycs_api_desc">
+            <p>Select a language or enter a custom BCP-47 code like <code>en</code> or <code>ja</code>.</p>
           </div>
         </div>
 
         <div class="ycs_api_settings_wrap">
-          <div>
+          <div class="ycs_api_header">
             <label>YouTube Data API (Optional):</label>
-            <div class="ycs_description_option">
-              <p>
-                (Use official YouTube Data API instead of Innertube. Leave empty to use Innertube (default).
-                <a
-                  href="https://developers.google.com/youtube/registering_an_application"
-                  target="_blank"
-                  rel="noopener"
-                  >Get your API key</a
-                >)
-              </p>
+            <div class="ycs_api_enable_control">
+              <label for="y_opts_youtube_api_enabled">Enable:</label>
+              <input
+                type="checkbox"
+                name="Enable YouTube Data API"
+                id="y_opts_youtube_api_enabled"
+                class="ycs_opts_checkbox"
+                checked
+              />
             </div>
           </div>
 
-          <div class="ycs_api_enable_wrap">
-            <label for="y_opts_youtube_api_enabled">Enable YouTube Data API:</label>
-            <input
-              type="checkbox"
-              name="Enable YouTube Data API"
-              id="y_opts_youtube_api_enabled"
-              class="ycs_opts_checkbox"
-              checked
-            />
-            <div class="ycs_description_option">
-              <p>(Requires API key below to take effect. Uncheck to temporarily use Innertube.)</p>
-            </div>
+          <div class="ycs_description_option ycs_api_desc">
+            <p>
+              Use official YouTube Data API instead of Innertube. (<a
+                href="https://developers.google.com/youtube/registering_an_application"
+                target="_blank"
+                rel="noopener"
+                >Get your API key</a
+              >)
+            </p>
           </div>
 
           <div class="ycs_api_key_input">
             <label for="y_opts_youtube_api_key">API Key:</label>
-            <input
-              type="password"
-              name="YouTube API Key"
-              id="y_opts_youtube_api_key"
-              class="ycs_opts_input_api_key"
-              placeholder="Enter your API key"
-              maxlength="255"
-            />
-            <button type="button" id="ycs_toggle_api_key" class="ycs_opts_btn ycs_btn_toggle_key">Show</button>
+            <div class="ycs_input_group">
+              <input
+                type="password"
+                name="YouTube API Key"
+                id="y_opts_youtube_api_key"
+                class="ycs_opts_input_api_key"
+                placeholder="Enter your API key"
+                maxlength="255"
+              />
+              <button type="button" id="ycs_toggle_api_key" class="ycs_opts_btn ycs_btn_toggle_key">Show</button>
+            </div>
           </div>
 
           <div class="ycs_api_status" id="ycs_api_status">
@@ -162,8 +160,8 @@
         <div class="ycs_filter_buttons_wrap">
           <div>
             <label>Filter Buttons:</label>
-            <div class="ycs_description_option">
-              <p>(Customize which filter buttons to show and their order on YouTube video pages.)</p>
+            <div class="ycs_description_option ycs_api_desc">
+              <p>Customize which filter buttons to show and their order on YouTube video pages.</p>
             </div>
           </div>
 
@@ -260,8 +258,8 @@
           <div class="ycs_opts_cache">
             <label for="y_opts_cache">Cache:</label>
             <input type="checkbox" name="Cache" id="y_opts_cache" class="ycs_opts_checkbox" />
-            <div class="ycs_description_option">
-              <p>(Puts all loaded comments in the cache.)</p>
+            <div class="ycs_description_option ycs_api_desc">
+              <p>Puts all loaded comments in the cache.</p>
             </div>
           </div>
 
@@ -300,12 +298,12 @@
             </div>
           </div>
 
-          <div class="ycs_opts_cache">
+          <div class="ycs_opts_cache ycs_opts_cache_auto_clear">
             <label for="y_opts_cache_quota">Auto clear:</label>
             <input type="text" name="Cache limit" id="y_opts_cache_quota" class="ycs_opts_input_quota" value="200" />
             <span class="ycs_opts_cache_q_mb ycs_opt_mark">MB</span>
-            <div class="ycs_description_option">
-              <p>(Automatically clears the cache when the specified MB limit is reached.)</p>
+            <div class="ycs_description_option ycs_api_desc ycs_api_desc--no-bottom-margin">
+              <p>Automatically clears the cache when the specified MB limit is reached.</p>
             </div>
           </div>
         </div>

@@ -76,6 +76,10 @@ button:hover {
   display: inline-block;
 }
 
+.ycs_opts_cache.ycs_opts_cache_auto_clear {
+  margin-top: 30px;
+}
+
 .ycs_opts_btn {
   margin: 0;
   padding: 6px;
@@ -513,11 +517,44 @@ code {
   margin-bottom: 25px;
 }
 
+.ycs_api_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.ycs_api_title {
+  font-size: 20px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.ycs_api_enable_control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ycs_api_enable_control label {
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.ycs_api_desc p {
+  color: #adadad;
+  margin: 8px 0 20px 0;
+  font-size: 15px;
+}
+.ycs_api_desc.ycs_api_desc--no-bottom-margin p {
+  margin-bottom: 0;
+}
+
 .ycs_api_key_input {
   margin-top: 15px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 15px;
 }
 
 .ycs_api_key_input label {
@@ -525,22 +562,46 @@ code {
   min-width: 80px;
 }
 
+.ycs_input_group {
+  display: flex;
+  flex: 1;
+}
+
 .ycs_opts_input_api_key {
-  height: 30px;
-  width: 320px;
+  height: 34px;
+  flex: 1;
   font-size: 16px;
-  padding: 0px 10px;
+  padding: 0px 12px;
   background-color: #1f1f1f;
   color: #fff;
   border: 1px solid #3a3a3a;
-  border-radius: 4px;
+  border-right: none;
+  border-radius: 4px 0 0 4px;
   font-family: 'Ubuntu Mono', monospace;
+  max-width: 400px;
 }
 
 .ycs_opts_input_api_key:focus {
   outline: none;
   border-color: #ffa500;
-  box-shadow: 0 0 0 2px rgba(255, 165, 0, 0.2);
+  box-shadow: none;
+  z-index: 2;
+}
+
+.ycs_btn_toggle_key {
+  height: 34px;
+  padding: 0 16px;
+  font-size: 14px;
+  min-width: 60px;
+  border: 1px solid #adadad;
+  background-color: #2f3640;
+  border-radius: 0 4px 4px 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.ycs_btn_toggle_key:hover {
+  background-color: #262626;
 }
 
 .ycs_opts_input_api_key::placeholder {
@@ -548,18 +609,13 @@ code {
   font-size: 14px;
 }
 
-.ycs_btn_toggle_key {
-  padding: 4px 12px;
-  font-size: 14px;
-  min-width: 60px;
-}
-
 .ycs_api_status {
-  margin-top: 15px;
+  margin-top: 20px;
   font-size: 16px;
   display: flex;
   align-items: center;
   gap: 8px;
+  padding-left: 2px;
 }
 
 .ycs_api_mode_label {
@@ -576,8 +632,8 @@ code {
 }
 
 .ycs_api_note {
-  margin-top: 15px;
-  padding: 10px;
+  margin-top: 20px;
+  padding: 12px 16px;
   background-color: #1f1f1f;
   border-left: 3px solid #ffa500;
   border-radius: 0 4px 4px 0;
@@ -585,6 +641,7 @@ code {
 
 .ycs_api_note p {
   margin: 0;
+  line-height: 1.4;
 }
 
 .ycs_api_settings_wrap a {
