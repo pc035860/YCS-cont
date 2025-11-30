@@ -36,7 +36,7 @@ import type {
     TranscriptTrackInfo
 } from '../utils/interfaces/i_types';
 
-import { iconOk, iconReload } from '../utils/icons';
+import { iconOk, iconReload, iconWarning, iconError, iconStop, iconInfo } from '../utils/icons';
 import { formatRecordingDuration } from '../utils/formatting';
 import { renderLoadComments, renderSearch, loadFilterButtons } from '../utils/renderView';
 import { loadFromCache, saveToCache, updateBadge } from './services/cacheService';
@@ -1106,8 +1106,7 @@ export function initApp(): void {
                                     console.warn(
                                         `[YCS] Some replies may be missing (${result.replyFetchErrors} fetch errors)`
                                     );
-                                    elStatusCmnts.innerHTML =
-                                        '<span class="ycs-warning" title="Some replies may be missing">⚠️</span>';
+                                    elStatusCmnts.innerHTML = iconWarning('Some replies may be missing');
                                 }
                             } catch (error) {
                                 // Handle YouTube Data API specific errors
@@ -1119,8 +1118,7 @@ export function initApp(): void {
                                     }
 
                                     if (error.isQuotaExceeded) {
-                                        elStatusCmnts.innerHTML =
-                                            '<span class="ycs-error" title="Quota exceeded">⚠️</span>';
+                                        elStatusCmnts.innerHTML = iconWarning('Quota exceeded');
                                         console.error(
                                             '[YCS] YouTube Data API quota exceeded. Please try again tomorrow or use a different API key.'
                                         );
@@ -1128,8 +1126,7 @@ export function initApp(): void {
                                             'YouTube Data API quota exceeded!\n\nYour daily quota (10,000 units) has been exhausted.\nPlease try again tomorrow or temporarily disable YouTube Data API in extension settings.'
                                         );
                                     } else if (error.isInvalidApiKey) {
-                                        elStatusCmnts.innerHTML =
-                                            '<span class="ycs-error" title="Invalid API key">❌</span>';
+                                        elStatusCmnts.innerHTML = iconError('Invalid API key');
                                         console.error(
                                             '[YCS] Invalid YouTube Data API key. Please check your API key in settings.'
                                         );
@@ -1144,8 +1141,7 @@ export function initApp(): void {
                                         }
                                         // Mark as incomplete so we don't show OK icon or cache as complete
                                         youtubeApiIncomplete = true;
-                                        elStatusCmnts.innerHTML =
-                                            '<span class="ycs-warning" title="Stopped - partial results">⏹️</span>';
+                                        elStatusCmnts.innerHTML = iconStop('Stopped - partial results');
                                         // Continue to save partial results
                                     } else if (error.isUnsupported) {
                                         // Comments disabled or video not found - silently skip with info icon
@@ -1153,11 +1149,10 @@ export function initApp(): void {
                                             '[YCS] YouTube Data API not supported for this video:',
                                             error.message
                                         );
-                                        elStatusCmnts.innerHTML =
-                                            '<span class="ycs-info" title="Comments unavailable">ℹ️</span>';
+                                        elStatusCmnts.innerHTML = iconInfo('Comments unavailable');
                                         return;
                                     } else {
-                                        elStatusCmnts.innerHTML = '<span class="ycs-error" title="API error">❌</span>';
+                                        elStatusCmnts.innerHTML = iconError('API error');
                                         console.error('[YCS] YouTube Data API error:', error.message);
                                         alert(
                                             `YouTube Data API error: ${error.message}\n\nYou can temporarily disable YouTube Data API in extension settings to use Innertube instead.`
