@@ -483,8 +483,10 @@ function getCommentsTrVideoHtmlText(comments: any): any | undefined {
 
                 html += `
 \n#####\n
+Time: ${wrapTryCatch(() => c.transcriptCueGroupRenderer.formattedStartOffset.simpleText) || ''}
+
 ${wrapTryCatch(() => c.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.cue.simpleText) || ''}
-${wrapTryCatch(() => c.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.formattedStartOffset.simpleText) || ''}
+
 start offset: ${wrapTryCatch(() => c.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs) || 0} | duration: ${wrapTryCatch(() => c.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.durationMs) || 0}
 \n#####\n`;
             } catch (e) {
