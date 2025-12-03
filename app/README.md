@@ -44,7 +44,7 @@ app/
 │   │       ├── constants.ts  # Application constants
 │   │       ├── libs.ts       # External library wrappers (fetchR, IndexedDB)
 │   │       ├── export-core.ts # Core export functionality
-│   │       ├── innertube/    # Modularized YouTube API integration
+│   │       ├── innertube/    # Modularized YouTube Innertube API integration
 │   │       │   ├── innertube.ts      # Module facade
 │   │       │   ├── core.ts           # Configuration & initialization
 │   │       │   ├── request.ts        # Request building utilities
@@ -60,6 +60,11 @@ app/
 │   │       │   │   ├── replayChat.ts # Replay chat handling
 │   │       │   │   └── utils.ts      # Chat utilities
 │   │       │   └── transcript.ts     # Transcript fetching
+│   │       ├── youtubeDataApi/  # YouTube Data API v3 integration (optional)
+│   │       │   ├── client.ts         # API client with error handling
+│   │       │   ├── comments.ts       # Comment fetching logic
+│   │       │   ├── transform.ts      # Response transformation to CommentItem
+│   │       │   └── index.ts          # Module exports
 │   │       ├── filters/      # Comment and chat filtering modules
 │   │       ├── formatting.ts # Data transformation and HTML output
 │   │       ├── dom.ts        # DOM manipulation and UI interactions
@@ -205,18 +210,20 @@ YouTube.com Page
   │  └─ chrome.runtime.sendMessage() ↕️
   └─ background.ts (Service Worker)
      └─ IndexedDB cache, storage monitoring, badge updates
+     └─ YouTube Data API requests (API key stored securely)
 ```
 
-**Why this structure?** Manifest V3 security restrictions require web page code to run in isolated context. The content script acts as a secure bridge between the web page and extension background.
+**Why this structure?** Manifest V3 security restrictions require web page code to run in isolated context. The content script acts as a secure bridge between the web page and extension background. For YouTube Data API integration, API keys are stored securely in the background and never exposed to the web page.
 
 ### Key Components
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| Service Worker | `background.ts` | Cache management, badge updates, message listening |
+| Service Worker | `background.ts` | Cache management, badge updates, YouTube Data API requests |
 | Web Resources | `wresources.ts` | Main UI, search logic, GlobalStore state management |
-| Content Script | `cscripts.ts` | Bridge layer, script injection |
-| YouTube API | `innertube.ts` | Innertube API integration, request handling |
+| Content Script | `cscripts.ts` | Bridge layer, script injection, message relay |
+| Innertube API | `innertube/*.ts` | YouTube Innertube API integration (default) |
+| YouTube Data API | `youtubeDataApi/*.ts` | YouTube Data API v3 integration (optional, requires API key) |
 | Filtering | `filters/*.ts` | Comment and chat filtering logic |
 | Data Export | `sheets.ts` | Excel export functionality |
 | Formatting | `formatting.ts` | Data transformation and HTML generation |
@@ -236,6 +243,7 @@ For detailed information on Innertube API integration and implementation:
 | [Implementation Alignment](docs/continuation-processing.md) | JS/TS code correspondence |
 | [SAPISID Authorization](docs/sap-sid-authorization.md) | SAPISID/APISID cookie-based auth headers |
 | [Adaptive Authorization Headers](docs/adaptive-authorization-headers.md) | Member-only video detection and conditional auth |
+| [YouTube Data API Messaging](docs/youtube-data-api-messaging.md) | YouTube Data API v3 messaging architecture |
 
 **Reading order**: Start with `innertube-comments-integration.md`, then refer to other docs as needed.
 

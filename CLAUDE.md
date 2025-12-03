@@ -53,10 +53,11 @@ YouTube.com Page
   │  └─ chrome.runtime.sendMessage() ↕️
   └─ background.ts (Service Worker)
      └─ IndexedDB cache, storage monitoring, badge updates
+     └─ YouTube Data API requests (API key stored securely)
 ```
 
 **Why this structure?**
-MV3 security restrictions require web page code to run in isolated context. The content script acts as a secure bridge between web page and extension background.
+MV3 security restrictions require web page code to run in isolated context. The content script acts as a secure bridge between web page and extension background. For YouTube Data API integration, API keys are stored securely in the background and never exposed to the web page.
 
 ### Key Directories
 
@@ -76,10 +77,15 @@ MV3 security restrictions require web page code to run in isolated context. The 
     - `common.ts`: Shared utilities and GlobalStore
     - `libs.ts`: External library wrappers (fetchR, IndexedDB)
     - `dom.ts`, `formatting.ts`: DOM and data transformation
-    - `innertube/`: Modularized YouTube API integration
+    - `innertube/`: Modularized YouTube Innertube API integration
       - `comments/`: Comment fetching and processing pipeline
       - `chat/`: Chat replay modules (live/replay)
       - `core.ts`, `request.ts`, `authHeaders.ts`, `transcript.ts`: Core utilities
+    - `youtubeDataApi/`: YouTube Data API v3 integration (optional, requires API key)
+      - `client.ts`: API client with error handling
+      - `comments.ts`: Comment fetching logic
+      - `transform.ts`: Response transformation to CommentItem
+      - `index.ts`: Module exports
     - `filters/`: Comment and chat filtering modules
     - `sheets.ts`: Excel export functionality
     - `renderView.ts`, `viewModels.ts`: HTML rendering and view models
@@ -164,6 +170,8 @@ Runtime state management using IIFE closure pattern. See `app/src/source/web-res
 ### Message Passing
 
 Three-layer communication using `window.postMessage()` (Web Page ↔ Content Script) and `chrome.runtime.sendMessage()` (Content Script ↔ Service Worker). See Architecture section above.
+
+**YouTube Data API Messaging**: When YouTube Data API is enabled, a specialized messaging protocol handles comment fetching with chunked transfer (to overcome Chrome's ~50-64 MB message size limit) and secure API key isolation. See `app/docs/youtube-data-api-messaging.md` for detailed architecture.
 
 ### Retry Mechanism
 
@@ -283,6 +291,25 @@ The extension integrates with YouTube's internal Innertube API for fetching comm
 - **Documentation**: See `app/docs/innertube-*.md` and `app/docs/sap-sid-authorization.md` for detailed implementation guides
 
 Implementation: `app/src/source/utils/innertube/` with type definitions in `utils/interfaces/i_assist.ts`
+
+## YouTube Data API v3 Integration (Optional)
+
+The extension optionally supports YouTube Data API v3 as an alternative to Innertube for comment fetching.
+
+- **API key required**: Users must provide their own API key in extension settings
+- **Security**: API key is stored in background service worker and never exposed to web page
+- **Chunked transfer**: Large comment datasets are transferred in chunks to avoid Chrome's message size limit (~50-64 MB)
+- **Partial results**: Supports returning partial results on errors or user cancellation
+- **Fallback**: When API key is not configured or disabled, falls back to Innertube API
+
+**Message Types**:
+- `YCS_YT_API_COMMENTS_START` / `YCS_YT_API_COMMENTS_ABORT`: Request control
+- `YCS_YT_API_COMMENTS_PROGRESS` / `YCS_YT_API_COMMENTS_CHUNK`: Response streaming
+- `YCS_YT_API_COMMENTS_ERROR`: Error handling with partial results
+
+**Documentation**: See `app/docs/youtube-data-api-messaging.md` for detailed messaging architecture.
+
+Implementation: `app/src/source/utils/youtubeDataApi/` with background handling in `background.ts`
 
 ### Member-Only Video Detection and Authorization Strategy
 

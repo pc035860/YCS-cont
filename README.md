@@ -107,9 +107,10 @@ YouTube.com Page
   │  └─ chrome.runtime.sendMessage() ↕️
   └─ background.ts (Service Worker)
      └─ IndexedDB cache, storage monitoring, badge updates
+     └─ YouTube Data API requests (API key stored securely)
 ```
 
-**Why this structure?** Manifest V3 security restrictions require web page code to run in isolated context. The content script acts as a secure bridge between web page and extension background.
+**Why this structure?** Manifest V3 security restrictions require web page code to run in isolated context. The content script acts as a secure bridge between web page and extension background. For YouTube Data API integration, API keys are stored securely in the background and never exposed to the web page.
 
 **Build system**: Parcel 2.0.1 with TypeScript (ES6 target, strict mode)
 
@@ -126,6 +127,7 @@ The extension integrates with YouTube's internal Innertube API for comments, cha
 - [continuation-processing.md](app/docs/continuation-processing.md) - Implementation reference
 - [sap-sid-authorization.md](app/docs/sap-sid-authorization.md) - SAPISID authorization header generation
 - [adaptive-authorization-headers.md](app/docs/adaptive-authorization-headers.md) - Adaptive authorization for member-only videos
+- [youtube-data-api-messaging.md](app/docs/youtube-data-api-messaging.md) - YouTube Data API v3 messaging architecture
 
 ## Credits
 - Original YCS by **sonigy**
