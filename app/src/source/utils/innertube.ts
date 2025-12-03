@@ -23,3 +23,11 @@ export {
     updateMemberOnlyStatus,
     shouldDisableAuth
 } from './innertube/memberOnly';
+
+// YouTube Data API v3 (alternative to Innertube)
+export {
+    getAllCommentsYouTubeApi,
+    isQuotaExceeded,
+    isInvalidApiKey,
+    YouTubeDataApiError
+} from './youtubeDataApi/index';

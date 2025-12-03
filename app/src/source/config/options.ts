@@ -7,6 +7,8 @@ const options = {
     hiddenByDefault: false,
     hiddenByDefaultShorts: false,
     transcriptLanguage: '',
+    youtubeApiKey: '', // Empty = use Innertube (default); Filled = use YouTube Data API
+    youtubeApiEnabled: true, // Enable YouTube Data API (requires API key to take effect)
     filterButtons: [
         { id: 'ycs_btn_timestamps', enabled: true },
         { id: 'ycs_btn_timestamp_viz', enabled: true },

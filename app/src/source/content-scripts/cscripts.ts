@@ -7,7 +7,14 @@ const DEBUG = false;
 
     function initContentScript(): void {
         // Whitelist of allowed runtime message types
-        const ALLOWED_RUNTIME_MESSAGE_TYPES = new Set<string>(['YCS_CACHE_STORAGE_GET_SEND', 'YCS_AUTOLOAD']);
+        const ALLOWED_RUNTIME_MESSAGE_TYPES = new Set<string>([
+            'YCS_CACHE_STORAGE_GET_SEND',
+            'YCS_AUTOLOAD',
+            'YCS_YT_API_COMMENTS_PROGRESS',
+            'YCS_YT_API_COMMENTS_COMPLETE',
+            'YCS_YT_API_COMMENTS_ERROR',
+            'YCS_YT_API_COMMENTS_CHUNK'
+        ]);
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -33,6 +40,17 @@ const DEBUG = false;
                     if (DEBUG) console.log('[YCS] RESPONSE BG SEND AUTOLOAD. Now postMessage in Window');
                     window.postMessage({ type: 'YCS_AUTOLOAD' }, window.location.origin);
                 }
+
+                // Forward YouTube API responses to web page
+                if (
+                    type === 'YCS_YT_API_COMMENTS_PROGRESS' ||
+                    type === 'YCS_YT_API_COMMENTS_COMPLETE' ||
+                    type === 'YCS_YT_API_COMMENTS_ERROR' ||
+                    type === 'YCS_YT_API_COMMENTS_CHUNK'
+                ) {
+                    if (DEBUG) console.log('[YCS] Forwarding YouTube API response:', type);
+                    window.postMessage(message, window.location.origin);
+                }
             } catch (err) {
                 console.error(err);
             }
@@ -43,7 +61,9 @@ const DEBUG = false;
             'NUMBER_COMMENTS',
             'GET_OPTIONS',
             'YCS_CACHE_STORAGE_SET',
-            'YCS_CACHE_STORAGE_GET'
+            'YCS_CACHE_STORAGE_GET',
+            'YCS_YT_API_COMMENTS_START',
+            'YCS_YT_API_COMMENTS_ABORT'
         ]);
 
         const VIDEO_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
@@ -83,7 +103,14 @@ const DEBUG = false;
 
                             const opts = await chrome.storage.local.get();
 
-                            window.postMessage({ type: 'YCS_OPTIONS', text: opts }, window.location.origin);
+                            // Security: Filter out sensitive data, only expose hasYoutubeApiKey flag
+                            const { youtubeApiKey, ...safeOpts } = opts;
+                            const sanitizedOpts = {
+                                ...safeOpts,
+                                hasYoutubeApiKey: !!(youtubeApiKey as string)?.trim()
+                            };
+
+                            window.postMessage({ type: 'YCS_OPTIONS', text: sanitizedOpts }, window.location.origin);
                         } catch (err) {
                             console.error(err);
                         }
@@ -107,6 +134,21 @@ const DEBUG = false;
                         chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg, (res) => {
                             if (DEBUG) console.log('[YCS] Response YCS_CACHE_STORAGE GET:', res);
                         });
+                    }
+
+                    // Forward YouTube API requests to background
+                    if (msg.type === 'YCS_YT_API_COMMENTS_START' && msg?.body) {
+                        if (!isValidVideoId(msg.body?.videoId)) {
+                            if (DEBUG) console.warn('[YCS] Invalid video ID format for YouTube API');
+                            return;
+                        }
+                        if (DEBUG) console.log('[YCS] Forwarding YouTube API START:', msg);
+                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg);
+                    }
+
+                    if (msg.type === 'YCS_YT_API_COMMENTS_ABORT' && msg?.body) {
+                        if (DEBUG) console.log('[YCS] Forwarding YouTube API ABORT:', msg);
+                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg);
                     }
                 } catch (err) {
                     console.error(err);

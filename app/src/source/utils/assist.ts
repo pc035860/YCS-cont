@@ -128,7 +128,12 @@ export {
     clearCurrentVideoMemberOnly,
     normalizeYtInitialData,
     updateMemberOnlyStatus,
-    shouldDisableAuth
+    shouldDisableAuth,
+    // YouTube Data API v3
+    getAllCommentsYouTubeApi,
+    isQuotaExceeded,
+    isInvalidApiKey,
+    YouTubeDataApiError
 } from './innertube';
 
 export { EXPORT_FORMAT } from './constants';

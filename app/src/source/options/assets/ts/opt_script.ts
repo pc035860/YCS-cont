@@ -125,6 +125,102 @@ window.onload = async (): Promise<void> => {
             }
         };
 
+        // YouTube Data API handlers
+        let currentApiEnabled = true;
+        let currentApiKey = '';
+
+        const setRenderYoutubeApiEnabled = (param: boolean): void => {
+            const checkbox = document.getElementById('y_opts_youtube_api_enabled') as HTMLInputElement | null;
+            if (!checkbox) return;
+            checkbox.checked = param !== false; // default true
+            currentApiEnabled = param !== false;
+            updateApiModeDisplay();
+        };
+
+        const optSetYoutubeApiEnabled = async (enabled: boolean): Promise<void> => {
+            try {
+                await chrome.storage.local.set({
+                    youtubeApiEnabled: enabled
+                });
+                currentApiEnabled = enabled;
+                updateApiModeDisplay();
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        const setRenderYoutubeApiKey = (param?: string): void => {
+            const input = document.getElementById('y_opts_youtube_api_key') as HTMLInputElement | null;
+            if (!input) return;
+            input.value = param ?? '';
+            currentApiKey = param ?? '';
+            updateApiModeDisplay();
+        };
+
+        const optSetYoutubeApiKey = async (value: string): Promise<void> => {
+            try {
+                const trimmedValue = value.trim();
+                await chrome.storage.local.set({
+                    youtubeApiKey: trimmedValue
+                });
+                currentApiKey = trimmedValue;
+                updateApiModeDisplay();
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        const updateApiModeDisplay = (): void => {
+            const modeValue = document.getElementById('ycs_api_mode_value') as HTMLElement | null;
+            if (!modeValue) return;
+
+            const hasKey = currentApiKey && currentApiKey.trim();
+            const isEnabled = currentApiEnabled && hasKey;
+
+            if (isEnabled) {
+                modeValue.textContent = 'YouTube Data API';
+                modeValue.classList.add('youtube-api');
+                modeValue.classList.remove('disabled');
+            } else if (hasKey && !currentApiEnabled) {
+                modeValue.textContent = 'YouTube Data API (disabled)';
+                modeValue.classList.remove('youtube-api');
+                modeValue.classList.add('disabled');
+            } else {
+                modeValue.textContent = 'Innertube (default)';
+                modeValue.classList.remove('youtube-api');
+                modeValue.classList.remove('disabled');
+            }
+        };
+
+        const initYoutubeApiKeyEvents = (): void => {
+            const apiKeyInput = document.getElementById('y_opts_youtube_api_key') as HTMLInputElement | null;
+            const toggleBtn = document.getElementById('ycs_toggle_api_key') as HTMLButtonElement | null;
+
+            if (apiKeyInput) {
+                apiKeyInput.addEventListener('input', (e: Event) => {
+                    const target = e.target as HTMLInputElement;
+                    optSetYoutubeApiKey(target.value);
+                });
+
+                apiKeyInput.addEventListener('change', (e: Event) => {
+                    const target = e.target as HTMLInputElement;
+                    optSetYoutubeApiKey(target.value);
+                });
+            }
+
+            if (toggleBtn && apiKeyInput) {
+                toggleBtn.addEventListener('click', () => {
+                    if (apiKeyInput.type === 'password') {
+                        apiKeyInput.type = 'text';
+                        toggleBtn.textContent = 'Hide';
+                    } else {
+                        apiKeyInput.type = 'password';
+                        toggleBtn.textContent = 'Show';
+                    }
+                });
+            }
+        };
+
         const setRenderFilterButtons = (filterButtons: Array<{ id: string; enabled: boolean }>): void => {
             if (!Array.isArray(filterButtons)) return;
 
@@ -554,6 +650,14 @@ window.onload = async (): Promise<void> => {
                         setRenderFilterButtons(storageOpts[key]);
                         break;
 
+                    case 'youtubeApiKey':
+                        setRenderYoutubeApiKey(storageOpts[key]);
+                        break;
+
+                    case 'youtubeApiEnabled':
+                        setRenderYoutubeApiEnabled(storageOpts[key]);
+                        break;
+
                     default:
                         break;
                 }
@@ -562,6 +666,9 @@ window.onload = async (): Promise<void> => {
 
         // Initialize filter buttons events once after initial render
         initFilterButtonsEvents();
+
+        // Initialize YouTube API key events
+        initYoutubeApiKeyEvents();
 
         const elAutoload = document.getElementsByClassName('ycs_inner_wrap')[0];
         elAutoload?.addEventListener('click', async (e: Event) => {
@@ -603,6 +710,10 @@ window.onload = async (): Promise<void> => {
 
                 case 'ycs_opts_btn_reset_filters':
                     await resetFilterButtonsToDefault();
+                    break;
+
+                case 'y_opts_youtube_api_enabled':
+                    optSetYoutubeApiEnabled((e.target as HTMLInputElement).checked);
                     break;
 
                 default:

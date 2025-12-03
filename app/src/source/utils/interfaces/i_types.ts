@@ -308,4 +308,105 @@ export interface IYCSOptions {
     hiddenByDefaultShorts?: boolean;
     filterButtons?: Array<{ id: string; enabled: boolean }>;
     transcriptLanguage?: string;
+    youtubeApiKey?: string; // Empty = use Innertube; Filled = use YouTube Data API (storage only)
+    hasYoutubeApiKey?: boolean; // Flag exposed to web page (API key never exposed)
+    youtubeApiEnabled?: boolean; // Enable YouTube Data API (default: true, requires API key)
+}
+
+// =============================================================================
+// YouTube Data API v3 Response Types
+// https://developers.google.com/youtube/v3/docs
+// =============================================================================
+
+/**
+ * YouTube Data API v3 Comment Resource
+ * https://developers.google.com/youtube/v3/docs/comments
+ */
+export interface YouTubeApiComment {
+    kind: 'youtube#comment';
+    etag: string;
+    id: string;
+    snippet: {
+        authorDisplayName: string;
+        authorProfileImageUrl: string;
+        authorChannelUrl: string;
+        authorChannelId: { value: string };
+        channelId?: string;
+        videoId?: string;
+        textDisplay: string;
+        textOriginal: string;
+        parentId?: string; // Present for replies
+        canRate: boolean;
+        viewerRating: string; // 'like' | 'dislike' | 'none'
+        likeCount: number;
+        moderationStatus?: string; // Only for channel/video owner
+        publishedAt: string; // ISO 8601 datetime
+        updatedAt: string; // ISO 8601 datetime
+    };
+}
+
+/**
+ * YouTube Data API v3 CommentThread Resource
+ * https://developers.google.com/youtube/v3/docs/commentThreads
+ */
+export interface YouTubeApiCommentThread {
+    kind: 'youtube#commentThread';
+    etag: string;
+    id: string;
+    snippet: {
+        channelId: string;
+        videoId: string;
+        topLevelComment: YouTubeApiComment;
+        canReply: boolean;
+        totalReplyCount: number;
+        isPublic: boolean;
+    };
+    replies?: {
+        comments: YouTubeApiComment[]; // Subset of replies, use comments.list for all
+    };
+}
+
+/**
+ * YouTube Data API v3 CommentThreads.list Response
+ * https://developers.google.com/youtube/v3/docs/commentThreads/list
+ */
+export interface YouTubeApiCommentThreadListResponse {
+    kind: 'youtube#commentThreadListResponse';
+    etag: string;
+    nextPageToken?: string;
+    pageInfo: {
+        totalResults: number;
+        resultsPerPage: number;
+    };
+    items: YouTubeApiCommentThread[];
+}
+
+/**
+ * YouTube Data API v3 Comments.list Response
+ * https://developers.google.com/youtube/v3/docs/comments/list
+ */
+export interface YouTubeApiCommentListResponse {
+    kind: 'youtube#commentListResponse';
+    etag: string;
+    nextPageToken?: string;
+    pageInfo: {
+        totalResults: number;
+        resultsPerPage: number;
+    };
+    items: YouTubeApiComment[];
+}
+
+/**
+ * YouTube Data API Error Response
+ */
+export interface YouTubeApiError {
+    error: {
+        code: number;
+        message: string;
+        errors: Array<{
+            message: string;
+            domain: string;
+            reason: string;
+        }>;
+    };
 }

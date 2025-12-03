@@ -36,7 +36,7 @@ import type {
     TranscriptTrackInfo
 } from '../utils/interfaces/i_types';
 
-import { iconOk, iconReload } from '../utils/icons';
+import { iconOk, iconReload, iconWarning, iconError, iconStop, iconInfo } from '../utils/icons';
 import { formatRecordingDuration } from '../utils/formatting';
 import { renderLoadComments, renderSearch, loadFilterButtons } from '../utils/renderView';
 import { loadFromCache, saveToCache, updateBadge } from './services/cacheService';
@@ -111,6 +111,152 @@ import { SearchContext, SortOrder } from './search/types';
 import { renderCommentsResult, renderChatResult, renderTranscriptResult } from './ui/render';
 
 const DEBUG = false;
+
+/**
+ * Error class for YouTube API message-based errors
+ */
+class YouTubeApiMessageError extends Error {
+    type: string;
+    code?: number;
+    partialComments?: CommentItem[];
+
+    constructor(type: string, message: string, partialComments?: CommentItem[], code?: number) {
+        super(message);
+        this.name = 'YouTubeApiMessageError';
+        this.type = type;
+        this.code = code;
+        this.partialComments = partialComments;
+    }
+
+    get isQuotaExceeded(): boolean {
+        return this.type === 'quotaExceeded';
+    }
+
+    get isInvalidApiKey(): boolean {
+        return this.type === 'invalidApiKey';
+    }
+
+    get isUnsupported(): boolean {
+        return this.type === 'unsupported';
+    }
+}
+
+/**
+ * Request YouTube API comments via background service worker
+ * API key is securely stored in background, never exposed to web page
+ */
+function requestYouTubeApiComments(
+    videoId: string,
+    signal: AbortSignal | undefined,
+    onProgress: (count: number) => void
+): Promise<{ comments: CommentItem[]; quotaUsed: number; incomplete: boolean; replyFetchErrors: number }> {
+    const requestId = crypto.randomUUID();
+
+    return new Promise((resolve, reject) => {
+        // Timer ID for abort timeout cleanup
+        let abortTimeoutId: ReturnType<typeof setTimeout> | undefined;
+
+        // Chunk accumulation for large payloads
+        const receivedChunks: CommentItem[][] = [];
+
+        // Cleanup helper
+        const cleanup = (): void => {
+            if (abortTimeoutId) clearTimeout(abortTimeoutId);
+            signal?.removeEventListener('abort', abortHandler);
+            window.removeEventListener('message', handleMessage);
+        };
+
+        // Named abort handler for proper cleanup on Promise settle
+        const abortHandler = (): void => {
+            window.postMessage(
+                {
+                    type: 'YCS_YT_API_COMMENTS_ABORT',
+                    body: { requestId }
+                },
+                window.location.origin
+            );
+            // Don't reject immediately - wait for background to send partial results
+            // Safety timeout: if background doesn't respond within 3 seconds, reject
+            abortTimeoutId = setTimeout(() => {
+                window.removeEventListener('message', handleMessage);
+                reject(new DOMException('Aborted', 'AbortError'));
+            }, 3000);
+        };
+
+        const handleMessage = (e: MessageEvent): void => {
+            if (e.source !== window || e.origin !== window.location.origin) return;
+            if (e.data?.body?.requestId !== requestId) return;
+
+            switch (e.data.type) {
+                case 'YCS_YT_API_COMMENTS_PROGRESS':
+                    onProgress(e.data.body.totalCount);
+                    break;
+
+                case 'YCS_YT_API_COMMENTS_CHUNK': {
+                    const { comments, chunkIndex, isLastChunk, isError, error } = e.data.body;
+                    receivedChunks[chunkIndex] = comments;
+
+                    if (isLastChunk) {
+                        // All chunks received - flatten and resolve/reject
+                        const allComments: CommentItem[] = [];
+                        for (const chunk of receivedChunks) {
+                            if (chunk) allComments.push(...chunk);
+                        }
+                        cleanup();
+
+                        if (isError && error) {
+                            // Error with partial comments
+                            reject(new YouTubeApiMessageError(error.type, error.message, allComments, error.code));
+                        } else {
+                            // Success
+                            resolve({
+                                comments: allComments,
+                                quotaUsed: e.data.body.quotaUsed || 0,
+                                incomplete: e.data.body.incomplete || false,
+                                replyFetchErrors: e.data.body.replyFetchErrors || 0
+                            });
+                        }
+                    }
+                    break;
+                }
+
+                // Keep for backward compatibility (small payloads may still use this)
+                case 'YCS_YT_API_COMMENTS_COMPLETE':
+                    cleanup();
+                    resolve({
+                        comments: e.data.body.comments,
+                        quotaUsed: e.data.body.quotaUsed,
+                        incomplete: e.data.body.incomplete || false,
+                        replyFetchErrors: e.data.body.replyFetchErrors || 0
+                    });
+                    break;
+
+                case 'YCS_YT_API_COMMENTS_ERROR': {
+                    cleanup();
+                    const error = e.data.body.error;
+                    reject(
+                        new YouTubeApiMessageError(error.type, error.message, e.data.body.partialComments, error.code)
+                    );
+                    break;
+                }
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+
+        // Handle external abort signal (once: true as additional safety)
+        signal?.addEventListener('abort', abortHandler, { once: true });
+
+        // Send start request
+        window.postMessage(
+            {
+                type: 'YCS_YT_API_COMMENTS_START',
+                body: { videoId, requestId }
+            },
+            window.location.origin
+        );
+    });
+}
 
 const CHAT_UNSUPPORTED_FILTERS = ['heart', 'likes', 'replied', 'random', 'quickTranscript', 'timestampViz'] as const;
 const TRANSCRIPT_UNSUPPORTED_FILTERS = [
@@ -969,7 +1115,107 @@ export function initApp(): void {
 
                         const controller = getController(state);
 
-                        await getAllCommentsModeV2(elLoadCmnts, controller.signal, comments);
+                        // Check if YouTube Data API key is configured and enabled
+                        const hasApiKey = GlobalStore.hasYoutubeApiKey;
+                        const apiEnabled = GlobalStore.youtubeApiEnabled !== false; // default true
+                        // Track if YouTube API result was incomplete (for status icon)
+                        let youtubeApiIncomplete = false;
+
+                        if (hasApiKey && apiEnabled && startVideoId) {
+                            // Use YouTube Data API v3 via background service worker
+                            try {
+                                console.log('[YCS] Using YouTube Data API v3 (via background)');
+                                const result = await requestYouTubeApiComments(
+                                    startVideoId,
+                                    controller.signal,
+                                    (count) => showLoadComments(count, elLoadCmnts)
+                                );
+                                comments.push(...result.comments);
+                                console.log(
+                                    `[YCS] YouTube API: ${result.comments.length} comments, ${result.quotaUsed} quota units used`
+                                );
+
+                                // Track incomplete state for status icon
+                                if (result.incomplete) {
+                                    youtubeApiIncomplete = true;
+                                    console.warn(
+                                        `[YCS] Some replies may be missing (${result.replyFetchErrors} fetch errors)`
+                                    );
+                                    elStatusCmnts.innerHTML = iconWarning('Some replies may be missing');
+                                }
+                            } catch (error) {
+                                // Handle YouTube Data API specific errors
+                                if (error instanceof YouTubeApiMessageError) {
+                                    // If we have partial comments, keep them
+                                    if (error.partialComments && error.partialComments.length > 0) {
+                                        comments.push(...error.partialComments);
+                                        console.log(`[YCS] Keeping ${error.partialComments.length} partial comments`);
+                                    }
+
+                                    if (error.isQuotaExceeded) {
+                                        youtubeApiIncomplete = true;
+                                        elStatusCmnts.innerHTML = iconWarning('Quota exceeded');
+                                        console.error(
+                                            '[YCS] YouTube Data API quota exceeded. Please try again tomorrow or use a different API key.'
+                                        );
+                                        alert(
+                                            'YouTube Data API quota exceeded!\n\nYour daily quota (10,000 units) has been exhausted.\nPlease try again tomorrow or temporarily disable YouTube Data API in extension settings.'
+                                        );
+                                    } else if (error.isInvalidApiKey) {
+                                        youtubeApiIncomplete = true;
+                                        elStatusCmnts.innerHTML = iconError('Invalid API key');
+                                        console.error(
+                                            '[YCS] Invalid YouTube Data API key. Please check your API key in settings.'
+                                        );
+                                        alert(
+                                            'Invalid YouTube Data API key!\n\nPlease check your API key in extension settings.'
+                                        );
+                                    } else if (error.type === 'aborted') {
+                                        // User cancelled via STOP button - silently continue if we have partial comments
+                                        console.log('[YCS] Fetch aborted by user');
+                                        if (!error.partialComments || error.partialComments.length === 0) {
+                                            return;
+                                        }
+                                        // Mark as incomplete so we don't show OK icon or cache as complete
+                                        youtubeApiIncomplete = true;
+                                        elStatusCmnts.innerHTML = iconStop('Stopped - partial results');
+                                        // Continue to save partial results
+                                    } else if (error.isUnsupported) {
+                                        // Comments disabled or video not found - silently skip with info icon
+                                        console.log(
+                                            '[YCS] YouTube Data API not supported for this video:',
+                                            error.message
+                                        );
+                                        elStatusCmnts.innerHTML = iconInfo('Comments unavailable');
+                                        return;
+                                    } else {
+                                        youtubeApiIncomplete = true;
+                                        elStatusCmnts.innerHTML = iconError('API error');
+                                        console.error('[YCS] YouTube Data API error:', error.message);
+                                        alert(
+                                            `YouTube Data API error: ${error.message}\n\nYou can temporarily disable YouTube Data API in extension settings to use Innertube instead.`
+                                        );
+                                    }
+
+                                    // If no partial comments, return early (for non-abort errors)
+                                    if (
+                                        error.type !== 'aborted' &&
+                                        (!error.partialComments || error.partialComments.length === 0)
+                                    ) {
+                                        return;
+                                    }
+                                    // Otherwise continue to save partial results
+                                } else if (error instanceof DOMException && error.name === 'AbortError') {
+                                    // User cancelled, don't show error
+                                    return;
+                                } else {
+                                    throw error; // Re-throw non-API errors
+                                }
+                            }
+                        } else {
+                            // Use Innertube API (default or when YouTube Data API is disabled)
+                            await getAllCommentsModeV2(elLoadCmnts, controller.signal, comments);
+                        }
 
                         // Verify video hasn't changed before saving cache
                         const currentVideoId = getVideoId(window.location.href);
@@ -984,7 +1230,10 @@ export function initApp(): void {
                         }
 
                         if (comments.length > 0) {
-                            elStatusCmnts.innerHTML = iconOk();
+                            // Only show OK icon if result was complete (don't overwrite warning)
+                            if (!youtubeApiIncomplete) {
+                                elStatusCmnts.innerHTML = iconOk();
+                            }
                             saveToCache(
                                 {
                                     videoId: startVideoId,
@@ -2228,6 +2477,16 @@ export function initApp(): void {
                                 );
                                 break;
 
+                            case 'hasYoutubeApiKey':
+                                // Store whether API key is configured (actual key stays in background)
+                                GlobalStore.hasYoutubeApiKey = Boolean(opts.hasYoutubeApiKey);
+                                break;
+
+                            case 'youtubeApiEnabled':
+                                // Store YouTube Data API enabled state in GlobalStore
+                                GlobalStore.youtubeApiEnabled = opts.youtubeApiEnabled !== false; // default true
+                                break;
+
                             default:
                                 break;
                         }
@@ -2417,6 +2676,16 @@ export function initApp(): void {
 
         // Store interval ID for cleanup on next initApp() call
         observeIntervalId = setInterval(() => {
+            // Abort pending requests when leaving video page
+            // This handles the case: video page -> non-video page (e.g., homepage) -> back to video
+            if (!isVideoPage() && prevUrl) {
+                getController(state).abort();
+                state = resetController(state);
+                prevUrl = '';
+                console.log('[YCS] Left video page, aborted pending requests');
+                return;
+            }
+
             if (isVideoPage() && getPageMetaElement() && prevUrl !== getCleanUrlVideo(window.location.href)) {
                 const currentUrl = getCleanUrlVideo(window.location.href);
 
