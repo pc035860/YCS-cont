@@ -8,6 +8,34 @@ import { processReplayBatch } from './chat/replayChat';
 import type { ChatProcessingContext } from './chat/utils';
 import { getInitYtData, getInnertubeApiKey, getPageCfgData, type InnertubeRequestParams } from './core';
 
+/**
+ * Result of a live chat fetch operation
+ * Used to distinguish between success, HTTP errors, and parse errors
+ */
+export interface LiveChatFetchResult {
+    data?: any;
+    success: boolean;
+    httpStatus: number;
+    errorType?: 'http_error' | 'parse_error' | 'network_error';
+}
+
+/**
+ * Result of a live chat poll operation
+ * Used by pollLiveChat to provide detailed status to caller
+ */
+export interface LiveChatPollResult {
+    /** Next continuation token (null if stream ended or error) */
+    continuation: unknown;
+    /** Whether the live stream has ended normally */
+    isLiveEnded: boolean;
+    /** Whether the poll was successful */
+    success: boolean;
+    /** Error type if unsuccessful */
+    errorType?: 'http_error' | 'token_stale' | 'network_error' | 'parse_error';
+    /** HTTP status code (if applicable) */
+    httpStatus?: number;
+}
+
 export async function getParamsForChat(
     globalContext: Window & typeof globalThis,
     cLiveChat: any,
@@ -148,30 +176,54 @@ async function getCDChat(signal: AbortSignal): Promise<ChatContinuationResult> {
     }
 }
 
-async function getLiveChat(continuationData: any, signal: AbortSignal): Promise<object[] | undefined> {
+async function getLiveChat(continuationData: any, signal: AbortSignal): Promise<LiveChatFetchResult> {
     try {
         if (!continuationData) {
-            console.log('No continuation data available for live chat');
-            return undefined;
+            console.log('[YCS] getLiveChat: No continuation data available');
+            return { success: false, httpStatus: 0, errorType: 'parse_error' };
         }
 
         const params = await getParamsForLiveChat(window, continuationData, signal);
 
-        if (params) {
-            const res = await fetch(
-                `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key=${getInnertubeApiKey()}`,
-                { ...params, signal, cache: 'no-store' }
-            );
-
-            const cmnts = await res.json();
-
-            return cmnts?.continuationContents?.liveChatContinuation;
+        if (!params) {
+            console.log('[YCS] getLiveChat: Failed to build request params');
+            return { success: false, httpStatus: 0, errorType: 'parse_error' };
         }
 
-        return undefined;
+        const res = await fetch(
+            `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key=${getInnertubeApiKey()}`,
+            { ...params, signal, cache: 'no-store' }
+        );
+
+        // Check HTTP status before parsing - 400/403 typically indicate stale token
+        if (!res.ok) {
+            console.warn(`[YCS] getLiveChat HTTP error: ${res.status} ${res.statusText}`);
+            return {
+                success: false,
+                httpStatus: res.status,
+                errorType: 'http_error'
+            };
+        }
+
+        const cmnts = await res.json();
+        const liveChatData = cmnts?.continuationContents?.liveChatContinuation;
+
+        return {
+            data: liveChatData,
+            success: true,
+            httpStatus: res.status
+        };
     } catch (e) {
-        console.error(e);
-        return undefined;
+        // Network errors, AbortError, or JSON parse errors
+        const isAbort = e instanceof DOMException && e.name === 'AbortError';
+        if (!isAbort) {
+            console.error('[YCS] getLiveChat error:', e);
+        }
+        return {
+            success: false,
+            httpStatus: 0,
+            errorType: 'network_error'
+        };
     }
 }
 
@@ -211,11 +263,11 @@ export async function getChatComments(
             onCommentAdded: (count: number) => showLoadComments(count, elShowLoading)
         };
 
-        const liveChatData: any = await getLiveChat(result.continuationData, signal);
+        const fetchResult = await getLiveChat(result.continuationData, signal);
 
-        if (liveChatData?.actions?.length > 0) {
-            console.log('IS LIVECHAT!!!!!', liveChatData);
-            processLiveChatActions(liveChatData.actions, context);
+        if (fetchResult.success && fetchResult.data?.actions?.length > 0) {
+            console.log('IS LIVECHAT!!!!!', fetchResult.data);
+            processLiveChatActions(fetchResult.data.actions, context);
             return chatCmnts;
         }
 
@@ -446,7 +498,12 @@ export async function checkIsLiveStream(signal?: AbortSignal): Promise<boolean> 
         const result = await getCDChat(signal as AbortSignal);
         if (!result.continuationData) return false;
 
-        const liveChatData: any = await getLiveChat(result.continuationData, signal as AbortSignal);
+        const fetchResult = await getLiveChat(result.continuationData, signal as AbortSignal);
+
+        // Check if fetch was successful
+        if (!fetchResult.success || !fetchResult.data) return false;
+
+        const liveChatData = fetchResult.data;
 
         // Live streams have actions with invalidationContinuationData
         if (liveChatData?.actions?.length > 0) {
@@ -493,51 +550,100 @@ export async function getLiveBroadcastStartTime(signal?: AbortSignal): Promise<s
 }
 
 /**
+ * Extract next continuation token from API response
+ * Prefers invalidationContinuationData (live) over timedContinuationData
+ */
+function extractNextContinuation(continuations: any[] | undefined): unknown {
+    if (!continuations?.length) return null;
+    return (
+        continuations.find((c: any) => c.invalidationContinuationData)?.invalidationContinuationData ||
+        continuations.find((c: any) => c.timedContinuationData)?.timedContinuationData ||
+        null
+    );
+}
+
+/**
+ * Check if live stream has ended based on continuation types
+ * Stream is ended when no invalidationContinuationData is present
+ */
+function checkIfLiveEnded(continuations: any[] | undefined): boolean {
+    const hasContinuations = continuations && continuations.length > 0;
+    const hasInvalidationContinuation = continuations?.some((c: any) => c.invalidationContinuationData) ?? false;
+    const hasReloadContinuation = continuations?.some((c: any) => c.reloadContinuationData) ?? false;
+    const hasTimedContinuation = continuations?.some((c: any) => c.timedContinuationData) ?? false;
+
+    // Live stream is considered ended when:
+    // 1. No invalidationContinuationData (live-only continuation type)
+    // 2. AND one of: no continuations at all, reloadContinuationData, or timedContinuationData
+    return !hasInvalidationContinuation && (!hasContinuations || hasReloadContinuation || hasTimedContinuation);
+}
+
+/**
  * Poll live chat for new messages during recording
  * Uses the same endpoint as getLiveChat but designed for incremental polling
  * @param existingContinuation - Continuation from previous poll (skips ytInitialData fetch)
- * @returns Object with continuation and isLiveEnded flag, or undefined on error
+ * @param forceTokenRefresh - Force re-fetch continuation from ytInitialData (for recovery)
+ * @returns LiveChatPollResult with success status, continuation, and error details
  */
 export async function pollLiveChat(
     signal: AbortSignal,
     existingChatMap: Map<number, object>,
     onNewMessages?: (newCount: number, totalCount: number) => void,
     broadcastStartTime?: string,
-    existingContinuation?: unknown
-): Promise<{ continuation: unknown; isLiveEnded: boolean } | undefined> {
+    existingContinuation?: unknown,
+    forceTokenRefresh = false
+): Promise<LiveChatPollResult> {
     try {
         let continuationData: unknown;
 
-        if (existingContinuation) {
-            // Reuse continuation from previous poll (avoids ytInitialData fetch)
-            continuationData = existingContinuation;
-        } else {
-            // First poll: get initial continuation from ytInitialData
+        // Token refresh: re-fetch from ytInitialData when forced or no existing token
+        if (forceTokenRefresh || !existingContinuation) {
+            if (forceTokenRefresh) {
+                console.log('[YCS] pollLiveChat: Forcing token refresh from ytInitialData');
+            }
             const result = await getCDChat(signal);
-            if (!result.continuationData) return undefined;
+            if (!result.continuationData) {
+                console.warn('[YCS] pollLiveChat: Failed to get fresh continuation from ytInitialData');
+                return {
+                    continuation: null,
+                    isLiveEnded: false,
+                    success: false,
+                    errorType: 'token_stale'
+                };
+            }
             continuationData = result.continuationData;
+        } else {
+            continuationData = existingContinuation;
         }
 
-        const liveChatData: any = await getLiveChat(continuationData, signal);
+        const fetchResult = await getLiveChat(continuationData, signal);
+
+        // Handle HTTP errors (potential token expiration)
+        if (!fetchResult.success) {
+            // 400/403 typically indicate stale token
+            const isTokenError = fetchResult.httpStatus === 400 || fetchResult.httpStatus === 403;
+            return {
+                continuation: existingContinuation, // Keep old token for caller's reference
+                isLiveEnded: false,
+                success: false,
+                errorType: isTokenError ? 'token_stale' : fetchResult.errorType,
+                httpStatus: fetchResult.httpStatus
+            };
+        }
+
+        const liveChatData = fetchResult.data;
+
         if (!liveChatData?.actions?.length) {
-            // No new messages, return current continuation
+            // No new messages - still successful, just no content
             const continuations = liveChatData?.continuations;
-            const hasContinuations = continuations && continuations.length > 0;
-            const hasInvalidationContinuation = continuations?.some((c: any) => c.invalidationContinuationData);
-            const hasReloadContinuation = continuations?.some((c: any) => c.reloadContinuationData);
-            const hasTimedContinuation = continuations?.some((c: any) => c.timedContinuationData);
-            const nextContinuation =
-                continuations?.find((c: any) => c.invalidationContinuationData)?.invalidationContinuationData ||
-                continuations?.find((c: any) => c.timedContinuationData)?.timedContinuationData ||
-                null;
+            const nextContinuation = extractNextContinuation(continuations);
+            const isLiveEnded = checkIfLiveEnded(continuations);
 
-            // Live stream is considered ended when:
-            // 1. No invalidationContinuationData (live-only continuation type)
-            // 2. AND one of: no continuations at all, reloadContinuationData, or timedContinuationData
-            const isLiveEnded =
-                !hasInvalidationContinuation && (!hasContinuations || hasReloadContinuation || hasTimedContinuation);
-
-            return { continuation: nextContinuation, isLiveEnded };
+            return {
+                continuation: nextContinuation,
+                isLiveEnded,
+                success: true
+            };
         }
 
         const currentVideoId = (getVideoId(window.location.href) || undefined) as string | undefined;
@@ -559,24 +665,25 @@ export async function pollLiveChat(
 
         // Get continuation for next poll
         const continuations = liveChatData?.continuations;
-        const hasContinuations = continuations && continuations.length > 0;
-        const hasInvalidationContinuation = continuations?.some((c: any) => c.invalidationContinuationData);
-        const hasReloadContinuation = continuations?.some((c: any) => c.reloadContinuationData);
-        const hasTimedContinuation = continuations?.some((c: any) => c.timedContinuationData);
-        const nextContinuation =
-            continuations?.find((c: any) => c.invalidationContinuationData)?.invalidationContinuationData ||
-            continuations?.find((c: any) => c.timedContinuationData)?.timedContinuationData ||
-            null;
+        const nextContinuation = extractNextContinuation(continuations);
+        const isLiveEnded = checkIfLiveEnded(continuations);
 
-        // Live stream is considered ended when:
-        // 1. No invalidationContinuationData (live-only continuation type)
-        // 2. AND one of: no continuations at all, reloadContinuationData, or timedContinuationData
-        const isLiveEnded =
-            !hasInvalidationContinuation && (!hasContinuations || hasReloadContinuation || hasTimedContinuation);
-
-        return { continuation: nextContinuation, isLiveEnded };
+        return {
+            continuation: nextContinuation,
+            isLiveEnded,
+            success: true
+        };
     } catch (e) {
-        console.error('[YCS] pollLiveChat error:', e);
-        return undefined;
+        // Network errors, AbortError, or unexpected exceptions
+        const isAbort = e instanceof DOMException && e.name === 'AbortError';
+        if (!isAbort) {
+            console.error('[YCS] pollLiveChat error:', e);
+        }
+        return {
+            continuation: existingContinuation,
+            isLiveEnded: false,
+            success: false,
+            errorType: 'network_error'
+        };
     }
 }

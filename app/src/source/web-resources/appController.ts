@@ -24,7 +24,8 @@ import {
     clearCurrentVideoMemberOnly,
     checkIsLiveStream,
     getLiveBroadcastStartTime,
-    pollLiveChat
+    pollLiveChat,
+    type LiveChatPollResult
 } from '../utils/innertube';
 
 import { IParamSearch, ISelectedSearch, IYCSOptions } from '../utils/interfaces/i_types';
@@ -111,6 +112,11 @@ import { SearchContext, SortOrder } from './search/types';
 import { renderCommentsResult, renderChatResult, renderTranscriptResult } from './ui/render';
 
 const DEBUG = false;
+
+// Recovery thresholds for live recording (prevents silent failures after token expiration)
+const MAX_CONSECUTIVE_FAILURES = 3; // Trigger recovery after 3 consecutive failures
+const MAX_RECOVERY_ATTEMPTS = 2; // Give up after 2 recovery attempts
+const RECOVERY_BACKOFF_MS = 5000; // Wait 5s before retry during recovery
 
 /**
  * Error class for YouTube API message-based errors
@@ -1390,14 +1396,17 @@ export function initApp(): void {
             // Abort in-flight requests to prevent them from continuing after stop
             getController(state).abort();
 
-            // Update UI
+            // Update UI - also clear warning states
             if (elRecordChat) {
                 elRecordChat.classList.remove('ycs-recording');
+                elRecordChat.classList.remove('ycs-recording-warning');
                 elRecordChat.textContent = 'record';
             }
 
             if (elRecordTimer) {
                 elRecordTimer.style.display = 'none';
+                elRecordTimer.classList.remove('ycs-warning-text');
+                elRecordTimer.removeAttribute('data-original-text');
             }
 
             // Save final data to cache using the original video context (preserved on start)
@@ -1450,7 +1459,87 @@ export function initApp(): void {
         }
 
         /**
-         * Poll and save chat messages
+         * Show a toast notification that requires manual dismissal
+         * Used for important messages that need to persist until user acknowledges
+         */
+        function showToast(message: string): void {
+            // Remove existing toast if any
+            const existingToast = document.getElementById('ycs-toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.id = 'ycs-toast';
+            toast.className = 'ycs-toast ycs-toast-warning';
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+
+            // Create message text
+            const messageSpan = document.createElement('span');
+            messageSpan.className = 'ycs-toast-message';
+            messageSpan.textContent = message;
+
+            // Create close button
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'ycs-toast-close';
+            closeBtn.innerHTML = '&times;';
+            closeBtn.setAttribute('aria-label', 'Close');
+            closeBtn.addEventListener('click', () => {
+                toast.classList.remove('ycs-toast-show');
+                setTimeout(() => toast.remove(), 300); // Wait for fade-out animation
+            });
+
+            toast.appendChild(messageSpan);
+            toast.appendChild(closeBtn);
+
+            // Insert into body (not YCS container, so it persists across UI changes)
+            document.body.appendChild(toast);
+
+            // Trigger animation
+            requestAnimationFrame(() => {
+                toast.classList.add('ycs-toast-show');
+            });
+        }
+
+        /**
+         * Update recording warning UI state
+         * Shows/hides warning when recording encounters connection issues
+         */
+        function updateRecordingWarningUI(show: boolean, message?: string): void {
+            const elRecordChat = document.getElementById('ycs-record-chat') as HTMLButtonElement | null;
+            const elRecordTimer = document.getElementById('ycs-record-timer');
+
+            if (show) {
+                // Add warning class (orange pulsing instead of red)
+                elRecordChat?.classList.add('ycs-recording-warning');
+
+                // Update timer text to show warning message
+                if (elRecordTimer && message) {
+                    elRecordTimer.setAttribute('data-original-text', elRecordTimer.textContent || '');
+                    elRecordTimer.textContent = message;
+                    elRecordTimer.classList.add('ycs-warning-text');
+                }
+            } else {
+                // Remove warning class
+                elRecordChat?.classList.remove('ycs-recording-warning');
+
+                // Restore timer text
+                if (elRecordTimer) {
+                    const originalText = elRecordTimer.getAttribute('data-original-text');
+                    if (originalText) {
+                        elRecordTimer.textContent = originalText;
+                        elRecordTimer.removeAttribute('data-original-text');
+                    }
+                    elRecordTimer.classList.remove('ycs-warning-text');
+                }
+            }
+        }
+
+        /**
+         * Poll and save chat messages with recovery logic
+         * Handles token expiration and network errors gracefully
          */
         async function pollAndSaveChat(startVideoId: string | null): Promise<void> {
             // Verify still on the same video page (stop if left video page or navigated to different video)
@@ -1466,7 +1555,10 @@ export function initApp(): void {
             const liveRecording = getLiveRecording(state);
 
             try {
-                const pollResult = await pollLiveChat(
+                // Determine if we should force token refresh (recovery mode)
+                const shouldForceRefresh = liveRecording.isInRecoveryMode;
+
+                const pollResult: LiveChatPollResult = await pollLiveChat(
                     controller.signal,
                     commentsChat,
                     (newCount, totalCount) => {
@@ -1484,12 +1576,85 @@ export function initApp(): void {
                         }
                     },
                     liveRecording.broadcastStartTime ?? undefined,
-                    liveRecording.lastContinuation ?? undefined
+                    liveRecording.lastContinuation ?? undefined,
+                    shouldForceRefresh
                 );
 
-                // Save continuation for next poll (avoids re-fetching ytInitialData every time)
-                if (pollResult?.continuation) {
-                    state = setLiveRecording(state, { lastContinuation: pollResult.continuation });
+                // Handle poll result based on success status
+                if (pollResult.success) {
+                    // Success: reset failure tracking and update continuation
+                    state = setLiveRecording(state, {
+                        lastContinuation: pollResult.continuation,
+                        consecutiveFailures: 0,
+                        lastSuccessTime: Date.now(),
+                        isInRecoveryMode: false,
+                        recoveryAttempts: 0
+                    });
+
+                    // Clear warning UI if previously shown
+                    updateRecordingWarningUI(false);
+                } else {
+                    // Failure: increment counter and potentially trigger recovery
+                    const newFailureCount = liveRecording.consecutiveFailures + 1;
+                    console.warn(
+                        `[YCS] Poll failed (${newFailureCount}/${MAX_CONSECUTIVE_FAILURES}):`,
+                        pollResult.errorType,
+                        pollResult.httpStatus
+                    );
+
+                    if (newFailureCount >= MAX_CONSECUTIVE_FAILURES) {
+                        // Check if we've exceeded max recovery attempts
+                        const newRecoveryAttempts = liveRecording.recoveryAttempts + 1;
+
+                        if (newRecoveryAttempts > MAX_RECOVERY_ATTEMPTS) {
+                            console.error('[YCS] Max recovery attempts reached - stopping recording');
+                            showToast('Recording stopped: Unable to reconnect. Data has been saved.');
+
+                            // Final save before stopping
+                            if (commentsChat.size > 0 && startVideoId) {
+                                const cacheMeta = buildCacheMeta({
+                                    url: liveRecording.startUrl ?? undefined,
+                                    title: liveRecording.startTitle ?? undefined
+                                });
+                                saveToCache(
+                                    {
+                                        videoId: startVideoId,
+                                        comments: getComments(state),
+                                        commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
+                                        commentsTrVideo: getCommentsTrVideo(state),
+                                        channelId: extractChannelId(),
+                                        chatSource: 'live-recording'
+                                    },
+                                    cacheMeta
+                                );
+                                console.log('[YCS] Final cache save before stop:', commentsChat.size, 'messages');
+                            }
+
+                            await stopLiveChatRecording();
+                            return;
+                        }
+
+                        // Enter recovery mode
+                        console.log(
+                            `[YCS] Entering recovery mode (attempt ${newRecoveryAttempts}/${MAX_RECOVERY_ATTEMPTS})`
+                        );
+                        state = setLiveRecording(state, {
+                            consecutiveFailures: 0,
+                            isInRecoveryMode: true,
+                            recoveryAttempts: newRecoveryAttempts
+                        });
+
+                        // Show warning to user
+                        updateRecordingWarningUI(true, 'Reconnecting...');
+
+                        // Add backoff delay before next retry
+                        await new Promise((resolve) => setTimeout(resolve, RECOVERY_BACKOFF_MS));
+                    } else {
+                        // Just increment failure count, not yet in recovery
+                        state = setLiveRecording(state, {
+                            consecutiveFailures: newFailureCount
+                        });
+                    }
                 }
 
                 // Check abort to stop processing
@@ -1501,7 +1666,7 @@ export function initApp(): void {
                 }
 
                 // Auto-stop when live stream ends (detected by isLiveEnded flag)
-                if (pollResult?.isLiveEnded) {
+                if (pollResult.isLiveEnded) {
                     console.log('[YCS] Live stream ended, auto-stopping recording...');
                     await stopLiveChatRecording();
                     return;
@@ -1534,8 +1699,60 @@ export function initApp(): void {
                     console.log('[YCS] Periodic cache save:', commentsChat.size, 'messages');
                 }
             } catch (e) {
-                // Silent retry - just log error and continue polling
-                console.error('[YCS] pollAndSaveChat error:', e);
+                // Unexpected error - apply same recovery logic as poll failures
+                console.error('[YCS] pollAndSaveChat unexpected error:', e);
+
+                const newFailureCount = liveRecording.consecutiveFailures + 1;
+
+                if (newFailureCount >= MAX_CONSECUTIVE_FAILURES) {
+                    const newRecoveryAttempts = liveRecording.recoveryAttempts + 1;
+
+                    if (newRecoveryAttempts > MAX_RECOVERY_ATTEMPTS) {
+                        console.error('[YCS] Max recovery attempts reached (catch) - stopping recording');
+                        showToast('Recording stopped: Unable to reconnect. Data has been saved.');
+
+                        // Final save before stopping
+                        const commentsChat = getCommentsChat(state);
+                        if (commentsChat.size > 0 && startVideoId) {
+                            const cacheMeta = buildCacheMeta({
+                                url: liveRecording.startUrl ?? undefined,
+                                title: liveRecording.startTitle ?? undefined
+                            });
+                            saveToCache(
+                                {
+                                    videoId: startVideoId,
+                                    comments: getComments(state),
+                                    commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
+                                    commentsTrVideo: getCommentsTrVideo(state),
+                                    channelId: extractChannelId(),
+                                    chatSource: 'live-recording'
+                                },
+                                cacheMeta
+                            );
+                            console.log('[YCS] Final cache save before stop (catch):', commentsChat.size, 'messages');
+                        }
+
+                        await stopLiveChatRecording();
+                        return;
+                    }
+
+                    // Enter recovery mode
+                    console.log(
+                        `[YCS] Entering recovery mode from catch (attempt ${newRecoveryAttempts}/${MAX_RECOVERY_ATTEMPTS})`
+                    );
+                    state = setLiveRecording(state, {
+                        consecutiveFailures: 0,
+                        isInRecoveryMode: true,
+                        recoveryAttempts: newRecoveryAttempts
+                    });
+
+                    updateRecordingWarningUI(true, 'Reconnecting...');
+                    await new Promise((resolve) => setTimeout(resolve, RECOVERY_BACKOFF_MS));
+                } else {
+                    state = setLiveRecording(state, {
+                        consecutiveFailures: newFailureCount
+                    });
+                }
             }
         }
 

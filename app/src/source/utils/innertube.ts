@@ -4,7 +4,8 @@ export {
     getChatComments,
     checkIsLiveStream,
     getLiveBroadcastStartTime,
-    pollLiveChat
+    pollLiveChat,
+    type LiveChatPollResult
 } from './innertube/chat';
 export {
     getAllCommentsModeV2,

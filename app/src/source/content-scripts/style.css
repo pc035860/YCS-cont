@@ -1514,3 +1514,96 @@ html[dark='true'] .ycs-record-timer,
 html[dark] .ycs-record-timer {
   color: #ff6b6b;
 }
+
+/* Recording warning state (connection issues, token expiration) */
+.ycs-btn-record.ycs-recording.ycs-recording-warning {
+  background-color: #f39c12 !important;
+  border-color: #d68910 !important;
+  animation: ycs-pulse-warning 0.8s infinite ease-in-out;
+}
+
+html[dark='true'] .ycs-btn-record.ycs-recording.ycs-recording-warning,
+html[dark] .ycs-btn-record.ycs-recording.ycs-recording-warning {
+  background-color: #d68910 !important;
+  border-color: #b9770e !important;
+}
+
+/* Faster pulse animation for warning state */
+@keyframes ycs-pulse-warning {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Warning text for timer */
+.ycs-record-timer.ycs-warning-text {
+  color: #f39c12 !important;
+  font-weight: 700;
+}
+
+html[dark='true'] .ycs-record-timer.ycs-warning-text,
+html[dark] .ycs-record-timer.ycs-warning-text {
+  color: #f5b041 !important;
+}
+
+/* Toast notification for important messages */
+.ycs-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 10000;
+  opacity: 0;
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: min(90vw, 500px);
+  word-wrap: break-word;
+}
+
+.ycs-toast.ycs-toast-show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+.ycs-toast-message {
+  flex: 1;
+}
+
+.ycs-toast-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.ycs-toast-close:hover {
+  opacity: 1;
+}
+
+.ycs-toast-warning {
+  background-color: #e74c3c;
+  color: #fff;
+}
+
+html[dark='true'] .ycs-toast-warning,
+html[dark] .ycs-toast-warning {
+  background-color: #c0392b;
+}

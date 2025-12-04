@@ -21,6 +21,11 @@ export interface LiveRecordingState {
     startVideoId: string | null; // Video ID when recording started (preserved for cache save on navigation)
     lastContinuation: unknown; // Continuation token for next poll
     lastSaveTime: number | null; // Timestamp of last cache save (throttle saves to reduce memory pressure)
+    // Error tracking for recovery (prevents silent failures after token expiration)
+    consecutiveFailures: number; // Count of consecutive poll failures
+    lastSuccessTime: number | null; // Timestamp of last successful poll
+    isInRecoveryMode: boolean; // Whether currently attempting token refresh recovery
+    recoveryAttempts: number; // Number of recovery attempts since last success
 }
 
 export interface WebResourcesState {
@@ -55,7 +60,12 @@ function createLiveRecordingState(): LiveRecordingState {
         startTitle: null,
         startVideoId: null,
         lastContinuation: null,
-        lastSaveTime: null
+        lastSaveTime: null,
+        // Error tracking for recovery
+        consecutiveFailures: 0,
+        lastSuccessTime: null,
+        isInRecoveryMode: false,
+        recoveryAttempts: 0
     };
 }
 
