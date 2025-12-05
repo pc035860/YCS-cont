@@ -6,8 +6,7 @@ import {
     getCleanUrlVideo,
     getVideoId,
     isVideoPage,
-    isShortsPage,
-    extractVideoDuration
+    isShortsPage
 } from '../utils/common';
 import { setShortsSupport } from './bootstrap';
 import {
@@ -17,32 +16,32 @@ import {
     removeNodeList,
     showLoadComments
 } from '../utils/dom';
-import {
-    getAllCommentsModeV2,
-    getChatComments,
-    getTranscriptTracks,
-    getTranscriptVideo,
-    clearCurrentVideoMemberOnly,
-    checkIsLiveStream,
-    getLiveBroadcastStartTime,
-    pollLiveChat,
-    type LiveChatPollResult
-} from '../utils/innertube';
+import { getAllCommentsModeV2, getChatComments, clearCurrentVideoMemberOnly } from '../utils/innertube';
 
 import { IParamSearch, ISelectedSearch, IYCSOptions } from '../utils/interfaces/i_types';
-import type {
-    ChatItem,
-    CommentItem,
-    TranscriptCueGroup,
-    TranscriptData,
-    TranscriptTrackInfo
-} from '../utils/interfaces/i_types';
+import type { ChatItem, CommentItem } from '../utils/interfaces/i_types';
 
 import { iconOk, iconReload, iconWarning, iconError, iconStop, iconInfo } from '../utils/icons';
-import { formatRecordingDuration } from '../utils/formatting';
 import { renderLoadComments, renderSearch, loadFilterButtons } from '../utils/renderView';
 import { loadFromCache, saveToCache, updateBadge } from './services/cacheService';
 import type { CacheData } from './services/cacheService';
+import { YouTubeApiMessageError, requestYouTubeApiComments } from './handlers/youtubeDataApiHandler';
+import {
+    buildCacheMeta,
+    buildExportMeta,
+    appendCachedInfo,
+    clearButtonLabelDataset,
+    resetLoadButtonLabels
+} from './helpers/cacheHelpers';
+import { adjustSearchResultHeightForShorts, adjustEngagementPanelHeightForShorts } from './features/shortsSupport';
+import { createLiveChatRecorder, LiveChatRecorderDeps } from './features/liveChatRecorder';
+import {
+    createTranscriptLoader,
+    TranscriptLoaderDeps,
+    extractCueGroups,
+    getCueGroupCount
+} from './features/transcriptLoader';
+import { createTimestampVizHandler, TimestampVizDeps } from './features/timestampVizHandler';
 import {
     downloadChatFile,
     downloadCommentsFile,
@@ -50,7 +49,6 @@ import {
     openChatWindow,
     openCommentsWindow,
     openTranscriptWindow,
-    ExportMeta,
     downloadCommentsFileJSON,
     downloadCommentsFileXLSX,
     downloadChatFileJSON,
@@ -100,170 +98,10 @@ import { registerCommentInteractions } from './ui/commentInteractions';
 import { runSearch as runCommentsSearch, clearCommentsFuseCache } from './search/commentsSearch';
 import { runSearch as runChatSearch, clearChatFuseCache } from './search/chatSearch';
 import { runSearch as runTranscriptSearch, clearTranscriptFuseCache } from './search/transcriptSearch';
-import {
-    extractTimestamps,
-    createTimeIntervals,
-    aggregateTimestamps,
-    filterCommentsByInterval,
-    formatTime
-} from './search/timestampAnalysis';
-import { showFloatingButton } from './ui/timestampFloatingButton';
-import { renderTimestampChart } from './ui/timestampChart';
 import { SearchContext, SortOrder } from './search/types';
 import { renderCommentsResult, renderChatResult, renderTranscriptResult } from './ui/render';
 
 const DEBUG = false;
-
-// Recovery thresholds for live recording (prevents silent failures after token expiration)
-const MAX_CONSECUTIVE_FAILURES = 3; // Trigger recovery after 3 consecutive failures
-const MAX_RECOVERY_ATTEMPTS = 2; // Give up after 2 recovery attempts
-const RECOVERY_BACKOFF_MS = 5000; // Wait 5s before retry during recovery
-
-/**
- * Error class for YouTube API message-based errors
- */
-class YouTubeApiMessageError extends Error {
-    type: string;
-    code?: number;
-    partialComments?: CommentItem[];
-
-    constructor(type: string, message: string, partialComments?: CommentItem[], code?: number) {
-        super(message);
-        this.name = 'YouTubeApiMessageError';
-        this.type = type;
-        this.code = code;
-        this.partialComments = partialComments;
-    }
-
-    get isQuotaExceeded(): boolean {
-        return this.type === 'quotaExceeded';
-    }
-
-    get isInvalidApiKey(): boolean {
-        return this.type === 'invalidApiKey';
-    }
-
-    get isUnsupported(): boolean {
-        return this.type === 'unsupported';
-    }
-}
-
-/**
- * Request YouTube API comments via background service worker
- * API key is securely stored in background, never exposed to web page
- */
-function requestYouTubeApiComments(
-    videoId: string,
-    signal: AbortSignal | undefined,
-    onProgress: (count: number) => void
-): Promise<{ comments: CommentItem[]; quotaUsed: number; incomplete: boolean; replyFetchErrors: number }> {
-    const requestId = crypto.randomUUID();
-
-    return new Promise((resolve, reject) => {
-        // Timer ID for abort timeout cleanup
-        let abortTimeoutId: ReturnType<typeof setTimeout> | undefined;
-
-        // Chunk accumulation for large payloads
-        const receivedChunks: CommentItem[][] = [];
-
-        // Cleanup helper
-        const cleanup = (): void => {
-            if (abortTimeoutId) clearTimeout(abortTimeoutId);
-            signal?.removeEventListener('abort', abortHandler);
-            window.removeEventListener('message', handleMessage);
-        };
-
-        // Named abort handler for proper cleanup on Promise settle
-        const abortHandler = (): void => {
-            window.postMessage(
-                {
-                    type: 'YCS_YT_API_COMMENTS_ABORT',
-                    body: { requestId }
-                },
-                window.location.origin
-            );
-            // Don't reject immediately - wait for background to send partial results
-            // Safety timeout: if background doesn't respond within 3 seconds, reject
-            abortTimeoutId = setTimeout(() => {
-                window.removeEventListener('message', handleMessage);
-                reject(new DOMException('Aborted', 'AbortError'));
-            }, 3000);
-        };
-
-        const handleMessage = (e: MessageEvent): void => {
-            if (e.source !== window || e.origin !== window.location.origin) return;
-            if (e.data?.body?.requestId !== requestId) return;
-
-            switch (e.data.type) {
-                case 'YCS_YT_API_COMMENTS_PROGRESS':
-                    onProgress(e.data.body.totalCount);
-                    break;
-
-                case 'YCS_YT_API_COMMENTS_CHUNK': {
-                    const { comments, chunkIndex, isLastChunk, isError, error } = e.data.body;
-                    receivedChunks[chunkIndex] = comments;
-
-                    if (isLastChunk) {
-                        // All chunks received - flatten and resolve/reject
-                        const allComments: CommentItem[] = [];
-                        for (const chunk of receivedChunks) {
-                            if (chunk) allComments.push(...chunk);
-                        }
-                        cleanup();
-
-                        if (isError && error) {
-                            // Error with partial comments
-                            reject(new YouTubeApiMessageError(error.type, error.message, allComments, error.code));
-                        } else {
-                            // Success
-                            resolve({
-                                comments: allComments,
-                                quotaUsed: e.data.body.quotaUsed || 0,
-                                incomplete: e.data.body.incomplete || false,
-                                replyFetchErrors: e.data.body.replyFetchErrors || 0
-                            });
-                        }
-                    }
-                    break;
-                }
-
-                // Keep for backward compatibility (small payloads may still use this)
-                case 'YCS_YT_API_COMMENTS_COMPLETE':
-                    cleanup();
-                    resolve({
-                        comments: e.data.body.comments,
-                        quotaUsed: e.data.body.quotaUsed,
-                        incomplete: e.data.body.incomplete || false,
-                        replyFetchErrors: e.data.body.replyFetchErrors || 0
-                    });
-                    break;
-
-                case 'YCS_YT_API_COMMENTS_ERROR': {
-                    cleanup();
-                    const error = e.data.body.error;
-                    reject(
-                        new YouTubeApiMessageError(error.type, error.message, e.data.body.partialComments, error.code)
-                    );
-                    break;
-                }
-            }
-        };
-
-        window.addEventListener('message', handleMessage);
-
-        // Handle external abort signal (once: true as additional safety)
-        signal?.addEventListener('abort', abortHandler, { once: true });
-
-        // Send start request
-        window.postMessage(
-            {
-                type: 'YCS_YT_API_COMMENTS_START',
-                body: { videoId, requestId }
-            },
-            window.location.origin
-        );
-    });
-}
 
 const CHAT_UNSUPPORTED_FILTERS = ['heart', 'likes', 'replied', 'random', 'quickTranscript', 'timestampViz'] as const;
 const TRANSCRIPT_UNSUPPORTED_FILTERS = [
@@ -343,15 +181,6 @@ const getParamByElementId = (elementId: string): FilterParamKey | undefined => {
     return FILTER_BUTTONS.find((config) => config.elementId === elementId)?.param;
 };
 
-const extractCueGroups = (transcript?: TranscriptData | null): TranscriptCueGroup[] | undefined => {
-    return transcript?.actions?.[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body
-        ?.transcriptBodyRenderer?.cueGroups as TranscriptCueGroup[] | undefined;
-};
-
-const getCueGroupCount = (transcript?: TranscriptData | null): number => {
-    return extractCueGroups(transcript)?.length ?? 0;
-};
-
 type CacheStorageBody = CacheData & { date?: string };
 
 type ExtensionMessagePayload =
@@ -412,76 +241,6 @@ export function initApp(): void {
     let resizeObserver: ResizeObserver | null = null;
 
     let state = createState();
-
-    /**
-     * Adjust search result max-height for Shorts pages
-     * Calculates available height based on anchored-panel and ycs-search position
-     */
-    function adjustSearchResultHeightForShorts(): void {
-        if (!isShortsPage()) return;
-
-        // Skip calculation if app is collapsed (hidden by default)
-        // When collapsed, #ycs-search is hidden and getBoundingClientRect() returns incorrect values
-        const app = document.querySelector('.ycs-app') as HTMLElement;
-        if (app && app.classList.contains('ycs-collapsed')) {
-            return;
-        }
-
-        const anchoredPanel = document.querySelector('#anchored-panel') as HTMLElement;
-        const ycsSearch = document.querySelector('#ycs-search') as HTMLElement;
-        const searchResult = document.querySelector('#ycs-search-result') as HTMLElement;
-
-        if (!anchoredPanel || !ycsSearch || !searchResult) return;
-
-        try {
-            // Get anchored-panel height
-            const panelHeight = anchoredPanel.offsetHeight;
-
-            // Get ycs-search bottom position relative to anchored-panel top
-            const ycsSearchRect = ycsSearch.getBoundingClientRect();
-            const panelRect = anchoredPanel.getBoundingClientRect();
-            const ycsSearchBottom = ycsSearchRect.bottom - panelRect.top;
-
-            // Calculate available height
-            const availableHeight = panelHeight - ycsSearchBottom;
-
-            // Set max-height with some padding (20px)
-            if (availableHeight > 100) {
-                searchResult.style.maxHeight = `${availableHeight - 20}px`;
-            }
-        } catch (error) {
-            console.error('YCS: Failed to adjust search result height for Shorts', error);
-        }
-    }
-
-    /**
-     * Adjust engagement panel content height and min-height for Shorts pages
-     * Dynamically calculates height by subtracting .ycs-app height from the base calculation
-     * Always subtracts .ycs-app height regardless of collapsed/expanded state
-     */
-    function adjustEngagementPanelHeightForShorts(): void {
-        if (!isShortsPage()) return;
-
-        const app = document.querySelector('.ycs-app') as HTMLElement;
-        const engagementPanelContent = document.querySelector(
-            '#content.ytd-engagement-panel-section-list-renderer'
-        ) as HTMLElement;
-
-        if (!engagementPanelContent || !app) return;
-
-        try {
-            // Get .ycs-app current height (even when collapsed, it still has height for toggle button)
-            const ycsAppHeight = app.offsetHeight;
-
-            // Set height and min-height using calc() expression
-            // Original: calc(var(--ytd-engagement-panel-content-height) - 56px)
-            // New: calc(var(--ytd-engagement-panel-content-height) - 56px - [.ycs-app height]px)
-            engagementPanelContent.style.height = `calc(var(--ytd-engagement-panel-content-height) - 56px - ${ycsAppHeight}px)`;
-            engagementPanelContent.style.minHeight = `calc(var(--ytd-engagement-panel-content-min-height) - 56px - ${ycsAppHeight}px)`;
-        } catch (error) {
-            console.error('YCS: Failed to adjust engagement panel height for Shorts', error);
-        }
-    }
 
     function app(): void {
         if (!isVideoPage()) return;
@@ -751,6 +510,19 @@ export function initApp(): void {
             }
         };
 
+        // Initialize Timestamp Visualization Handler with DI
+        const timestampVizDeps: TimestampVizDeps = {
+            state: {
+                getComments: () => getComments(state),
+                getState: () => state
+            },
+            callbacks: {
+                updateTotalResultDisplay,
+                getSearchQuery
+            }
+        };
+        const handleTimestampViz = createTimestampVizHandler(timestampVizDeps);
+
         const executeSearchBasedOnType = (param?: IParamSearch, forceType?: ISelectedSearch): void => {
             const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement | null;
             const query = getSearchQuery();
@@ -788,160 +560,6 @@ export function initApp(): void {
                     searchCommentsAll('#ycs-search-result', param);
                     break;
                 }
-            }
-        };
-
-        const handleTimestampViz = (): void => {
-            try {
-                const comments = getComments(state);
-                if (!comments || comments.length === 0) {
-                    const container = document.getElementById('ycs-search-result');
-                    if (container) {
-                        container.innerHTML =
-                            '<div class="ycs-timestamp-chart"><div class="ycs-chart-title">No comments loaded</div></div>';
-                    }
-                    updateTotalResultDisplay('No comments available for timestamp analysis');
-                    return;
-                }
-
-                // Get search query and filter comments if needed
-                const query = getSearchQuery();
-                let filteredComments = comments;
-
-                if (query.trim()) {
-                    // Use existing search logic to filter comments by search query
-                    const context: SearchContext = {
-                        extendedSearch: { enabled: false, title: false, main: false },
-                        sortOrders: { comments: {}, chat: {}, transcript: {} }
-                    };
-                    const searchResult = runCommentsSearch(query.trim(), {}, state, context);
-                    filteredComments = searchResult.results.map((result) => result.item as CommentItem);
-                }
-
-                // Extract timestamps from filtered comments
-                const timestamps = extractTimestamps(filteredComments);
-                if (timestamps.length === 0) {
-                    const container = document.getElementById('ycs-search-result');
-                    if (container) {
-                        container.innerHTML = `<div class="ycs-timestamp-chart"><div class="ycs-chart-title">No timestamps found in comments</div></div>`;
-                    }
-                    updateTotalResultDisplay(`No timestamps found in comments`);
-                    return;
-                }
-
-                // Get video duration
-                const videoDurationMs = extractVideoDuration();
-                if (!videoDurationMs) {
-                    const container = document.getElementById('ycs-search-result');
-                    if (container) {
-                        container.innerHTML =
-                            '<div class="ycs-timestamp-chart"><div class="ycs-chart-title">Unable to get video duration</div></div>';
-                    }
-                    updateTotalResultDisplay('Unable to get video duration');
-                    return;
-                }
-
-                // Create time intervals
-                const intervals = createTimeIntervals(timestamps, videoDurationMs);
-                const intervalData = aggregateTimestamps(timestamps, intervals);
-
-                // Create result container for interval results
-                const container = document.getElementById('ycs-search-result');
-                if (container) {
-                    // Clear previous results
-                    container.innerHTML = '';
-
-                    // Create chart container
-                    const chartContainer = document.createElement('div');
-                    chartContainer.id = 'ycs-timestamp-chart-container';
-
-                    // Create results container
-                    const resultsContainer = document.createElement('div');
-                    resultsContainer.id = 'ycs-timestamp-interval-results';
-
-                    container.appendChild(chartContainer);
-                    container.appendChild(resultsContainer);
-
-                    // Update statistics after DOM is updated
-                    const totalTimestamps = timestamps.length;
-                    const totalIntervals = intervals.length;
-                    updateTotalResultDisplay(`Found ${totalTimestamps} timestamps across ${totalIntervals} intervals`);
-
-                    // Render chart with click handler
-                    renderTimestampChart(
-                        chartContainer,
-                        intervalData,
-                        videoDurationMs,
-                        filteredComments,
-                        (startMs: number, endMs: number) => {
-                            // Filter comments by interval
-                            const intervalComments = filterCommentsByInterval(filteredComments, startMs, endMs);
-
-                            // Convert to ICommentsFuseResult format
-                            const fuseResults = intervalComments.map((comment, index) => {
-                                const originalIndex = Number((comment as any)?._index);
-                                return {
-                                    item: comment,
-                                    refIndex: Number.isFinite(originalIndex) ? originalIndex : index,
-                                    score: 0
-                                };
-                            });
-
-                            // Create search result object
-                            const searchResult = {
-                                results: fuseResults,
-                                total: intervalComments.length,
-                                summary: `${intervalComments.length} items in ${formatTime(startMs)} - ${formatTime(endMs)}`,
-                                query: query.trim(),
-                                buttonStates: {}
-                            };
-
-                            // Render results
-                            renderCommentsResult('#ycs-timestamp-interval-results', searchResult);
-
-                            // Update statistics display with the interval summary
-                            updateTotalResultDisplay(searchResult.summary);
-
-                            // Register comment interactions for the new results
-                            const resultsContainer = document.getElementById('ycs-timestamp-interval-results');
-                            if (resultsContainer) {
-                                registerCommentInteractions(
-                                    resultsContainer,
-                                    {
-                                        getComments: () => getComments(state)
-                                    },
-                                    () => query.trim()
-                                );
-                            }
-
-                            // Scroll to results and show floating button
-                            const searchResultContainer = document.getElementById('ycs-search-result');
-                            if (searchResultContainer) {
-                                // Find the results container and scroll to it
-                                const resultsContainer = document.getElementById('ycs-timestamp-interval-results');
-                                if (resultsContainer) {
-                                    // Calculate the position of the results container relative to the scrollable container
-                                    const containerRect = searchResultContainer.getBoundingClientRect();
-                                    const resultsRect = resultsContainer.getBoundingClientRect();
-                                    const scrollTop =
-                                        searchResultContainer.scrollTop + (resultsRect.top - containerRect.top);
-
-                                    // Scroll to the results container
-                                    searchResultContainer.scrollTop = scrollTop;
-                                }
-                                showFloatingButton(searchResultContainer, startMs, endMs, intervalComments.length);
-                            }
-                        }
-                    );
-                }
-            } catch (error) {
-                console.error('Error in handleTimestampViz:', error);
-                const container = document.getElementById('ycs-search-result');
-                if (container) {
-                    container.innerHTML =
-                        '<div class="ycs-timestamp-chart"><div class="ycs-chart-title">Error generating timestamp chart</div></div>';
-                }
-                updateTotalResultDisplay('Error generating timestamp chart');
             }
         };
 
@@ -1048,62 +666,16 @@ export function initApp(): void {
             }
         };
 
-        const buildCacheMeta = (override?: { url?: string; title?: string }) => ({
-            url: override?.url ?? window.location.href,
-            title: override?.title ?? document.title
-        });
-
-        const buildExportMeta = (): ExportMeta => {
+        // Helper to get export metadata with current state
+        const getExportMeta = () => {
             const videoUrl = getCleanUrlVideo(window.location.href);
             const liveRecording = getLiveRecording(state);
-
-            return {
-                url: videoUrl ?? window.location.href,
-                title: document.title,
-                generatedAt: new Date(),
-                broadcastStartTime: liveRecording?.broadcastStartTime ?? undefined
-            };
+            return buildExportMeta(videoUrl, liveRecording?.broadcastStartTime);
         };
 
-        const appendCachedInfo = (timestamp: number | string | null | undefined): void => {
-            const cacheTitle = new Date(timestamp as number | string);
-            const targets: (HTMLElement | null)[] = [elCountComments, elCountCommentsCollapsed];
-
-            for (const target of targets) {
-                if (!target) continue;
-
-                target.querySelector('.ycs-title-cache-info')?.remove();
-                target.insertAdjacentHTML(
-                    'beforeend',
-                    `
-            <span class="ycs-title-cache-info" title="${cacheTitle}">Cached</span>
-        `
-                );
-            }
-        };
-
-        const clearButtonLabelDataset = (button: HTMLButtonElement): void => {
-            if (!button) return;
-            if (button.dataset.labelHtml !== undefined) {
-                delete button.dataset.labelHtml;
-                button.removeAttribute('data-label-html');
-            }
-        };
-
-        const resetLoadButtonLabel = (buttonId: string, label: string): void => {
-            const button = document.getElementById(buttonId) as HTMLButtonElement | null;
-            if (!button) return;
-            clearButtonLabelDataset(button);
-            button.textContent = label;
-        };
-
-        const resetLoadButtonLabels = (): void => {
-            // Prevent stale dataset.labelHtml from reintroducing HTML into load buttons after rerenders
-            resetLoadButtonLabel('ycs-load-cmnts', 'load');
-            resetLoadButtonLabel('ycs-load-chat', 'load');
-            resetLoadButtonLabel('ycs-load-transcript-video', 'load');
-            resetLoadButtonLabel('ycs-load-all', 'Load all');
-            resetLoadButtonLabel('ycs_load_stop', 'stop');
+        // Helper to append cached info to count elements
+        const appendCachedInfoToCounters = (timestamp: number | string | null | undefined) => {
+            appendCachedInfo(timestamp, [elCountComments, elCountCommentsCollapsed]);
         };
 
         resetLoadButtonLabels();
@@ -1387,775 +959,45 @@ export function initApp(): void {
         }
 
         // ============================================
-        // Live Chat Recording Logic
+        // Live Chat Recording
         // ============================================
-        const RECORDING_POLL_INTERVAL = 5000; // 5 seconds
-        const RECORDING_TIMER_INTERVAL = 1000; // 1 second
-
         const elRecordChat = document.getElementById('ycs-record-chat') as HTMLButtonElement | null;
         const elRecordTimer = document.getElementById('ycs-record-timer');
 
-        /**
-         * Stop live chat recording
-         */
-        async function stopLiveChatRecording(): Promise<void> {
-            const liveRecording = getLiveRecording(state);
-
-            // Clear poll timeout (serial pattern uses setTimeout, not setInterval)
-            if (liveRecording.pollTimeoutId !== null) {
-                clearTimeout(liveRecording.pollTimeoutId);
+        const liveChatRecorderDeps: LiveChatRecorderDeps = {
+            state: {
+                getState: () => state,
+                setState: (newState) => {
+                    state = newState;
+                },
+                getLiveRecording,
+                setLiveRecording,
+                resetLiveRecording,
+                getCommentsChat,
+                getComments,
+                getCommentsTrVideo,
+                getController,
+                getCounts,
+                setCount,
+                clearCommentsChat,
+                setChatSource,
+                resetController
+            },
+            elements: {
+                elRecordChat,
+                elRecordTimer
+            },
+            callbacks: {
+                updateTitleCount
             }
+        };
 
-            // Clear timer interval
-            if (liveRecording.timerIntervalId !== null) {
-                clearInterval(liveRecording.timerIntervalId);
-            }
+        createLiveChatRecorder(liveChatRecorderDeps);
 
-            // Abort in-flight requests to prevent them from continuing after stop
-            getController(state).abort();
-
-            // Update UI - also clear warning states
-            if (elRecordChat) {
-                elRecordChat.classList.remove('ycs-recording');
-                elRecordChat.classList.remove('ycs-recording-warning');
-                elRecordChat.textContent = 'record';
-            }
-
-            if (elRecordTimer) {
-                elRecordTimer.style.display = 'none';
-                elRecordTimer.classList.remove('ycs-warning-text');
-                elRecordTimer.removeAttribute('data-original-text');
-            }
-
-            // Save final data to cache using the original video context (preserved on start)
-            const commentsChat = getCommentsChat(state);
-            const startVideoId = liveRecording.startVideoId;
-            const cacheMeta = buildCacheMeta({
-                url: liveRecording.startUrl ?? undefined,
-                title: liveRecording.startTitle ?? undefined
-            });
-
-            if (commentsChat.size > 0 && startVideoId) {
-                saveToCache(
-                    {
-                        videoId: startVideoId,
-                        comments: getComments(state),
-                        commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
-                        commentsTrVideo: getCommentsTrVideo(state),
-                        channelId: extractChannelId(),
-                        chatSource: 'live-recording'
-                    },
-                    cacheMeta
-                );
-            }
-
-            // Update badge
-            const counts = getCounts(state);
-            const totalCount = counts.comments + counts.commentsChat + counts.commentsTrVideo;
-            updateBadge('NUMBER_COMMENTS', totalCount);
-            updateTitleCount(totalCount);
-
-            // Reset recording state
-            state = resetLiveRecording(state);
-
-            // Create new AbortController for future operations
-            state = resetController(state);
-
-            console.log('[YCS] Live chat recording stopped. Total messages:', commentsChat.size);
-        }
-
-        /**
-         * Update recording timer display
-         */
-        function updateRecordingTimer(): void {
-            const liveRecording = getLiveRecording(state);
-
-            if (liveRecording.recordingStartTime && elRecordTimer) {
-                const duration = formatRecordingDuration(liveRecording.recordingStartTime);
-                elRecordTimer.textContent = duration;
-            }
-        }
-
-        /**
-         * Show a toast notification that requires manual dismissal
-         * Used for important messages that need to persist until user acknowledges
-         */
-        function showToast(message: string): void {
-            // Remove existing toast if any
-            const existingToast = document.getElementById('ycs-toast');
-            if (existingToast) {
-                existingToast.remove();
-            }
-
-            // Create toast element
-            const toast = document.createElement('div');
-            toast.id = 'ycs-toast';
-            toast.className = 'ycs-toast ycs-toast-warning';
-            toast.setAttribute('role', 'alert');
-            toast.setAttribute('aria-live', 'assertive');
-
-            // Create message text
-            const messageSpan = document.createElement('span');
-            messageSpan.className = 'ycs-toast-message';
-            messageSpan.textContent = message;
-
-            // Create close button
-            const closeBtn = document.createElement('button');
-            closeBtn.className = 'ycs-toast-close';
-            closeBtn.innerHTML = '&times;';
-            closeBtn.setAttribute('aria-label', 'Close');
-            closeBtn.addEventListener('click', () => {
-                toast.classList.remove('ycs-toast-show');
-                setTimeout(() => toast.remove(), 300); // Wait for fade-out animation
-            });
-
-            toast.appendChild(messageSpan);
-            toast.appendChild(closeBtn);
-
-            // Insert into body (not YCS container, so it persists across UI changes)
-            document.body.appendChild(toast);
-
-            // Trigger animation
-            requestAnimationFrame(() => {
-                toast.classList.add('ycs-toast-show');
-            });
-        }
-
-        /**
-         * Update recording warning UI state
-         * Shows/hides warning when recording encounters connection issues
-         */
-        function updateRecordingWarningUI(show: boolean, message?: string): void {
-            const elRecordChat = document.getElementById('ycs-record-chat') as HTMLButtonElement | null;
-            const elRecordTimer = document.getElementById('ycs-record-timer');
-
-            if (show) {
-                // Add warning class (orange pulsing instead of red)
-                elRecordChat?.classList.add('ycs-recording-warning');
-
-                // Update timer text to show warning message
-                if (elRecordTimer && message) {
-                    elRecordTimer.setAttribute('data-original-text', elRecordTimer.textContent || '');
-                    elRecordTimer.textContent = message;
-                    elRecordTimer.classList.add('ycs-warning-text');
-                }
-            } else {
-                // Remove warning class
-                elRecordChat?.classList.remove('ycs-recording-warning');
-
-                // Restore timer text
-                if (elRecordTimer) {
-                    const originalText = elRecordTimer.getAttribute('data-original-text');
-                    if (originalText) {
-                        elRecordTimer.textContent = originalText;
-                        elRecordTimer.removeAttribute('data-original-text');
-                    }
-                    elRecordTimer.classList.remove('ycs-warning-text');
-                }
-            }
-        }
-
-        /**
-         * Poll and save chat messages with recovery logic
-         * Handles token expiration and network errors gracefully
-         */
-        async function pollAndSaveChat(startVideoId: string | null): Promise<void> {
-            // Verify still on the same video page (stop if left video page or navigated to different video)
-            const currentVideoId = getVideoId(window.location.href);
-            if (!currentVideoId || currentVideoId !== startVideoId) {
-                console.log('[YCS] Left video page during recording, stopping...');
-                await stopLiveChatRecording();
-                return;
-            }
-
-            const controller = getController(state);
-            const commentsChat = getCommentsChat(state);
-            const liveRecording = getLiveRecording(state);
-
-            try {
-                // Determine if we should force token refresh (recovery mode)
-                const shouldForceRefresh = liveRecording.isInRecoveryMode;
-
-                const pollResult: LiveChatPollResult = await pollLiveChat(
-                    controller.signal,
-                    commentsChat,
-                    (newCount, totalCount) => {
-                        // Update counter display
-                        const elLoadChat = document.getElementById('ycs_cmnts_chat');
-                        if (elLoadChat) {
-                            elLoadChat.textContent = totalCount.toString();
-                        }
-
-                        // Update state count
-                        state = setCount(state, 'commentsChat', totalCount);
-
-                        if (DEBUG && newCount > 0) {
-                            console.log(`[YCS] Recording: +${newCount} new messages, total: ${totalCount}`);
-                        }
-                    },
-                    liveRecording.broadcastStartTime ?? undefined,
-                    liveRecording.lastContinuation ?? undefined,
-                    shouldForceRefresh
-                );
-
-                // Handle poll result based on success status
-                if (pollResult.success) {
-                    // Success: reset failure tracking and update continuation
-                    state = setLiveRecording(state, {
-                        lastContinuation: pollResult.continuation,
-                        consecutiveFailures: 0,
-                        lastSuccessTime: Date.now(),
-                        isInRecoveryMode: false,
-                        recoveryAttempts: 0
-                    });
-
-                    // Clear warning UI if previously shown
-                    updateRecordingWarningUI(false);
-                } else {
-                    // Failure: increment counter and potentially trigger recovery
-                    const newFailureCount = liveRecording.consecutiveFailures + 1;
-                    console.warn(
-                        `[YCS] Poll failed (${newFailureCount}/${MAX_CONSECUTIVE_FAILURES}):`,
-                        pollResult.errorType,
-                        pollResult.httpStatus
-                    );
-
-                    if (newFailureCount >= MAX_CONSECUTIVE_FAILURES) {
-                        // Check if we've exceeded max recovery attempts
-                        const newRecoveryAttempts = liveRecording.recoveryAttempts + 1;
-
-                        if (newRecoveryAttempts > MAX_RECOVERY_ATTEMPTS) {
-                            console.error('[YCS] Max recovery attempts reached - stopping recording');
-                            showToast('Recording stopped: Unable to reconnect. Data has been saved.');
-
-                            // Final save before stopping
-                            if (commentsChat.size > 0 && startVideoId) {
-                                const cacheMeta = buildCacheMeta({
-                                    url: liveRecording.startUrl ?? undefined,
-                                    title: liveRecording.startTitle ?? undefined
-                                });
-                                saveToCache(
-                                    {
-                                        videoId: startVideoId,
-                                        comments: getComments(state),
-                                        commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
-                                        commentsTrVideo: getCommentsTrVideo(state),
-                                        channelId: extractChannelId(),
-                                        chatSource: 'live-recording'
-                                    },
-                                    cacheMeta
-                                );
-                                console.log('[YCS] Final cache save before stop:', commentsChat.size, 'messages');
-                            }
-
-                            await stopLiveChatRecording();
-                            return;
-                        }
-
-                        // Enter recovery mode
-                        console.log(
-                            `[YCS] Entering recovery mode (attempt ${newRecoveryAttempts}/${MAX_RECOVERY_ATTEMPTS})`
-                        );
-                        state = setLiveRecording(state, {
-                            consecutiveFailures: 0,
-                            isInRecoveryMode: true,
-                            recoveryAttempts: newRecoveryAttempts
-                        });
-
-                        // Show warning to user
-                        updateRecordingWarningUI(true, 'Reconnecting...');
-
-                        // Add backoff delay before next retry
-                        await new Promise((resolve) => setTimeout(resolve, RECOVERY_BACKOFF_MS));
-                    } else {
-                        // Just increment failure count, not yet in recovery
-                        state = setLiveRecording(state, {
-                            consecutiveFailures: newFailureCount
-                        });
-                    }
-                }
-
-                // Check abort to stop processing
-                if (controller.signal.aborted) {
-                    if (DEBUG) {
-                        console.log('[YCS] pollAndSaveChat aborted');
-                    }
-                    return;
-                }
-
-                // Auto-stop when live stream ends (detected by isLiveEnded flag)
-                if (pollResult.isLiveEnded) {
-                    console.log('[YCS] Live stream ended, auto-stopping recording...');
-                    await stopLiveChatRecording();
-                    return;
-                }
-
-                // Throttled cache save: every 1 minute instead of every poll
-                // This reduces memory pressure from frequent JSON.stringify + postMessage structured clone
-                const CACHE_SAVE_INTERVAL_MS = 60000; // 1 minute
-                const lastSaveTime = liveRecording.lastSaveTime ?? 0;
-                const now = Date.now();
-
-                if (commentsChat.size > 0 && startVideoId && now - lastSaveTime >= CACHE_SAVE_INTERVAL_MS) {
-                    const cacheMeta = buildCacheMeta({
-                        url: liveRecording.startUrl ?? undefined,
-                        title: liveRecording.startTitle ?? undefined
-                    });
-
-                    saveToCache(
-                        {
-                            videoId: startVideoId,
-                            comments: getComments(state),
-                            commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
-                            commentsTrVideo: getCommentsTrVideo(state),
-                            channelId: extractChannelId(),
-                            chatSource: 'live-recording'
-                        },
-                        cacheMeta
-                    );
-                    state = setLiveRecording(state, { lastSaveTime: now });
-                    console.log('[YCS] Periodic cache save:', commentsChat.size, 'messages');
-                }
-            } catch (e) {
-                // Unexpected error - apply same recovery logic as poll failures
-                console.error('[YCS] pollAndSaveChat unexpected error:', e);
-
-                const newFailureCount = liveRecording.consecutiveFailures + 1;
-
-                if (newFailureCount >= MAX_CONSECUTIVE_FAILURES) {
-                    const newRecoveryAttempts = liveRecording.recoveryAttempts + 1;
-
-                    if (newRecoveryAttempts > MAX_RECOVERY_ATTEMPTS) {
-                        console.error('[YCS] Max recovery attempts reached (catch) - stopping recording');
-                        showToast('Recording stopped: Unable to reconnect. Data has been saved.');
-
-                        // Final save before stopping
-                        const commentsChat = getCommentsChat(state);
-                        if (commentsChat.size > 0 && startVideoId) {
-                            const cacheMeta = buildCacheMeta({
-                                url: liveRecording.startUrl ?? undefined,
-                                title: liveRecording.startTitle ?? undefined
-                            });
-                            saveToCache(
-                                {
-                                    videoId: startVideoId,
-                                    comments: getComments(state),
-                                    commentsChat: JSON.stringify(Array.from(commentsChat.entries())),
-                                    commentsTrVideo: getCommentsTrVideo(state),
-                                    channelId: extractChannelId(),
-                                    chatSource: 'live-recording'
-                                },
-                                cacheMeta
-                            );
-                            console.log('[YCS] Final cache save before stop (catch):', commentsChat.size, 'messages');
-                        }
-
-                        await stopLiveChatRecording();
-                        return;
-                    }
-
-                    // Enter recovery mode
-                    console.log(
-                        `[YCS] Entering recovery mode from catch (attempt ${newRecoveryAttempts}/${MAX_RECOVERY_ATTEMPTS})`
-                    );
-                    state = setLiveRecording(state, {
-                        consecutiveFailures: 0,
-                        isInRecoveryMode: true,
-                        recoveryAttempts: newRecoveryAttempts
-                    });
-
-                    updateRecordingWarningUI(true, 'Reconnecting...');
-                    await new Promise((resolve) => setTimeout(resolve, RECOVERY_BACKOFF_MS));
-                } else {
-                    state = setLiveRecording(state, {
-                        consecutiveFailures: newFailureCount
-                    });
-                }
-            }
-        }
-
-        /**
-         * Schedule next poll using setTimeout (serial pattern)
-         * Prevents request stacking when polls take longer than interval
-         */
-        async function scheduleNextPoll(startVideoId: string): Promise<void> {
-            const liveRecording = getLiveRecording(state);
-
-            // Check if still recording before polling
-            if (!liveRecording.isRecording) {
-                return;
-            }
-
-            // Execute poll
-            await pollAndSaveChat(startVideoId);
-
-            // Re-check after poll (recording may have stopped during poll)
-            const currentRecording = getLiveRecording(state);
-            if (!currentRecording.isRecording) {
-                return;
-            }
-
-            // Schedule next poll
-            const timeoutId = setTimeout(() => {
-                scheduleNextPoll(startVideoId);
-            }, RECORDING_POLL_INTERVAL);
-
-            // Update timeout ID in state
-            state = setLiveRecording(state, { pollTimeoutId: timeoutId });
-        }
-
-        /**
-         * Start live chat recording
-         */
-        async function startLiveChatRecording(): Promise<void> {
-            if (!elRecordChat) return;
-
-            const startVideoId = getVideoId(window.location.href);
-            if (!startVideoId) {
-                console.warn('[YCS] Cannot start recording: no video ID');
-                return;
-            }
-
-            // Disable button during initialization
-            elRecordChat.disabled = true;
-            elRecordChat.textContent = 'loading...';
-
-            try {
-                // Check if we have cached chat data to resume recording
-                const existingCommentsChat = getCommentsChat(state);
-                const hasCachedData = existingCommentsChat.size > 0;
-
-                if (hasCachedData) {
-                    console.log('[YCS] Resuming recording with existing data:', existingCommentsChat.size, 'messages');
-                } else {
-                    // Clear chat data only if no cached data exists
-                    state = clearCommentsChat(state);
-                    console.log('[YCS] Starting new recording session');
-                }
-
-                // Mark chat source as live-recording
-                state = setChatSource(state, 'live-recording');
-
-                // Get broadcast start time
-                const controller = getController(state);
-                const broadcastStartTime = await getLiveBroadcastStartTime(controller.signal);
-
-                if (!broadcastStartTime) {
-                    console.warn('[YCS] Could not get broadcast start time, relative timestamps will be unavailable');
-                }
-
-                // Update UI (but keep button disabled until isRecording is set)
-                elRecordChat.classList.add('ycs-recording');
-                elRecordChat.textContent = 'stop';
-
-                if (elRecordTimer) {
-                    elRecordTimer.style.display = 'inline';
-                    elRecordTimer.textContent = '00:00:00';
-                }
-
-                // Update status icon
-                const elStatusChat = document.getElementById('ycs_status_chat');
-                const elLoadChat = document.getElementById('ycs_cmnts_chat');
-                if (elStatusChat) {
-                    elStatusChat.innerHTML = iconReload();
-                }
-                if (elLoadChat) {
-                    // Show current count if resuming, otherwise 0
-                    elLoadChat.textContent = hasCachedData ? existingCommentsChat.size.toString() : '0';
-                }
-
-                const recordingStartTime = Date.now();
-
-                // Start timer interval (pure UI update, doesn't need serial pattern)
-                const timerIntervalId = setInterval(() => {
-                    updateRecordingTimer();
-                }, RECORDING_TIMER_INTERVAL);
-
-                // Update state (pollTimeoutId starts as null, updated by scheduleNextPoll)
-                state = setLiveRecording(state, {
-                    isRecording: true,
-                    pollTimeoutId: null,
-                    timerIntervalId,
-                    broadcastStartTime,
-                    recordingStartTime,
-                    startUrl: window.location.href,
-                    startTitle: document.title,
-                    startVideoId,
-                    lastContinuation: null,
-                    lastSaveTime: null
-                });
-
-                // Re-enable button AFTER isRecording is set to prevent double-click race condition
-                elRecordChat.disabled = false;
-
-                console.log('[YCS] Live chat recording started. Broadcast start time:', broadcastStartTime);
-
-                // Start serial polling (first poll runs immediately, then schedules next)
-                scheduleNextPoll(startVideoId);
-            } catch (e) {
-                console.error('[YCS] startLiveChatRecording error:', e);
-                // Restore button and UI state on error
-                elRecordChat.disabled = false;
-                elRecordChat.textContent = 'record';
-                elRecordChat.classList.remove('ycs-recording');
-                if (elRecordTimer) {
-                    elRecordTimer.style.display = 'none';
-                }
-            }
-        }
-
-        /**
-         * Check if current video is live and show/hide record button
-         * Load and record buttons are mutually exclusive
-         */
-        async function updateRecordButtonVisibility(): Promise<void> {
-            if (!elRecordChat) return;
-
-            const elLoadChat = document.getElementById('ycs-load-chat');
-            if (!elLoadChat) return;
-
-            try {
-                const controller = getController(state);
-                const isLive = await checkIsLiveStream(controller.signal);
-
-                if (isLive) {
-                    // Show record button, hide load button (mutually exclusive)
-                    elRecordChat.style.display = 'inline-block';
-                    elLoadChat.style.display = 'none';
-                    console.log('[YCS] Live stream detected, showing Record button');
-                } else {
-                    // Show load button, hide record button (mutually exclusive)
-                    elRecordChat.style.display = 'none';
-                    elLoadChat.style.display = 'inline-block';
-                    console.log('[YCS] Not a live stream, showing Load button');
-                }
-            } catch (e) {
-                console.error('[YCS] updateRecordButtonVisibility error:', e);
-                // Default to load button on error
-                elRecordChat.style.display = 'none';
-                elLoadChat.style.display = 'inline-block';
-            }
-        }
-
-        // Record button click handler
-        if (elRecordChat) {
-            elRecordChat.addEventListener('click', async function (): Promise<void> {
-                const liveRecording = getLiveRecording(state);
-
-                if (liveRecording.isRecording) {
-                    await stopLiveChatRecording();
-                } else {
-                    await startLiveChatRecording();
-                }
-            });
-        }
-
-        // Auto-check live stream on page load
-        updateRecordButtonVisibility();
-
+        // Transcript Loader DOM elements (DI initialization happens after dropdown helpers are defined)
         const elLoadTranscriptVideo = document.getElementById('ycs-load-transcript-video');
         const elTranscriptLangButton = document.getElementById('ycs_transcript_language');
         const elTranscriptLangMenu = document.getElementById('ycs_transcript_language_menu');
-
-        const loadTranscript = async (trigger: HTMLElement, languageCode?: string): Promise<void> => {
-            if (!elLiveApp.parentNode || !elLiveApp.parentElement) return;
-
-            const startUrl = window.location.href;
-            const startVideoId = getVideoId(startUrl);
-
-            const currentTarget = trigger as HTMLButtonElement;
-            const defaultLabel = currentTarget.innerText;
-
-            clearButtonLabelDataset(currentTarget);
-
-            currentTarget.disabled = true;
-            currentTarget.innerText = 'reload';
-
-            try {
-                const elStatusTrVideo = document.getElementById('ycs_status_trvideo');
-                const elLoadTrVideo = document.getElementById('ycs_cmnts_video');
-
-                if (elLoadTrVideo && elStatusTrVideo) {
-                    elLoadTrVideo.textContent = '0';
-
-                    elStatusTrVideo.innerHTML = iconReload();
-
-                    const controller = getController(state);
-                    const normalizedLanguage = languageCode?.trim();
-                    const preferredLanguage = normalizedLanguage || getSelectedTranscriptLanguage(state);
-                    const tr = (await getTranscriptVideo(controller.signal, { languageCode: preferredLanguage })) as
-                        | TranscriptData
-                        | undefined;
-                    state = clearCommentsTrVideo(state);
-                    if (getCueGroupCount(tr) > 0) {
-                        state = setCommentsTrVideo(state, tr);
-                    }
-
-                    const currentVideoId = getVideoId(window.location.href);
-                    if (startVideoId && currentVideoId && startVideoId !== currentVideoId) {
-                        console.warn(
-                            '[YCS] Video changed during transcript loading, skipping cache save:',
-                            startVideoId,
-                            '→',
-                            currentVideoId
-                        );
-                        return;
-                    }
-
-                    try {
-                        const transcript = getCommentsTrVideo(state);
-                        const cueGroups = extractCueGroups(transcript);
-                        if (transcript && elLoadTrVideo && cueGroups && cueGroups.length > 0) {
-                            showLoadComments(cueGroups.length, elLoadTrVideo);
-                            saveToCache(
-                                {
-                                    videoId: startVideoId,
-                                    comments: getComments(state),
-                                    commentsChat: JSON.stringify(Array.from(getCommentsChat(state).entries())),
-                                    commentsTrVideo: transcript,
-                                    channelId: extractChannelId()
-                                },
-                                buildCacheMeta()
-                            );
-                        } else {
-                            state = clearCommentsTrVideo(state);
-                        }
-                    } catch (err) {
-                        console.error(err);
-                        state = clearCommentsTrVideo(state);
-                    }
-
-                    const transcript = getCommentsTrVideo(state);
-                    if (getCueGroupCount(transcript) > 0) {
-                        elStatusTrVideo.innerHTML = iconOk();
-                    }
-                }
-
-                if (
-                    getCueGroupCount(getCommentsTrVideo(state)) > 0 &&
-                    (elLiveApp.parentNode || elLiveApp.parentElement)
-                ) {
-                    const transcript = getCommentsTrVideo(state);
-                    state = setCount(state, 'commentsTrVideo', getCueGroupCount(transcript));
-                }
-
-                const counts = getCounts(state);
-                const totalCount = counts.comments + counts.commentsChat + counts.commentsTrVideo;
-                updateBadge('NUMBER_COMMENTS', totalCount);
-
-                updateTitleCount(totalCount);
-            } finally {
-                currentTarget.disabled = false;
-                currentTarget.innerText = defaultLabel;
-            }
-        };
-
-        if (elLoadTranscriptVideo) {
-            elLoadTranscriptVideo.addEventListener('click', async function (e: MouseEvent): Promise<void> {
-                const currentTarget = e.currentTarget as HTMLButtonElement;
-                await loadTranscript(currentTarget, getSelectedTranscriptLanguage(state));
-            });
-        }
-
-        const renderTranscriptLanguageMenu = (tracks: TranscriptTrackInfo[], selected?: string): void => {
-            if (!elTranscriptLangMenu) return;
-
-            elTranscriptLangMenu.innerHTML = '';
-
-            if (!tracks.length) {
-                const emptyItem = document.createElement('div');
-                emptyItem.className = 'ycs_dropdown_item ycs_disabled';
-                emptyItem.textContent = 'No languages available';
-                elTranscriptLangMenu.appendChild(emptyItem);
-                return;
-            }
-
-            const createItem = (track: TranscriptTrackInfo | undefined, label: string, value?: string) => {
-                const item = document.createElement('div');
-                item.className = 'ycs_dropdown_item';
-                item.dataset.value = value ?? '';
-                item.textContent = label;
-                if ((value ?? '') === (selected ?? '')) {
-                    item.classList.add('ycs_dropdown_item--active');
-                }
-                item.addEventListener('click', () => {
-                    const normalizedValue = value?.trim();
-                    const nextLanguage = normalizedValue ? normalizedValue : undefined;
-                    state = setSelectedTranscriptLanguage(state, nextLanguage);
-                    closeAllDropdowns();
-                    setMenuVisibility(elTranscriptLangMenu, false);
-                    if (elLoadTranscriptVideo instanceof HTMLElement) {
-                        loadTranscript(elLoadTranscriptVideo, nextLanguage).catch((err) => console.error(err));
-                    }
-                });
-                return item;
-            };
-
-            const preferredOption = createItem(undefined, 'Default (YouTube / options)', '');
-            elTranscriptLangMenu.appendChild(preferredOption);
-
-            tracks.forEach((track) => {
-                const code = track.languageCode ?? '';
-                const labelParts = [track.displayName || code];
-                if (track.isAutoGenerated) {
-                    labelParts.push('(auto)');
-                }
-                if (code && !labelParts.includes(code)) {
-                    labelParts.push(`[${code}]`);
-                }
-                const label = labelParts.join(' ');
-                const item = createItem(track, label, code);
-                elTranscriptLangMenu.appendChild(item);
-            });
-        };
-
-        const handleTranscriptLanguageDropdown = (button: HTMLElement): void => {
-            const controller = getController(state);
-            let tracks = getStateTranscriptTracks(state) ?? [];
-            const selectedLanguage = getSelectedTranscriptLanguage(state);
-
-            const toggleMenu = () => {
-                if (!elTranscriptLangMenu) return;
-                const shouldShow = !elTranscriptLangMenu.classList.contains('show');
-                closeAllDropdowns(elTranscriptLangMenu);
-                setMenuVisibility(elTranscriptLangMenu, shouldShow);
-            };
-
-            const ensureTracks = async () => {
-                if (!tracks.length) {
-                    const fetched = await getTranscriptTracks(controller.signal);
-                    tracks = fetched ?? [];
-                    state = setTranscriptTracks(state, tracks);
-                }
-                renderTranscriptLanguageMenu(tracks, selectedLanguage);
-            };
-
-            button.addEventListener('click', () => {
-                const buttonElement = button as HTMLButtonElement;
-                const originalText = buttonElement.innerText;
-                const originalDisabled = buttonElement.disabled;
-
-                // Set loading state
-                buttonElement.disabled = true;
-                buttonElement.innerText = 'loading...';
-
-                ensureTracks()
-                    .then(() => {
-                        // Restore button state
-                        buttonElement.disabled = originalDisabled;
-                        buttonElement.innerText = originalText;
-                        toggleMenu();
-                    })
-                    .catch((err) => {
-                        console.error('Failed to load transcript tracks', err);
-                        // Restore button state
-                        buttonElement.disabled = originalDisabled;
-                        buttonElement.innerText = originalText;
-                        renderTranscriptLanguageMenu([], selectedLanguage);
-                        toggleMenu();
-                    });
-            });
-        };
 
         const elLoadAll = document.getElementById('ycs-load-all');
         if (elLoadAll) {
@@ -2251,6 +1093,43 @@ export function initApp(): void {
             });
         };
 
+        // Initialize Transcript Loader with DI (after dropdown helpers are defined)
+        const transcriptLoaderDeps: TranscriptLoaderDeps = {
+            state: {
+                getState: () => state,
+                setState: (newState) => {
+                    state = newState;
+                },
+                getCommentsTrVideo,
+                setCommentsTrVideo,
+                clearCommentsTrVideo,
+                getStateTranscriptTracks,
+                setTranscriptTracks,
+                getSelectedTranscriptLanguage,
+                setSelectedTranscriptLanguage,
+                getController,
+                resetController,
+                getCounts,
+                setCount,
+                getComments,
+                getCommentsChat
+            },
+            elements: {
+                elLiveApp: elLiveApp as HTMLElement,
+                elLoadTranscriptVideo,
+                elTranscriptLangButton,
+                elTranscriptLangMenu
+            },
+            callbacks: {
+                updateTitleCount,
+                showLoadComments,
+                closeAllDropdowns,
+                setMenuVisibility
+            }
+        };
+
+        createTranscriptLoader(transcriptLoaderDeps);
+
         const setupDropdown = (
             trigger: HTMLElement | null,
             menu: HTMLElement | null,
@@ -2294,7 +1173,7 @@ export function initApp(): void {
             if (comments.length === 0) return;
 
             try {
-                openCommentsWindow(comments, buildExportMeta());
+                openCommentsWindow(comments, getExportMeta());
             } catch (e) {
                 console.error(e);
                 return;
@@ -2309,11 +1188,11 @@ export function initApp(): void {
             if (!comments || comments.length === 0) return;
 
             if (format === EXPORT_FORMAT.TXT) {
-                downloadCommentsFile(comments, buildExportMeta());
+                downloadCommentsFile(comments, getExportMeta());
             } else if (format === EXPORT_FORMAT.JSON) {
-                downloadCommentsFileJSON(comments, buildExportMeta());
+                downloadCommentsFileJSON(comments, getExportMeta());
             } else if (format === EXPORT_FORMAT.XLSX) {
-                downloadCommentsFileXLSX(comments, buildExportMeta());
+                downloadCommentsFileXLSX(comments, getExportMeta());
             }
         });
 
@@ -2323,7 +1202,7 @@ export function initApp(): void {
             if (commentsChat.size === 0) return;
 
             try {
-                openChatWindow([...commentsChat.values()], buildExportMeta());
+                openChatWindow([...commentsChat.values()], getExportMeta());
             } catch (e) {
                 console.error(e);
                 return;
@@ -2339,11 +1218,11 @@ export function initApp(): void {
             const arr = [...commentsChat.values()];
 
             if (format === EXPORT_FORMAT.TXT) {
-                downloadChatFile(arr, buildExportMeta());
+                downloadChatFile(arr, getExportMeta());
             } else if (format === EXPORT_FORMAT.JSON) {
-                downloadChatFileJSON(arr, buildExportMeta());
+                downloadChatFileJSON(arr, getExportMeta());
             } else if (format === EXPORT_FORMAT.XLSX) {
-                downloadChatFileXLSX(arr, buildExportMeta());
+                downloadChatFileXLSX(arr, getExportMeta());
             }
         });
 
@@ -2355,7 +1234,7 @@ export function initApp(): void {
 
                 const cueGroups = extractCueGroups(commentsTrVideo);
                 if (cueGroups && cueGroups.length > 0) {
-                    openTranscriptWindow(cueGroups, buildExportMeta());
+                    openTranscriptWindow(cueGroups, getExportMeta());
                 }
             } catch (e) {
                 console.error(e);
@@ -2372,11 +1251,11 @@ export function initApp(): void {
             if (!cueGroups || cueGroups.length === 0) return;
 
             if (format === EXPORT_FORMAT.TXT) {
-                downloadTranscriptFile(cueGroups, buildExportMeta());
+                downloadTranscriptFile(cueGroups, getExportMeta());
             } else if (format === EXPORT_FORMAT.JSON) {
-                downloadTranscriptFileJSON(cueGroups, buildExportMeta());
+                downloadTranscriptFileJSON(cueGroups, getExportMeta());
             } else if (format === EXPORT_FORMAT.XLSX) {
-                downloadTranscriptFileXLSX(cueGroups, buildExportMeta());
+                downloadTranscriptFileXLSX(cueGroups, getExportMeta());
             }
         });
 
@@ -2416,10 +1295,9 @@ export function initApp(): void {
             return result;
         };
 
-        if (elTranscriptLangButton instanceof HTMLElement && elTranscriptLangMenu instanceof HTMLElement) {
+        if (elTranscriptLangMenu instanceof HTMLElement) {
             dropdownMenus.add(elTranscriptLangMenu);
             setMenuVisibility(elTranscriptLangMenu, false);
-            handleTranscriptLanguageDropdown(elTranscriptLangButton);
         }
 
         const runChatPipeline = (selector: string, query: string, param?: IParamSearch) => {
@@ -2863,7 +1741,7 @@ export function initApp(): void {
                     updateBadge('NUMBER_COMMENTS', totalCount);
 
                     updateTitleCount(totalCount);
-                    appendCachedInfo(crdate);
+                    appendCachedInfoToCounters(crdate);
                 } else {
                     window.postMessage({ type: 'YCS_AUTOLOAD' }, window.location.origin);
                 }
