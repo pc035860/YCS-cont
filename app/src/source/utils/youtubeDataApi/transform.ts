@@ -20,7 +20,7 @@ import { decodeHtml } from '../common';
 const TIMESTAMP_REGEX = /\b(\d{1,2}):(\d{2})(?::(\d{2}))?\b/g;
 
 /**
- * Parse timestamp string to seconds
+ * Parse timestamp string to seconds (e.g., "1:23" -> 83)
  */
 function parseTimestampToSeconds(match: string): number | null {
     const parts = match.split(':').map(Number);
@@ -33,6 +33,33 @@ function parseTimestampToSeconds(match: string): number | null {
         const [hours, minutes, seconds] = parts;
         return hours * 3600 + minutes * 60 + seconds;
     }
+    return null;
+}
+
+/**
+ * Parse YouTube URL time parameter to seconds
+ * Handles various formats: t=83, t=83s, t=1m23s, t=1h2m3s
+ * Also handles HTML entity encoded ampersands (&amp;)
+ */
+function parseYouTubeTimeParam(url: string): number | null {
+    // Decode HTML entities (e.g., &amp; -> &)
+    const decoded = url.replace(/&amp;/g, '&');
+
+    // Format 1: t=123 or t=123s (pure seconds)
+    const secondsMatch = decoded.match(/[?&]t=(\d+)s?(?:&|$)/);
+    if (secondsMatch) {
+        return parseInt(secondsMatch[1], 10);
+    }
+
+    // Format 2: t=1h2m3s or t=2m3s or t=3s (hours/minutes/seconds)
+    const hmsMatch = decoded.match(/[?&]t=(?:(\d+)h)?(?:(\d+)m)?(\d+)s/);
+    if (hmsMatch) {
+        const hours = parseInt(hmsMatch[1] || '0', 10);
+        const minutes = parseInt(hmsMatch[2] || '0', 10);
+        const seconds = parseInt(hmsMatch[3] || '0', 10);
+        return hours * 3600 + minutes * 60 + seconds;
+    }
+
     return null;
 }
 
@@ -102,12 +129,14 @@ function parseTextToRuns(textDisplay: string, videoId: string): { runs: CommentR
             // Check if this is a YouTube timestamp link
             const url = segment.url ?? '';
             const isYouTubeLink = url.includes('youtube.com') || url.includes('youtu.be');
-            const timeMatch = url.match(/[?&]t=(\d+)/);
+            const startTimeSeconds = parseYouTubeTimeParam(url);
 
-            if (isYouTubeLink && timeMatch) {
-                const startTimeSeconds = parseInt(timeMatch[1], 10);
+            if (isYouTubeLink && startTimeSeconds !== null) {
+                // Decode HTML entities for video ID extraction
+                const decodedUrl = url.replace(/&amp;/g, '&');
                 // Check if this links to the current video
-                const urlVideoId = url.match(/[?&]v=([^&]+)/)?.[1] || url.match(/youtu\.be\/([^?&]+)/)?.[1];
+                const urlVideoId =
+                    decodedUrl.match(/[?&]v=([^&]+)/)?.[1] || decodedUrl.match(/youtu\.be\/([^?&]+)/)?.[1];
 
                 if (urlVideoId === videoId || !urlVideoId) {
                     hasTimeline = true;
