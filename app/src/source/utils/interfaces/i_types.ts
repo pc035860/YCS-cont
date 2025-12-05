@@ -306,6 +306,7 @@ export interface IYCSOptions {
     autoClear?: number;
     hiddenByDefault?: boolean;
     hiddenByDefaultShorts?: boolean;
+    enableShortsSupport?: boolean;
     filterButtons?: Array<{ id: string; enabled: boolean }>;
     transcriptLanguage?: string;
     youtubeApiKey?: string; // Empty = use Innertube; Filled = use YouTube Data API (storage only)

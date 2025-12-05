@@ -52,16 +52,34 @@
           </div>
         </div>
 
-        <div>
-          <label for="y_opts_hidden_by_default_shorts">Hidden by default (Shorts):</label>
-          <input
-            type="checkbox"
-            name="Hidden by default (Shorts)"
-            id="y_opts_hidden_by_default_shorts"
-            class="ycs_opts_checkbox"
-          />
-          <div class="ycs_description_option ycs_api_desc">
-            <p>Show only the YCS toggle bar by default; click to expand. Applies to Shorts pages only.</p>
+        <div class="ycs_group" id="ycs-shorts-group">
+          <div>
+            <label for="y_opts_enable_shorts_support">Enable YouTube Shorts support:</label>
+            <input
+              type="checkbox"
+              name="Enable YouTube Shorts support"
+              id="y_opts_enable_shorts_support"
+              class="ycs_opts_checkbox"
+              checked
+            />
+            <div class="ycs_description_option ycs_api_desc">
+              <p>
+                Enable YCS functionality on YouTube Shorts pages. Disable if you experience issues with commenting on
+                Shorts.
+              </p>
+            </div>
+          </div>
+          <div class="ycs_group_subgroup">
+            <label for="y_opts_hidden_by_default_shorts">Hidden by default (Shorts):</label>
+            <input
+              type="checkbox"
+              name="Hidden by default (Shorts)"
+              id="y_opts_hidden_by_default_shorts"
+              class="ycs_opts_checkbox"
+            />
+            <div class="ycs_description_option ycs_api_desc">
+              <p>Show only the YCS toggle bar by default; click to expand.</p>
+            </div>
           </div>
         </div>
 

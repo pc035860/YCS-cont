@@ -93,6 +93,29 @@ window.onload = async (): Promise<void> => {
             (document.getElementById('y_opts_hidden_by_default_shorts') as HTMLInputElement).checked = param;
         };
 
+        const setRenderEnableShortsSupport = (param: boolean): void => {
+            if (typeof param !== 'boolean') return;
+
+            (document.getElementById('y_opts_enable_shorts_support') as HTMLInputElement).checked = param;
+            const group = document.getElementById('ycs-shorts-group');
+            group?.classList.toggle('ycs_group--enabled', param);
+            updateShortsSupportDependents(param);
+        };
+
+        const updateShortsSupportDependents = (enabled: boolean): void => {
+            const subgroup = document.querySelector('#ycs-shorts-group .ycs_group_subgroup') as HTMLElement | null;
+            const hiddenByDefaultShorts = document.getElementById(
+                'y_opts_hidden_by_default_shorts'
+            ) as HTMLInputElement | null;
+
+            if (subgroup) {
+                subgroup.classList.toggle('ycs_group_subgroup--disabled', !enabled);
+            }
+            if (hiddenByDefaultShorts) {
+                hiddenByDefaultShorts.disabled = !enabled;
+            }
+        };
+
         const setRenderTranscriptLanguage = (param?: string): void => {
             const select = document.getElementById('y_opts_transcript_language_select') as HTMLSelectElement | null;
             const input = document.getElementById('y_opts_transcript_language') as HTMLInputElement | null;
@@ -536,6 +559,21 @@ window.onload = async (): Promise<void> => {
             }
         };
 
+        const optSetEnableShortsSupport = async (opt: HTMLInputElement): Promise<void> => {
+            try {
+                await chrome.storage.local.set({
+                    enableShortsSupport: opt.checked
+                });
+
+                // Update UI state immediately
+                const group = document.getElementById('ycs-shorts-group');
+                group?.classList.toggle('ycs_group--enabled', opt.checked);
+                updateShortsSupportDependents(opt.checked);
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
         const setRenderAutoClearCacheOpt = (param: number): void => {
             if (!param) return;
 
@@ -642,6 +680,10 @@ window.onload = async (): Promise<void> => {
                         setRenderHiddenByDefaultShorts(storageOpts[key]);
                         break;
 
+                    case 'enableShortsSupport':
+                        setRenderEnableShortsSupport(storageOpts[key]);
+                        break;
+
                     case 'transcriptLanguage':
                         setRenderTranscriptLanguage(storageOpts[key]);
                         break;
@@ -706,6 +748,10 @@ window.onload = async (): Promise<void> => {
 
                 case 'y_opts_hidden_by_default_shorts':
                     optSetHiddenByDefaultShorts(e.target as HTMLInputElement);
+                    break;
+
+                case 'y_opts_enable_shorts_support':
+                    optSetEnableShortsSupport(e.target as HTMLInputElement);
                     break;
 
                 case 'ycs_opts_btn_reset_filters':

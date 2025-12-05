@@ -1,4 +1,4 @@
-import { isVideoPage } from '../utils/common';
+import { isVideoPage, isShortsPage } from '../utils/common';
 import { initApp, retryApp, getPageMetaElement } from './appController';
 
 const DEBUG = false;
@@ -7,6 +7,19 @@ let mutationObserver: MutationObserver | null = null;
 let isRetryingApp = false;
 let lastRetryTime = 0;
 let pendingVerificationTimer: number | null = null;
+
+// Shorts support state (module-level for access by throttledRetryApp)
+let shortsSupportChecked = false;
+let shortsSupportEnabled = true; // Default to true
+
+/**
+ * Update Shorts support state from external modules (e.g., appController)
+ * This is needed to prevent retry loops when Shorts support is disabled at runtime
+ */
+export const setShortsSupport = (enabled: boolean): void => {
+    shortsSupportChecked = true;
+    shortsSupportEnabled = enabled;
+};
 
 // Timing constants
 const RETRY_THROTTLE_MS = 1000;
@@ -21,6 +34,14 @@ const POLLING_INTERVAL_MS = 2000; // Fallback polling interval (reduced since Mu
  */
 const throttledRetryApp = (): void => {
     const now = Date.now();
+
+    // Skip retry if Shorts support is disabled on Shorts pages
+    if (isShortsPage() && shortsSupportChecked && !shortsSupportEnabled) {
+        if (DEBUG) {
+            console.log('YCS: throttledRetryApp skipped - Shorts support disabled');
+        }
+        return;
+    }
 
     // Throttle check: maximum once per second
     if (now - lastRetryTime < RETRY_THROTTLE_MS) {
@@ -157,9 +178,56 @@ export function startWebResources(): void {
 
     let isInitAppCalled = false;
 
-    const ensureAppInitialized = (source: string): void => {
+    const checkShortsSupport = (): Promise<boolean> => {
+        return new Promise((resolve) => {
+            if (!isShortsPage()) {
+                resolve(true);
+                return;
+            }
+
+            if (shortsSupportChecked) {
+                resolve(shortsSupportEnabled);
+                return;
+            }
+
+            // Send GET_OPTIONS message and wait for response
+            const timeout = setTimeout(() => {
+                // Timeout: default to enabled
+                shortsSupportChecked = true;
+                shortsSupportEnabled = true;
+                resolve(true);
+            }, 1000);
+
+            const messageHandler = (e: MessageEvent): void => {
+                if (e.origin !== window.location.origin) return;
+                if (e.data?.type !== 'YCS_OPTIONS' || !e.data?.text) return;
+
+                window.removeEventListener('message', messageHandler);
+                clearTimeout(timeout);
+
+                const opts = e.data.text as { enableShortsSupport?: boolean };
+                shortsSupportChecked = true;
+                shortsSupportEnabled = opts.enableShortsSupport !== false; // Default to true if undefined
+                resolve(shortsSupportEnabled);
+            };
+
+            window.addEventListener('message', messageHandler);
+            window.postMessage({ type: 'GET_OPTIONS' }, window.location.origin);
+        });
+    };
+
+    const ensureAppInitialized = async (source: string): Promise<void> => {
         if (!isVideoPage() || !getPageMetaElement()) {
             return;
+        }
+
+        // Check enableShortsSupport for Shorts pages
+        if (isShortsPage()) {
+            const enabled = await checkShortsSupport();
+            if (!enabled) {
+                console.log('YCS: YouTube Shorts support is disabled, skipping initialization');
+                return;
+            }
         }
 
         if (!isInitAppCalled) {
@@ -180,6 +248,10 @@ export function startWebResources(): void {
             console.log('document.querySelector(#meta.style-scope.ytd-watch-flexy): ', getPageMetaElement());
         }
 
+        // Reset shorts support check on navigation
+        shortsSupportChecked = false;
+        shortsSupportEnabled = true;
+
         ensureAppInitialized('yt-navigate-finish');
     };
 
@@ -190,6 +262,10 @@ export function startWebResources(): void {
             console.log('isVideoPage: ', isVideoPage());
             console.log('document.querySelector(#meta.style-scope.ytd-watch-flexy): ', getPageMetaElement());
         }
+
+        // Reset shorts support check on navigation
+        shortsSupportChecked = false;
+        shortsSupportEnabled = true;
 
         setTimeout(() => {
             ensureAppInitialized('popstate');
@@ -211,11 +287,26 @@ export function startWebResources(): void {
 
         if (!document.querySelector('.ycs-app')) {
             if (!isInitAppCalled) {
-                console.log('YCS: Initializing app via polling fallback');
-                isInitAppCalled = true;
-                initApp();
-                // Re-setup observer after first successful initialization
-                setupDOMObserver();
+                // Check enableShortsSupport for Shorts pages before initializing
+                if (isShortsPage()) {
+                    checkShortsSupport().then((enabled) => {
+                        if (!enabled) {
+                            console.log('YCS: YouTube Shorts support is disabled, skipping initialization');
+                            return;
+                        }
+                        console.log('YCS: Initializing app via polling fallback');
+                        isInitAppCalled = true;
+                        initApp();
+                        // Re-setup observer after first successful initialization
+                        setupDOMObserver();
+                    });
+                } else {
+                    console.log('YCS: Initializing app via polling fallback');
+                    isInitAppCalled = true;
+                    initApp();
+                    // Re-setup observer after first successful initialization
+                    setupDOMObserver();
+                }
                 return;
             }
 

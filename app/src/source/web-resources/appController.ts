@@ -9,6 +9,7 @@ import {
     isShortsPage,
     extractVideoDuration
 } from '../utils/common';
+import { setShortsSupport } from './bootstrap';
 import {
     initShowBarFAQ,
     initShowViewMode,
@@ -289,6 +290,22 @@ const isExportFormat = (value: string | undefined): value is ExportFormat => {
     return value === EXPORT_FORMAT.TXT || value === EXPORT_FORMAT.JSON || value === EXPORT_FORMAT.XLSX;
 };
 
+/**
+ * Cleanup YCS UI on Shorts pages when support is disabled
+ * Also updates bootstrap state to prevent retry loops
+ */
+const cleanupShortsUI = (): void => {
+    // Update bootstrap state first to prevent MutationObserver from triggering retries
+    setShortsSupport(false);
+    removeNodeList('.ycs-app');
+    dropdownMenus.clear();
+    if (handleDocumentClick) {
+        document.removeEventListener('click', handleDocumentClick);
+        handleDocumentClick = null;
+    }
+    console.log('YCS: YouTube Shorts support is disabled');
+};
+
 const getSortableButtonIds = (): string[] => {
     if (filterRegistry?.sortButtonIds?.length) {
         return filterRegistry.sortButtonIds;
@@ -566,6 +583,7 @@ export function initApp(): void {
         }
 
         // Handle Shorts pages differently
+        // Note: enableShortsSupport check will be done in YCS_OPTIONS handler
         if (isShortsPage()) {
             if (document.querySelector('#anchored-panel')) {
                 renderLoadComments('#anchored-panel', 'prepend');
@@ -2651,6 +2669,12 @@ export function initApp(): void {
                 try {
                     const opts = (e.data.text ?? {}) as IYCSOptions;
 
+                    // Check enableShortsSupport for Shorts pages
+                    if (isShortsPage() && opts.enableShortsSupport === false) {
+                        cleanupShortsUI();
+                        return;
+                    }
+
                     (Object.keys(opts) as Array<keyof IYCSOptions>).forEach((key) => {
                         switch (key) {
                             case 'autoload':
@@ -2674,6 +2698,12 @@ export function initApp(): void {
 
                             case 'hiddenByDefaultShorts':
                                 optHiddenByDefault(opts);
+                                break;
+
+                            case 'enableShortsSupport':
+                                if (isShortsPage() && opts.enableShortsSupport === false) {
+                                    cleanupShortsUI();
+                                }
                                 break;
 
                             case 'filterButtons':
