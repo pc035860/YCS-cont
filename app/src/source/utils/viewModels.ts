@@ -370,9 +370,18 @@ export function buildCommentViewModels(items: any[], options: { isReply?: boolea
             coerceString(wrapTryCatch(() => renderer.contentText?.fullText));
 
         // Extract replyLevel from item (CommentItem.replyLevel)
+        // Fallback chain: replyLevel (from FW) -> _subThreadDepth (calculated in extractSubThreads) -> type-based default
         const replyLevelRaw = wrapTryCatch(() => item?.item?.replyLevel);
+        const subThreadDepth = wrapTryCatch(() => item?.item?._subThreadDepth);
         const isReplyType = coerceString(wrapTryCatch(() => item?.item?.typeComment)).toUpperCase() === 'R';
-        const replyLevel = typeof replyLevelRaw === 'number' ? replyLevelRaw : isReplyType ? 1 : 0;
+        const replyLevel =
+            typeof replyLevelRaw === 'number'
+                ? replyLevelRaw
+                : typeof subThreadDepth === 'number'
+                  ? subThreadDepth
+                  : isReplyType
+                    ? 1
+                    : 0;
 
         models.push({
             authorName,
