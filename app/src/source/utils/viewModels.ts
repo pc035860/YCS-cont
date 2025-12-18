@@ -321,9 +321,13 @@ function buildChatMessageHtml(renderer: any): string {
     return buildChatRunsHtml(runs);
 }
 
-export function buildCommentViewModels(items: any[], options: { isReply?: boolean } = {}): CommentViewModel[] {
+export function buildCommentViewModels(
+    items: any[],
+    options: { isReply?: boolean; resetReplyLevel?: boolean } = {}
+): CommentViewModel[] {
     const models: CommentViewModel[] = [];
     const isReply = Boolean(options.isReply);
+    const resetReplyLevel = Boolean(options.resetReplyLevel);
 
     for (const item of items) {
         const renderer = wrapTryCatch(() => item?.item?.commentRenderer) as any;
@@ -374,7 +378,7 @@ export function buildCommentViewModels(items: any[], options: { isReply?: boolea
         const replyLevelRaw = wrapTryCatch(() => item?.item?.replyLevel);
         const subThreadDepth = wrapTryCatch(() => item?.item?._subThreadDepth);
         const isReplyType = coerceString(wrapTryCatch(() => item?.item?.typeComment)).toUpperCase() === 'R';
-        const replyLevel =
+        let replyLevel =
             typeof replyLevelRaw === 'number'
                 ? replyLevelRaw
                 : typeof subThreadDepth === 'number'
@@ -382,6 +386,10 @@ export function buildCommentViewModels(items: any[], options: { isReply?: boolea
                   : isReplyType
                     ? 1
                     : 0;
+
+        if (resetReplyLevel) {
+            replyLevel = 0;
+        }
 
         models.push({
             authorName,

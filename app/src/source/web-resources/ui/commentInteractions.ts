@@ -27,8 +27,9 @@ export function registerCommentInteractions(
         const target = event.target as HTMLElement | null;
         if (!target) return;
 
-        if (target.classList.contains('ycs-open-comment')) {
-            handleOpenComment(target, stateAccessor, queryGetter);
+        const openCommentBtn = target.closest('.ycs-open-comment') as HTMLElement | null;
+        if (openCommentBtn) {
+            handleOpenComment(openCommentBtn, stateAccessor, queryGetter);
             return;
         }
 
@@ -42,8 +43,9 @@ export function registerCommentInteractions(
             return;
         }
 
-        if (target.classList.contains('ycs-open-reply')) {
-            handleOpenReply(target, stateAccessor, queryGetter);
+        const openReplyBtn = target.closest('.ycs-open-reply') as HTMLElement | null;
+        if (openReplyBtn) {
+            handleOpenReply(openReplyBtn, stateAccessor, queryGetter);
         }
     });
 }
@@ -223,7 +225,11 @@ function collectRepliesForComment(
 
     for (const entry of comments) {
         // Use commentId comparison instead of object reference (fixes JSON serialization issue)
-        if ((entry as any)?.originComment?.commentRenderer?.commentId === commentId) {
+        // Also handle potential variation in where commentId is stored
+        const entryOriginId =
+            (entry as any)?.originComment?.commentRenderer?.commentId || (entry as any)?.originComment?.commentId;
+
+        if (entryOriginId === commentId) {
             replies.push({
                 item: entry as any,
                 refIndex: Number((entry as any)?._index ?? refId)
@@ -236,8 +242,10 @@ function collectRepliesForComment(
 
 function createRepliesContainer(commentId: string): HTMLDivElement {
     const wrapper = document.createElement('div');
-    wrapper.id = `ycs-com-replies-${commentId}`;
-    wrapper.className = `ycs-com-replies-${commentId} ycs-oc-ml ycs-com-replies ycs-com-rp`;
+    // Ensure ID is safe for DOM
+    const safeId = commentId.replace(/[^\w-]/g, '_');
+    wrapper.id = `ycs-com-replies-${safeId}`;
+    wrapper.className = `ycs-com-replies-${safeId} ycs-com-replies ycs-com-rp ycs-nested-replies-container`;
     return wrapper;
 }
 
@@ -248,7 +256,8 @@ function handleOpenReply(target: HTMLElement, stateAccessor: CommentStateAccesso
     const commentContainer = target.closest('.ycs-render-comment') as HTMLElement | null;
     if (!commentContainer) return;
 
-    const existingReplies = commentContainer.querySelector(`.ycs-com-replies-${commentId}`);
+    const safeId = commentId.replace(/[^\w-]/g, '_');
+    const existingReplies = commentContainer.querySelector(`.ycs-com-replies-${safeId}`);
     if (existingReplies) {
         existingReplies.remove();
         target.innerHTML = '+';
@@ -258,13 +267,18 @@ function handleOpenReply(target: HTMLElement, stateAccessor: CommentStateAccesso
 
     const comments = safeGetComments(stateAccessor);
     const replies = collectRepliesForComment(comments, commentId, 0);
-    if (replies.length === 0) return;
+    if (replies.length === 0) {
+        console.warn(`[YCS] No replies found in local state for comment ID: ${commentId}`);
+        // If replies are expected but not found, it might be due to a re-linking failure or async delay
+        return;
+    }
 
     const query = resolveQuery(queryGetter);
     const wrapper = createRepliesContainer(commentId);
     commentContainer.insertAdjacentElement('beforeend', wrapper);
 
-    renderComment(wrapper, replies, false, query);
+    // Use resetReplyLevel = true to prevent recursive indentation multiplication
+    renderComment(wrapper, replies, false, query, true);
 
     target.innerHTML = String.fromCharCode(8722);
     target.title = 'Close replies to the comment';

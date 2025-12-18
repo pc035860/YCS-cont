@@ -191,9 +191,15 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
     container.id = `ycs-number-comment-${index}`;
     container.className = 'ycs-render-comment';
 
-    // Apply dynamic indentation based on replyLevel (max 5 levels, 24px each)
-    if (model.replyLevel && model.replyLevel > 0) {
-        const indent = Math.min(model.replyLevel, 5) * 24;
+    const isNested = model.replyLevel && model.replyLevel > 0;
+    const avatarSize = isNested ? 24 : 40;
+
+    // Apply dynamic indentation based on replyLevel
+    // Level 0: 0px
+    // Level 1: 56px (aligned with parent text)
+    // Level 2+: 56px + (level-1) * 16px
+    if (isNested && model.replyLevel) {
+        const indent = 56 + (Math.min(model.replyLevel, 5) - 1) * 16;
         container.style.marginLeft = `${indent}px`;
     }
 
@@ -207,11 +213,14 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
 
     const avatarWrapper = document.createElement('div');
     avatarWrapper.className = 'ycs-render-img';
+    if (isNested) {
+        avatarWrapper.classList.add('ycs-render-img--nested');
+    }
 
     const avatar = document.createElement('img');
     avatar.alt = model.authorName;
-    avatar.height = 40;
-    avatar.width = 40;
+    avatar.height = avatarSize;
+    avatar.width = avatarSize;
     avatar.loading = 'lazy';
     avatar.src = model.authorAvatarUrl || '';
 
@@ -221,6 +230,9 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
 
     const block = document.createElement('div');
     block.className = 'ycs-comment-block';
+    if (isNested) {
+        block.classList.add('ycs-comment-block--nested');
+    }
 
     const header = document.createElement('div');
     header.className = 'ycs-head-block__dib ycs-head-block ycs-head__title-main';
@@ -438,7 +450,13 @@ function createTranscriptElement(model: TranscriptViewModel, index: number): HTM
     return container;
 }
 
-function renderComment(el: string | HTMLElement, data: any, isReply = true, querySearch?: string): void {
+function renderComment(
+    el: string | HTMLElement,
+    data: any,
+    isReply = true,
+    querySearch?: string,
+    resetReplyLevel = false
+): void {
     if (!el) return;
 
     const target = typeof el === 'string' ? document.querySelector(el) : el;
@@ -448,7 +466,7 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
     wrapper.id = 'ycs_wrap_comments';
     target.appendChild(wrapper);
 
-    const models = buildCommentViewModels(Array.isArray(data) ? data : [], { isReply });
+    const models = buildCommentViewModels(Array.isArray(data) ? data : [], { isReply, resetReplyLevel });
     const range = 200;
     let currentPos = 0;
 

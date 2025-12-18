@@ -187,6 +187,12 @@ html[dark] .ycs_btn_active {
   overflow: hidden;
 }
 
+.ycs-render-img--nested {
+  width: 24px;
+  height: 24px;
+  margin-right: 8px;
+}
+
 #ycs-search-result {
   margin: 15px 0px 0px 15px;
   word-wrap: break-word;
@@ -390,6 +396,10 @@ html[dark] .ycs-goto-video {
 .ycs-comment-block {
   padding-left: 56px;
   font-size: 14px;
+}
+
+.ycs-comment-block--nested {
+  padding-left: 32px;
 }
 
 .ycs-goto-video {
@@ -1058,6 +1068,16 @@ html[dark] .ycs_btn_load-stop {
 
 .ycs-com-rp {
   margin-top: 20px;
+}
+
+.ycs-nested-replies-container {
+  margin-left: 32px;
+  border-left: 2px solid #e0e0e0;
+}
+
+html[dark='true'] .ycs-nested-replies-container,
+html[dark] .ycs-nested-replies-container {
+  border-left: 2px solid #303030;
 }
 
 span.ycs-mark-words {
