@@ -756,7 +756,6 @@ export function extractSubThreads(
                             _subThreadDepth: currentDepth,
                             originComment: parentComment
                         };
-                        result.comments.push(enrichedComment);
 
                         // Recursively process nested replies with this comment as new parent
                         const nestedRepliesRenderer = wrapTryCatch(
@@ -769,8 +768,24 @@ export function extractSubThreads(
                                 enrichedComment,
                                 currentDepth + 1
                             );
+
+                            // If no actual content or further tokens found for this nested comment,
+                            // override its replyCount to 0 to avoid ghost expand buttons.
+                            if (nestedResult.comments.length === 0 && nestedResult.continuations.length === 0) {
+                                if (enrichedComment.commentRenderer) {
+                                    enrichedComment.commentRenderer.replyCount = 0;
+                                }
+                            }
+
+                            result.comments.push(enrichedComment);
                             result.comments.push(...nestedResult.comments);
                             result.continuations.push(...nestedResult.continuations);
+                        } else {
+                            // No replies renderer at all for this nested comment
+                            if (enrichedComment.commentRenderer) {
+                                enrichedComment.commentRenderer.replyCount = 0;
+                            }
+                            result.comments.push(enrichedComment);
                         }
                     }
                 }
@@ -1231,6 +1246,18 @@ export function processParentComment(params: ProcessParentCommentParams): Proces
                 if (repliesRenderer?.subThreads) {
                     const subThreadResult = extractSubThreads(repliesRenderer, frameworkUpdates, prepared, 1);
 
+                    // Re-evaluate parent replyCount if absolutely nothing was found
+                    if (
+                        replies.length === 0 &&
+                        subThreadResult.comments.length === 0 &&
+                        subThreadResult.continuations.length === 0 &&
+                        replyContinuations.length === 0
+                    ) {
+                        if (prepared.commentRenderer) {
+                            prepared.commentRenderer.replyCount = 0;
+                        }
+                    }
+
                     // Enrich subThread comments
                     for (const subComment of subThreadResult.comments) {
                         const enriched = enrichCommentRenderer(
@@ -1285,6 +1312,17 @@ export function processParentComment(params: ProcessParentCommentParams): Proces
                     );
                     if (repliesRenderer?.subThreads) {
                         const subThreadResult = extractSubThreads(repliesRenderer, frameworkUpdates, prepared, 1);
+
+                        // Re-evaluate parent replyCount
+                        if (
+                            subThreadResult.comments.length === 0 &&
+                            subThreadResult.continuations.length === 0 &&
+                            replyContinuations.length === 0
+                        ) {
+                            if (prepared.commentRenderer) {
+                                prepared.commentRenderer.replyCount = 0;
+                            }
+                        }
 
                         // Enrich subThread comments
                         for (const subComment of subThreadResult.comments) {
@@ -1369,6 +1407,13 @@ export function scheduleReplyFetches(params: ScheduleReplyFetchParams): void {
                                 prepared, // Use the prepared comment as parent
                                 1 // subThread extraction starts at relative depth 1
                             );
+
+                            // Re-evaluate current replyCount
+                            if (subThreadResult.comments.length === 0 && subThreadResult.continuations.length === 0) {
+                                if (prepared.commentRenderer) {
+                                    prepared.commentRenderer.replyCount = 0;
+                                }
+                            }
 
                             for (const subComment of subThreadResult.comments) {
                                 const subPrepared = enrichCommentRenderer(
