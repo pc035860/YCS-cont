@@ -1,33 +1,33 @@
-# YouTube Innertube API 嵌套留言與實體架構分析
+# YouTube Innertube API Nested Comments and Entity Architecture Analysis
 
-**文件版本：** 1.0
-**日期：** 2025-12-18
-**文件類型：** 技術分析與遷移指南
-
----
-
-## 1. 核心變更概述
-
-YouTube 的留言系統正在從傳統的「渲染器直接包含資料」模式，轉向「渲染器與實體分離 (Entity-driven)」的架構，並引入了真正的嵌套回覆（回覆的回覆）。
-
-### 主要變更點：
-- **資料與渲染分離 (FrameworkUpdates)**：`commentViewModel` 渲染器不再直接包含留言文字，而是持有 `commentKey`。實際的留言內容存放在 `frameworkUpdates.entityBatchUpdate.mutations` 中。
-- **嵌套回覆 (Nested Replies)**：回覆結構由原本的單層列表轉變為透過 `subThreads` 進行遞迴組織。
-- **層級標記 (Reply Level)**：實體資料中現在包含 `replyLevel` 欄位，用以標示留言的深度。
+**Document Version:** 1.0
+**Date:** 2025-12-18
+**Document Type:** Technical Analysis and Migration Guide
 
 ---
 
-## 2. 資料格式範例
+## 1. Core Changes Overview
 
-### A. UI 渲染器結構 (`v1/next` 回應)
-在 `onResponseReceivedEndpoints` 的 `continuationItems` 中，留言現在以 `commentViewModel` 的形式呈現。
+YouTube's comment system is transitioning from the traditional "renderer directly contains data" model to an "Entity-driven" architecture with renderer and data separation, while introducing true nested replies (replies to replies).
+
+### Key Changes:
+- **Data and Renderer Separation (FrameworkUpdates)**: The `commentViewModel` renderer no longer directly contains comment text. Instead, it holds a `commentKey`. The actual comment content is stored in `frameworkUpdates.entityBatchUpdate.mutations`.
+- **Nested Replies**: The reply structure has changed from a single-level list to a recursive organization through `subThreads`.
+- **Reply Level Marker**: Entity data now includes a `replyLevel` field to indicate comment depth.
+
+---
+
+## 2. Data Format Examples
+
+### A. UI Renderer Structure (`v1/next` Response)
+In the `continuationItems` of `onResponseReceivedEndpoints`, comments now appear as `commentViewModel`.
 
 ```json
 {
   "commentThreadRenderer": {
     "comment": {
       "commentViewModel": {
-        "commentKey": "comment-entity-root-123", // 用於在 frameworkUpdates 中查找
+        "commentKey": "comment-entity-root-123", // Used to lookup in frameworkUpdates
         "rendererContext": { ... },
         "replyLevel": 0
       }
@@ -35,7 +35,7 @@ YouTube 的留言系統正在從傳統的「渲染器直接包含資料」模式
     "replies": {
       "commentRepliesRenderer": {
         "contents": [ ... ],
-        "subThreads": [ // 新增：嵌套回覆容器
+        "subThreads": [ // New: nested replies container
           {
             "commentRepliesRenderer": {
               "contents": [
@@ -46,7 +46,7 @@ YouTube 的留言系統正在從傳統的「渲染器直接包含資料」模式
                   }
                 }
               ],
-              "continuations": [ ... ] // 嵌套層級的分頁令牌
+              "continuations": [ ... ] // Pagination token for nested level
             }
           }
         ]
@@ -56,8 +56,8 @@ YouTube 的留言系統正在從傳統的「渲染器直接包含資料」模式
 }
 ```
 
-### B. 實體資料結構 (`frameworkUpdates`)
-實際內容必須透過 `commentKey` 從此區塊提取。
+### B. Entity Data Structure (`frameworkUpdates`)
+Actual content must be extracted from this block using `commentKey`.
 
 ```json
 {
@@ -70,13 +70,13 @@ YouTube 的留言系統正在從傳統的「渲染器直接包含資料」模式
             "commentEntityPayload": {
               "properties": {
                 "content": {
-                  "content": "這是一則嵌套回覆的內容文字"
+                  "content": "This is the text content of a nested reply"
                 },
-                "publishedTimeText": "1 小時前",
+                "publishedTimeText": "1 hour ago",
                 "replyLevel": 1
               },
               "author": {
-                "displayName": "使用者名稱",
+                "displayName": "Username",
                 "avatar": { ... }
               },
               "toolbar": {
@@ -94,26 +94,26 @@ YouTube 的留言系統正在從傳統的「渲染器直接包含資料」模式
 
 ---
 
-## 3. 遷移實作建議
+## 3. Migration Implementation Recommendations
 
-### I. 遞迴處理 `subThreads`
-目前的 `pipeline.ts` 只處理一層回覆。
-- **建議**：重構 `migrateContinuationItemsWithFW` 函數，使其能夠遞迴掃描 `subThreads` 陣列，並將所有發現的留言物件平坦化或保留層級資訊存入 `CommentItem`。
+### I. Recursive Processing of `subThreads`
+The current `pipeline.ts` only handles one level of replies.
+- **Recommendation**: Refactor the `migrateContinuationItemsWithFW` function to recursively scan the `subThreads` array, flattening all discovered comment objects or preserving hierarchy information in `CommentItem`.
 
-### II. 建立實體快取映射 (Mutation Map)
-由於 API 分離了渲染器與資料，單純遍歷 `continuationItems` 是不夠的。
-- **建議**：在處理回應的最開始，先將 `frameworkUpdates.entityBatchUpdate.mutations` 轉換為一個以 `entityKey` 為索引的 `Map`。
+### II. Build Entity Cache Map (Mutation Map)
+Since the API separates renderers from data, simply iterating through `continuationItems` is insufficient.
+- **Recommendation**: At the beginning of response processing, convert `frameworkUpdates.entityBatchUpdate.mutations` into a `Map` indexed by `entityKey`.
 
-### III. 更新 `CommentItem` 介面
-- **建議**：在 `i_types.ts` 中的 `CommentItem` 介面新增 `replyLevel?: number` 欄位，這對於後續 UI 渲染縮排邏輯非常重要。
+### III. Update `CommentItem` Interface
+- **Recommendation**: Add a `replyLevel?: number` field to the `CommentItem` interface in `i_types.ts`. This is essential for subsequent UI rendering indentation logic.
 
-### IV. 分頁令牌提取
-嵌套留言的分頁令牌 (Continuation tokens) 可能出現在每個 `subThreads` 層級。
-- **建議**：更新 `extractReplyContinuationFromItem`，使其支援深度搜尋 nested continuations。
+### IV. Pagination Token Extraction
+Pagination tokens (continuation tokens) for nested comments may appear at each `subThreads` level.
+- **Recommendation**: Update `extractReplyContinuationFromItem` to support deep searching for nested continuations.
 
 ---
 
-## 4. 相關技術文件
+## 4. Related Technical Documents
 
 - [Innertube Comments Integration](./innertube-comments-integration.md)
 - [Innertube Migration Guide](./innertube-migration-guide.md)
