@@ -448,6 +448,88 @@ test('scheduleReplyFetches processes reply continuations', async () => {
     assert.strictEqual(reply.commentRenderer.contentText.fullText, 'Nested reply');
 });
 
+test('scheduleReplyFetches unwraps commentThreadRenderer and extracts subThreads', async () => {
+    const parentThread = createParentThread();
+    const parentResult = processParentComment({ item: parentThread, frameworkUpdates: {}, currentVideoId: 'video-1' });
+    const parent: any = parentResult.comments[0];
+
+    const replyContinuation: ReplyContinuation = {
+        token: 'token-nested',
+        originComment: parent
+    };
+
+    const queue = createStubQueue();
+    const collected: any[] = [];
+
+    const frameworkUpdates = {
+        'reply-1': {
+            properties: { content: { content: 'Direct Reply' }, replyLevel: 1 },
+            author: { displayName: 'User 1' },
+            toolbar: {}
+        },
+        'nested-1': {
+            properties: { content: { content: 'Nested Reply' }, replyLevel: 2 },
+            author: { displayName: 'User 2' },
+            toolbar: {}
+        }
+    };
+
+    scheduleReplyFetches({
+        continuations: [replyContinuation],
+        queue,
+        currentVideoId: 'video-1',
+        fetchContinuation: async () => ({
+            comments: [
+                {
+                    commentThreadRenderer: {
+                        comment: {
+                            commentRenderer: {
+                                commentId: 'reply-1',
+                                contentText: { runs: [{ text: 'Direct Reply' }] }
+                            }
+                        },
+                        replies: {
+                            commentRepliesRenderer: {
+                                subThreads: [
+                                    {
+                                        commentThreadRenderer: {
+                                            commentViewModel: {
+                                                commentViewModel: {
+                                                    commentId: 'nested-1'
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            ],
+            continuations: [],
+            frameworkUpdates
+        }),
+        onReply: (reply) => collected.push(reply)
+    });
+
+    await queue.onIdle();
+
+    assert.strictEqual(collected.length, 2);
+    
+    const directReply = collected.find((c: any) => c.commentRenderer.commentId === 'reply-1');
+    const nestedReply = collected.find((c: any) => c.commentRenderer.commentId === 'nested-1');
+
+    assert.ok(directReply);
+    assert.ok(nestedReply);
+
+    assert.strictEqual(directReply.replyLevel, 1);
+    assert.strictEqual(nestedReply.replyLevel, 2);
+    
+    assert.strictEqual(directReply.originComment, parent);
+    // Nested reply's origin should be the direct reply (since it's a subThread of it)
+    assert.strictEqual(nestedReply.originComment, directReply);
+});
+
 test('dedupeParentComments keeps first parent and rewires replies', () => {
     const parentThread = createParentThread();
     const processed = processParentComment({ item: parentThread, frameworkUpdates: {}, currentVideoId: 'video-1' });

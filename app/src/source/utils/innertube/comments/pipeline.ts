@@ -434,7 +434,20 @@ export function generateCommentObjectFromFW(params: {
         } catch {
             // ignore parse errors and keep default likeCount
         }
-        const replyCount = parseFormattedNumber(wrapTryCatch(() => update.toolbar?.replyCount) || '0').number;
+        const replyCountRaw = wrapTryCatch(() => update.toolbar?.replyCount);
+        let replyCount = parseFormattedNumber(replyCountRaw || '0').number;
+
+        // Fallback: Try to extract reply count from A11y label if raw count is empty/zero
+        // e.g. "4 則回覆" or "4 replies"
+        if (replyCount === 0 && !replyCountRaw) {
+            const replyCountA11y = wrapTryCatch(() => update.toolbar?.replyCountA11y);
+            if (replyCountA11y) {
+                const a11yParsed = parseFormattedNumber(replyCountA11y);
+                if (a11yParsed.number > 0) {
+                    replyCount = a11yParsed.number;
+                }
+            }
+        }
 
         const comment: any = {
             commentRenderer: {
@@ -1318,7 +1331,12 @@ export function scheduleReplyFetches(params: ScheduleReplyFetchParams): void {
                 const batch = await fetchContinuation(cont);
                 if (!batch) return;
                 const fwById = batch.frameworkUpdates || {};
-                for (let comment of batch.comments || []) {
+                for (const item of batch.comments || []) {
+                    let comment = item;
+                    if (wrapTryCatch(() => item.commentThreadRenderer?.comment)) {
+                        comment = item.commentThreadRenderer.comment;
+                    }
+
                     if (!comment?.commentRenderer) {
                         const normalized = normalizeCommentViewModel(comment);
                         if (normalized && normalized.commentRenderer) comment = normalized;
@@ -1338,6 +1356,44 @@ export function scheduleReplyFetches(params: ScheduleReplyFetchParams): void {
                             onReply(prepared);
                         } catch (callbackError) {
                             console.error(callbackError);
+                        }
+
+                        // Process subThreads from the original item (commentThreadRenderer)
+                        const repliesRenderer = wrapTryCatch(
+                            () => item.commentThreadRenderer?.replies?.commentRepliesRenderer
+                        );
+                        if (repliesRenderer?.subThreads) {
+                            const subThreadResult = extractSubThreads(
+                                repliesRenderer,
+                                fwById,
+                                prepared, // Use the prepared comment as parent
+                                1 // subThread extraction starts at relative depth 1
+                            );
+
+                            for (const subComment of subThreadResult.comments) {
+                                const subPrepared = enrichCommentRenderer(
+                                    subComment,
+                                    currentVideoId,
+                                    subComment.originComment,
+                                    'R'
+                                );
+                                if (subPrepared) {
+                                    const subCommentId = wrapTryCatch(() => subPrepared.commentRenderer?.commentId);
+                                    const subFwUpdate = subCommentId ? fwById[subCommentId] : undefined;
+
+                                    // Calculate replyLevel: Parent Level + Relative Depth
+                                    subPrepared.replyLevel =
+                                        wrapTryCatch(() => subFwUpdate?.properties?.replyLevel) ??
+                                        (prepared.replyLevel || 1) + (subComment._subThreadDepth || 1);
+
+                                    delete subPrepared._subThreadDepth;
+                                    onReply(subPrepared);
+                                }
+                            }
+
+                            for (const subCont of subThreadResult.continuations) {
+                                scheduleContinuation(subCont);
+                            }
                         }
                     }
                 }
@@ -1368,33 +1424,42 @@ export function scheduleReplyFetches(params: ScheduleReplyFetchParams): void {
 }
 
 export function dedupeParentComments(comments: any[]): any[] {
-    const parentByCommentId = new Map<string, any>();
+    const seenCommentIds = new Set<string>();
+    const deduplicated: any[] = [];
+
     for (const cm of comments) {
-        if ((cm as any)?.typeComment === 'C') {
-            const id = (cm as any)?.commentRenderer?.commentId;
-            if (id && !parentByCommentId.has(id)) {
-                parentByCommentId.set(id, cm);
+        // Try to get commentId from various possible locations
+        const id = wrapTryCatch(() => cm.commentRenderer?.commentId) || wrapTryCatch(() => cm.commentId);
+
+        if (id) {
+            if (!seenCommentIds.has(id)) {
+                seenCommentIds.add(id);
+                deduplicated.push(cm);
             }
+        } else {
+            // Keep items without IDs (fallback)
+            deduplicated.push(cm);
         }
     }
 
-    const deduplicated: typeof comments = [];
-    for (const cm of comments) {
-        if ((cm as any)?.typeComment === 'C') {
-            const id = (cm as any)?.commentRenderer?.commentId;
-            if (id && parentByCommentId.get(id) === cm) {
-                deduplicated.push(cm);
-            } else if (!id) {
-                deduplicated.push(cm);
+    // Restore parent-child relationships after deduplication
+    // This is needed because 'originComment' references might point to objects
+    // that were discarded as duplicates.
+    const commentMap = new Map<string, any>();
+    for (const cm of deduplicated) {
+        const id = wrapTryCatch(() => cm.commentRenderer?.commentId);
+        if (id) {
+            commentMap.set(id, cm);
+        }
+    }
+
+    for (const cm of deduplicated) {
+        if (cm.typeComment === 'R' && cm.originComment) {
+            const originId = wrapTryCatch(() => cm.originComment.commentRenderer?.commentId);
+            if (originId && commentMap.has(originId)) {
+                // Re-link to the preserved parent instance
+                cm.originComment = commentMap.get(originId);
             }
-        } else if ((cm as any)?.typeComment === 'R') {
-            const originId = (cm as any)?.originComment?.commentRenderer?.commentId;
-            if (originId && parentByCommentId.has(originId)) {
-                (cm as any).originComment = parentByCommentId.get(originId);
-            }
-            deduplicated.push(cm);
-        } else {
-            deduplicated.push(cm);
         }
     }
 
