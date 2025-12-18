@@ -1,7 +1,7 @@
 # YouTube Innertube API Nested Comments and Entity Architecture Analysis
 
-**Document Version:** 1.0
-**Date:** 2025-12-18
+**Document Version:** 1.1
+**Date:** 2025-12-19
 **Document Type:** Technical Analysis and Migration Guide
 
 ---
@@ -113,7 +113,57 @@ Pagination tokens (continuation tokens) for nested comments may appear at each `
 
 ---
 
-## 4. Related Technical Documents
+## 4. Data Layer Considerations and Edge Cases
+
+### I. Unreliable `replyCount` in Entity Payload
+
+The `toolbar.replyCount` field in `commentEntityPayload` is an **estimate**, not an accurate count:
+
+- May include deleted or hidden replies
+- **Level 2+ (deeply nested) comments have particularly inaccurate replyCount values**
+- The `subThreads` structure may exist with a non-zero parent `replyCount`, yet contain no actual content
+
+**Recommendation**: After collecting all comments, recompute reply counts based on actually retrieved child comments rather than trusting the entity payload value.
+
+### II. Empty `subThreads` Edge Case
+
+The `subThreads` array may exist but be effectively empty:
+
+```json
+{
+  "commentRepliesRenderer": {
+    "subThreads": [
+      {
+        "commentRepliesRenderer": {
+          "contents": [],        // No actual comments
+          "continuations": []    // No pagination tokens
+        }
+      }
+    ]
+  }
+}
+```
+
+**Recommendation**: Always validate that `subThreads` contains actual content or continuation tokens before assuming nested replies exist.
+
+### III. Variable `commentId` Location
+
+After Entity-driven processing, `commentId` may appear in different locations:
+
+| Source | Location |
+|--------|----------|
+| Traditional renderer | `commentRenderer.commentId` |
+| After entity merge | `commentId` (top-level) or `commentRenderer.commentId` |
+| `originComment` reference | Either location |
+
+**Recommendation**: Use fallback pattern when accessing comment IDs:
+```javascript
+const id = item?.commentRenderer?.commentId || item?.commentId;
+```
+
+---
+
+## 5. Related Technical Documents
 
 - [Innertube Comments Integration](./innertube-comments-integration.md)
 - [Innertube Migration Guide](./innertube-migration-guide.md)
