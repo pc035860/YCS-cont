@@ -27,6 +27,12 @@ export function registerCommentInteractions(
         const target = event.target as HTMLElement | null;
         if (!target) return;
 
+        const openCommentAllBtn = target.closest('.ycs-open-comment-all') as HTMLElement | null;
+        if (openCommentAllBtn) {
+            handleOpenCommentAll(openCommentAllBtn, stateAccessor, queryGetter);
+            return;
+        }
+
         const openCommentBtn = target.closest('.ycs-open-comment') as HTMLElement | null;
         if (openCommentBtn) {
             handleOpenComment(openCommentBtn, stateAccessor, queryGetter);
@@ -106,14 +112,17 @@ function buildCommentIdMap(comments: CommentCollection): Map<string, Record<stri
     return map;
 }
 
+function resolveRefIndex(entry: Record<string, any> | undefined, fallback = 0): number {
+    const originIndex = Number.parseInt(String((entry as any)?._index ?? ''), 10);
+    return Number.isFinite(originIndex) ? originIndex : fallback;
+}
+
 function buildOriginResult(
     originComment: Record<string, any> | undefined,
     refId: number | null
 ): ICommentsFuseResult | null {
     if (!originComment) return null;
-    const originIndex = Number.parseInt(String((originComment as any)?._index ?? ''), 10);
-    const fallbackIndex = refId ?? originIndex;
-    const refIndex = Number.isFinite(originIndex) ? originIndex : (fallbackIndex ?? 0);
+    const refIndex = resolveRefIndex(originComment, refId ?? 0);
     return {
         item: originComment,
         refIndex
@@ -123,7 +132,16 @@ function buildOriginResult(
 function createOriginWrapper(key: string): HTMLDivElement {
     const wrap = document.createElement('div');
     wrap.id = `ycs-com-${key}`;
-    wrap.className = `ycs-com-${key}`;
+    wrap.className = `ycs-com-${key} ycs-origin-wrap`;
+    wrap.dataset.ycsOrigin = 'parent';
+    return wrap;
+}
+
+function createOriginChainWrapper(key: string): HTMLDivElement {
+    const wrap = document.createElement('div');
+    wrap.id = `ycs-com-all-${key}`;
+    wrap.className = `ycs-com-all-${key} ycs-origin-chain`;
+    wrap.dataset.ycsOrigin = 'chain';
     return wrap;
 }
 
@@ -172,15 +190,66 @@ function buildAuthorReplyResults(
 function createReplyAuthorWrapper(key: string): HTMLDivElement {
     const wrap = document.createElement('div');
     wrap.id = `ycs-com-rauth-${key}`;
-    wrap.className = `ycs-com-${key} ycs-oc-ml`;
+    wrap.className = `ycs-com-${key} ycs-oc-ml ycs-origin-wrap`;
+    wrap.dataset.ycsOrigin = 'author';
     return wrap;
+}
+
+function shouldRemoveOriginMargin(key: string): boolean {
+    const hasSingle = Boolean(document.getElementById(`ycs-com-${key}`));
+    const hasAuthor = Boolean(document.getElementById(`ycs-com-rauth-${key}`));
+    const hasAll = Boolean(document.getElementById(`ycs-com-all-${key}`));
+    return !hasSingle && !hasAuthor && !hasAll;
 }
 
 function collapseOriginComment(key: string, container: HTMLElement, toggle: HTMLElement): void {
     removeNodeList(`.ycs-com-${key}`);
-    container.classList.remove('ycs-oc-ml');
+    if (shouldRemoveOriginMargin(key)) {
+        container.classList.remove('ycs-oc-ml');
+        container.classList.remove('ycs-origin-trigger');
+    }
     toggle.innerHTML = iconExpand();
     toggle.title = 'Open the comment to the reply here.';
+}
+
+function collapseOriginChain(key: string, container: HTMLElement, toggle: HTMLElement): void {
+    removeNodeList(`.ycs-com-all-${key}`);
+    if (shouldRemoveOriginMargin(key)) {
+        container.classList.remove('ycs-oc-ml');
+        container.classList.remove('ycs-origin-trigger');
+    }
+    toggle.textContent = '⇧';
+    toggle.title = 'Open all parent comments to root.';
+}
+
+function resolveCurrentComment(
+    comments: CommentCollection,
+    commentId: string | undefined,
+    refId: number | null
+): Record<string, any> | undefined {
+    if (commentId) {
+        const map = buildCommentIdMap(comments);
+        const found = map.get(commentId);
+        if (found) return found;
+    }
+    return refId !== null ? findCommentByIndex(comments, refId) : undefined;
+}
+
+function collectAncestorChain(current: Record<string, any> | undefined): Record<string, any>[] {
+    const chain: Record<string, any>[] = [];
+    const seen = new Set<string>();
+    let node = current;
+    while (node?.originComment) {
+        const parent = node.originComment as Record<string, any>;
+        const id = resolveCommentId(parent);
+        if (id) {
+            if (seen.has(id)) break;
+            seen.add(id);
+        }
+        chain.push(parent);
+        node = parent;
+    }
+    return chain.reverse();
 }
 
 function handleOpenComment(target: HTMLElement, stateAccessor: CommentStateAccessor, queryGetter: QueryGetter): void {
@@ -199,13 +268,8 @@ function handleOpenComment(target: HTMLElement, stateAccessor: CommentStateAcces
     }
 
     const comments = safeGetComments(stateAccessor);
-    const commentMap = buildCommentIdMap(comments);
-    const current = commentId
-        ? commentMap.get(commentId)
-        : refId !== null
-          ? findCommentByIndex(comments, refId)
-          : undefined;
-    const originComment = (current as any)?.originComment;
+    const current = resolveCurrentComment(comments, commentId, refId);
+    const originComment = current?.originComment as Record<string, any> | undefined;
     const originResult = buildOriginResult(originComment, refId);
     const query = resolveQuery(queryGetter);
 
@@ -217,6 +281,7 @@ function handleOpenComment(target: HTMLElement, stateAccessor: CommentStateAcces
     }
 
     commentContainer.classList.add('ycs-oc-ml');
+    commentContainer.classList.add('ycs-origin-trigger');
 
     const replyAuthorResults = buildAuthorReplyResults(comments, current, refId ?? 0);
     if (replyAuthorResults.length > 0) {
@@ -227,6 +292,46 @@ function handleOpenComment(target: HTMLElement, stateAccessor: CommentStateAcces
 
     target.innerHTML = iconCollapse();
     target.title = 'Close the comment to the reply here.';
+}
+
+function handleOpenCommentAll(
+    target: HTMLElement,
+    stateAccessor: CommentStateAccessor,
+    queryGetter: QueryGetter
+): void {
+    const refId = parseRefId(target);
+    const commentId = target.dataset.commentId;
+    if (refId === null && !commentId) return;
+
+    const commentContainer = target.closest('.ycs-render-comment') as HTMLElement | null;
+    if (!commentContainer) return;
+
+    const key = commentId ? safeDomKey(commentId) : `idx-${refId ?? 0}`;
+    const existing = document.getElementById(`ycs-com-all-${key}`);
+    if (existing) {
+        collapseOriginChain(key, commentContainer, target);
+        return;
+    }
+
+    const comments = safeGetComments(stateAccessor);
+    const current = resolveCurrentComment(comments, commentId, refId);
+    const ancestors = collectAncestorChain(current);
+    if (ancestors.length === 0) return;
+
+    const query = resolveQuery(queryGetter);
+    const wrap = createOriginChainWrapper(key);
+    commentContainer.insertAdjacentElement('beforebegin', wrap);
+
+    const results: ICommentsFuseResult[] = ancestors.map((ancestor) => ({
+        item: ancestor as any,
+        refIndex: resolveRefIndex(ancestor, refId ?? 0)
+    }));
+    renderComment(wrap, results, true, query);
+
+    commentContainer.classList.add('ycs-oc-ml');
+    commentContainer.classList.add('ycs-origin-trigger');
+    target.textContent = '⇩';
+    target.title = 'Close all parent comments.';
 }
 
 function handleGotoChatVideo(event: Event): void {

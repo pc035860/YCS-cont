@@ -239,6 +239,7 @@ html[dark] .ycs-open-reply {
 .ycs-open-reply,
 .ycs-comment-link,
 .ycs-open-comment,
+.ycs-open-comment-all,
 .ycs-gotochat-video,
 .ycs-goto-comment-time,
 .ycs-goto-video {
@@ -266,25 +267,47 @@ html[dark] .ycs-open-reply {
   margin-left: 6px;
 }
 
+.ycs-open-comment-all {
+  font-weight: 500;
+  line-height: 0;
+  padding: 0;
+  margin: 0;
+  height: 18px;
+  width: 18px;
+  border: 0;
+  background-color: #34495e1c;
+  vertical-align: text-bottom;
+  margin-left: 6px;
+}
+
 .ycs-open-comment * {
   vertical-align: unset !important;
   pointer-events: none;
 }
 
+.ycs-open-comment-all * {
+  vertical-align: unset !important;
+  pointer-events: none;
+}
+
 html[dark='true'] .ycs-open-comment,
-html[dark] .ycs-open-comment {
+html[dark='true'] .ycs-open-comment-all,
+html[dark] .ycs-open-comment,
+html[dark] .ycs-open-comment-all {
   background-color: #34495e7a;
 }
 
 html[dark='true'] .ycs-open-reply,
 html[dark='true'] .ycs-comment-link,
 html[dark='true'] .ycs-open-comment,
+html[dark='true'] .ycs-open-comment-all,
 html[dark='true'] .ycs-gotochat-video,
 html[dark='true'] .ycs-goto-comment-time,
 html[dark='true'] .ycs-goto-video,
 html[dark] .ycs-open-reply,
 html[dark] .ycs-comment-link,
 html[dark] .ycs-open-comment,
+html[dark] .ycs-open-comment-all,
 html[dark] .ycs-gotochat-video,
 html[dark] .ycs-goto-comment-time,
 html[dark] .ycs-goto-video {
@@ -301,6 +324,50 @@ html[dark] .ycs-goto-video {
 
 .ycs-oc-ml {
   margin-left: 56px;
+}
+
+.ycs-origin-wrap,
+.ycs-origin-chain {
+  margin-left: 12px;
+  padding-left: 10px;
+  --ycs-origin-line: rgba(6, 95, 212, 0.55);
+  border-left: 2px solid rgba(6, 95, 212, 0.35);
+  background: rgba(6, 95, 212, 0.06);
+}
+
+.ycs-origin-chain {
+  border-left-style: dashed;
+  border-left-color: rgba(6, 95, 212, 0.6);
+  background: rgba(6, 95, 212, 0.1);
+}
+
+.ycs-origin-trigger {
+  position: relative;
+  --ycs-origin-line: rgba(6, 95, 212, 0.55);
+}
+
+.ycs-origin-trigger::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: -14px;
+  height: 16px;
+  border-left: 2px solid var(--ycs-origin-line);
+  opacity: 0.8;
+}
+
+html[dark='true'] .ycs-origin-wrap,
+html[dark] .ycs-origin-wrap,
+html[dark='true'] .ycs-origin-chain,
+html[dark] .ycs-origin-chain {
+  --ycs-origin-line: rgba(62, 166, 255, 0.7);
+  border-left-color: rgba(62, 166, 255, 0.6);
+  background: rgba(62, 166, 255, 0.12);
+}
+
+html[dark='true'] .ycs-origin-trigger,
+html[dark] .ycs-origin-trigger {
+  --ycs-origin-line: rgba(62, 166, 255, 0.7);
 }
 
 .ycs-infobar {

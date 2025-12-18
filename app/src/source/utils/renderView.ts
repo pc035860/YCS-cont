@@ -302,6 +302,15 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
             button.dataset.commentId = model.commentId;
         }
         meta.appendChild(button);
+
+        if (model.commentId) {
+            const allButton = document.createElement('button');
+            allButton.title = 'Open all parent comments to root.';
+            allButton.className = 'ycs-open-comment-all';
+            allButton.textContent = '⇧';
+            allButton.dataset.commentId = model.commentId;
+            meta.appendChild(allButton);
+        }
     }
 
     header.appendChild(meta);
