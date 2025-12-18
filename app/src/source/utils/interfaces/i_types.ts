@@ -97,6 +97,11 @@ export interface CommentItem extends Record<string, unknown> {
     commentRenderer: CommentRenderer;
     originComment?: CommentItem;
     typeComment: 'C' | 'R';
+    /**
+     * Reply nesting level: 0 = parent comment, 1+ = nested reply depth.
+     * Used for UI indentation and tree structure representation.
+     */
+    replyLevel?: number;
 }
 
 export interface LiveChatTextMessageRenderer extends Record<string, unknown> {

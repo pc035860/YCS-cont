@@ -8,7 +8,9 @@ import {
     fetchInitialCommentBatch,
     generateCommentObjectFromFW,
     prepareFieldsComment,
-    type ReplyContinuation
+    extractSubThreads,
+    type ReplyContinuation,
+    type SubThreadContinuation
 } from '../src/source/utils/innertube/comments/pipeline';
 import { setFetchImplementation } from '../src/source/utils/libs';
 import { GlobalStore } from '../src/source/utils/common';
@@ -682,4 +684,304 @@ test('fetchContinuationBatch includes continuation token and tracking params', a
             (globalThis as any).window = originalWindow;
         }
     }
+});
+
+// =============================================================================
+// Nested Comments (subThreads) Tests
+// =============================================================================
+
+test('extractSubThreads returns empty result when no subThreads', () => {
+    const repliesRenderer = {
+        contents: [{ commentRenderer: { commentId: 'reply-1' } }]
+    };
+    const result = extractSubThreads(repliesRenderer, {}, {}, 1);
+
+    assert.deepStrictEqual(result.comments, []);
+    assert.deepStrictEqual(result.continuations, []);
+});
+
+test('extractSubThreads extracts nested comments from subThreads', () => {
+    const repliesRenderer = {
+        subThreads: [
+            {
+                commentThreadRenderer: {
+                    commentViewModel: {
+                        commentViewModel: {
+                            commentId: 'nested-reply-1',
+                            commentSurfaceKey: 'surface-1',
+                            toolbarStateKey: 'toolbar-1'
+                        }
+                    }
+                }
+            }
+        ]
+    };
+
+    const frameworkUpdatesById = {
+        'nested-reply-1': {
+            properties: {
+                content: { content: 'Nested reply content' },
+                publishedTime: '1 hour ago',
+                replyLevel: 1
+            },
+            author: {
+                displayName: 'Test User'
+            },
+            toolbar: {
+                likeCountLiked: '2',
+                replyCount: '0'
+            }
+        }
+    };
+
+    const parentComment = { commentRenderer: { commentId: 'parent-1' } };
+    const result = extractSubThreads(repliesRenderer, frameworkUpdatesById, parentComment, 1);
+
+    assert.strictEqual(result.comments.length, 1);
+    assert.strictEqual(result.comments[0].commentRenderer.commentId, 'nested-reply-1');
+    assert.strictEqual(result.comments[0].originComment, parentComment);
+    assert.strictEqual(result.comments[0]._subThreadDepth, 1);
+});
+
+test('extractSubThreads extracts continuation tokens from subThreads', () => {
+    const repliesRenderer = {
+        subThreads: [
+            {
+                continuationItemRenderer: {
+                    button: {
+                        buttonRenderer: {
+                            command: {
+                                continuationCommand: { token: 'nested-token-1' },
+                                clickTrackingParams: 'nested-tracking-1'
+                            }
+                        }
+                    }
+                }
+            }
+        ]
+    };
+
+    const parentComment = { commentRenderer: { commentId: 'parent-1' } };
+    const result = extractSubThreads(repliesRenderer, {}, parentComment, 2);
+
+    assert.strictEqual(result.continuations.length, 1);
+    assert.strictEqual(result.continuations[0].token, 'nested-token-1');
+    assert.strictEqual(result.continuations[0].clickTrackingParams, 'nested-tracking-1');
+    assert.strictEqual(result.continuations[0].replyLevel, 2);
+    assert.strictEqual(result.continuations[0].parentCommentId, 'parent-1');
+    assert.strictEqual(result.continuations[0].originComment, parentComment);
+});
+
+test('extractSubThreads recursively processes nested subThreads', () => {
+    const repliesRenderer = {
+        subThreads: [
+            {
+                commentThreadRenderer: {
+                    commentViewModel: {
+                        commentViewModel: {
+                            commentId: 'level-1-reply'
+                        }
+                    },
+                    replies: {
+                        commentRepliesRenderer: {
+                            subThreads: [
+                                {
+                                    commentThreadRenderer: {
+                                        commentViewModel: {
+                                            commentViewModel: {
+                                                commentId: 'level-2-reply'
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        ]
+    };
+
+    const frameworkUpdatesById = {
+        'level-1-reply': {
+            properties: { content: { content: 'Level 1' }, replyLevel: 1 },
+            author: { displayName: 'User 1' },
+            toolbar: {}
+        },
+        'level-2-reply': {
+            properties: { content: { content: 'Level 2' }, replyLevel: 2 },
+            author: { displayName: 'User 2' },
+            toolbar: {}
+        }
+    };
+
+    const parentComment = { commentRenderer: { commentId: 'parent-1' } };
+    const result = extractSubThreads(repliesRenderer, frameworkUpdatesById, parentComment, 1);
+
+    assert.strictEqual(result.comments.length, 2);
+
+    const level1 = result.comments.find((c: any) => c.commentRenderer.commentId === 'level-1-reply');
+    const level2 = result.comments.find((c: any) => c.commentRenderer.commentId === 'level-2-reply');
+
+    assert.ok(level1);
+    assert.ok(level2);
+    assert.strictEqual(level1._subThreadDepth, 1);
+    assert.strictEqual(level2._subThreadDepth, 2);
+    assert.strictEqual(level1.originComment, parentComment);
+    assert.strictEqual(level2.originComment, level1);
+});
+
+test('extractSubThreads respects MAX_SUBTHREAD_DEPTH limit', () => {
+    // Create deeply nested structure (6 levels)
+    const createDeepNested = (depth: number): any => {
+        if (depth > 6) {
+            return {
+                continuationItemRenderer: {
+                    continuationEndpoint: {
+                        continuationCommand: { token: `too-deep-${depth}` }
+                    }
+                }
+            };
+        }
+        return {
+            commentThreadRenderer: {
+                commentViewModel: {
+                    commentViewModel: { commentId: `level-${depth}` }
+                },
+                replies: {
+                    commentRepliesRenderer: {
+                        subThreads: [createDeepNested(depth + 1)]
+                    }
+                }
+            }
+        };
+    };
+
+    const repliesRenderer = { subThreads: [createDeepNested(1)] };
+
+    const frameworkUpdatesById: Record<string, any> = {};
+    for (let i = 1; i <= 6; i++) {
+        frameworkUpdatesById[`level-${i}`] = {
+            properties: { content: { content: `Level ${i}` }, replyLevel: i },
+            author: { displayName: `User ${i}` },
+            toolbar: {}
+        };
+    }
+
+    const parentComment = { commentRenderer: { commentId: 'root' } };
+    const result = extractSubThreads(repliesRenderer, frameworkUpdatesById, parentComment, 1);
+
+    // Should stop at depth 5 (MAX_SUBTHREAD_DEPTH)
+    assert.ok(result.comments.length <= 5);
+    const commentIds = result.comments.map((c: any) => c.commentRenderer.commentId);
+    assert.ok(commentIds.includes('level-1'));
+    assert.ok(!commentIds.includes('level-6'));
+});
+
+test('generateCommentObjectFromFW extracts replyLevel from properties', () => {
+    const update = {
+        properties: {
+            content: { content: 'Reply content' },
+            publishedTime: '1 hour ago',
+            replyLevel: 2
+        },
+        author: { displayName: 'Test Author' },
+        toolbar: { likeCountLiked: '0', replyCount: '0' }
+    };
+
+    const comment = generateCommentObjectFromFW({
+        commentId: 'reply-with-level',
+        update,
+        surfaceUpdate: undefined,
+        toolbarStateUpdate: undefined
+    });
+
+    assert.ok(comment);
+    assert.strictEqual(comment.replyLevel, 2);
+});
+
+test('processParentComment assigns replyLevel to parent and replies', () => {
+    const thread = createParentThread();
+    thread.commentThreadRenderer.replies = {
+        commentRepliesRenderer: {
+            contents: [
+                {
+                    commentRenderer: {
+                        commentId: 'reply-1',
+                        contentText: { runs: [{ text: 'First reply' }] },
+                        publishedTimeText: { runs: [{ text: '1 hour ago' }] }
+                    }
+                }
+            ]
+        }
+    };
+
+    const frameworkUpdates = {
+        'parent-1': {
+            properties: { replyLevel: 0 }
+        },
+        'reply-1': {
+            properties: { replyLevel: 1 }
+        }
+    };
+
+    const result = processParentComment({ item: thread, frameworkUpdates, currentVideoId: 'video-1' });
+
+    const parent: any = result.comments.find((c: any) => c.typeComment === 'C');
+    const reply: any = result.comments.find((c: any) => c.typeComment === 'R');
+
+    assert.strictEqual(parent.replyLevel, 0);
+    assert.strictEqual(reply.replyLevel, 1);
+});
+
+test('processParentComment processes subThreads and sets originComment to direct parent', () => {
+    const thread = {
+        commentThreadRenderer: {
+            comment: {
+                commentRenderer: {
+                    commentId: 'parent-1',
+                    contentText: { runs: [{ text: 'Parent' }] },
+                    publishedTimeText: { runs: [{ text: '1 day ago' }] }
+                }
+            },
+            replies: {
+                commentRepliesRenderer: {
+                    subThreads: [
+                        {
+                            commentThreadRenderer: {
+                                commentViewModel: {
+                                    commentViewModel: {
+                                        commentId: 'nested-1'
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    };
+
+    const frameworkUpdates = {
+        'nested-1': {
+            properties: {
+                content: { content: 'Nested reply' },
+                publishedTime: '1 hour ago',
+                replyLevel: 1
+            },
+            author: { displayName: 'Nested User' },
+            toolbar: {}
+        }
+    };
+
+    const result = processParentComment({ item: thread, frameworkUpdates, currentVideoId: 'video-1' });
+
+    const parent: any = result.comments.find((c: any) => c.typeComment === 'C');
+    const nested: any = result.comments.find((c: any) => c.commentRenderer?.commentId === 'nested-1');
+
+    assert.ok(parent);
+    assert.ok(nested);
+    assert.strictEqual(nested.typeComment, 'R');
+    assert.strictEqual(nested.replyLevel, 1);
+    assert.strictEqual(nested.originComment, parent);
 });

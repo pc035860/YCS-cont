@@ -32,6 +32,8 @@ export interface CommentViewModel {
     isReplyType: boolean;
     refIndex?: string;
     contentHtml: string;
+    /** Reply nesting level for UI indentation: 0 = parent, 1+ = nested reply depth */
+    replyLevel?: number;
 }
 
 export interface ChatMessageViewModel {
@@ -367,6 +369,11 @@ export function buildCommentViewModels(items: any[], options: { isReply?: boolea
             ) ||
             coerceString(wrapTryCatch(() => renderer.contentText?.fullText));
 
+        // Extract replyLevel from item (CommentItem.replyLevel)
+        const replyLevelRaw = wrapTryCatch(() => item?.item?.replyLevel);
+        const isReplyType = coerceString(wrapTryCatch(() => item?.item?.typeComment)).toUpperCase() === 'R';
+        const replyLevel = typeof replyLevelRaw === 'number' ? replyLevelRaw : isReplyType ? 1 : 0;
+
         models.push({
             authorName,
             authorProfileUrl,
@@ -381,11 +388,12 @@ export function buildCommentViewModels(items: any[], options: { isReply?: boolea
             commentId: commentId || undefined,
             heartTooltip: heartTooltip || undefined,
             isReply,
-            isReplyType: coerceString(wrapTryCatch(() => item?.item?.typeComment)).toUpperCase() === 'R',
+            isReplyType,
             refIndex: coerceString(wrapTryCatch(() => item?.refIndex)) || undefined,
             contentHtml: renderFullText
                 ? sanitizeHtml(decodeHtml(renderFullText))
-                : escapeHtml(decodeHtml(fallbackText))
+                : escapeHtml(decodeHtml(fallbackText)),
+            replyLevel
         });
     }
 

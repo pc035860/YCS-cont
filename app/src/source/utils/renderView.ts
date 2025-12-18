@@ -191,6 +191,12 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
     container.id = `ycs-number-comment-${index}`;
     container.className = 'ycs-render-comment';
 
+    // Apply dynamic indentation based on replyLevel (max 5 levels, 24px each)
+    if (model.replyLevel && model.replyLevel > 0) {
+        const indent = Math.min(model.replyLevel, 5) * 24;
+        container.style.marginLeft = `${indent}px`;
+    }
+
     const left = document.createElement('div');
     left.className = 'ycs-left';
 
