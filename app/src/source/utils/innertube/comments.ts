@@ -16,6 +16,29 @@ import {
     type ReplyContinuation
 } from './comments/pipeline';
 
+function recomputeNestedReplyCounts(comments: object[]): void {
+    const childCountByParentId = new Map<string, number>();
+
+    for (const entry of comments) {
+        const origin = (entry as any)?.originComment;
+        if (!origin) continue;
+        const parentId =
+            (origin as any)?.commentRenderer?.commentId || (origin as any)?.commentId || (origin as any)?.id;
+        if (!parentId) continue;
+        childCountByParentId.set(parentId, (childCountByParentId.get(parentId) || 0) + 1);
+    }
+
+    for (const entry of comments) {
+        const replyLevel = (entry as any)?.replyLevel;
+        if (typeof replyLevel !== 'number' || replyLevel < 2) continue;
+        const renderer = (entry as any)?.commentRenderer;
+        if (!renderer) continue;
+        const id = renderer.commentId || (entry as any)?.commentId;
+        if (!id) continue;
+        renderer.replyCount = childCountByParentId.get(id) || 0;
+    }
+}
+
 async function getAllCommentsModeV2(
     elShowLoading: HTMLElement,
     signal: AbortSignal | undefined = undefined,
@@ -87,6 +110,8 @@ async function getAllCommentsModeV2(
     const deduplicated = dedupeParentComments(comments);
     comments.length = 0;
     comments.push(...deduplicated);
+
+    recomputeNestedReplyCounts(comments);
 
     for (let idx = 0; idx < comments.length; idx++) {
         (comments[idx] as any)._index = idx;
