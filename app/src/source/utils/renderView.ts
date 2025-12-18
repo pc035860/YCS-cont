@@ -290,12 +290,17 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
         meta.appendChild(replies);
     }
 
-    if (model.isReply && model.isReplyType && model.refIndex) {
+    if (model.isReply && model.isReplyType && (model.refIndex || model.commentId)) {
         const button = document.createElement('button');
-        button.id = model.refIndex;
+        if (model.refIndex) {
+            button.id = model.refIndex;
+        }
         button.title = 'Open the comment to the reply here.';
         button.className = 'ycs-open-comment';
         button.innerHTML = iconExpand();
+        if (model.commentId) {
+            button.dataset.commentId = model.commentId;
+        }
         meta.appendChild(button);
     }
 
