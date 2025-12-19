@@ -11,6 +11,29 @@ export interface CommentStateAccessor {
 
 export type QueryGetter = () => string;
 
+// === Scroll Position Lock Helpers ===
+
+/**
+ * Captures scroll position before DOM changes
+ */
+function captureScrollPosition(anchor: HTMLElement): { scrollContainer: HTMLElement | null; yBefore: number } {
+    const scrollContainer = document.getElementById('ycs-search-result');
+    const yBefore = anchor.getBoundingClientRect().top;
+    return { scrollContainer, yBefore };
+}
+
+/**
+ * Restores scroll position after DOM changes
+ */
+function restoreScrollPosition(anchor: HTMLElement, scrollContainer: HTMLElement | null, yBefore: number): void {
+    if (!scrollContainer) return;
+    const yAfter = anchor.getBoundingClientRect().top;
+    const delta = yAfter - yBefore;
+    if (delta !== 0) {
+        scrollContainer.scrollTop += delta;
+    }
+}
+
 export function registerCommentInteractions(
     container: HTMLElement,
     stateAccessor: CommentStateAccessor,
@@ -202,8 +225,15 @@ function shouldRemoveOriginMargin(key: string): boolean {
     return !hasSingle && !hasAuthor && !hasAll;
 }
 
-function collapseOriginComment(key: string, container: HTMLElement, toggle: HTMLElement): void {
+function collapseOriginComment(
+    key: string,
+    container: HTMLElement,
+    toggle: HTMLElement,
+    scrollContainer: HTMLElement | null,
+    yBefore: number
+): void {
     removeNodeList(`.ycs-com-${key}`);
+    restoreScrollPosition(container, scrollContainer, yBefore);
     if (shouldRemoveOriginMargin(key)) {
         container.classList.remove('ycs-oc-ml');
         container.classList.remove('ycs-origin-trigger');
@@ -213,8 +243,15 @@ function collapseOriginComment(key: string, container: HTMLElement, toggle: HTML
     toggle.title = 'Open the comment to the reply here.';
 }
 
-function collapseOriginChain(key: string, container: HTMLElement, toggle: HTMLElement): void {
+function collapseOriginChain(
+    key: string,
+    container: HTMLElement,
+    toggle: HTMLElement,
+    scrollContainer: HTMLElement | null,
+    yBefore: number
+): void {
     removeNodeList(`.ycs-com-all-${key}`);
+    restoreScrollPosition(container, scrollContainer, yBefore);
     if (shouldRemoveOriginMargin(key)) {
         container.classList.remove('ycs-oc-ml');
         container.classList.remove('ycs-origin-trigger');
@@ -263,9 +300,13 @@ function handleOpenComment(target: HTMLElement, stateAccessor: CommentStateAcces
     if (!commentContainer) return;
 
     const key = commentId ? safeDomKey(commentId) : `idx-${refId ?? 0}`;
+
+    // === Scroll Position Lock ===
+    const { scrollContainer, yBefore } = captureScrollPosition(commentContainer);
+
     const existing = document.getElementById(`ycs-com-${key}`);
     if (existing) {
-        collapseOriginComment(key, commentContainer, target);
+        collapseOriginComment(key, commentContainer, target, scrollContainer, yBefore);
         return;
     }
 
@@ -299,6 +340,9 @@ function handleOpenComment(target: HTMLElement, stateAccessor: CommentStateAcces
         renderComment(replyWrap, replyAuthorResults, false, query);
     }
 
+    // === Scroll Position Lock ===
+    restoreScrollPosition(commentContainer, scrollContainer, yBefore);
+
     target.innerHTML = iconCollapse();
     target.title = 'Close the comment to the reply here.';
 }
@@ -316,9 +360,13 @@ function handleOpenCommentAll(
     if (!commentContainer) return;
 
     const key = commentId ? safeDomKey(commentId) : `idx-${refId ?? 0}`;
+
+    // === Scroll Position Lock ===
+    const { scrollContainer, yBefore } = captureScrollPosition(commentContainer);
+
     const existing = document.getElementById(`ycs-com-all-${key}`);
     if (existing) {
-        collapseOriginChain(key, commentContainer, target);
+        collapseOriginChain(key, commentContainer, target, scrollContainer, yBefore);
         return;
     }
 
@@ -346,6 +394,9 @@ function handleOpenCommentAll(
         curve.innerHTML = iconCurve();
         commentContainer.appendChild(curve);
     }
+
+    // === Scroll Position Lock ===
+    restoreScrollPosition(commentContainer, scrollContainer, yBefore);
 
     target.innerHTML = iconExpand();
     target.title = 'Close all parent comments.';
