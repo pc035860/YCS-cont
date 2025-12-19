@@ -384,12 +384,19 @@ function collectRepliesForComment(
     return replies;
 }
 
-function createRepliesContainer(commentId: string): HTMLDivElement {
+function createRepliesContainer(commentContainer: HTMLElement, commentId: string): HTMLDivElement {
     const wrapper = document.createElement('div');
-    // Ensure ID is safe for DOM
     const safeId = commentId.replace(/[^\w-]/g, '_');
     wrapper.id = `ycs-com-replies-${safeId}`;
+
+    // Check parent avatar size to align vertical line (border-left)
+    // Vertical line is 2px wide, so we offset to align its center with avatar center
+    const isNestedParent = commentContainer.querySelector('.ycs-render-img--nested') !== null;
+    const marginLeft = isNestedParent ? 7 : 15;
+
     wrapper.className = `ycs-com-replies-${safeId} ycs-com-replies ycs-com-rp ycs-nested-replies-container`;
+    wrapper.style.marginLeft = `${marginLeft}px`;
+
     return wrapper;
 }
 
@@ -413,16 +420,17 @@ function handleOpenReply(target: HTMLElement, stateAccessor: CommentStateAccesso
     const replies = collectRepliesForComment(comments, commentId, 0);
     if (replies.length === 0) {
         console.warn(`[YCS] No replies found in local state for comment ID: ${commentId}`);
-        // If replies are expected but not found, it might be due to a re-linking failure or async delay
         return;
     }
 
     const query = resolveQuery(queryGetter);
-    const wrapper = createRepliesContainer(commentId);
+    const wrapper = createRepliesContainer(commentContainer, commentId);
     commentContainer.insertAdjacentElement('beforeend', wrapper);
 
+    // Use isReply = true to trigger nested style (24px avatar)
     // Use resetReplyLevel = true to prevent recursive indentation multiplication
-    renderComment(wrapper, replies, false, query, true);
+    // Use hideExpandUp = true to keep UI clean in nested views
+    renderComment(wrapper, replies, true, query, true, true);
 
     target.innerHTML = String.fromCharCode(8722);
     target.title = 'Close replies to the comment';

@@ -193,6 +193,9 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
 
     const isNested = model.replyLevel && model.replyLevel > 0;
     const avatarSize = isNested ? 24 : 40;
+    const avatarCenter = isNested ? 12 : 20;
+
+    container.style.setProperty('--avatar-center', `${avatarCenter}px`);
 
     // Apply dynamic indentation based on replyLevel
     if (model.replyLevel && model.replyLevel > 0) {
@@ -206,6 +209,10 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
             const indent = 56 + (Math.min(model.replyLevel, 5) - 1) * 16;
             container.style.marginLeft = `${indent}px`;
         }
+    } else if (model.isReply || model.isReplyType) {
+        // For level 0 comments that are inside a nested container,
+        // we keep indent 0 to let the container's own padding/margin handle the base alignment.
+        container.style.setProperty('--reply-indent', '0px');
     }
 
     const left = document.createElement('div');

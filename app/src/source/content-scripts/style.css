@@ -356,7 +356,7 @@ html[dark] .ycs-origin-chain {
 /* Use individual item segments for the chain, fixed to the absolute left */
 .ycs-origin-chain {
   border-left: 0 !important;
-  opacity: 0.9;
+  opacity: 0.7;
 }
 
 .ycs-origin-chain .ycs-render-comment {
@@ -375,16 +375,16 @@ html[dark] .ycs-origin-chain {
 }
 
 .ycs-origin-chain .ycs-render-comment:first-child::after {
-  top: 12px;
-  height: calc(100% + 20px - 12px);
+  top: calc(var(--avatar-center, 20px) - 0.75px);
+  height: calc(100% + 20px - var(--avatar-center, 20px) + 0.75px);
 }
 
 .ycs-origin-chain .ycs-render-comment::before {
   content: '';
   position: absolute;
-  top: 12px; /* Center of 24px nested avatar */
+  top: calc(var(--avatar-center, 20px) - 0.75px);
   right: 100%;
-  width: calc(var(--reply-indent, 0px) + 14px);
+  width: calc(var(--reply-indent, 0px) + 14.75px);
   border-top: 1.5px solid var(--ycs-origin-line);
   opacity: 0.5;
   pointer-events: none;
@@ -1181,10 +1181,30 @@ html[dark] .ycs_btn_load-stop {
 }
 
 .ycs-nested-replies-container {
-  margin-left: 12px;
   padding-left: 16px;
   padding-bottom: 8px;
   border-left: 2px solid rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.ycs-nested-replies-container .ycs-render-comment {
+  position: relative;
+}
+
+.ycs-nested-replies-container .ycs-render-comment::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--avatar-center, 12px) - 0.75px);
+  right: 100%;
+  width: 17px;
+  border-top: 1.5px solid rgba(0, 0, 0, 0.1);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+html[dark='true'] .ycs-nested-replies-container .ycs-render-comment::before,
+html[dark] .ycs-nested-replies-container .ycs-render-comment::before {
+  border-top: 1.5px solid rgba(255, 255, 255, 0.15);
 }
 
 html[dark='true'] .ycs-nested-replies-container,
