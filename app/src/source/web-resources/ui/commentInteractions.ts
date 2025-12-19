@@ -320,7 +320,7 @@ function handleOpenComment(target: HTMLElement, stateAccessor: CommentStateAcces
     commentContainer.insertAdjacentElement('beforebegin', wrap);
 
     if (originResult) {
-        renderComment(wrap, [originResult], true, query);
+        renderComment(wrap, [originResult], { querySearch: query });
     }
 
     commentContainer.classList.add('ycs-oc-ml');
@@ -337,7 +337,7 @@ function handleOpenComment(target: HTMLElement, stateAccessor: CommentStateAcces
     if (replyAuthorResults.length > 0) {
         const replyWrap = createReplyAuthorWrapper(key);
         commentContainer.insertAdjacentElement('beforebegin', replyWrap);
-        renderComment(replyWrap, replyAuthorResults, false, query);
+        renderComment(replyWrap, replyAuthorResults, { isReply: false, querySearch: query });
     }
 
     // === Scroll Position Lock ===
@@ -383,7 +383,12 @@ function handleOpenCommentAll(
         item: { ...ancestor, replyLevel: index } as any,
         refIndex: resolveRefIndex(ancestor, refId ?? 0)
     }));
-    renderComment(wrap, results, true, query, false, true, true);
+    renderComment(wrap, results, {
+        querySearch: query,
+        resetReplyLevel: false,
+        hideExpandUp: true,
+        forceSmallAvatar: true
+    });
 
     commentContainer.classList.add('ycs-oc-ml');
     commentContainer.classList.add('ycs-origin-trigger');
@@ -498,10 +503,13 @@ function handleOpenReply(target: HTMLElement, stateAccessor: CommentStateAccesso
     // Determine if we are inside an origin chain to maintain small avatar size
     const isOriginChain = commentContainer.closest('.ycs-origin-chain') !== null;
 
-    // Use isReply = true to trigger nested style (24px avatar)
-    // Use resetReplyLevel = true to prevent recursive indentation multiplication
-    // Use hideExpandUp = true to keep UI clean in nested views
-    renderComment(wrapper, replies, true, query, true, true, isOriginChain);
+    // hideExpandUp = true to keep UI clean in nested views
+    // forceSmallAvatar = isOriginChain to maintain small avatar size when inside origin chain
+    renderComment(wrapper, replies, {
+        querySearch: query,
+        hideExpandUp: true,
+        forceSmallAvatar: isOriginChain
+    });
 
     target.innerHTML = String.fromCharCode(8722);
     target.title = 'Close replies to the comment';

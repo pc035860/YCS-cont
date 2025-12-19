@@ -17,6 +17,22 @@ import {
 import { iconCollapse, iconExpand, iconExpandShowMore, iconReload, iconSortDown, iconReplyd, iconCurve } from './icons';
 import { EXPORT_FORMAT } from './constants';
 
+/**
+ * Options for rendering comments
+ */
+interface RenderCommentOptions {
+    /** Whether comments are replies (affects avatar size and indentation). Default: true */
+    isReply?: boolean;
+    /** Search query for text highlighting */
+    querySearch?: string;
+    /** Reset reply level counter for new nesting level. Default: true */
+    resetReplyLevel?: boolean;
+    /** Hide expand-up buttons in nested chains. Default: false */
+    hideExpandUp?: boolean;
+    /** Force 24px avatars for nested display. Default: false */
+    forceSmallAvatar?: boolean;
+}
+
 // Debug mode configuration
 // Set to true for detailed diagnostic logs during development
 // Set to false for production to reduce console noise
@@ -469,15 +485,15 @@ function createTranscriptElement(model: TranscriptViewModel, index: number): HTM
     return container;
 }
 
-function renderComment(
-    el: string | HTMLElement,
-    data: any,
-    isReply = true,
-    querySearch?: string,
-    resetReplyLevel = true,
-    hideExpandUp = false,
-    forceSmallAvatar = false
-): void {
+function renderComment(el: string | HTMLElement, data: any, options: RenderCommentOptions = {}): void {
+    const {
+        isReply = true,
+        querySearch,
+        resetReplyLevel = true,
+        hideExpandUp = false,
+        forceSmallAvatar = false
+    } = options;
+
     if (!el) return;
 
     const target = typeof el === 'string' ? document.querySelector(el) : el;
