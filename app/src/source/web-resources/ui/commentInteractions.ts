@@ -1,5 +1,5 @@
 import { removeNodeList, navigateVideoToTimestamp } from '../../utils/dom';
-import { iconCollapse, iconExpand, iconReplyd } from '../../utils/icons';
+import { iconCollapse, iconExpand, iconReplyd, iconCurve } from '../../utils/icons';
 import { ICommentsFuseResult } from '../../utils/interfaces/i_types';
 import { renderComment } from '../../utils/renderView';
 
@@ -207,6 +207,7 @@ function collapseOriginComment(key: string, container: HTMLElement, toggle: HTML
     if (shouldRemoveOriginMargin(key)) {
         container.classList.remove('ycs-oc-ml');
         container.classList.remove('ycs-origin-trigger');
+        container.querySelector('.ycs-curve-icon-wrap')?.remove();
     }
     toggle.innerHTML = iconExpand();
     toggle.title = 'Open the comment to the reply here.';
@@ -217,6 +218,7 @@ function collapseOriginChain(key: string, container: HTMLElement, toggle: HTMLEl
     if (shouldRemoveOriginMargin(key)) {
         container.classList.remove('ycs-oc-ml');
         container.classList.remove('ycs-origin-trigger');
+        container.querySelector('.ycs-curve-icon-wrap')?.remove();
     }
     toggle.innerHTML = iconCollapse();
     toggle.title = 'Open all parent comments to root.';
@@ -283,6 +285,13 @@ function handleOpenComment(target: HTMLElement, stateAccessor: CommentStateAcces
     commentContainer.classList.add('ycs-oc-ml');
     commentContainer.classList.add('ycs-origin-trigger');
 
+    if (!commentContainer.querySelector('.ycs-curve-icon-wrap')) {
+        const curve = document.createElement('div');
+        curve.className = 'ycs-curve-icon-wrap';
+        curve.innerHTML = iconCurve();
+        commentContainer.appendChild(curve);
+    }
+
     const replyAuthorResults = buildAuthorReplyResults(comments, current, refId ?? 0);
     if (replyAuthorResults.length > 0) {
         const replyWrap = createReplyAuthorWrapper(key);
@@ -330,6 +339,14 @@ function handleOpenCommentAll(
 
     commentContainer.classList.add('ycs-oc-ml');
     commentContainer.classList.add('ycs-origin-trigger');
+
+    if (!commentContainer.querySelector('.ycs-curve-icon-wrap')) {
+        const curve = document.createElement('div');
+        curve.className = 'ycs-curve-icon-wrap';
+        curve.innerHTML = iconCurve();
+        commentContainer.appendChild(curve);
+    }
+
     target.innerHTML = iconExpand();
     target.title = 'Close all parent comments.';
 }

@@ -111,6 +111,16 @@ function iconReplyd(title?: string): string {
     `;
 }
 
+function iconCurve(): string {
+    return `
+        <span class="ycs-icons-curve">
+             <svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg" style="overflow: visible;">
+                <path d="M20 -15 V0 Q20 12 32 12 H34" stroke="currentColor" stroke-width="1.5" fill="none"/>
+             </svg>
+        </span>
+    `;
+}
+
 export {
     iconCollapse,
     iconError,
@@ -124,5 +134,6 @@ export {
     iconSortUp,
     iconStop,
     iconWarning,
-    iconReplyd
+    iconReplyd,
+    iconCurve
 };

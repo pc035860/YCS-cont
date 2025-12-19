@@ -14,7 +14,7 @@ import {
     MemberBadgeViewModel,
     DonatedChipViewModel
 } from './viewModels';
-import { iconCollapse, iconExpand, iconExpandShowMore, iconReload, iconSortDown, iconReplyd } from './icons';
+import { iconCollapse, iconExpand, iconExpandShowMore, iconReload, iconSortDown, iconReplyd, iconCurve } from './icons';
 import { EXPORT_FORMAT } from './constants';
 
 // Debug mode configuration
@@ -204,6 +204,11 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
             const indent = model.replyLevel * 16;
             container.style.marginLeft = `${indent}px`;
             container.style.setProperty('--reply-indent', `${indent}px`);
+
+            const curve = document.createElement('div');
+            curve.className = 'ycs-curve-icon-wrap';
+            curve.innerHTML = iconCurve();
+            container.appendChild(curve);
         } else {
             // Standard YouTube-style indentation for general replies
             const indent = 56 + (Math.min(model.replyLevel, 5) - 1) * 16;
