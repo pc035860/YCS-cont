@@ -292,6 +292,27 @@ The extension integrates with YouTube's internal Innertube API for fetching comm
 
 Implementation: `app/src/source/utils/innertube/` with type definitions in `utils/interfaces/i_assist.ts`
 
+### Nested Comments (subThreads) Support
+
+YouTube's comment system uses an Entity-driven architecture where nested replies (replies to replies) are organized through `subThreads` arrays.
+
+**Key Concepts**:
+- **Entity-driven format**: Comment data is separated from renderers via `frameworkUpdates.entityBatchUpdate.mutations`, linked by `commentKey`/`entityKey`
+- **Nested structure**: Replies are organized recursively in `commentRepliesRenderer.subThreads` arrays
+- **Reply level tracking**: Each comment includes a `replyLevel` property (0 = parent, 1+ = nested depth)
+
+**Implementation Details**:
+- **`extractSubThreads()`**: Recursively scans `subThreads` arrays up to `MAX_SUBTHREAD_DEPTH` (5 levels) to prevent infinite loops
+- **`CommentItem.replyLevel`**: Tracks nesting depth for UI indentation and tree structure representation
+- **`SubThreadContinuation`**: Extended continuation interface with `replyLevel` and `parentCommentId` for nested pagination
+- **Empty subThreads handling**: Validates `subThreads` content before assuming nested replies exist; clears `replyCount` for comments with empty nested structures
+
+**Edge Cases**:
+- **Unreliable `replyCount`**: Entity payload's `toolbar.replyCount` is an estimate; the implementation recomputes counts based on actually retrieved child comments
+- **Variable `commentId` location**: Uses fallback pattern (`item?.commentRenderer?.commentId || item?.commentId`) to handle different response formats
+
+**Documentation**: See `app/docs/innertube-nested-comments.md` for detailed architecture analysis and migration guide.
+
 ## YouTube Data API v3 Integration (Optional)
 
 The extension optionally supports YouTube Data API v3 as an alternative to Innertube for comment fetching.
