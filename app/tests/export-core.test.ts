@@ -166,3 +166,61 @@ test('buildCommentsExportPayloadFromCache returns undefined when cache is empty'
     const payload = buildCommentsExportPayloadFromCache({ comments: [] });
     assert.equal(payload, undefined);
 });
+
+test('buildCommentsExportPayload handles nested replies (replyLevel >= 2)', () => {
+    const parentComment: CommentItem = {
+        commentRenderer: {
+            commentId: 'c1',
+            authorText: { simpleText: 'Parent' },
+            contentText: { fullText: 'Parent comment' },
+            authorEndpoint: { browseEndpoint: { canonicalBaseUrl: '/@parent' } }
+        },
+        typeComment: 'C',
+        replyLevel: 0
+    };
+
+    const firstReply: CommentItem = {
+        commentRenderer: {
+            commentId: 'r1',
+            authorText: { simpleText: 'Reply1' },
+            contentText: { fullText: 'First reply' },
+            authorEndpoint: { browseEndpoint: { canonicalBaseUrl: '/@reply1' } }
+        },
+        originComment: parentComment,
+        typeComment: 'R',
+        replyLevel: 1
+    };
+
+    const nestedReply: CommentItem = {
+        commentRenderer: {
+            commentId: 'r2',
+            authorText: { simpleText: 'Reply2' },
+            contentText: { fullText: 'Nested reply' },
+            authorEndpoint: { browseEndpoint: { canonicalBaseUrl: '/@reply2' } }
+        },
+        originComment: firstReply,
+        typeComment: 'R',
+        replyLevel: 2
+    };
+
+    const comments = [parentComment, firstReply, nestedReply];
+
+    const payload = buildCommentsExportPayload({
+        titleVideo: 'Test',
+        url: 'https://www.youtube.com/watch?v=test',
+        comments
+    });
+
+    assert.equal(payload.totalComments, 1, 'Should have 1 parent comment');
+    assert.equal(payload.totalReplies, 2, 'Should have 2 replies total');
+    assert.equal(payload.comments.length, 1, 'Should have 1 comment in export');
+    assert.equal(
+        payload.comments[0].commentReplies.replies.length,
+        2,
+        'Parent comment should have 2 replies (including nested)'
+    );
+
+    const replyAuthors = payload.comments[0].commentReplies.replies.map((r) => r.author.nameAuthor);
+    assert.ok(replyAuthors.includes('Reply1'), 'Should include first reply');
+    assert.ok(replyAuthors.includes('Reply2'), 'Should include nested reply');
+});

@@ -324,14 +324,25 @@ function getCommentsHtmlText(comments: any): any | undefined {
             }
         }
 
-        for (const c of cmnts) {
-            if (wrapTryCatch(() => c.commentRenderer.replyCount > 0)) {
-                for (const r of replies) {
-                    if (r?.originComment.commentRenderer.commentId === c.commentRenderer.commentId) {
-                        c.commentRenderer.ycsReplies.push(r);
-                        replies.delete(r);
-                    }
-                }
+        // Helper to find root comment by tracing originComment chain
+        const findRootComment = (reply: any): any | null => {
+            let current = reply?.originComment;
+            let maxDepth = 100;
+            while (current && maxDepth-- > 0) {
+                // Found root comment (typeComment === 'C')
+                if (current.typeComment === 'C') return current;
+                // Reached end of chain (no more originComment) - this is the root
+                if (!current.originComment) return current;
+                current = current.originComment;
+            }
+            return null;
+        };
+
+        // Associate all replies (including nested) to their root comments
+        for (const r of replies) {
+            const root = findRootComment(r);
+            if (root && cmnts.has(root)) {
+                root.commentRenderer.ycsReplies.push(r);
             }
         }
 
