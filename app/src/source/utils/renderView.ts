@@ -191,7 +191,7 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
     container.id = `ycs-number-comment-${index}`;
     container.className = 'ycs-render-comment';
 
-    const isNested = model.replyLevel && model.replyLevel > 0;
+    const isNested = (model.replyLevel && model.replyLevel > 0) || model.forceSmallAvatar;
     const avatarSize = isNested ? 24 : 40;
     const avatarCenter = isNested ? 12 : 20;
 
@@ -475,7 +475,8 @@ function renderComment(
     isReply = true,
     querySearch?: string,
     resetReplyLevel = true,
-    hideExpandUp = false
+    hideExpandUp = false,
+    forceSmallAvatar = false
 ): void {
     if (!el) return;
 
@@ -486,7 +487,12 @@ function renderComment(
     wrapper.id = 'ycs_wrap_comments';
     target.appendChild(wrapper);
 
-    const models = buildCommentViewModels(Array.isArray(data) ? data : [], { isReply, resetReplyLevel, hideExpandUp });
+    const models = buildCommentViewModels(Array.isArray(data) ? data : [], {
+        isReply,
+        resetReplyLevel,
+        hideExpandUp,
+        forceSmallAvatar
+    });
     const range = 200;
     let currentPos = 0;
 

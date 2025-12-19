@@ -335,7 +335,7 @@ function handleOpenCommentAll(
         item: { ...ancestor, replyLevel: index } as any,
         refIndex: resolveRefIndex(ancestor, refId ?? 0)
     }));
-    renderComment(wrap, results, true, query, false, true);
+    renderComment(wrap, results, true, query, false, true, true);
 
     commentContainer.classList.add('ycs-oc-ml');
     commentContainer.classList.add('ycs-origin-trigger');
@@ -444,10 +444,13 @@ function handleOpenReply(target: HTMLElement, stateAccessor: CommentStateAccesso
     const wrapper = createRepliesContainer(commentContainer, commentId);
     commentContainer.insertAdjacentElement('beforeend', wrapper);
 
+    // Determine if we are inside an origin chain to maintain small avatar size
+    const isOriginChain = commentContainer.closest('.ycs-origin-chain') !== null;
+
     // Use isReply = true to trigger nested style (24px avatar)
     // Use resetReplyLevel = true to prevent recursive indentation multiplication
     // Use hideExpandUp = true to keep UI clean in nested views
-    renderComment(wrapper, replies, true, query, true, true);
+    renderComment(wrapper, replies, true, query, true, true, isOriginChain);
 
     target.innerHTML = String.fromCharCode(8722);
     target.title = 'Close replies to the comment';
