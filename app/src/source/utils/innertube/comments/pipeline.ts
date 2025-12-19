@@ -7,14 +7,7 @@ import { parseFormattedNumber } from '../../formatting';
 import { normalizeCommentViewModel } from './normalize';
 import { buildInnertubeBody, buildInnertubeHeaders } from '../request';
 import { getInnertubeApiKey, getInitYtData, getPageCfgData } from '../core';
-import {
-    isMemberOnlyFromYtInitialData,
-    setCurrentVideoMemberOnly,
-    clearCurrentVideoMemberOnly,
-    normalizeYtInitialData,
-    updateMemberOnlyStatus,
-    shouldDisableAuth
-} from '../memberOnly';
+import { clearCurrentVideoMemberOnly, updateMemberOnlyStatus, shouldDisableAuth } from '../memberOnly';
 
 export interface CommentContinuation {
     token: string;

@@ -1,5 +1,5 @@
 import { removeNodeList, navigateVideoToTimestamp } from '../../utils/dom';
-import { iconCollapse, iconExpand, iconReplyd, iconCurve } from '../../utils/icons';
+import { iconCollapse, iconExpand, iconCurve } from '../../utils/icons';
 import { ICommentsFuseResult } from '../../utils/interfaces/i_types';
 import { renderComment } from '../../utils/renderView';
 

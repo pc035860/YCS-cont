@@ -403,8 +403,6 @@ export function runSearch(
         }
     }
 
-    const total = resultSearch.length;
-
     // Deduplicate search results by commentId
     const seenCommentIds = new Set<string>();
     const uniqueResults: ICommentsFuseResult[] = [];

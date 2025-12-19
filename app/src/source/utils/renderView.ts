@@ -14,7 +14,7 @@ import {
     MemberBadgeViewModel,
     DonatedChipViewModel
 } from './viewModels';
-import { iconCollapse, iconExpand, iconExpandShowMore, iconReload, iconSortDown, iconReplyd, iconCurve } from './icons';
+import { iconCollapse, iconExpandShowMore, iconReload, iconSortDown, iconCurve } from './icons';
 import { EXPORT_FORMAT } from './constants';
 
 /**
