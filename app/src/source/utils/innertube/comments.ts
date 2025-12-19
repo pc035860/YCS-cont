@@ -54,6 +54,7 @@ async function getAllCommentsModeV2(
         signal
     });
 
+    const replyContinuationStats = { total: 0, unique: 0, skipped: 0, tokenless: 0 };
     let limitReached = false;
     while (batch && !limitReached) {
         const parentResults: object[] = [];
@@ -89,7 +90,8 @@ async function getAllCommentsModeV2(
                         comments.push(reply);
                         showLoadComments(comments.length, elShowLoading);
                     }
-                }
+                },
+                stats: replyContinuationStats
             });
         }
 
@@ -106,6 +108,12 @@ async function getAllCommentsModeV2(
     }
 
     await replyQueue.onIdle();
+
+    if (replyContinuationStats.skipped > 0) {
+        console.debug(
+            `[YCS] Reply continuation dedupe: total=${replyContinuationStats.total}, unique=${replyContinuationStats.unique}, skipped=${replyContinuationStats.skipped}, tokenless=${replyContinuationStats.tokenless} (video ${currentVideoId})`
+        );
+    }
 
     const deduplicated = dedupeParentComments(comments);
     comments.length = 0;

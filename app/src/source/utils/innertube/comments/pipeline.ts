@@ -55,6 +55,14 @@ export interface ScheduleReplyFetchParams {
     fetchContinuation: (continuation: ReplyContinuation) => Promise<CommentBatchResult | undefined>;
     onReply: (reply: any) => void;
     frameworkUpdatesResolver?: (response: any) => Record<string, any>;
+    stats?: ReplyContinuationStats;
+}
+
+export interface ReplyContinuationStats {
+    total: number;
+    unique: number;
+    skipped: number;
+    tokenless: number;
 }
 
 export interface FormattedCommentContent {
@@ -1356,7 +1364,23 @@ export function scheduleReplyFetches(params: ScheduleReplyFetchParams): void {
         return;
     }
 
+    const seenTokens = new Set<string>();
+    const stats = params.stats;
+
     const scheduleContinuation = (cont: ReplyContinuation | SubThreadContinuation): void => {
+        if (stats) stats.total += 1;
+        const token = (cont as any)?.token;
+        if (token && seenTokens.has(token)) {
+            if (stats) stats.skipped += 1;
+            return;
+        }
+        if (token) {
+            seenTokens.add(token);
+            if (stats) stats.unique += 1;
+        } else {
+            if (stats) stats.tokenless += 1;
+        }
+
         const task = queue.add(async () => {
             try {
                 const batch = await fetchContinuation(cont);
