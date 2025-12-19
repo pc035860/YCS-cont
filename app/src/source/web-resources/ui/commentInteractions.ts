@@ -1,5 +1,5 @@
 import { removeNodeList, navigateVideoToTimestamp } from '../../utils/dom';
-import { iconCollapse, iconExpand } from '../../utils/icons';
+import { iconCollapse, iconExpand, iconReplyd } from '../../utils/icons';
 import { ICommentsFuseResult } from '../../utils/interfaces/i_types';
 import { renderComment } from '../../utils/renderView';
 
@@ -218,7 +218,7 @@ function collapseOriginChain(key: string, container: HTMLElement, toggle: HTMLEl
         container.classList.remove('ycs-oc-ml');
         container.classList.remove('ycs-origin-trigger');
     }
-    toggle.textContent = '⇧';
+    toggle.innerHTML = iconCollapse();
     toggle.title = 'Open all parent comments to root.';
 }
 
@@ -322,15 +322,15 @@ function handleOpenCommentAll(
     const wrap = createOriginChainWrapper(key);
     commentContainer.insertAdjacentElement('beforebegin', wrap);
 
-    const results: ICommentsFuseResult[] = ancestors.map((ancestor) => ({
-        item: ancestor as any,
+    const results: ICommentsFuseResult[] = ancestors.map((ancestor, index) => ({
+        item: { ...ancestor, replyLevel: index } as any,
         refIndex: resolveRefIndex(ancestor, refId ?? 0)
     }));
-    renderComment(wrap, results, true, query);
+    renderComment(wrap, results, true, query, false, true);
 
     commentContainer.classList.add('ycs-oc-ml');
     commentContainer.classList.add('ycs-origin-trigger');
-    target.textContent = '⇩';
+    target.innerHTML = iconExpand();
     target.title = 'Close all parent comments.';
 }
 

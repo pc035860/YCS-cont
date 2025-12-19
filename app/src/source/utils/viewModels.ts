@@ -34,6 +34,7 @@ export interface CommentViewModel {
     contentHtml: string;
     /** Reply nesting level for UI indentation: 0 = parent, 1+ = nested reply depth */
     replyLevel?: number;
+    hideExpandUp?: boolean;
 }
 
 export interface ChatMessageViewModel {
@@ -323,11 +324,12 @@ function buildChatMessageHtml(renderer: any): string {
 
 export function buildCommentViewModels(
     items: any[],
-    options: { isReply?: boolean; resetReplyLevel?: boolean } = {}
+    options: { isReply?: boolean; resetReplyLevel?: boolean; hideExpandUp?: boolean } = {}
 ): CommentViewModel[] {
     const models: CommentViewModel[] = [];
     const isReply = Boolean(options.isReply);
     const resetReplyLevel = Boolean(options.resetReplyLevel);
+    const hideExpandUp = Boolean(options.hideExpandUp);
 
     for (const item of items) {
         const renderer = wrapTryCatch(() => item?.item?.commentRenderer) as any;
@@ -410,7 +412,8 @@ export function buildCommentViewModels(
             contentHtml: renderFullText
                 ? sanitizeHtml(decodeHtml(renderFullText))
                 : escapeHtml(decodeHtml(fallbackText)),
-            replyLevel
+            replyLevel,
+            hideExpandUp
         });
     }
 

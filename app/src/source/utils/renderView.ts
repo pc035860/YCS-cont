@@ -14,7 +14,7 @@ import {
     MemberBadgeViewModel,
     DonatedChipViewModel
 } from './viewModels';
-import { iconExpand, iconExpandShowMore, iconReload, iconSortDown } from './icons';
+import { iconCollapse, iconExpand, iconExpandShowMore, iconReload, iconSortDown, iconReplyd } from './icons';
 import { EXPORT_FORMAT } from './constants';
 
 // Debug mode configuration
@@ -195,12 +195,17 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
     const avatarSize = isNested ? 24 : 40;
 
     // Apply dynamic indentation based on replyLevel
-    // Level 0: 0px
-    // Level 1: 56px (aligned with parent text)
-    // Level 2+: 56px + (level-1) * 16px
-    if (isNested && model.replyLevel) {
-        const indent = 56 + (Math.min(model.replyLevel, 5) - 1) * 16;
-        container.style.marginLeft = `${indent}px`;
+    if (model.replyLevel && model.replyLevel > 0) {
+        if (model.hideExpandUp) {
+            // Relatice mini-indent for conversation chains
+            const indent = model.replyLevel * 16;
+            container.style.marginLeft = `${indent}px`;
+            container.style.setProperty('--reply-indent', `${indent}px`);
+        } else {
+            // Standard YouTube-style indentation for general replies
+            const indent = 56 + (Math.min(model.replyLevel, 5) - 1) * 16;
+            container.style.marginLeft = `${indent}px`;
+        }
     }
 
     const left = document.createElement('div');
@@ -290,27 +295,15 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
         meta.appendChild(replies);
     }
 
-    if (model.isReply && model.isReplyType && (model.refIndex || model.commentId)) {
-        const button = document.createElement('button');
-        if (model.refIndex) {
-            button.id = model.refIndex;
-        }
-        button.title = 'Open the comment to the reply here.';
-        button.className = 'ycs-open-comment';
-        button.innerHTML = iconExpand();
+    if (model.isReply && model.isReplyType && !model.hideExpandUp && (model.refIndex || model.commentId)) {
+        const allButton = document.createElement('button');
+        allButton.title = 'Open all parent comments to root.';
+        allButton.className = 'ycs-open-comment-all';
+        allButton.innerHTML = iconCollapse();
         if (model.commentId) {
-            button.dataset.commentId = model.commentId;
-        }
-        meta.appendChild(button);
-
-        if (model.commentId) {
-            const allButton = document.createElement('button');
-            allButton.title = 'Open all parent comments to root.';
-            allButton.className = 'ycs-open-comment-all';
-            allButton.textContent = '⇧';
             allButton.dataset.commentId = model.commentId;
-            meta.appendChild(allButton);
         }
+        meta.appendChild(allButton);
     }
 
     header.appendChild(meta);
@@ -469,7 +462,8 @@ function renderComment(
     data: any,
     isReply = true,
     querySearch?: string,
-    resetReplyLevel = false
+    resetReplyLevel = true,
+    hideExpandUp = false
 ): void {
     if (!el) return;
 
@@ -480,7 +474,7 @@ function renderComment(
     wrapper.id = 'ycs_wrap_comments';
     target.appendChild(wrapper);
 
-    const models = buildCommentViewModels(Array.isArray(data) ? data : [], { isReply, resetReplyLevel });
+    const models = buildCommentViewModels(Array.isArray(data) ? data : [], { isReply, resetReplyLevel, hideExpandUp });
     const range = 200;
     let currentPos = 0;
 

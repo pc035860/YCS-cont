@@ -275,9 +275,21 @@ html[dark] .ycs-open-reply {
   height: 18px;
   width: 18px;
   border: 0;
-  background-color: #34495e1c;
+  background-color: transparent;
   vertical-align: text-bottom;
   margin-left: 6px;
+  color: #065fd4 !important;
+}
+
+.ycs-open-comment-all svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+html[dark='true'] .ycs-open-comment-all,
+html[dark] .ycs-open-comment-all {
+  color: #3ea6ff !important;
 }
 
 .ycs-open-comment * {
@@ -329,45 +341,73 @@ html[dark] .ycs-goto-video {
 .ycs-origin-wrap,
 .ycs-origin-chain {
   margin-left: 12px;
-  padding-left: 10px;
-  --ycs-origin-line: rgba(6, 95, 212, 0.55);
-  border-left: 2px solid rgba(6, 95, 212, 0.35);
-  background: rgba(6, 95, 212, 0.06);
-}
-
-.ycs-origin-chain {
-  border-left-style: dashed;
-  border-left-color: rgba(6, 95, 212, 0.6);
-  background: rgba(6, 95, 212, 0.1);
-}
-
-.ycs-origin-trigger {
-  position: relative;
-  --ycs-origin-line: rgba(6, 95, 212, 0.55);
-}
-
-.ycs-origin-trigger::before {
-  content: '';
-  position: absolute;
-  left: 12px;
-  top: -14px;
-  height: 16px;
-  border-left: 2px solid var(--ycs-origin-line);
-  opacity: 0.8;
+  padding-left: 14px;
+  --ycs-origin-line: rgba(6, 95, 212, 0.6);
+  border-left: 1.5px solid var(--ycs-origin-line);
 }
 
 html[dark='true'] .ycs-origin-wrap,
 html[dark] .ycs-origin-wrap,
 html[dark='true'] .ycs-origin-chain,
 html[dark] .ycs-origin-chain {
-  --ycs-origin-line: rgba(62, 166, 255, 0.7);
-  border-left-color: rgba(62, 166, 255, 0.6);
-  background: rgba(62, 166, 255, 0.12);
+  --ycs-origin-line: rgba(62, 166, 255, 0.6);
+}
+
+/* Use individual item segments for the chain, fixed to the absolute left */
+.ycs-origin-chain {
+  border-left: 0 !important;
+  opacity: 0.9;
+}
+
+.ycs-origin-chain .ycs-render-comment {
+  position: relative;
+}
+
+.ycs-origin-chain .ycs-render-comment::after {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--reply-indent, 0px) - 14px);
+  top: 0;
+  width: 1.5px;
+  height: calc(100% + 20px);
+  background-color: var(--ycs-origin-line);
+  pointer-events: none;
+}
+
+.ycs-origin-chain .ycs-render-comment:first-child::after {
+  top: 12px;
+  height: calc(100% + 20px - 12px);
+}
+
+.ycs-origin-chain .ycs-render-comment::before {
+  content: '';
+  position: absolute;
+  top: 12px; /* Center of 24px nested avatar */
+  right: 100%;
+  width: calc(var(--reply-indent, 0px) + 14px);
+  border-top: 1.5px solid var(--ycs-origin-line);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.ycs-origin-trigger {
+  position: relative;
+  --ycs-origin-line: rgba(6, 95, 212, 0.6);
+}
+
+.ycs-origin-trigger::before {
+  content: '';
+  position: absolute;
+  left: -44px;
+  top: -20px;
+  height: 32px;
+  border-left: 1.5px solid var(--ycs-origin-line);
+  opacity: 0.5;
 }
 
 html[dark='true'] .ycs-origin-trigger,
 html[dark] .ycs-origin-trigger {
-  --ycs-origin-line: rgba(62, 166, 255, 0.7);
+  --ycs-origin-line: rgba(62, 166, 255, 0.6);
 }
 
 .ycs-infobar {
@@ -630,20 +670,19 @@ html[dark] .ycs-comment__main-text {
 }
 
 .ycs-com-replies {
-  border-bottom: 4px solid #e0e0e0;
   margin-bottom: 25px;
 }
 
 html[dark='true'] .ycs-com-replies,
 html[dark] .ycs-com-replies {
-  border-bottom: 4px solid #303030;
+  border-bottom: 0;
 }
 
 .ycs-show_more_block {
-  border-bottom: 4px solid #e0e0e0;
+  border-bottom: 1px solid #e0e0e0;
   cursor: pointer;
   margin: 0 0 25px 0;
-  padding: 0;
+  padding: 8px 0;
   text-align: center;
 }
 
@@ -654,8 +693,12 @@ html[dark] .ycs-com-replies {
 html[dark='true'] .ycs-show_more_block,
 html[dark] .ycs-show_more_block {
   background-color: #181818;
-  border-bottom: 4px solid #303030;
+  border-bottom: 1px solid #303030;
   color: rgb(238, 238, 238);
+}
+
+.ycs-show_more_block:hover {
+  background-color: #ececec;
 }
 
 html[dark='true'] .ycs-show_more_block:hover,
@@ -1138,13 +1181,15 @@ html[dark] .ycs_btn_load-stop {
 }
 
 .ycs-nested-replies-container {
-  margin-left: 32px;
-  border-left: 2px solid #e0e0e0;
+  margin-left: 12px;
+  padding-left: 16px;
+  padding-bottom: 8px;
+  border-left: 2px solid rgba(0, 0, 0, 0.1);
 }
 
 html[dark='true'] .ycs-nested-replies-container,
 html[dark] .ycs-nested-replies-container {
-  border-left: 2px solid #303030;
+  border-left: 2px solid rgba(255, 255, 255, 0.15);
 }
 
 span.ycs-mark-words {
