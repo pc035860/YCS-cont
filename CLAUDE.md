@@ -323,6 +323,28 @@ The extension optionally supports YouTube Data API v3 as an alternative to Inner
 - **Partial results**: Supports returning partial results on errors or user cancellation
 - **Fallback**: When API key is not configured or disabled, falls back to Innertube API
 
+### Nested Comments Limitation (Data API v3 vs Innertube)
+
+YouTube Data API v3 **does not support nested replies** (replies to replies). This is an official API limitation, not an implementation gap.
+
+**Official Documentation Statement**:
+> "YouTube currently supports replies only for top-level comments. However, replies to replies may be supported in the future."
+
+**Comparison**:
+
+| Feature | YouTube Data API v3 | Innertube API |
+|---------|---------------------|---------------|
+| Nested replies | ❌ Not supported | ✅ Supported via `subThreads` |
+| Reply depth | 1 level (parent + replies) | N levels (MAX_SUBTHREAD_DEPTH=5) |
+| `replyLevel` field | ❌ Not provided | ✅ From `properties.replyLevel` |
+| `parentId` usage | Top-level comment IDs only | Any comment ID |
+
+**Implications**:
+- Data API v3 returns flat structure: `commentThread.replies.comments[]` contains only direct replies
+- All replies from Data API v3 are rendered at the same indentation level (replyLevel defaults to 1)
+- The rendering layer has safe fallback: `viewModels.ts` defaults replyLevel based on `typeComment`
+- For true nested comment support, use Innertube API (default)
+
 **Message Types**:
 - `YCS_YT_API_COMMENTS_START` / `YCS_YT_API_COMMENTS_ABORT`: Request control
 - `YCS_YT_API_COMMENTS_PROGRESS` / `YCS_YT_API_COMMENTS_CHUNK`: Response streaming
