@@ -712,12 +712,16 @@ export function extractSubThreads(
             // Case 1: continuationItemRenderer - load more at this level
             const continuationItem = wrapTryCatch(() => subThread.continuationItemRenderer);
             if (continuationItem) {
+                // Extract common paths to reduce repeated property access
+                const buttonCommand = wrapTryCatch(() => continuationItem.button?.buttonRenderer?.command);
+                const endpoint = wrapTryCatch(() => continuationItem.continuationEndpoint);
+
                 const token =
-                    wrapTryCatch(() => continuationItem.button?.buttonRenderer?.command?.continuationCommand?.token) ||
-                    wrapTryCatch(() => continuationItem.continuationEndpoint?.continuationCommand?.token);
+                    wrapTryCatch(() => buttonCommand?.continuationCommand?.token) ||
+                    wrapTryCatch(() => endpoint?.continuationCommand?.token);
                 const clickTrackingParams =
-                    wrapTryCatch(() => continuationItem.button?.buttonRenderer?.command?.clickTrackingParams) ||
-                    wrapTryCatch(() => continuationItem.continuationEndpoint?.clickTrackingParams);
+                    wrapTryCatch(() => buttonCommand?.clickTrackingParams) ||
+                    wrapTryCatch(() => endpoint?.clickTrackingParams);
 
                 if (token) {
                     result.continuations.push({
