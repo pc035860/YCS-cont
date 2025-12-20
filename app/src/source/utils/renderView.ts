@@ -213,10 +213,24 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
 
     container.style.setProperty('--avatar-center', `${avatarCenter}px`);
 
-    // Apply dynamic indentation based on replyLevel
+    // Apply dynamic indentation based on replyLevel.
+    // Two distinct indentation modes exist for different UI contexts:
+    //
+    // 1. hideExpandUp mode (conversation chains via "Open all comments"):
+    //    - Uses compact 16px increments per level
+    //    - Adds curve icon to show reply relationship
+    //    - Designed for focused conversation view where parent context is hidden
+    //
+    // 2. Standard mode (general replies list):
+    //    - Base indent of 56px (aligns with YouTube's reply indentation)
+    //    - Additional 16px per level, capped at level 5
+    //    - Used when replies are shown under their parent comment
+    //
+    // Note: These calculations are independent of container padding/margin.
+    // If container styles change, review both paths for visual consistency.
     if (model.replyLevel && model.replyLevel > 0) {
         if (model.hideExpandUp) {
-            // Relatice mini-indent for conversation chains
+            // Conversation chain mode: compact relative indent (16px per level)
             const indent = model.replyLevel * 16;
             container.style.marginLeft = `${indent}px`;
             container.style.setProperty('--reply-indent', `${indent}px`);
@@ -226,7 +240,7 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
             curve.innerHTML = iconCurve();
             container.appendChild(curve);
         } else {
-            // Standard YouTube-style indentation for general replies
+            // Standard mode: YouTube-style base indent + incremental nesting
             const indent = 56 + (Math.min(model.replyLevel, 5) - 1) * 16;
             container.style.marginLeft = `${indent}px`;
         }
