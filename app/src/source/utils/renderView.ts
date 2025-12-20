@@ -208,8 +208,8 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
     container.className = 'ycs-render-comment';
 
     const isNested = (model.replyLevel && model.replyLevel > 0) || model.forceSmallAvatar;
-    const avatarSize = isNested ? 24 : 40;
-    const avatarCenter = isNested ? 12 : 20;
+    const avatarSize = isNested ? 32 : 40;
+    const avatarCenter = isNested ? 16 : 20;
 
     container.style.setProperty('--avatar-center', `${avatarCenter}px`);
 
@@ -230,8 +230,8 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
     // If container styles change, review both paths for visual consistency.
     if (model.replyLevel && model.replyLevel > 0) {
         if (model.hideExpandUp) {
-            // Conversation chain mode: compact relative indent (16px per level)
-            const indent = model.replyLevel * 16;
+            // Conversation chain mode: indent per level (32px matches avatar size)
+            const indent = model.replyLevel * 32;
             container.style.marginLeft = `${indent}px`;
             container.style.setProperty('--reply-indent', `${indent}px`);
 

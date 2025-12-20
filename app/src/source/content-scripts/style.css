@@ -188,8 +188,8 @@ html[dark] .ycs_btn_active {
 }
 
 .ycs-render-img--nested {
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   margin-right: 8px;
 }
 
@@ -343,13 +343,51 @@ html[dark] .ycs-goto-video {
   padding-left: 14px;
 }
 
-/* Use individual item segments for the chain, fixed to the absolute left */
+/* Origin chain container with left border indicator */
 .ycs-origin-chain {
-  /* opacity: 0.8; */
+  position: relative;
+  border-left: 2px solid #065fd4;
+  padding: 8px 8px 12px 12px;
+  margin-bottom: 8px;
+  background-color: rgba(6, 95, 212, 0.06);
+}
+
+html[dark='true'] .ycs-origin-chain,
+html[dark] .ycs-origin-chain {
+  border-left-color: #3ea6ff;
+  background-color: rgba(62, 166, 255, 0.08);
 }
 
 .ycs-origin-chain .ycs-render-comment {
   position: relative;
+}
+
+.ycs-origin-chain .ycs-render-comment:last-of-type {
+  margin-bottom: 0;
+}
+
+/* Arrow pointing from chain to source comment */
+.ycs-origin-chain-arrow {
+  position: absolute;
+  left: -2px;
+  bottom: -2px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid #065fd4;
+  transform: translateX(-4px);
+  z-index: 1;
+}
+
+html[dark='true'] .ycs-origin-chain-arrow,
+html[dark] .ycs-origin-chain-arrow {
+  border-top-color: #3ea6ff;
+}
+
+/* Hide curve icons in origin chain (border-left replaces them) */
+.ycs-origin-chain .ycs-curve-icon-wrap {
+  display: none;
 }
 
 .ycs-curve-icon-wrap {
@@ -375,13 +413,19 @@ html[dark] .ycs-curve-icon-wrap {
   color: #898989;
 }
 
+/* Source comment highlight when origin chain is expanded */
 .ycs-origin-trigger {
   position: relative;
+  border-left: 2px solid #065fd4;
+  padding-left: 10px;
+  margin-left: -12px;
+  background-color: rgba(6, 95, 212, 0.04);
 }
 
 html[dark='true'] .ycs-origin-trigger,
 html[dark] .ycs-origin-trigger {
-  /* No special color needed if lines are gone */
+  border-left-color: #3ea6ff;
+  background-color: rgba(62, 166, 255, 0.06);
 }
 
 .ycs-infobar {
@@ -644,7 +688,7 @@ html[dark] .ycs-comment__main-text {
 }
 
 .ycs-com-replies {
-  margin-bottom: 25px;
+  margin-bottom: 8px;
 }
 
 html[dark='true'] .ycs-com-replies,

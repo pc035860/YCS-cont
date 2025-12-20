@@ -253,9 +253,8 @@ function collapseOriginChain(
     removeNodeList(`.ycs-com-all-${key}`);
     restoreScrollPosition(container, scrollContainer, yBefore);
     if (shouldRemoveOriginMargin(key)) {
-        container.classList.remove('ycs-oc-ml');
+        // Only remove the trigger class; no margin modification needed
         container.classList.remove('ycs-origin-trigger');
-        container.querySelector('.ycs-curve-icon-wrap')?.remove();
     }
     toggle.innerHTML = iconCollapse();
     toggle.title = 'Open all parent comments to root.';
@@ -377,6 +376,14 @@ function handleOpenCommentAll(
 
     const query = resolveQuery(queryGetter);
     const wrap = createOriginChainWrapper(key);
+
+    // Get source's current marginLeft to position origin chain relative to it
+    const computedStyle = window.getComputedStyle(commentContainer);
+    const sourceMarginLeft = parseFloat(computedStyle.marginLeft) || 0;
+    const EXTRA_OFFSET = 16;
+    wrap.style.marginLeft = `${sourceMarginLeft + EXTRA_OFFSET}px`;
+    wrap.style.paddingLeft = '12px'; // Space for border-left
+
     commentContainer.insertAdjacentElement('beforebegin', wrap);
 
     const results: ICommentsFuseResult[] = ancestors.map((ancestor, index) => ({
@@ -390,15 +397,13 @@ function handleOpenCommentAll(
         forceSmallAvatar: true
     });
 
-    commentContainer.classList.add('ycs-oc-ml');
-    commentContainer.classList.add('ycs-origin-trigger');
+    // Add arrow element at chain bottom pointing to source
+    const arrow = document.createElement('div');
+    arrow.className = 'ycs-origin-chain-arrow';
+    wrap.appendChild(arrow);
 
-    if (!commentContainer.querySelector('.ycs-curve-icon-wrap')) {
-        const curve = document.createElement('div');
-        curve.className = 'ycs-curve-icon-wrap';
-        curve.innerHTML = iconCurve();
-        commentContainer.appendChild(curve);
-    }
+    // Mark source as origin trigger (for styling only, no margin change)
+    commentContainer.classList.add('ycs-origin-trigger');
 
     // === Scroll Position Lock ===
     restoreScrollPosition(commentContainer, scrollContainer, yBefore);
