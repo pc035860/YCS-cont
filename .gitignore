@@ -15,6 +15,7 @@ CLAUDE_PLANS
 .factory
 .claude
 .gemini-clipboard
+.gemini/settings.json
 
 PR_MESSAGE.md
 specs/

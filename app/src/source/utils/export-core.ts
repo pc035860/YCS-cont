@@ -176,6 +176,31 @@ function createCommentExportItem(renderer: any, videoId: string): CommentExportI
     };
 }
 
+/**
+ * Trace back through originComment chain to find the root comment ID.
+ * Used to associate nested replies (replyLevel >= 2) with their root comment.
+ * @param reply - Reply item to trace
+ * @returns Root comment ID, or null if chain is broken
+ */
+function findRootCommentId(reply: CommentItem): string | null {
+    let current: CommentItem | undefined = reply?.originComment;
+    let maxDepth = 100; // Prevent infinite loops
+
+    while (current && maxDepth-- > 0) {
+        // Found root comment (typeComment === 'C')
+        if (current.typeComment === 'C') {
+            return current.commentRenderer?.commentId || null;
+        }
+        // Reached end of chain (no more originComment) - this is the root
+        if (!current.originComment) {
+            return current.commentRenderer?.commentId || null;
+        }
+        current = current.originComment;
+    }
+
+    return null;
+}
+
 function findMemberBadge(badges: any): any {
     if (!Array.isArray(badges)) return;
     return badges.find((badge) => badge?.liveChatAuthorBadgeRenderer?.customThumbnail);
@@ -323,12 +348,12 @@ export function buildCommentsExportPayload(input: {
 
     for (const reply of repliesSet) {
         const renderer = reply?.commentRenderer || {};
-        const originId = reply?.originComment?.commentRenderer?.commentId;
-        if (typeof originId !== 'string' || originId.length === 0) continue;
-        const origin = commentMap.get(originId);
-        if (!origin) continue;
+        const rootId = findRootCommentId(reply);
+        if (typeof rootId !== 'string' || rootId.length === 0) continue;
+        const root = commentMap.get(rootId);
+        if (!root) continue;
         const replyEntry = createCommentExportItem(renderer, payload.videoId);
-        origin.commentReplies.replies.push(replyEntry);
+        root.commentReplies.replies.push(replyEntry);
     }
 
     payload.totalReplies = repliesSet.length;
@@ -421,11 +446,11 @@ export function buildCommentsExportPayloadFromCache(body: any): CommentsExportPa
 
     for (const reply of repliesSet) {
         const renderer = reply?.commentRenderer || {};
-        const originId = reply?.originComment?.commentRenderer?.commentId;
-        if (typeof originId !== 'string' || originId.length === 0) continue;
-        const origin = commentMap.get(originId);
-        if (!origin) continue;
-        origin.commentReplies.replies.push(createCommentExportItem(renderer, payload.videoId));
+        const rootId = findRootCommentId(reply);
+        if (typeof rootId !== 'string' || rootId.length === 0) continue;
+        const root = commentMap.get(rootId);
+        if (!root) continue;
+        root.commentReplies.replies.push(createCommentExportItem(renderer, payload.videoId));
     }
 
     payload.totalReplies = repliesSet.length;

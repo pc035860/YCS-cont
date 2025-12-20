@@ -7,14 +7,7 @@ import { parseFormattedNumber } from '../../formatting';
 import { normalizeCommentViewModel } from './normalize';
 import { buildInnertubeBody, buildInnertubeHeaders } from '../request';
 import { getInnertubeApiKey, getInitYtData, getPageCfgData } from '../core';
-import {
-    isMemberOnlyFromYtInitialData,
-    setCurrentVideoMemberOnly,
-    clearCurrentVideoMemberOnly,
-    normalizeYtInitialData,
-    updateMemberOnlyStatus,
-    shouldDisableAuth
-} from '../memberOnly';
+import { clearCurrentVideoMemberOnly, updateMemberOnlyStatus, shouldDisableAuth } from '../memberOnly';
 
 export interface CommentContinuation {
     token: string;
@@ -24,6 +17,19 @@ export interface CommentContinuation {
 export interface ReplyContinuation extends CommentContinuation {
     originComment?: any;
 }
+
+export interface SubThreadContinuation extends ReplyContinuation {
+    replyLevel: number;
+    parentCommentId?: string;
+}
+
+export interface ExtractSubThreadsResult {
+    comments: any[];
+    continuations: SubThreadContinuation[];
+}
+
+/** Maximum depth for recursive subThread scanning to prevent infinite loops */
+const MAX_SUBTHREAD_DEPTH = 5;
 
 export interface CommentBatchResult {
     comments: any[];
@@ -49,6 +55,14 @@ export interface ScheduleReplyFetchParams {
     fetchContinuation: (continuation: ReplyContinuation) => Promise<CommentBatchResult | undefined>;
     onReply: (reply: any) => void;
     frameworkUpdatesResolver?: (response: any) => Record<string, any>;
+    stats?: ReplyContinuationStats;
+}
+
+export interface ReplyContinuationStats {
+    total: number;
+    unique: number;
+    skipped: number;
+    tokenless: number;
 }
 
 export interface FormattedCommentContent {
@@ -421,7 +435,20 @@ export function generateCommentObjectFromFW(params: {
         } catch {
             // ignore parse errors and keep default likeCount
         }
-        const replyCount = parseFormattedNumber(wrapTryCatch(() => update.toolbar?.replyCount) || '0').number;
+        const replyCountRaw = wrapTryCatch(() => update.toolbar?.replyCount);
+        let replyCount = parseFormattedNumber(replyCountRaw || '0').number;
+
+        // Fallback: Try to extract reply count from A11y label if raw count is empty/zero
+        // e.g. "4 則回覆" or "4 replies"
+        if (replyCount === 0 && !replyCountRaw) {
+            const replyCountA11y = wrapTryCatch(() => update.toolbar?.replyCountA11y);
+            if (replyCountA11y) {
+                const a11yParsed = parseFormattedNumber(replyCountA11y);
+                if (a11yParsed.number > 0) {
+                    replyCount = a11yParsed.number;
+                }
+            }
+        }
 
         const comment: any = {
             commentRenderer: {
@@ -512,6 +539,12 @@ export function generateCommentObjectFromFW(params: {
         }
         if (wrapTryCatch(() => author.isCreator)) {
             comment.commentRenderer.authorIsChannelOwner = true;
+        }
+
+        // Extract replyLevel from FW properties (0 = parent, 1+ = nested reply)
+        const replyLevel = wrapTryCatch(() => update?.properties?.replyLevel);
+        if (typeof replyLevel === 'number') {
+            comment.replyLevel = replyLevel;
         }
 
         return comment;
@@ -642,6 +675,133 @@ export function extractReplyContinuationFromItem(threadItem: any): { token?: str
         console.error(e);
         return {};
     }
+}
+
+/**
+ * Recursively extracts comments and continuation tokens from subThreads.
+ * Scans nested commentRepliesRenderer.subThreads arrays up to MAX_SUBTHREAD_DEPTH.
+ *
+ * @param commentRepliesRenderer - The replies renderer containing subThreads
+ * @param frameworkUpdatesById - Map of entityKey/commentId to FW updates
+ * @param parentComment - Direct parent comment for originComment reference
+ * @param currentDepth - Current recursion depth (starts at 1 for first-level replies)
+ * @returns Object containing extracted comments and continuation tokens
+ */
+export function extractSubThreads(
+    commentRepliesRenderer: any,
+    frameworkUpdatesById: Record<string, any>,
+    parentComment: any,
+    currentDepth = 1
+): ExtractSubThreadsResult {
+    const result: ExtractSubThreadsResult = {
+        comments: [],
+        continuations: []
+    };
+
+    if (!commentRepliesRenderer || currentDepth > MAX_SUBTHREAD_DEPTH) {
+        return result;
+    }
+
+    const subThreads = wrapTryCatch(() => commentRepliesRenderer.subThreads) || [];
+    if (!Array.isArray(subThreads) || subThreads.length === 0) {
+        return result;
+    }
+
+    for (const subThread of subThreads) {
+        try {
+            // Case 1: continuationItemRenderer - load more at this level
+            const continuationItem = wrapTryCatch(() => subThread.continuationItemRenderer);
+            if (continuationItem) {
+                // Extract common paths to reduce repeated property access
+                const buttonCommand = wrapTryCatch(() => continuationItem.button?.buttonRenderer?.command);
+                const endpoint = wrapTryCatch(() => continuationItem.continuationEndpoint);
+
+                const token =
+                    wrapTryCatch(() => buttonCommand?.continuationCommand?.token) ||
+                    wrapTryCatch(() => endpoint?.continuationCommand?.token);
+                const clickTrackingParams =
+                    wrapTryCatch(() => buttonCommand?.clickTrackingParams) ||
+                    wrapTryCatch(() => endpoint?.clickTrackingParams);
+
+                if (token) {
+                    result.continuations.push({
+                        token,
+                        clickTrackingParams,
+                        originComment: parentComment,
+                        replyLevel: currentDepth,
+                        parentCommentId: wrapTryCatch(() => parentComment?.commentRenderer?.commentId)
+                    });
+                }
+                continue;
+            }
+
+            // Case 2: commentThreadRenderer - nested comment
+            const threadRenderer = wrapTryCatch(() => subThread.commentThreadRenderer);
+            if (threadRenderer) {
+                const vm = wrapTryCatch(() => threadRenderer.commentViewModel?.commentViewModel);
+                const commentId = wrapTryCatch(() => vm?.commentId);
+
+                if (commentId) {
+                    // Generate comment object from framework updates
+                    const update = frameworkUpdatesById[commentId];
+                    const surfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.commentSurfaceKey)];
+                    const toolbarStateUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.toolbarStateKey)];
+
+                    const comment = generateCommentObjectFromFW({
+                        commentId,
+                        update,
+                        surfaceUpdate,
+                        toolbarStateUpdate
+                    });
+
+                    if (comment) {
+                        // Mark with depth for later replyLevel assignment
+                        const enrichedComment = {
+                            ...comment,
+                            _subThreadDepth: currentDepth,
+                            originComment: parentComment
+                        };
+
+                        // Recursively process nested replies with this comment as new parent
+                        const nestedRepliesRenderer = wrapTryCatch(
+                            () => threadRenderer.replies?.commentRepliesRenderer
+                        );
+                        if (nestedRepliesRenderer) {
+                            const nestedResult = extractSubThreads(
+                                nestedRepliesRenderer,
+                                frameworkUpdatesById,
+                                enrichedComment,
+                                currentDepth + 1
+                            );
+
+                            // If no actual content or further tokens found for this nested comment,
+                            // override its replyCount to 0 to avoid ghost expand buttons.
+                            if (nestedResult.comments.length === 0 && nestedResult.continuations.length === 0) {
+                                if (enrichedComment.commentRenderer) {
+                                    enrichedComment.commentRenderer.replyCount = 0;
+                                }
+                            }
+
+                            result.comments.push(enrichedComment);
+                            result.comments.push(...nestedResult.comments);
+                            result.continuations.push(...nestedResult.continuations);
+                        } else {
+                            // No replies renderer at all for this nested comment
+                            if (enrichedComment.commentRenderer) {
+                                enrichedComment.commentRenderer.replyCount = 0;
+                            }
+                            result.comments.push(enrichedComment);
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('[YCS] Error processing subThread:', e);
+            continue;
+        }
+    }
+
+    return result;
 }
 
 export function extractNextContinuation(response: any): { token?: string; clickTrackingParams?: string } {
@@ -1047,6 +1207,11 @@ export function processParentComment(params: ProcessParentCommentParams): Proces
             applyFrameworkUpdatesToComment(baseComment, item, frameworkUpdates);
             const prepared = enrichCommentRenderer(baseComment, currentVideoId, undefined, 'C');
             if (prepared) {
+                // Set replyLevel for parent comment
+                const parentCommentId = wrapTryCatch(() => prepared.commentRenderer?.commentId);
+                const parentFwUpdate = parentCommentId ? frameworkUpdates[parentCommentId] : undefined;
+                prepared.replyLevel = wrapTryCatch(() => parentFwUpdate?.properties?.replyLevel) ?? 0;
+
                 collected.push(prepared);
                 const continuation = extractReplyContinuationFromItem(item);
                 if (continuation.token) {
@@ -1073,8 +1238,53 @@ export function processParentComment(params: ProcessParentCommentParams): Proces
                     applyFrameworkUpdatesToComment(reply, reply, frameworkUpdates);
                     const preparedReply = enrichCommentRenderer(reply, currentVideoId, prepared, 'R');
                     if (preparedReply) {
+                        // Set replyLevel for direct replies
+                        const replyId = wrapTryCatch(() => preparedReply.commentRenderer?.commentId);
+                        const replyFwUpdate = replyId ? frameworkUpdates[replyId] : undefined;
+                        preparedReply.replyLevel = wrapTryCatch(() => replyFwUpdate?.properties?.replyLevel) ?? 1;
                         collected.push(preparedReply);
                     }
+                }
+
+                // Process subThreads for nested replies
+                const repliesRenderer = wrapTryCatch(() => item.commentThreadRenderer.replies?.commentRepliesRenderer);
+                if (repliesRenderer?.subThreads) {
+                    const subThreadResult = extractSubThreads(repliesRenderer, frameworkUpdates, prepared, 1);
+
+                    // Re-evaluate parent replyCount if absolutely nothing was found
+                    if (
+                        replies.length === 0 &&
+                        subThreadResult.comments.length === 0 &&
+                        subThreadResult.continuations.length === 0 &&
+                        replyContinuations.length === 0
+                    ) {
+                        if (prepared.commentRenderer) {
+                            prepared.commentRenderer.replyCount = 0;
+                        }
+                    }
+
+                    // Enrich subThread comments
+                    for (const subComment of subThreadResult.comments) {
+                        const enriched = enrichCommentRenderer(
+                            subComment,
+                            currentVideoId,
+                            subComment.originComment,
+                            'R'
+                        );
+                        if (enriched) {
+                            const subCommentId = wrapTryCatch(() => enriched.commentRenderer?.commentId);
+                            const subFwUpdate = subCommentId ? frameworkUpdates[subCommentId] : undefined;
+                            enriched.replyLevel =
+                                wrapTryCatch(() => subFwUpdate?.properties?.replyLevel) ??
+                                subComment._subThreadDepth ??
+                                1;
+                            delete enriched._subThreadDepth;
+                            collected.push(enriched);
+                        }
+                    }
+
+                    // Add subThread continuations
+                    replyContinuations.push(...subThreadResult.continuations);
                 }
             }
         } else if (
@@ -1086,6 +1296,11 @@ export function processParentComment(params: ProcessParentCommentParams): Proces
                 applyFrameworkUpdatesToComment(normalized, item, frameworkUpdates);
                 const prepared = enrichCommentRenderer(normalized, currentVideoId, undefined, 'C');
                 if (prepared) {
+                    // Set replyLevel for parent comment
+                    const parentCommentId = wrapTryCatch(() => prepared.commentRenderer?.commentId);
+                    const parentFwUpdate = parentCommentId ? frameworkUpdates[parentCommentId] : undefined;
+                    prepared.replyLevel = wrapTryCatch(() => parentFwUpdate?.properties?.replyLevel) ?? 0;
+
                     collected.push(prepared);
                     const continuation = extractReplyContinuationFromItem(item);
                     if (continuation.token) {
@@ -1094,6 +1309,48 @@ export function processParentComment(params: ProcessParentCommentParams): Proces
                             clickTrackingParams: continuation.cTrParams,
                             originComment: prepared
                         });
+                    }
+
+                    // Process subThreads for nested replies (new format)
+                    const repliesRenderer = wrapTryCatch(
+                        () => item.commentThreadRenderer?.replies?.commentRepliesRenderer
+                    );
+                    if (repliesRenderer?.subThreads) {
+                        const subThreadResult = extractSubThreads(repliesRenderer, frameworkUpdates, prepared, 1);
+
+                        // Re-evaluate parent replyCount
+                        if (
+                            subThreadResult.comments.length === 0 &&
+                            subThreadResult.continuations.length === 0 &&
+                            replyContinuations.length === 0
+                        ) {
+                            if (prepared.commentRenderer) {
+                                prepared.commentRenderer.replyCount = 0;
+                            }
+                        }
+
+                        // Enrich subThread comments
+                        for (const subComment of subThreadResult.comments) {
+                            const enriched = enrichCommentRenderer(
+                                subComment,
+                                currentVideoId,
+                                subComment.originComment,
+                                'R'
+                            );
+                            if (enriched) {
+                                const subCommentId = wrapTryCatch(() => enriched.commentRenderer?.commentId);
+                                const subFwUpdate = subCommentId ? frameworkUpdates[subCommentId] : undefined;
+                                enriched.replyLevel =
+                                    wrapTryCatch(() => subFwUpdate?.properties?.replyLevel) ??
+                                    subComment._subThreadDepth ??
+                                    1;
+                                delete enriched._subThreadDepth;
+                                collected.push(enriched);
+                            }
+                        }
+
+                        // Add subThread continuations
+                        replyContinuations.push(...subThreadResult.continuations);
                     }
                 }
             }
@@ -1111,13 +1368,34 @@ export function scheduleReplyFetches(params: ScheduleReplyFetchParams): void {
         return;
     }
 
-    const scheduleContinuation = (cont: ReplyContinuation): void => {
+    const seenTokens = new Set<string>();
+    const stats = params.stats;
+
+    const scheduleContinuation = (cont: ReplyContinuation | SubThreadContinuation): void => {
+        if (stats) stats.total += 1;
+        const token = (cont as any)?.token;
+        if (token && seenTokens.has(token)) {
+            if (stats) stats.skipped += 1;
+            return;
+        }
+        if (token) {
+            seenTokens.add(token);
+            if (stats) stats.unique += 1;
+        } else {
+            if (stats) stats.tokenless += 1;
+        }
+
         const task = queue.add(async () => {
             try {
                 const batch = await fetchContinuation(cont);
                 if (!batch) return;
                 const fwById = batch.frameworkUpdates || {};
-                for (let comment of batch.comments || []) {
+                for (const item of batch.comments || []) {
+                    let comment = item;
+                    if (wrapTryCatch(() => item.commentThreadRenderer?.comment)) {
+                        comment = item.commentThreadRenderer.comment;
+                    }
+
                     if (!comment?.commentRenderer) {
                         const normalized = normalizeCommentViewModel(comment);
                         if (normalized && normalized.commentRenderer) comment = normalized;
@@ -1126,15 +1404,75 @@ export function scheduleReplyFetches(params: ScheduleReplyFetchParams): void {
                     applyFrameworkUpdatesToComment(comment, comment, fwById);
                     const prepared = enrichCommentRenderer(comment, currentVideoId, cont.originComment, 'R');
                     if (prepared) {
+                        // Extract replyLevel from FW or use continuation's replyLevel
+                        const commentId = wrapTryCatch(() => prepared.commentRenderer?.commentId);
+                        const fwUpdate = commentId ? fwById[commentId] : undefined;
+                        prepared.replyLevel =
+                            wrapTryCatch(() => fwUpdate?.properties?.replyLevel) ??
+                            ('replyLevel' in cont ? (cont as SubThreadContinuation).replyLevel : 1);
+
                         try {
                             onReply(prepared);
                         } catch (callbackError) {
                             console.error(callbackError);
                         }
+
+                        // Process subThreads from the original item (commentThreadRenderer)
+                        const repliesRenderer = wrapTryCatch(
+                            () => item.commentThreadRenderer?.replies?.commentRepliesRenderer
+                        );
+                        if (repliesRenderer?.subThreads) {
+                            const subThreadResult = extractSubThreads(
+                                repliesRenderer,
+                                fwById,
+                                prepared, // Use the prepared comment as parent
+                                1 // subThread extraction starts at relative depth 1
+                            );
+
+                            // Re-evaluate current replyCount
+                            if (subThreadResult.comments.length === 0 && subThreadResult.continuations.length === 0) {
+                                if (prepared.commentRenderer) {
+                                    prepared.commentRenderer.replyCount = 0;
+                                }
+                            }
+
+                            for (const subComment of subThreadResult.comments) {
+                                const subPrepared = enrichCommentRenderer(
+                                    subComment,
+                                    currentVideoId,
+                                    subComment.originComment,
+                                    'R'
+                                );
+                                if (subPrepared) {
+                                    const subCommentId = wrapTryCatch(() => subPrepared.commentRenderer?.commentId);
+                                    const subFwUpdate = subCommentId ? fwById[subCommentId] : undefined;
+
+                                    // Calculate replyLevel: Parent Level + Relative Depth
+                                    subPrepared.replyLevel =
+                                        wrapTryCatch(() => subFwUpdate?.properties?.replyLevel) ??
+                                        (prepared.replyLevel || 1) + (subComment._subThreadDepth || 1);
+
+                                    delete subPrepared._subThreadDepth;
+                                    onReply(subPrepared);
+                                }
+                            }
+
+                            for (const subCont of subThreadResult.continuations) {
+                                scheduleContinuation(subCont);
+                            }
+                        }
                     }
                 }
                 for (const next of batch.continuations || []) {
-                    scheduleContinuation({ ...next, originComment: cont.originComment });
+                    // Preserve replyLevel from SubThreadContinuation if present
+                    const nextCont: ReplyContinuation | SubThreadContinuation = {
+                        ...next,
+                        originComment: cont.originComment
+                    };
+                    if ('replyLevel' in cont) {
+                        (nextCont as SubThreadContinuation).replyLevel = (cont as SubThreadContinuation).replyLevel;
+                    }
+                    scheduleContinuation(nextCont);
                 }
             } catch (error) {
                 console.error(error);
@@ -1152,33 +1490,42 @@ export function scheduleReplyFetches(params: ScheduleReplyFetchParams): void {
 }
 
 export function dedupeParentComments(comments: any[]): any[] {
-    const parentByCommentId = new Map<string, any>();
+    const seenCommentIds = new Set<string>();
+    const deduplicated: any[] = [];
+
     for (const cm of comments) {
-        if ((cm as any)?.typeComment === 'C') {
-            const id = (cm as any)?.commentRenderer?.commentId;
-            if (id && !parentByCommentId.has(id)) {
-                parentByCommentId.set(id, cm);
+        // Try to get commentId from various possible locations
+        const id = wrapTryCatch(() => cm.commentRenderer?.commentId) || wrapTryCatch(() => cm.commentId);
+
+        if (id) {
+            if (!seenCommentIds.has(id)) {
+                seenCommentIds.add(id);
+                deduplicated.push(cm);
             }
+        } else {
+            // Keep items without IDs (fallback)
+            deduplicated.push(cm);
         }
     }
 
-    const deduplicated: typeof comments = [];
-    for (const cm of comments) {
-        if ((cm as any)?.typeComment === 'C') {
-            const id = (cm as any)?.commentRenderer?.commentId;
-            if (id && parentByCommentId.get(id) === cm) {
-                deduplicated.push(cm);
-            } else if (!id) {
-                deduplicated.push(cm);
+    // Restore parent-child relationships after deduplication
+    // This is needed because 'originComment' references might point to objects
+    // that were discarded as duplicates.
+    const commentMap = new Map<string, any>();
+    for (const cm of deduplicated) {
+        const id = wrapTryCatch(() => cm.commentRenderer?.commentId);
+        if (id) {
+            commentMap.set(id, cm);
+        }
+    }
+
+    for (const cm of deduplicated) {
+        if (cm.typeComment === 'R' && cm.originComment) {
+            const originId = wrapTryCatch(() => cm.originComment.commentRenderer?.commentId);
+            if (originId && commentMap.has(originId)) {
+                // Re-link to the preserved parent instance
+                cm.originComment = commentMap.get(originId);
             }
-        } else if ((cm as any)?.typeComment === 'R') {
-            const originId = (cm as any)?.originComment?.commentRenderer?.commentId;
-            if (originId && parentByCommentId.has(originId)) {
-                (cm as any).originComment = parentByCommentId.get(originId);
-            }
-            deduplicated.push(cm);
-        } else {
-            deduplicated.push(cm);
         }
     }
 

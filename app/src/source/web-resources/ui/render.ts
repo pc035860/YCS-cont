@@ -74,7 +74,7 @@ export function renderCommentsResult(selector: string, result: CommentsSearchRes
     if (!target) return;
 
     if (result.results.length > 0) {
-        renderComment(selector, result.results, true, result.query);
+        renderComment(selector, result.results, { querySearch: result.query });
     }
 
     applyButtonStates(result.buttonStates);

@@ -403,11 +403,26 @@ export function runSearch(
         }
     }
 
-    const total = resultSearch.length;
+    // Deduplicate search results by commentId
+    const seenCommentIds = new Set<string>();
+    const uniqueResults: ICommentsFuseResult[] = [];
+    for (const result of resultSearch) {
+        const commentId = (result.item as any)?.commentRenderer?.commentId;
+        if (commentId) {
+            if (!seenCommentIds.has(commentId)) {
+                seenCommentIds.add(commentId);
+                uniqueResults.push(result);
+            }
+        } else {
+            // Keep items without commentId (should happen rarely, if ever)
+            uniqueResults.push(result);
+        }
+    }
+
     return {
-        results: resultSearch,
-        total,
-        summary: `(Comments) Found: ${total}`,
+        results: uniqueResults,
+        total: uniqueResults.length,
+        summary: `(Comments) Found: ${uniqueResults.length}`,
         query: trimmedQuery,
         buttonStates
     };

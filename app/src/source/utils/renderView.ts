@@ -14,8 +14,24 @@ import {
     MemberBadgeViewModel,
     DonatedChipViewModel
 } from './viewModels';
-import { iconExpand, iconExpandShowMore, iconReload, iconSortDown } from './icons';
+import { iconCollapse, iconExpandShowMore, iconReload, iconSortDown, iconCurve } from './icons';
 import { EXPORT_FORMAT } from './constants';
+
+/**
+ * Options for rendering comments
+ */
+interface RenderCommentOptions {
+    /** Whether comments are replies (affects avatar size and indentation). Default: true */
+    isReply?: boolean;
+    /** Search query for text highlighting */
+    querySearch?: string;
+    /** Reset reply level counter for new nesting level. Default: true */
+    resetReplyLevel?: boolean;
+    /** Hide expand-up buttons in nested chains. Default: false */
+    hideExpandUp?: boolean;
+    /** Force 24px avatars for nested display. Default: false */
+    forceSmallAvatar?: boolean;
+}
 
 // Debug mode configuration
 // Set to true for detailed diagnostic logs during development
@@ -191,6 +207,49 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
     container.id = `ycs-number-comment-${index}`;
     container.className = 'ycs-render-comment';
 
+    const isNested = (model.replyLevel && model.replyLevel > 0) || model.forceSmallAvatar;
+    const avatarSize = isNested ? 32 : 40;
+    const avatarCenter = isNested ? 16 : 20;
+
+    container.style.setProperty('--avatar-center', `${avatarCenter}px`);
+
+    // Apply dynamic indentation based on replyLevel.
+    // Two distinct indentation modes exist for different UI contexts:
+    //
+    // 1. hideExpandUp mode (conversation chains via "Open all comments"):
+    //    - Uses compact 16px increments per level
+    //    - Adds curve icon to show reply relationship
+    //    - Designed for focused conversation view where parent context is hidden
+    //
+    // 2. Standard mode (general replies list):
+    //    - Base indent of 56px (aligns with YouTube's reply indentation)
+    //    - Additional 16px per level, capped at level 5
+    //    - Used when replies are shown under their parent comment
+    //
+    // Note: These calculations are independent of container padding/margin.
+    // If container styles change, review both paths for visual consistency.
+    if (model.replyLevel && model.replyLevel > 0) {
+        if (model.hideExpandUp) {
+            // Conversation chain mode: indent per level (32px matches avatar size)
+            const indent = model.replyLevel * 32;
+            container.style.marginLeft = `${indent}px`;
+            container.style.setProperty('--reply-indent', `${indent}px`);
+
+            const curve = document.createElement('div');
+            curve.className = 'ycs-curve-icon-wrap';
+            curve.innerHTML = iconCurve();
+            container.appendChild(curve);
+        } else {
+            // Standard mode: YouTube-style base indent + incremental nesting
+            const indent = 56 + (Math.min(model.replyLevel, 5) - 1) * 16;
+            container.style.marginLeft = `${indent}px`;
+        }
+    } else if (model.isReply || model.isReplyType) {
+        // For level 0 comments that are inside a nested container,
+        // we keep indent 0 to let the container's own padding/margin handle the base alignment.
+        container.style.setProperty('--reply-indent', '0px');
+    }
+
     const left = document.createElement('div');
     left.className = 'ycs-left';
 
@@ -201,11 +260,14 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
 
     const avatarWrapper = document.createElement('div');
     avatarWrapper.className = 'ycs-render-img';
+    if (isNested) {
+        avatarWrapper.classList.add('ycs-render-img--nested');
+    }
 
     const avatar = document.createElement('img');
     avatar.alt = model.authorName;
-    avatar.height = 40;
-    avatar.width = 40;
+    avatar.height = avatarSize;
+    avatar.width = avatarSize;
     avatar.loading = 'lazy';
     avatar.src = model.authorAvatarUrl || '';
 
@@ -215,6 +277,9 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
 
     const block = document.createElement('div');
     block.className = 'ycs-comment-block';
+    if (isNested) {
+        block.classList.add('ycs-comment-block--nested');
+    }
 
     const header = document.createElement('div');
     header.className = 'ycs-head-block__dib ycs-head-block ycs-head__title-main';
@@ -272,13 +337,15 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
         meta.appendChild(replies);
     }
 
-    if (model.isReply && model.isReplyType && model.refIndex) {
-        const button = document.createElement('button');
-        button.id = model.refIndex;
-        button.title = 'Open the comment to the reply here.';
-        button.className = 'ycs-open-comment';
-        button.innerHTML = iconExpand();
-        meta.appendChild(button);
+    if (model.isReply && model.isReplyType && !model.hideExpandUp && (model.refIndex || model.commentId)) {
+        const allButton = document.createElement('button');
+        allButton.title = 'Open all parent comments to root.';
+        allButton.className = 'ycs-open-comment-all';
+        allButton.innerHTML = iconCollapse();
+        if (model.commentId) {
+            allButton.dataset.commentId = model.commentId;
+        }
+        meta.appendChild(allButton);
     }
 
     header.appendChild(meta);
@@ -432,7 +499,15 @@ function createTranscriptElement(model: TranscriptViewModel, index: number): HTM
     return container;
 }
 
-function renderComment(el: string | HTMLElement, data: any, isReply = true, querySearch?: string): void {
+function renderComment(el: string | HTMLElement, data: any, options: RenderCommentOptions = {}): void {
+    const {
+        isReply = true,
+        querySearch,
+        resetReplyLevel = true,
+        hideExpandUp = false,
+        forceSmallAvatar = false
+    } = options;
+
     if (!el) return;
 
     const target = typeof el === 'string' ? document.querySelector(el) : el;
@@ -442,7 +517,12 @@ function renderComment(el: string | HTMLElement, data: any, isReply = true, quer
     wrapper.id = 'ycs_wrap_comments';
     target.appendChild(wrapper);
 
-    const models = buildCommentViewModels(Array.isArray(data) ? data : [], { isReply });
+    const models = buildCommentViewModels(Array.isArray(data) ? data : [], {
+        isReply,
+        resetReplyLevel,
+        hideExpandUp,
+        forceSmallAvatar
+    });
     const range = 200;
     let currentPos = 0;
 

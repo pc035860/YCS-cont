@@ -1640,20 +1640,21 @@ export function initApp(): void {
                     const cachedComments = Array.isArray(body.comments) ? (body.comments as CommentItem[]) : [];
                     try {
                         // Rebuild reply-to-origin mapping using a single-pass index to reduce complexity from O(n^2) to O(n)
+                        // Support all levels of nesting by including all comment IDs in the lookup map
                         if (cachedComments.length > 0) {
                             const originById: Record<string, CommentItem> = {};
                             for (const c of cachedComments) {
-                                if (c?.typeComment === 'C') {
-                                    const id = c?.commentRenderer?.commentId;
-                                    if (typeof id === 'string' && id.length > 0) {
-                                        originById[id] = c;
-                                    }
+                                const id = c?.commentRenderer?.commentId || (c as any)?.commentId;
+                                if (typeof id === 'string' && id.length > 0) {
+                                    originById[id] = c;
                                 }
                             }
 
                             for (const cmnt of cachedComments) {
                                 if (cmnt?.typeComment === 'R') {
-                                    const refId = cmnt?.originComment?.commentRenderer?.commentId;
+                                    const refId =
+                                        cmnt?.originComment?.commentRenderer?.commentId ||
+                                        cmnt?.originComment?.commentId;
                                     if (typeof refId === 'string' && refId.length > 0) {
                                         const origin = originById[refId];
                                         if (origin) cmnt.originComment = origin;

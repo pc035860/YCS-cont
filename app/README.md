@@ -239,6 +239,7 @@ For detailed information on Innertube API integration and implementation:
 |----------|-------|
 | [Innertube Comments Integration](docs/innertube-comments-integration.md) | **Start here** - Unified guide for comment fetching |
 | [API Migration Guide](docs/innertube-migration-guide.md) | Legacy vs new frameworkUpdates model |
+| [Nested Comments Architecture](docs/innertube-nested-comments.md) | Entity-driven format and subThreads processing |
 | [Chat Replay API Changes](docs/innertube-chat-replay-api-changes.md) | playerOffsetMs → continuation tokens |
 | [Implementation Alignment](docs/continuation-processing.md) | JS/TS code correspondence |
 | [SAPISID Authorization](docs/sap-sid-authorization.md) | SAPISID/APISID cookie-based auth headers |

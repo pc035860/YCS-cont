@@ -32,6 +32,10 @@ export interface CommentViewModel {
     isReplyType: boolean;
     refIndex?: string;
     contentHtml: string;
+    /** Reply nesting level for UI indentation: 0 = parent, 1+ = nested reply depth */
+    replyLevel?: number;
+    hideExpandUp?: boolean;
+    forceSmallAvatar?: boolean;
 }
 
 export interface ChatMessageViewModel {
@@ -319,9 +323,15 @@ function buildChatMessageHtml(renderer: any): string {
     return buildChatRunsHtml(runs);
 }
 
-export function buildCommentViewModels(items: any[], options: { isReply?: boolean } = {}): CommentViewModel[] {
+export function buildCommentViewModels(
+    items: any[],
+    options: { isReply?: boolean; resetReplyLevel?: boolean; hideExpandUp?: boolean; forceSmallAvatar?: boolean } = {}
+): CommentViewModel[] {
     const models: CommentViewModel[] = [];
     const isReply = Boolean(options.isReply);
+    const resetReplyLevel = Boolean(options.resetReplyLevel);
+    const hideExpandUp = Boolean(options.hideExpandUp);
+    const forceSmallAvatar = Boolean(options.forceSmallAvatar);
 
     for (const item of items) {
         const renderer = wrapTryCatch(() => item?.item?.commentRenderer) as any;
@@ -367,6 +377,24 @@ export function buildCommentViewModels(items: any[], options: { isReply?: boolea
             ) ||
             coerceString(wrapTryCatch(() => renderer.contentText?.fullText));
 
+        // Extract replyLevel from item (CommentItem.replyLevel)
+        // Fallback chain: replyLevel (from FW) -> _subThreadDepth (calculated in extractSubThreads) -> type-based default
+        const replyLevelRaw = wrapTryCatch(() => item?.item?.replyLevel);
+        const subThreadDepth = wrapTryCatch(() => item?.item?._subThreadDepth);
+        const isReplyType = coerceString(wrapTryCatch(() => item?.item?.typeComment)).toUpperCase() === 'R';
+        let replyLevel =
+            typeof replyLevelRaw === 'number'
+                ? replyLevelRaw
+                : typeof subThreadDepth === 'number'
+                  ? subThreadDepth
+                  : isReplyType
+                    ? 1
+                    : 0;
+
+        if (resetReplyLevel) {
+            replyLevel = 0;
+        }
+
         models.push({
             authorName,
             authorProfileUrl,
@@ -381,11 +409,14 @@ export function buildCommentViewModels(items: any[], options: { isReply?: boolea
             commentId: commentId || undefined,
             heartTooltip: heartTooltip || undefined,
             isReply,
-            isReplyType: coerceString(wrapTryCatch(() => item?.item?.typeComment)).toUpperCase() === 'R',
+            isReplyType,
             refIndex: coerceString(wrapTryCatch(() => item?.refIndex)) || undefined,
             contentHtml: renderFullText
                 ? sanitizeHtml(decodeHtml(renderFullText))
-                : escapeHtml(decodeHtml(fallbackText))
+                : escapeHtml(decodeHtml(fallbackText)),
+            replyLevel,
+            hideExpandUp,
+            forceSmallAvatar
         });
     }
 

@@ -123,6 +123,7 @@ The extension integrates with YouTube's internal Innertube API for comments, cha
 **Documentation**:
 - [innertube-comments-integration.md](app/docs/innertube-comments-integration.md) - **Start here** for comment integration
 - [innertube-migration-guide.md](app/docs/innertube-migration-guide.md) - frameworkUpdates migration guide
+- [innertube-nested-comments.md](app/docs/innertube-nested-comments.md) - Nested replies architecture and Entity-driven format
 - [innertube-chat-replay-api-changes.md](app/docs/innertube-chat-replay-api-changes.md) - Chat replay API changes
 - [continuation-processing.md](app/docs/continuation-processing.md) - Implementation reference
 - [sap-sid-authorization.md](app/docs/sap-sid-authorization.md) - SAPISID authorization header generation
