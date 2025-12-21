@@ -46,7 +46,11 @@
   ],
   "browser_specific_settings": {
     "gecko": {
-      "id": "ycs-cont-public@pymaster.tw"
+      "id": "ycs-cont-public@pymaster.tw",
+      "data_collection_permissions": {
+        "required": ["none"],
+        "optional": []
+      }
     }
   }
 }
