@@ -91,6 +91,8 @@ function parseFormattedNumber(value?: string): { number: number; multiply: numbe
 
         s = s.replace(/[\u00A0\u202F\s]+/g, '');
 
+        const escapeRegExp = (input: string): string => input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
         const units: Array<[string, number]> = [
             ['tūkst.', 1_000],
             ['хиљ.', 1_000],
@@ -132,11 +134,11 @@ function parseFormattedNumber(value?: string): { number: number; multiply: numbe
         ];
 
         let multiplier = 1;
-        const lower = s.toLowerCase();
 
         for (const [unit, mul] of units) {
-            const unitLower = unit.toLowerCase();
-            if (lower.endsWith(unitLower)) {
+            // Only accept pure numeric + unit format (e.g., "1.2k") to avoid language word suffix collisions.
+            const unitPattern = new RegExp(`^[0-9][0-9.,]*${escapeRegExp(unit)}$`, 'i');
+            if (unitPattern.test(s)) {
                 multiplier = mul;
                 s = s.substring(0, s.length - unit.length).trim();
                 break;
