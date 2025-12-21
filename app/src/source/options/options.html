@@ -215,61 +215,61 @@
             </div>
           </div>
 
-          <div class="ycs_api_settings_wrap">
-            <div class="ycs_api_header">
-              <label>YouTube Data API (Optional):</label>
-              <div class="ycs_api_enable_control">
-                <label for="y_opts_youtube_api_enabled">Enable:</label>
-                <input
-                  type="checkbox"
-                  name="Enable YouTube Data API"
-                  id="y_opts_youtube_api_enabled"
-                  class="ycs_opts_checkbox"
-                  checked
-                />
-              </div>
-            </div>
+          <button class="ycs_opts_btn" type="button" id="ycs_opts_btn_reset_filters">Reset to Default</button>
+        </div>
 
-            <div class="ycs_description_option ycs_api_desc">
-              <p>
-                Use official YouTube Data API instead of Innertube. (<a
-                  href="https://developers.google.com/youtube/registering_an_application"
-                  target="_blank"
-                  rel="noopener"
-                  >Get your API key</a
-                >)
-              </p>
-            </div>
-
-            <div class="ycs_api_key_input">
-              <label for="y_opts_youtube_api_key">API Key:</label>
-              <div class="ycs_input_group">
-                <input
-                  type="password"
-                  name="YouTube API Key"
-                  id="y_opts_youtube_api_key"
-                  class="ycs_opts_input_api_key"
-                  placeholder="Enter your API key"
-                  maxlength="255"
-                />
-                <button type="button" id="ycs_toggle_api_key" class="ycs_opts_btn ycs_btn_toggle_key">Show</button>
-              </div>
-            </div>
-
-            <div class="ycs_api_status" id="ycs_api_status">
-              <span class="ycs_api_mode_label">Current mode:</span>
-              <span class="ycs_api_mode_value" id="ycs_api_mode_value">Innertube (default)</span>
-            </div>
-
-            <div class="ycs_description_option ycs_api_note">
-              <p>
-                <strong>Note:</strong> YouTube Data API has a quota limit of 10,000 units/day. Member badges, hearts,
-                and Super Chat markers are only available with Innertube.
-              </p>
+        <div class="ycs_api_settings_wrap">
+          <div class="ycs_api_header">
+            <label>YouTube Data API (Optional):</label>
+            <div class="ycs_api_enable_control">
+              <label for="y_opts_youtube_api_enabled">Enable:</label>
+              <input
+                type="checkbox"
+                name="Enable YouTube Data API"
+                id="y_opts_youtube_api_enabled"
+                class="ycs_opts_checkbox"
+                checked
+              />
             </div>
           </div>
 
-          <button class="ycs_opts_btn" type="button" id="ycs_opts_btn_reset_filters">Reset to Default</button>
+          <div class="ycs_description_option ycs_api_desc">
+            <p>
+              Use official YouTube Data API instead of Innertube. (<a
+                href="https://developers.google.com/youtube/registering_an_application"
+                target="_blank"
+                rel="noopener"
+                >Get your API key</a
+              >)
+            </p>
+          </div>
+
+          <div class="ycs_api_key_input">
+            <label for="y_opts_youtube_api_key">API Key:</label>
+            <div class="ycs_input_group">
+              <input
+                type="password"
+                name="YouTube API Key"
+                id="y_opts_youtube_api_key"
+                class="ycs_opts_input_api_key"
+                placeholder="Enter your API key"
+                maxlength="255"
+              />
+              <button type="button" id="ycs_toggle_api_key" class="ycs_opts_btn ycs_btn_toggle_key">Show</button>
+            </div>
+          </div>
+
+          <div class="ycs_api_status" id="ycs_api_status">
+            <span class="ycs_api_mode_label">Current mode:</span>
+            <span class="ycs_api_mode_value" id="ycs_api_mode_value">Innertube (default)</span>
+          </div>
+
+          <div class="ycs_description_option ycs_api_note">
+            <p>
+              <strong>Note:</strong> YouTube Data API has a quota limit of 10,000 units/day. Member badges, hearts, and
+              Super Chat markers are only available with Innertube.
+            </p>
+          </div>
         </div>
 
         <div class="ycs_opts_cache_wrap">
