@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "Release Notes"
+    url: https://github.com/pc035860/YCS-cont/releases
+    about: Check the latest version and changelog
+  - name: "Extended Search Syntax"
+    url: https://github.com/sonigy/YCS?tab=readme-ov-file#extended-search
+    about: "Search operators reference: exact (=), include ('), exclude (!), prefix (^), suffix ($), OR (|)"
+  - name: "Extended Search Tips"
+    url: https://github.com/pc035860/YCS-cont/issues/7#issuecomment-2158208293
+    about: "Practical tips: avoid fuzzy matches, understand how Fuse.js treats comments"

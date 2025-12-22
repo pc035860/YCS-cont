@@ -1,0 +1,117 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the information below to help us investigate.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of the bug
+      placeholder: What happened? What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Go to YouTube video '...'
+        2. Click on '...'
+        3. Search for '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: input
+    id: video-url
+    attributes:
+      label: YouTube Video URL
+      description: If applicable, provide the video URL where the issue occurred
+      placeholder: https://www.youtube.com/watch?v=...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      description: Which browser are you using?
+      options:
+        - Chrome
+        - Firefox
+        - Edge (Chromium)
+        - Brave
+        - Other (please specify in description)
+    validations:
+      required: true
+
+  - type: input
+    id: browser-version
+    attributes:
+      label: Browser Version
+      description: "You can find this in browser settings (e.g., 120.0.6099.109)"
+      placeholder: "120.0.6099.109"
+    validations:
+      required: true
+
+  - type: input
+    id: extension-version
+    attributes:
+      label: Extension Version
+      description: "Find this in extension popup or chrome://extensions"
+      placeholder: "1.8.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: feature-area
+    attributes:
+      label: Feature Area
+      description: Which feature is affected?
+      options:
+        - Comment Search
+        - Comment Export (Excel)
+        - Chat Replay
+        - Transcript Search
+        - Filter Buttons
+        - YouTube Data API Integration
+        - Extension Settings
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: console-errors
+    attributes:
+      label: Console Errors
+      description: |
+        Open DevTools (F12) -> Console tab -> copy any errors related to YCS
+      placeholder: Paste console errors here (if any)
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Drag and drop screenshots here if helpful
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: I have tried disabling other extensions to rule out conflicts
+          required: false
