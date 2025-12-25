@@ -1028,6 +1028,15 @@ export function initApp(): void {
         const eInputSearch = document.getElementById('ycs-input-search');
         const btnSearchClearText = document.getElementById('ycs_btn_search_clear_text');
 
+        const setClearTextButtonVisibility = (): void => {
+            const btnVisible =
+                ((eInputSearch as HTMLInputElement)?.value?.trim()?.length ?? 0) > 0 ||
+                document.getElementById('ycs-search-result')?.hasChildNodes();
+            if (btnSearchClearText) {
+                (btnSearchClearText as HTMLButtonElement).style.visibility = btnVisible ? 'visible' : 'hidden';
+            }
+        };
+
         if (eInputSearch) {
             eInputSearch.onkeyup = (e): void => {
                 if (e.key === 'Enter' || e.code === 'Enter') {
@@ -1036,17 +1045,13 @@ export function initApp(): void {
             };
             // toggle clear-text button visibility
             eInputSearch.addEventListener('input', () => {
-                const hasText = (eInputSearch as HTMLInputElement).value.trim().length > 0;
-                if (btnSearchClearText) {
-                    (btnSearchClearText as HTMLButtonElement).style.visibility = hasText ? 'visible' : 'hidden';
-                }
+                setClearTextButtonVisibility();
             });
         }
 
         // initialize clear-text button visibility
         if (btnSearchClearText) {
-            (btnSearchClearText as HTMLButtonElement).style.visibility =
-                (eInputSearch as HTMLInputElement)?.value?.trim()?.length > 0 ? 'visible' : 'hidden';
+            setClearTextButtonVisibility();
             btnSearchClearText.addEventListener('click', () => {
                 try {
                     if (eInputSearch) {
