@@ -87,6 +87,22 @@ window.onload = async (): Promise<void> => {
             (document.getElementById('y_opts_hidden_by_default') as HTMLInputElement).checked = param;
         };
 
+        const optSetSortTimestamp = async (opt: HTMLInputElement): Promise<void> => {
+            try {
+                await chrome.storage.local.set({
+                    sortTimestamp: opt.checked
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        const setRenderSortTimestampOpt = (param: boolean): void => {
+            if (typeof param !== 'boolean') return;
+
+            (document.getElementById('y_opts_sort_timestamp') as HTMLInputElement).checked = param;
+        };
+
         const setRenderHiddenByDefaultShorts = (param: boolean): void => {
             if (typeof param !== 'boolean') return;
 
@@ -676,6 +692,10 @@ window.onload = async (): Promise<void> => {
                         setRenderHiddenByDefault(storageOpts[key]);
                         break;
 
+                    case 'sortTimestamp':
+                        setRenderSortTimestampOpt(storageOpts[key]);
+                        break;
+
                     case 'hiddenByDefaultShorts':
                         setRenderHiddenByDefaultShorts(storageOpts[key]);
                         break;
@@ -744,6 +764,10 @@ window.onload = async (): Promise<void> => {
 
                 case 'y_opts_hidden_by_default':
                     optSetHiddenByDefault(e.target as HTMLInputElement);
+                    break;
+
+                case 'y_opts_sort_timestamp':
+                    optSetSortTimestamp(e.target as HTMLInputElement);
                     break;
 
                 case 'y_opts_hidden_by_default_shorts':

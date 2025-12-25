@@ -19,6 +19,7 @@ import {
 import { ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
 import { getComments, WebResourcesState } from '../state';
 import { SearchContext } from './types';
+import { GlobalStore } from '../../utils/common';
 
 export interface SearchButtonState {
     order?: 'newest' | 'oldest';
@@ -359,7 +360,24 @@ export function runSearch(
         );
 
         if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
+            if (GlobalStore?.sortTimestamp === true) {
+                resultSearch.sort((a, b) => {
+                    const getFirstTimestamp = (item: any): number => {
+                        const runs = item.commentRenderer?.contentText?.runs;
+                        if (runs && runs.length > 0) {
+                            for (const run of runs) {
+                                if (run.navigationEndpoint?.watchEndpoint?.startTimeSeconds >= 0) {
+                                    return run.navigationEndpoint.watchEndpoint.startTimeSeconds * 1000;
+                                }
+                            }
+                        }
+                        return 0;
+                    };
+                    return getFirstTimestamp(a.item) - getFirstTimestamp(b.item);
+                });
+            } else {
+                resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
+            }
 
             const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_timestamps']);
             if (resolvedOrder === 'oldest') {

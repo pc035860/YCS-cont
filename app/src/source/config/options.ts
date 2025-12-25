@@ -5,6 +5,7 @@ const options = {
     cache: true,
     autoClear: 200,
     hiddenByDefault: false,
+    sortTimestamp: false,
     hiddenByDefaultShorts: false,
     enableShortsSupport: true,
     transcriptLanguage: '',
