@@ -1030,7 +1030,7 @@ export function initApp(): void {
 
         const setClearTextButtonVisibility = (): void => {
             const btnVisible =
-                (eInputSearch as HTMLInputElement).value.trim().length > 0 ||
+                ((eInputSearch as HTMLInputElement)?.value?.trim()?.length ?? 0) > 0 ||
                 document.getElementById('ycs-search-result')?.hasChildNodes();
             if (btnSearchClearText) {
                 (btnSearchClearText as HTMLButtonElement).style.visibility = btnVisible ? 'visible' : 'hidden';
