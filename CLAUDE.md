@@ -313,6 +313,45 @@ YouTube's comment system uses an Entity-driven architecture where nested replies
 
 **Documentation**: See `app/docs/innertube-nested-comments.md` for detailed architecture analysis and migration guide.
 
+### Member-Only Video Detection and Authorization Strategy
+
+The extension uses a conservative strategy for sending Authorization headers to minimize request size:
+
+- **Detection**: Member-only status is determined by fetching `ytInitialData` via PBJ request (`pbj=1` parameter) and checking for membership badges
+- **Authorization header decision**: 
+  - `isMemberOnly = true` → Send Authorization header (confirmed member-only video)
+  - `isMemberOnly = false` → Do not send Authorization header (confirmed non-member video)
+  - `isMemberOnly = undefined` → Do not send Authorization header (detection failed, conservative fallback)
+- **Design rationale**:
+  - PBJ request failure rate is near zero, so detection failures are extremely rare
+  - Sending Authorization header increases request size by 3-4x, which is costly for the majority of non-member videos
+  - Member-only videos are a small subset, and the combination of member-only + PBJ failure is extremely unlikely
+  - This trade-off prioritizes cost efficiency over handling edge cases
+- **Scope**: This strategy currently applies **only to comments requests**. Chat and transcript requests always send Authorization headers when available, as their request size remains nearly the same regardless of the header presence
+- **Implementation**: See `utils/innertube/memberOnly.ts` for detection logic and `utils/innertube/comments/pipeline.ts` for `ensureMemberOnlyStatus()` function
+
+### ytInitialData Format Handling
+
+When fetching YouTube page data with `pbj=1` parameter, the API returns `ytInitialData` in different formats:
+
+**Modern PBJ Format (Primary)**:
+- **Structure**: Single object with both `response` and `playerResponse` properties
+- **Format**: `{response: {...}, playerResponse: {...}, page: "watch", ...}`
+- **Usage**: This is the current standard format returned by YouTube
+- **Detection**: Check for both `data.response` and `data.playerResponse` at top level
+
+**Legacy Array Format (Rarely Seen)**:
+- **Structure**: Array of objects, each containing either `response` or `playerResponse`
+- **Format**: `[{response: {...}}, {playerResponse: {...}}]`
+- **Usage**: Old format kept for backward compatibility
+- **Handling**: `normalizeYtInitialData()` merges all array elements to preserve both properties
+
+**Important Notes**:
+- The `normalizeYtInitialData()` function in `utils/innertube/memberOnly.ts` handles format normalization
+- For array format, all elements are merged using `Object.assign()` to ensure both `response` and `playerResponse` are preserved
+- This is critical for member-only video detection, which requires both properties to correctly identify PBJ format
+- Type definitions use `object` (not `[object]`) to reflect the modern object format as primary
+
 ## YouTube Data API v3 Integration (Optional)
 
 The extension optionally supports YouTube Data API v3 as an alternative to Innertube for comment fetching.
@@ -353,42 +392,3 @@ YouTube Data API v3 **does not support nested replies** (replies to replies). Th
 **Documentation**: See `app/docs/youtube-data-api-messaging.md` for detailed messaging architecture.
 
 Implementation: `app/src/source/utils/youtubeDataApi/` with background handling in `background.ts`
-
-### Member-Only Video Detection and Authorization Strategy
-
-The extension uses a conservative strategy for sending Authorization headers to minimize request size:
-
-- **Detection**: Member-only status is determined by fetching `ytInitialData` via PBJ request (`pbj=1` parameter) and checking for membership badges
-- **Authorization header decision**: 
-  - `isMemberOnly = true` → Send Authorization header (confirmed member-only video)
-  - `isMemberOnly = false` → Do not send Authorization header (confirmed non-member video)
-  - `isMemberOnly = undefined` → Do not send Authorization header (detection failed, conservative fallback)
-- **Design rationale**:
-  - PBJ request failure rate is near zero, so detection failures are extremely rare
-  - Sending Authorization header increases request size by 3-4x, which is costly for the majority of non-member videos
-  - Member-only videos are a small subset, and the combination of member-only + PBJ failure is extremely unlikely
-  - This trade-off prioritizes cost efficiency over handling edge cases
-- **Scope**: This strategy currently applies **only to comments requests**. Chat and transcript requests always send Authorization headers when available, as their request size remains nearly the same regardless of the header presence
-- **Implementation**: See `utils/innertube/memberOnly.ts` for detection logic and `utils/innertube/comments/pipeline.ts` for `ensureMemberOnlyStatus()` function
-
-### ytInitialData Format Handling
-
-When fetching YouTube page data with `pbj=1` parameter, the API returns `ytInitialData` in different formats:
-
-**Modern PBJ Format (Primary)**:
-- **Structure**: Single object with both `response` and `playerResponse` properties
-- **Format**: `{response: {...}, playerResponse: {...}, page: "watch", ...}`
-- **Usage**: This is the current standard format returned by YouTube
-- **Detection**: Check for both `data.response` and `data.playerResponse` at top level
-
-**Legacy Array Format (Rarely Seen)**:
-- **Structure**: Array of objects, each containing either `response` or `playerResponse`
-- **Format**: `[{response: {...}}, {playerResponse: {...}}]`
-- **Usage**: Old format kept for backward compatibility
-- **Handling**: `normalizeYtInitialData()` merges all array elements to preserve both properties
-
-**Important Notes**:
-- The `normalizeYtInitialData()` function in `utils/innertube/memberOnly.ts` handles format normalization
-- For array format, all elements are merged using `Object.assign()` to ensure both `response` and `playerResponse` are preserved
-- This is critical for member-only video detection, which requires both properties to correctly identify PBJ format
-- Type definitions use `object` (not `[object]`) to reflect the modern object format as primary
