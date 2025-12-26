@@ -1525,6 +1525,14 @@ export function initApp(): void {
                     }
                 };
 
+                const optSortTimestamp = (value: boolean): void => {
+                    try {
+                        GlobalStore.sortTimestamp = value;
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
                 const optHiddenByDefault = (opts: IYCSOptions): void => {
                     try {
                         const app = document.querySelector('.ycs-app') as HTMLElement;
@@ -1573,6 +1581,10 @@ export function initApp(): void {
 
                             case 'cache':
                                 optCached(Boolean(opts.cache));
+                                break;
+
+                            case 'sortTimestamp':
+                                optSortTimestamp(Boolean(opts.sortTimestamp));
                                 break;
 
                             case 'hiddenByDefault':

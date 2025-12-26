@@ -306,6 +306,7 @@ export type ISelectedSearch = 'comments' | 'chat' | 'video' | 'all';
 export interface IYCSOptions {
     autoload?: boolean;
     highlightText?: boolean;
+    sortTimestamp?: boolean;
     highlightExact?: boolean;
     cache?: boolean;
     autoClear?: number;
