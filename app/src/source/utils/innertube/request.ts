@@ -24,6 +24,7 @@ export interface BuildInnertubeBodyOptions {
     continuation?: string | null;
     clickTrackingParams?: string | null;
     videoId?: string;
+    postId?: string;
     params?: string;
     currentPlayerState?: Record<string, unknown>;
     clientOverride?: Record<string, unknown>;
@@ -86,6 +87,7 @@ export function buildInnertubeBody({
     continuation,
     clickTrackingParams,
     videoId,
+    postId,
     params,
     currentPlayerState,
     clientOverride,
@@ -108,6 +110,10 @@ export function buildInnertubeBody({
 
     if (videoId !== undefined) {
         payload.videoId = videoId;
+    }
+
+    if (postId !== undefined) {
+        payload.postId = postId;
     }
 
     if (params !== undefined) {

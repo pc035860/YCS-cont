@@ -6,7 +6,9 @@ import {
     getCleanUrlVideo,
     getVideoId,
     isVideoPage,
-    isShortsPage
+    isShortsPage,
+    isPostsPage,
+    getPostId
 } from '../utils/common';
 import { setShortsSupport } from './bootstrap';
 import {
@@ -350,6 +352,16 @@ export function initApp(): void {
                 console.warn('YCS: Shorts page detected but #anchored-panel not found');
                 return;
             }
+        } else if (isPostsPage()) {
+            // Handle community posts pages
+            if (document.querySelector('ytd-item-section-renderer#sections.style-scope.ytd-comments')) {
+                renderLoadComments('ytd-item-section-renderer#sections.style-scope.ytd-comments', 'insertBefore');
+            } else {
+                console.warn(
+                    'YCS: Posts page detected but ytd-item-section-renderer#sections.style-scope.ytd-comments not found'
+                );
+                return;
+            }
         } else {
             // Priority: ytd-comments#comments (highest priority)
             if (document.querySelector('ytd-comments#comments')) {
@@ -685,9 +697,10 @@ export function initApp(): void {
             elLoadComments.addEventListener('click', async function (e: MouseEvent): Promise<void> {
                 if (!elLiveApp.parentNode || !elLiveApp.parentElement) return;
 
-                // Capture URL and videoId at the start of async operation
+                // Capture URL and videoId/postId at the start of async operation
                 const startUrl = window.location.href;
                 const startVideoId = getVideoId(startUrl);
+                const startPostId = getPostId(startUrl);
 
                 state = clearComments(state);
                 const comments = getComments(state);
@@ -813,14 +826,17 @@ export function initApp(): void {
                             await getAllCommentsModeV2(elLoadCmnts, controller.signal, comments);
                         }
 
-                        // Verify video hasn't changed before saving cache
-                        const currentVideoId = getVideoId(window.location.href);
-                        if (startVideoId && currentVideoId && startVideoId !== currentVideoId) {
+                        // Verify video or post hasn't changed before saving cache
+                        const currentId = getVideoId(window.location.href) ?? getPostId(window.location.href);
+                        if (
+                            (startVideoId && currentId && startVideoId !== currentId) ||
+                            (startPostId && currentId && startPostId !== currentId)
+                        ) {
                             console.warn(
-                                '[YCS] Video changed during comment loading, skipping cache save:',
-                                startVideoId,
+                                '[YCS] Id of video or post changed during comment loading, skipping cache save:',
+                                startVideoId ?? startPostId,
                                 '→',
-                                currentVideoId
+                                currentId
                             );
                             return;
                         }
@@ -832,7 +848,7 @@ export function initApp(): void {
                             }
                             saveToCache(
                                 {
-                                    videoId: startVideoId,
+                                    videoId: startVideoId ?? startPostId,
                                     comments,
                                     commentsChat: JSON.stringify(Array.from(getCommentsChat(state).entries())),
                                     commentsTrVideo: getCommentsTrVideo(state),
@@ -1819,7 +1835,7 @@ export function initApp(): void {
             observeIntervalId = null;
         }
 
-        let prevUrl = getCleanUrlVideo(window.location.href);
+        let prevUrl = getCleanUrlVideo(window.location.href) ?? window.location.href;
         // console.log('prevUrl First init: ', prevUrl);
 
         // Store interval ID for cleanup on next initApp() call
@@ -1834,8 +1850,12 @@ export function initApp(): void {
                 return;
             }
 
-            if (isVideoPage() && getPageMetaElement() && prevUrl !== getCleanUrlVideo(window.location.href)) {
-                const currentUrl = getCleanUrlVideo(window.location.href);
+            if (
+                isVideoPage() &&
+                getPageMetaElement() &&
+                prevUrl !== (getCleanUrlVideo(window.location.href) ?? window.location.href)
+            ) {
+                const currentUrl = getCleanUrlVideo(window.location.href) ?? window.location.href;
 
                 // Stop live recording if active (video switch detected)
                 const liveRecording = getLiveRecording(state);

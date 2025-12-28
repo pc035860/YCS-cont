@@ -1,7 +1,7 @@
 import Queue from 'p-queue';
 
 import { showLoadComments } from '../dom';
-import { getVideoId } from '../common';
+import { getPostId, getVideoId } from '../common';
 import {
     applyFrameworkUpdatesToComment,
     dedupeParentComments,
@@ -47,7 +47,7 @@ async function getAllCommentsModeV2(
 ): Promise<object[]> {
     const comments: object[] = container || [];
     const replyQueue = new Queue({ concurrency: 4 });
-    const currentVideoId = String(getVideoId(window.location.href) || '');
+    const currentVideoId = String((getVideoId(window.location.href) ?? String(getPostId(window.location.href))) || '');
 
     let batch: CommentBatchResult | undefined = await fetchInitialCommentBatch({
         windowRef: window,
@@ -126,7 +126,7 @@ async function getAllCommentsModeV2(
     }
 
     if (comments.length >= maxComments) {
-        console.warn(`[YCS] Reached comment limit: ${maxComments} for video ${currentVideoId}`);
+        console.warn(`[YCS] Reached comment limit: ${maxComments} for post/video ${currentVideoId}`);
     }
     return comments;
 }

@@ -151,6 +151,7 @@ export class TranscriptLoader {
 
         const startUrl = window.location.href;
         const startVideoId = getVideoId(startUrl);
+        if (!startVideoId) return;
 
         const currentTarget = trigger as HTMLButtonElement;
         const defaultLabel = currentTarget.innerText;

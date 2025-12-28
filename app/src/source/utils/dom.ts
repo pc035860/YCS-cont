@@ -1,7 +1,7 @@
 import Mark from 'mark.js';
 import type { MarkOptions } from 'mark.js';
 
-import { GlobalStore, getCleanUrlVideo, getRandomInt, getVideoId, oIsEmpty, wrapTryCatch } from './common';
+import { GlobalStore, getCleanUrlVideo, getRandomInt, getVideoId, getPostId, oIsEmpty, wrapTryCatch } from './common';
 import { resolveMeta } from './formatting';
 
 function removeClass(elms: object, s: string): void {
@@ -245,6 +245,7 @@ function setCacheToIDB(value: any, url: string, title: string): void {
                 body: {
                     url,
                     videoId: getVideoId(getCleanUrlVideo(url) as string),
+                    postId: getPostId(url as string),
                     date: new Date().getTime(),
                     titleVideo: title,
                     comments: value.comments,
@@ -269,7 +270,8 @@ function sendGetCacheInIDB(url: string): void {
             {
                 type: 'YCS_CACHE_STORAGE_GET',
                 body: {
-                    videoId: getVideoId(getCleanUrlVideo(url) as string)
+                    videoId: getVideoId(getCleanUrlVideo(url) as string),
+                    postId: getPostId(url as string)
                 }
             },
             window.location.origin

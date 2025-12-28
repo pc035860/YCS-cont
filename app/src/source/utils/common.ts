@@ -168,6 +168,26 @@ function getVideoId(url: string): string | undefined {
     }
 }
 
+function getPostId(url: string): string | undefined {
+    try {
+        if (typeof url !== 'string') return;
+
+        const parsedUrl = new URL(url);
+
+        const host = parsedUrl.hostname;
+        const pathname = parsedUrl.pathname || '';
+        const segments = pathname.split('/').filter(Boolean);
+
+        if ((host === 'www.youtube.com' || host.endsWith('youtube.com')) && segments[0] === 'post' && segments[1]) {
+            return segments[1];
+        }
+        return;
+    } catch (e) {
+        console.error(e);
+        return;
+    }
+}
+
 function getCleanUrlVideo(url: string): string | undefined {
     try {
         if (typeof url !== 'string') return;
@@ -190,11 +210,15 @@ function isWatchVideo(): boolean {
 
 function isVideoPage(): boolean {
     const href = window.location.href;
-    return href.includes('/watch?') || href.includes('/live/') || href.includes('/shorts/');
+    return href.includes('/watch?') || href.includes('/live/') || href.includes('/shorts/') || href.includes('/post/');
 }
 
 function isShortsPage(): boolean {
     return window.location.href.includes('/shorts/');
+}
+
+function isPostsPage(): boolean {
+    return window.location.href.includes('/post/');
 }
 
 function getPaginate(
@@ -283,6 +307,11 @@ function extractChannelId(): string | undefined {
     // Priority 1: Direct object access (new API or cached)
     if (ytData?.playerResponse?.videoDetails?.channelId) {
         return ytData.playerResponse.videoDetails.channelId;
+    }
+
+    // Community posts
+    if (ytData?.metadata?.channelMetadataRenderer?.externalId) {
+        return ytData.metadata.channelMetadataRenderer.externalId;
     }
 
     // Priority 2: Array access (legacy API)
@@ -400,10 +429,12 @@ export {
     deepFindObjKey,
     delayMs,
     getVideoId,
+    getPostId,
     getCleanUrlVideo,
     isWatchVideo,
     isVideoPage,
     isShortsPage,
+    isPostsPage,
     getPaginate,
     extractChannelId,
     extractVideoId,

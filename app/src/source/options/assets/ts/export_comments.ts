@@ -238,7 +238,7 @@ Total: ${c.count}\n${c.html}`;
                                 .transcriptBodyRenderer.cueGroups
                     )
                 );
-
+                if (!c) return;
                 const htmlText = `
 YCS - YouTube Comment Search
 
@@ -327,7 +327,7 @@ Total: ${c.count}\n${c.html}`;
                         title: cursor.value.body.titleVideo,
                         url: cursor.value.body.url,
                         date: cursor.value.body.date,
-                        videoId: cursor.value.body.videoId
+                        videoId: cursor.value.body.videoId ?? cursor.value.body.postId
                     });
 
                     elCurrentCache.textContent = currentCache as unknown as string;

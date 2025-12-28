@@ -1,7 +1,7 @@
 import type { ChatItem, TranscriptCueGroup, CommentItem } from './interfaces/i_types';
 import type { ISheetChatCommentsParam, ISheetCommentsParam, ISheetRepliesParam } from './interfaces/i_assist';
 import { msToRoundSec, parseFormattedNumberToInt, formatRelativeTimestamp, formatDurationHMS } from './formatting';
-import { getVideoId, wrapTryCatch } from './common';
+import { getPostId, getVideoId, wrapTryCatch } from './common';
 
 export type CommentExportItem = ISheetCommentsParam;
 export type CommentExportReply = ISheetRepliesParam;
@@ -76,7 +76,7 @@ function createCommentsPayloadSkeleton(input: {
 }): CommentsExportPayload {
     const title = input?.titleVideo || '';
     const url = input?.url || '';
-    const videoId = input?.videoId || (url ? getVideoId(url) : undefined) || '';
+    const videoId = input?.videoId || (url ? getVideoId(url) || getPostId(url) : undefined) || '';
     return {
         urlVideo: url,
         titleVideo: title,
