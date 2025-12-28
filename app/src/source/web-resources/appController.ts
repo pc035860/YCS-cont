@@ -1147,7 +1147,10 @@ export function initApp(): void {
 
             trigger.addEventListener('click', (event) => {
                 try {
-                    event.stopPropagation();
+                    const target = event.target as HTMLElement | null;
+                    if (target?.closest('.ycs_dropdown_trigger')) {
+                        event.stopPropagation();
+                    }
                     closeAllDropdowns(menu);
                     const shouldShow = !menu.classList.contains('show');
                     setMenuVisibility(menu, shouldShow);
@@ -1268,6 +1271,8 @@ export function initApp(): void {
         handleDocumentClick = (event) => {
             try {
                 const target = event.target as HTMLElement | null;
+                // Skip YouTube's native dropdown/popup elements to prevent interference
+                if (target?.closest('tp-yt-iron-dropdown') || target?.closest('ytd-popup-container')) return;
                 if (target?.closest('.ycs_dropdown_wrap')) return;
 
                 closeAllDropdowns();
