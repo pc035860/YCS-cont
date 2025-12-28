@@ -2024,6 +2024,7 @@ async function fetchPostPage(
             const ytDataSource = Array.isArray(globalYtData)
                 ? globalYtData.find((item: any) => item?.response || item?.contents)
                 : globalYtData;
+            // objectScan with ** traverses all nested levels, so wrapper objects are acceptable.
             const continuationToken = wrapTryCatch(() =>
                 objectScan(['**.continuationItemRenderer.continuationEndpoint.continuationCommand.token'], {
                     joined: true,
@@ -2038,6 +2039,11 @@ async function fetchPostPage(
                     abort: true
                 })(ytDataSource)
             ) as string | undefined;
+            if (!continuationToken) {
+                console.warn(
+                    '[YCS] [Comments] fetchPostPage: continuation token not found in ytInitialData (wrapper is expected).'
+                );
+            }
             paramsCmnts = await getParamsForComments(
                 windowRef,
                 {

@@ -1,5 +1,6 @@
 import assert from 'node:assert';
 import test from 'node:test';
+import objectScan from 'object-scan';
 import {
     dedupeParentComments,
     processParentComment,
@@ -40,6 +41,28 @@ const createParentThread = (overrides: Partial<any> = {}) => ({
             }
         }
     }
+});
+
+test('objectScan finds continuation token through wrapper objects', () => {
+    const testData = {
+        response: {
+            contents: {
+                continuationItemRenderer: {
+                    continuationEndpoint: {
+                        continuationCommand: { token: 'test-token' }
+                    }
+                }
+            }
+        }
+    };
+
+    const token = objectScan(['**.continuationItemRenderer.continuationEndpoint.continuationCommand.token'], {
+        joined: true,
+        rtn: 'value',
+        abort: true
+    })(testData) as string | undefined;
+
+    assert.strictEqual(token, 'test-token');
 });
 
 test('generateCommentObjectFromFW populates author metadata and counts', () => {
