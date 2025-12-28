@@ -70,7 +70,7 @@ const DEBUG = false;
         function isValidVideoId(id: unknown): id is string {
             return typeof id === 'string' && VIDEO_ID_REGEX.test(id);
         }
-        const POST_ID_REGEX = /^[a-zA-Z0-9_-]{36}$/;
+        const POST_ID_REGEX = /^[a-zA-Z0-9_-]{11,36}$/;
         function isValidPostId(id: unknown): id is string {
             return typeof id === 'string' && POST_ID_REGEX.test(id);
         }
