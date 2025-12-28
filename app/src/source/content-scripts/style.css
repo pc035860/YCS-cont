@@ -30,6 +30,11 @@ html[dark] .ycs-app {
   border: 1px solid #303030;
 }
 
+/* loaded in ytd-comments */
+ytd-comments .ycs-app {
+  margin-top: 20px;
+}
+
 .ycs-app-main {
   height: auto;
 }

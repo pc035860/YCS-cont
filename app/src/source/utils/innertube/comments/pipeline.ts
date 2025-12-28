@@ -7,7 +7,13 @@ import { parseFormattedNumber } from '../../formatting';
 import { normalizeCommentViewModel } from './normalize';
 import { buildInnertubeBody, buildInnertubeHeaders } from '../request';
 import { getInnertubeApiKey, getInitYtData, getInitYtDataFromHtml, getPageCfgData } from '../core';
-import { clearCurrentVideoMemberOnly, updateMemberOnlyStatus, shouldDisableAuth } from '../memberOnly';
+import {
+    clearCurrentVideoMemberOnly,
+    updateMemberOnlyStatus,
+    shouldDisableAuth,
+    isPostMemberOnlyFromYtInitialData,
+    setCurrentVideoMemberOnly
+} from '../memberOnly';
 
 export interface CommentContinuation {
     token: string;
@@ -2021,6 +2027,11 @@ async function fetchPostPage(
         } else {
             // Phase 1: Use ytInitialData from HTML to grab the continuation token from the post page
             const globalYtData = await getInitYtDataFromHtml(windowRef.location.href, signal as AbortSignal, windowRef);
+
+            // Detect member-only status for community posts
+            const isMemberOnly = isPostMemberOnlyFromYtInitialData(globalYtData);
+            setCurrentVideoMemberOnly(isMemberOnly);
+
             const ytDataSource = Array.isArray(globalYtData)
                 ? globalYtData.find((item: any) => item?.response || item?.contents)
                 : globalYtData;

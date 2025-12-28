@@ -1,3 +1,4 @@
+import objectScan from 'object-scan';
 import { GlobalStore } from '../common';
 
 /**
@@ -111,6 +112,42 @@ export function isMemberOnlyFromYtInitialData(ytInitialData: unknown): boolean {
         return false;
     } catch (error) {
         console.error('[YCS] [MemberOnly] Failed to parse members-only status from ytInitialData:', error);
+        return false;
+    }
+}
+
+/**
+ * Determines if a community post is members-only based on ytInitialData
+ * Checks for sponsorsOnlyBadge in backstagePostRenderer
+ *
+ * @param ytInitialData - The ytInitialData object from YouTube post page
+ * @returns true if the post is members-only, false otherwise
+ */
+export function isPostMemberOnlyFromYtInitialData(ytInitialData: unknown): boolean {
+    try {
+        if (!ytInitialData || typeof ytInitialData !== 'object') {
+            console.log('[YCS] [MemberOnly] isPostMemberOnlyFromYtInitialData: invalid input (not object)');
+            return false;
+        }
+
+        // Use objectScan to find sponsorsOnlyBadge in backstagePostRenderer
+        // Path: **.backstagePostRenderer.sponsorsOnlyBadge
+        const sponsorsOnlyBadge = objectScan(['**.backstagePostRenderer.sponsorsOnlyBadge'], {
+            rtn: 'value',
+            abort: true
+        })(ytInitialData);
+
+        if (sponsorsOnlyBadge) {
+            console.log(
+                '[YCS] [MemberOnly] isPostMemberOnlyFromYtInitialData: ✓ MEMBERS-ONLY (sponsorsOnlyBadge found)'
+            );
+            return true;
+        }
+
+        console.log('[YCS] [MemberOnly] isPostMemberOnlyFromYtInitialData: not members-only (no sponsorsOnlyBadge)');
+        return false;
+    } catch (error) {
+        console.error('[YCS] [MemberOnly] Failed to parse post members-only status from ytInitialData:', error);
         return false;
     }
 }
