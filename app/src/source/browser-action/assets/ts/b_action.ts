@@ -30,7 +30,7 @@ window.onload = async (): Promise<void> => {
 
         const checkShorts = (url: string): boolean | void => {
             try {
-                if (typeof url !== 'string') return;
+                if (typeof url !== 'string' || !url) return;
 
                 const u = new URL(url);
                 const uParams = u.pathname.split('/');
