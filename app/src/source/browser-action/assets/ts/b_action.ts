@@ -119,7 +119,7 @@ window.onload = async (): Promise<void> => {
 
             console.log('CURRENT TAB URL: ', url);
 
-            if (checkShorts(url[0]?.url ?? undefined)) {
+            if (checkShorts(url[0].url)) {
                 const elBtnsBlock = document.getElementById('ycs_btn_opt_block') as HTMLElement;
 
                 elBtnsBlock.insertAdjacentHTML(
