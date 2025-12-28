@@ -166,7 +166,7 @@ export async function getInitYtData(
     globalContext: Window & typeof globalThis = window
 ): Promise<object | undefined> {
     try {
-        if (!url) return undefined;
+        if (!url || url.includes('post')) return undefined;
 
         const paramsTemplate = (await getParams(globalContext, signal)).params;
         const headers = { ...paramsTemplate.headers };

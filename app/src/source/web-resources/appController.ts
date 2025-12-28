@@ -1830,7 +1830,7 @@ export function initApp(): void {
             observeIntervalId = null;
         }
 
-        let prevUrl = getCleanUrlVideo(window.location.href);
+        let prevUrl = getCleanUrlVideo(window.location.href) ?? window.location.href;
         // console.log('prevUrl First init: ', prevUrl);
 
         // Store interval ID for cleanup on next initApp() call
@@ -1845,8 +1845,12 @@ export function initApp(): void {
                 return;
             }
 
-            if (isVideoPage() && getPageMetaElement() && prevUrl !== getCleanUrlVideo(window.location.href)) {
-                const currentUrl = getCleanUrlVideo(window.location.href);
+            if (
+                isVideoPage() &&
+                getPageMetaElement() &&
+                prevUrl !== (getCleanUrlVideo(window.location.href) ?? window.location.href)
+            ) {
+                const currentUrl = getCleanUrlVideo(window.location.href) ?? window.location.href;
 
                 // Stop live recording if active (video switch detected)
                 const liveRecording = getLiveRecording(state);
