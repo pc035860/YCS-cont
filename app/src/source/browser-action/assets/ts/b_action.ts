@@ -28,7 +28,7 @@ window.onload = async (): Promise<void> => {
             }
         };
 
-        const checkShorts = (url: string): boolean | void => {
+        const checkShorts = (url: string | undefined): boolean | void => {
             try {
                 if (typeof url !== 'string') return;
 
@@ -119,7 +119,7 @@ window.onload = async (): Promise<void> => {
 
             console.log('CURRENT TAB URL: ', url);
 
-            if (url[0].url && checkShorts(url[0].url || '')) {
+            if (checkShorts(url[0]?.url ?? undefined)) {
                 const elBtnsBlock = document.getElementById('ycs_btn_opt_block') as HTMLElement;
 
                 elBtnsBlock.insertAdjacentHTML(
