@@ -20,7 +20,7 @@ function getSheetDetails(cmnts: ISheetDetailsParam): ISheetDetails | void {
         return {
             'Cache timestamp': Number(cmnts?.cachedDate),
             URL: cmnts?.urlVideo,
-            'Video ID': cmnts?.videoId,
+            'Video/Post ID': cmnts?.videoId,
             Title: cmnts?.titleVideo,
             'Total Comments': Number(cmnts?.totalComments),
             'Total Replies': Number(cmnts?.totalReplies),

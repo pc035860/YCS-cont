@@ -341,11 +341,11 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
     if (message?.type === 'YCS_CACHE_STORAGE_GET') {
         // console.log('YCS_CACHE_STORAGE_GET BG RESPONSE [MESSAGE]: ', message);
 
-        if (message?.body && message.body.videoId) {
+        if (message?.body && (message.body.videoId || message.body.postId)) {
             // console.log('111111111 message:', message);
 
             const db = await idb;
-            const cache = await db.get(STORE_CACHE_YCS, message.body.videoId);
+            const cache = await db.get(STORE_CACHE_YCS, message.body.videoId ?? message.body.postId);
 
             if (sender?.tab?.id) {
                 if (cache) {
@@ -369,7 +369,7 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
     if (message?.type === 'YCS_CACHE_STORAGE_SET') {
         // console.log('YCS_CACHE_STORAGE_SET BG RESPONSE [MESSAGE]: ', message);
 
-        if (message?.body && message.body.videoId) {
+        if (message?.body && (message.body.videoId || message.body.postId)) {
             const opts = (await chrome.storage.local.get(['cache', 'autoClear'])) as {
                 cache: string;
                 autoClear: number;
@@ -384,10 +384,10 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
             const db = await idb;
 
             if ((infoUseStorage.usage as number) < quotaBytes) {
-                await db.put(STORE_CACHE_YCS, message, message.body.videoId);
+                await db.put(STORE_CACHE_YCS, message, message.body.videoId ?? message.body.postId);
             } else if ((infoUseStorage.usage as number) >= quotaBytes) {
                 await db.clear(STORE_CACHE_YCS);
-                await db.put(STORE_CACHE_YCS, message, message.body.videoId);
+                await db.put(STORE_CACHE_YCS, message, message.body.videoId ?? message.body.postId);
             }
         }
     }

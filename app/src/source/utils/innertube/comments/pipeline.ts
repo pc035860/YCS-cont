@@ -6,7 +6,7 @@ import { GlobalStore, getCleanUrlVideo, getVideoId, wrapTryCatch, extractVideoId
 import { parseFormattedNumber } from '../../formatting';
 import { normalizeCommentViewModel } from './normalize';
 import { buildInnertubeBody, buildInnertubeHeaders } from '../request';
-import { getInnertubeApiKey, getInitYtData, getPageCfgData } from '../core';
+import { getInnertubeApiKey, getInitYtData, getInitYtDataFromHtml, getPageCfgData } from '../core';
 import { clearCurrentVideoMemberOnly, updateMemberOnlyStatus, shouldDisableAuth } from '../memberOnly';
 
 export interface CommentContinuation {
@@ -2005,11 +2005,99 @@ async function fetchCommentPage(
     }
 }
 
+async function fetchPostPage(
+    windowRef: Window & typeof globalThis,
+    signal: AbortSignal | undefined,
+    continuation?: CommentContinuation
+): Promise<{ response?: any; params?: RequestInit } | undefined> {
+    try {
+        let paramsCmnts;
+        if (continuation) {
+            const continuationParams = {
+                continue: (continuation as any).continue ?? continuation.token,
+                clickTrackingParams: ''
+            };
+            paramsCmnts = await getParamsForComments(windowRef, continuationParams, signal);
+        } else {
+            // Phase 1: Use ytInitialData from HTML to grab the continuation token from the post page
+            const globalYtData = await getInitYtDataFromHtml(windowRef.location.href, signal as AbortSignal, windowRef);
+            const ytDataSource = Array.isArray(globalYtData)
+                ? globalYtData.find((item: any) => item?.response || item?.contents)
+                : globalYtData;
+            const continuationToken = wrapTryCatch(() =>
+                objectScan(['**.continuationItemRenderer.continuationEndpoint.continuationCommand.token'], {
+                    joined: true,
+                    rtn: 'value',
+                    abort: true
+                })(ytDataSource)
+            ) as string | undefined;
+            const clickTrackingParams = wrapTryCatch(() =>
+                objectScan(['**.continuationItemRenderer.continuationEndpoint.clickTrackingParams'], {
+                    joined: true,
+                    rtn: 'value',
+                    abort: true
+                })(ytDataSource)
+            ) as string | undefined;
+            paramsCmnts = await getParamsForComments(
+                windowRef,
+                {
+                    continue: continuationToken,
+                    clickTrackingParams
+                },
+                signal
+            );
+
+            // Phase 2: Grab the continuation token of the comments sorted by newest since top comments in post pages are missing
+            const response = await fetchR(`https://www.youtube.com/youtubei/v1/browse?key=${getInnertubeApiKey()}`, {
+                ...paramsCmnts,
+                signal,
+                cache: 'no-store'
+            } as RequestInit);
+            const data = await response.json();
+            const newContinuationToken = wrapTryCatch(() =>
+                objectScan(['**.subMenuItems[1].serviceEndpoint.continuationCommand.token'], {
+                    joined: true,
+                    rtn: 'value',
+                    abort: true
+                })(data)
+            ) as string | undefined;
+            const newClickTrackingParams = wrapTryCatch(() =>
+                objectScan(['**.subMenuItems[1].serviceEndpoint.continuationCommand.command.clickTrackingParams'], {
+                    joined: true,
+                    rtn: 'value',
+                    abort: true
+                })(data)
+            ) as string | undefined;
+            paramsCmnts = await getParamsForComments(
+                windowRef,
+                {
+                    continue: newContinuationToken,
+                    clickTrackingParams: newClickTrackingParams
+                },
+                signal
+            );
+        }
+        if (!paramsCmnts) return undefined;
+
+        const response = await fetchR(`https://www.youtube.com/youtubei/v1/browse?key=${getInnertubeApiKey()}`, {
+            ...paramsCmnts,
+            signal,
+            cache: 'no-store'
+        } as RequestInit);
+        return { response, params: paramsCmnts as RequestInit };
+    } catch (e) {
+        console.error(e);
+        return undefined;
+    }
+}
+
 export async function fetchInitialCommentBatch(
     params: FetchInitialCommentBatchParams
 ): Promise<CommentBatchResult | undefined> {
     try {
-        const result = await fetchCommentPage(params.windowRef, params.signal);
+        const result = params.windowRef.location.href.includes('post')
+            ? await fetchPostPage(params.windowRef, params.signal)
+            : await fetchCommentPage(params.windowRef, params.signal);
         const response = result?.response;
         if (!response || response.status !== 200) return undefined;
         const data = await response.json();
@@ -2033,7 +2121,9 @@ export async function fetchInitialCommentBatch(
 
 export async function fetchContinuationBatch(params: FetchContinuationParams): Promise<CommentBatchResult | undefined> {
     try {
-        const result = await fetchCommentPage(params.windowRef, params.signal, params.continuation);
+        const result = params.windowRef.location.href.includes('post')
+            ? await fetchPostPage(params.windowRef, params.signal, params.continuation)
+            : await fetchCommentPage(params.windowRef, params.signal, params.continuation);
         const response = result?.response;
         if (!response || response.status !== 200) return undefined;
         const data = await response.json();
@@ -2066,7 +2156,10 @@ export async function fetchRepliesBatch(params: FetchRepliesParams): Promise<Com
         };
         const paramsCmnts = await getParamsForReplies(params.windowRef, continuationParams, params.signal);
         if (!paramsCmnts) return undefined;
-        const res = await fetchR(`https://www.youtube.com/youtubei/v1/next?key=${getInnertubeApiKey()}`, {
+        const baseUrl = params.windowRef.location.href.includes('post')
+            ? 'https://www.youtube.com/youtubei/v1/browse'
+            : 'https://www.youtube.com/youtubei/v1/next';
+        const res = await fetchR(`${baseUrl}?key=${getInnertubeApiKey()}`, {
             ...paramsCmnts,
             signal: params.signal,
             cache: 'no-store'

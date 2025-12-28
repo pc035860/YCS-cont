@@ -1,5 +1,5 @@
 import type { GetParams, InnertubeRequestParams } from '../interfaces/i_assist';
-import { GlobalStore, getCleanUrlVideo, getVideoId } from '../common';
+import { GlobalStore, getCleanUrlVideo, getVideoId, getPostId } from '../common';
 import { updateMemberOnlyStatus } from './memberOnly';
 import type { YtcfgData } from './request';
 
@@ -20,9 +20,9 @@ export interface PageCfgData extends YtcfgData {
 
 const pageCfgDataPool: Record<string, Promise<PageCfgData | undefined> | PageCfgData | undefined> = {};
 
-async function fetchPageCfgData(videoId: string, signal?: AbortSignal): Promise<PageCfgData | undefined> {
+async function fetchPageCfgData(url: string, signal?: AbortSignal): Promise<PageCfgData | undefined> {
     try {
-        const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+        const response = await fetch(url, {
             method: 'GET',
             mode: 'no-cors',
             credentials: 'include',
@@ -63,19 +63,29 @@ export async function getPageCfgData(
 
     const url = optUrl ?? globalContext.location?.href ?? window.location.href;
     const videoId = getVideoId(url);
+    const postId = getPostId(url);
 
-    if (!videoId) {
-        return undefined;
-    }
-
-    if (!pageCfgDataPool[videoId]) {
-        pageCfgDataPool[videoId] = fetchPageCfgData(videoId, signal);
-    }
-
-    try {
-        return await pageCfgDataPool[videoId];
-    } catch (error) {
-        console.error(error);
+    if (videoId) {
+        if (!pageCfgDataPool[videoId]) {
+            pageCfgDataPool[videoId] = fetchPageCfgData(`https://www.youtube.com/watch?v=${videoId}`, signal);
+        }
+        try {
+            return await pageCfgDataPool[videoId];
+        } catch (error) {
+            console.error(error);
+            return undefined;
+        }
+    } else if (postId) {
+        if (!pageCfgDataPool[postId]) {
+            pageCfgDataPool[postId] = fetchPageCfgData(`https://www.youtube.com/post/${postId}`, signal);
+        }
+        try {
+            return await pageCfgDataPool[postId];
+        } catch (error) {
+            console.error(error);
+            return undefined;
+        }
+    } else {
         return undefined;
     }
 }
@@ -208,7 +218,7 @@ export async function getInitYtDataFromHtml(
         delete (requestInit as Partial<InnertubeRequestParams>).body;
 
         // Do not use pbj=1 parameter, fetch raw HTML directly
-        const targetUrl = getCleanUrlVideo(url) ?? url;
+        const targetUrl = url.includes('post') ? url : (getCleanUrlVideo(url) ?? url);
         const res = await fetch(targetUrl, { ...requestInit, signal, cache: 'no-store' });
         const html = await res.text();
 

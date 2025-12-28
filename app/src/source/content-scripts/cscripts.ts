@@ -70,6 +70,10 @@ const DEBUG = false;
         function isValidVideoId(id: unknown): id is string {
             return typeof id === 'string' && VIDEO_ID_REGEX.test(id);
         }
+        const POST_ID_REGEX = /^[a-zA-Z0-9_-]{36}$/;
+        function isValidPostId(id: unknown): id is string {
+            return typeof id === 'string' && POST_ID_REGEX.test(id);
+        }
         function truncateString(value: unknown, maxLength: number): string {
             const str = String(value ?? '');
             return str.slice(0, maxLength);
@@ -117,7 +121,7 @@ const DEBUG = false;
                     }
 
                     if (msg.type === 'YCS_CACHE_STORAGE_SET' && msg?.body) {
-                        if (!isValidVideoId(msg.body?.videoId)) {
+                        if (!isValidVideoId(msg.body?.videoId) && !isValidPostId(msg.body?.postId)) {
                             if (DEBUG) console.warn('[YCS] Invalid video ID format');
                             return;
                         }
@@ -127,8 +131,8 @@ const DEBUG = false;
                     }
 
                     if (msg.type === 'YCS_CACHE_STORAGE_GET' && msg?.body) {
-                        if (!isValidVideoId(msg.body?.videoId)) {
-                            if (DEBUG) console.warn('[YCS] Invalid video ID format');
+                        if (!isValidVideoId(msg.body?.videoId) && !isValidPostId(msg.body?.postId)) {
+                            if (DEBUG) console.warn('[YCS] Invalid video or post ID format');
                             return;
                         }
                         chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg, (res) => {

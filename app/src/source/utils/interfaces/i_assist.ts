@@ -108,7 +108,7 @@ export interface NormalizedCommentRenderer {
 export interface ISheetDetails {
     'Cache timestamp': number;
     URL: string;
-    'Video ID': string;
+    'Video/Post ID': string;
     Title: string;
     'Total Comments': number;
     'Total Replies': number;
