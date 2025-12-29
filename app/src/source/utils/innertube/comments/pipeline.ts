@@ -14,7 +14,7 @@ import {
     isPostMemberOnlyFromYtInitialData,
     setCurrentVideoMemberOnly
 } from '../memberOnly';
-import { decode, encode } from 'html-entities';
+import { encode } from 'html-entities';
 
 export interface CommentContinuation {
     token: string;
@@ -84,7 +84,7 @@ export function formatCommentRuns(runs: any[] | undefined, currentVideoId: strin
     let isTimeline = false;
 
     const safeRuns = Array.isArray(runs) ? runs : [];
-    console.warn(safeRuns);
+
     for (const partTextComment of safeRuns) {
         let text = '';
         let navigationEndpoint: any;
