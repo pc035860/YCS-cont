@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { encode } from 'html-entities';
 import { decodeHtml, escapeHtml, wrapTryCatch, convertColorToRgba } from './common';
 import { msToShareVideo, tmUsecToDateTime, formatDurationHMS } from './formatting';
 
@@ -294,9 +295,9 @@ function buildChatRunsHtml(runs: any[]): string {
                 continue;
             }
 
-            parts.push(escapeHtml(decodeHtml(coerceString(run.text))));
+            parts.push(encode(run.text));
         } catch {
-            parts.push(escapeHtml(decodeHtml(coerceString(run?.text))));
+            parts.push(encode(coerceString(run?.text)));
         }
     }
 
@@ -309,7 +310,7 @@ function buildChatMessageHtml(renderer: any): string {
 
     const renderFullText = coerceString(wrapTryCatch(() => message.renderFullText));
     if (renderFullText) {
-        return sanitizeHtml(decodeHtml(renderFullText));
+        return renderFullText;
     }
 
     const fullText = coerceString(wrapTryCatch(() => message.fullText));
@@ -411,9 +412,7 @@ export function buildCommentViewModels(
             isReply,
             isReplyType,
             refIndex: coerceString(wrapTryCatch(() => item?.refIndex)) || undefined,
-            contentHtml: renderFullText
-                ? sanitizeHtml(decodeHtml(renderFullText))
-                : escapeHtml(decodeHtml(fallbackText)),
+            contentHtml: renderFullText ? renderFullText : encode(fallbackText),
             replyLevel,
             hideExpandUp,
             forceSmallAvatar

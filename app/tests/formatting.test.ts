@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import test from 'node:test';
 
 import { esc, safeUrl, sanitizeHtml, parseFormattedNumber } from '../src/source/utils/formatting';
+import { formatCommentRuns } from '../src/source/utils/innertube/comments/pipeline';
 
 test('esc converts special characters into HTML entities', () => {
     const raw = '<div>&\'"';
@@ -30,6 +31,53 @@ test('sanitizeHtml removes dangerous tags and normalizes href/src schemes', () =
         sanitized,
         '<div><a href="#" rel="noopener noreferrer">link</a><img src="https://www.youtube.com/image.png" /></div>'
     );
+});
+
+test('XSS check javascript:void', () => {
+    const runs = [ { text: "<a href=javascript:alert('XSS')>Click me</a>" } ];
+    const formatted = formatCommentRuns(runs, '123');
+    const renderFullTextComment = formatted.renderFullText;
+    assert.equal(renderFullTextComment, '&lt;a href=javascript:alert(&apos;XSS&apos;)&gt;Click me&lt;/a&gt;');
+});
+
+test('XSS check <script> tag', () => {
+    const runs = [ { text: "<script>alert('XSS')</script>" } ];
+    const formatted = formatCommentRuns(runs, '123');
+    const renderFullTextComment = formatted.renderFullText;
+    assert.equal(renderFullTextComment, '&lt;script&gt;alert(&apos;XSS&apos;)&lt;/script&gt;');
+});
+
+test('formatted timestamp comment', () => {
+    const runs = [
+        {
+            navigationEndpoint: {
+                watchEndpoint: {
+                    videoId: '123',
+                    startTimeSeconds: '30'
+                }
+            },
+            text: "0:30"
+        }
+    ];
+    const formatted = formatCommentRuns(runs, '123');
+    const renderFullTextComment = formatted.renderFullText;
+    assert.equal(renderFullTextComment, '<a class="ycs-cpointer ycs-goto-comment-time" href="https://www.youtube.com/watch?v=123&t=30s" data-offsetvideo="30" data-video-id="123">0:30</a>',);
+});
+
+test('formatted link comment', () => {
+    const runs = [
+        {
+            navigationEndpoint: {
+                urlEndpoint: {
+                    url: 'https://github.com/pc035860/YCS-cont'
+                }
+            },
+            text: "https://github.com/pc035860/YCS-cont" // Links on youtube should be the same as the url
+        }
+    ];
+    const formatted = formatCommentRuns(runs, '123');
+    const renderFullTextComment = formatted.renderFullText;
+    assert.equal(renderFullTextComment, '<a class="ycs-cpointer ycs-comment-link" href="https://github.com/pc035860/YCS-cont" target="_blank">https://github.com/pc035860/YCS-cont</a>');
 });
 
 test('parseFormattedNumber handles common formatting edge cases', () => {

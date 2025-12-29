@@ -14,6 +14,7 @@ import {
     isPostMemberOnlyFromYtInitialData,
     setCurrentVideoMemberOnly
 } from '../memberOnly';
+import { decode, encode } from 'html-entities';
 
 export interface CommentContinuation {
     token: string;
@@ -138,7 +139,7 @@ export function formatCommentRuns(runs: any[] | undefined, currentVideoId: strin
                 const alt = text || '';
                 renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
             } else {
-                renderFullTextComment += text || '';
+                renderFullTextComment += encode(text) || '';
             }
         } catch (e) {
             console.error(e);
@@ -156,8 +157,8 @@ export function formatCommentRuns(runs: any[] | undefined, currentVideoId: strin
                     return '';
                 }
             })();
-            renderFullTextComment += fallbackText;
-            fullTextComment += fallbackText;
+            renderFullTextComment += encode(fallbackText);
+            fullTextComment += encode(fallbackText);
         }
     }
 
