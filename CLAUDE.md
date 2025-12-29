@@ -177,6 +177,36 @@ Three-layer communication using `window.postMessage()` (Web Page ↔ Content Scr
 
 Uses `fetch-retry` with exponential backoff (2s → 10s → 60s, max 100 retries) to handle YouTube API instability. Implemented in `utils/innertube.ts`.
 
+### HTML Encoding Strategy (XSS Prevention)
+
+User content (comments, chat messages) is encoded using `html-entities` library's `encode()` function to prevent XSS attacks.
+
+**YouTube API Text Format**:
+- YouTube returns text content as **plain text**, not HTML entities
+- Special characters like `<`, `>`, `&` are transmitted via JSON Unicode escapes (`\u003c`, `\u003e`, `\u0026`)
+- After JSON parsing, these become literal characters (`<`, `>`, `&`)
+- Therefore, `encode()` correctly converts them to safe HTML entities (`&lt;`, `&gt;`, `&amp;`)
+
+**Example** (from actual API response):
+```json
+// JSON response contains Unicode escapes
+"content": "The img tag: \u003cimg src=\"test.jpg\"\u003e"
+
+// After JSON.parse(), becomes plain text
+"The img tag: <img src=\"test.jpg\">"
+
+// After encode(), safe for HTML rendering
+"The img tag: &lt;img src=&quot;test.jpg&quot;&gt;"
+```
+
+**Key Files**:
+- `utils/common.ts`: `escapeHtml()` - smart encoding that preserves existing entities
+- `utils/innertube/chat/utils.ts`: `formatChatRuns()` - chat message encoding
+- `utils/innertube/comments/pipeline.ts`: `formatCommentRuns()` - comment encoding
+- `utils/viewModels.ts`: `buildChatRunsHtml()`, `buildCommentViewModels()` - view layer encoding
+
+**Design Decision**: Direct `encode()` is used instead of `decodeHtml()` + `escapeHtml()` because YouTube API returns plain text, not pre-encoded HTML entities. Double-encoding would only occur if YouTube changed their API to return entities, which has not been observed in practice.
+
 ## TypeScript Configuration
 
 - **Target**: ES6
