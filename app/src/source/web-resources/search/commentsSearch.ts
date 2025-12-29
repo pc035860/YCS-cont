@@ -417,7 +417,12 @@ export function runSearch(
             const fuse = getFuseInstance(comments, options);
             resultSearch = mapFuseResults(fuse.search(trimmedQuery));
         } else {
-            resultSearch = [];
+            // Handle empty query by returning all results
+            resultSearch = comments.map((item, index) => ({
+                item,
+                refIndex: index,
+                score: 0
+            }));
         }
     }
 
