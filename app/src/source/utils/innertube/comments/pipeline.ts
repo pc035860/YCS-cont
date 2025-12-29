@@ -3,7 +3,7 @@ import Queue from 'p-queue';
 
 import { fetchR } from '../../libs';
 import { GlobalStore, getCleanUrlVideo, getVideoId, wrapTryCatch, extractVideoId } from '../../common';
-import { parseFormattedNumber } from '../../formatting';
+import { parseFormattedNumber, safeUrl } from '../../formatting';
 import { normalizeCommentViewModel } from './normalize';
 import { buildInnertubeBody, buildInnertubeHeaders } from '../request';
 import { getInnertubeApiKey, getInitYtData, getInitYtDataFromHtml, getPageCfgData } from '../core';
@@ -109,17 +109,17 @@ export function formatCommentRuns(runs: any[] | undefined, currentVideoId: strin
                 const linkVideoId = (wrapTryCatch(() => navigationEndpoint?.watchEndpoint?.videoId) || '') as string;
                 const isSameVideo = String(linkVideoId || '') === String(currentVideoId || '');
                 const timeValue = rawTimeValue ?? parsedTime ?? '';
-                renderFullTextComment += `<a class="ycs-cpointer ycs-goto-comment-time" href="https://www.youtube.com/watch?v=${linkVideoId}&t=${timeValue}s" data-offsetvideo="${timeValue}" data-video-id="${linkVideoId}">${text || ''}</a>`;
+                renderFullTextComment += `<a class="ycs-cpointer ycs-goto-comment-time" href="https://www.youtube.com/watch?v=${linkVideoId}&t=${timeValue}s" data-offsetvideo="${timeValue}" data-video-id="${linkVideoId}">${encode(text || '')}</a>`;
                 if (isSameVideo) {
                     isTimeline = true;
                 }
             } else if (navigationEndpoint) {
-                const href = (wrapTryCatch(() => navigationEndpoint?.browseEndpoint?.canonicalBaseUrl) ||
+                const rawHref = (wrapTryCatch(() => navigationEndpoint?.browseEndpoint?.canonicalBaseUrl) ||
                     wrapTryCatch(() => navigationEndpoint?.urlEndpoint?.url) ||
                     wrapTryCatch(() => navigationEndpoint?.commandMetadata?.webCommandMetadata?.url) ||
-                    text ||
-                    '#') as string;
-                renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${href}" target="_blank">${text || ''}</a>`;
+                    '') as string;
+                const href = safeUrl(rawHref);
+                renderFullTextComment += `<a class="ycs-cpointer ycs-comment-link" href="${href}" target="_blank">${encode(text || '')}</a>`;
             } else if (wrapTryCatch(() => (partTextComment as any).emoji)) {
                 const url =
                     wrapTryCatch(() => {
@@ -128,7 +128,7 @@ export function formatCommentRuns(runs: any[] | undefined, currentVideoId: strin
                     }) || '';
                 const alt = (wrapTryCatch(() => (partTextComment as any).emoji.shortcuts?.[0]) as string) || '';
                 const style = `margin-left: 2px; margin-right: 2px;`;
-                renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
+                renderFullTextComment += `<img src="${url}" alt="${encode(alt)}" title="${encode(alt)}" width="24" height="24" style="${style}" class="ycs-attachment">`;
             } else if (wrapTryCatch(() => (partTextComment as any).attachment?.image)) {
                 const image: any = wrapTryCatch(() => (partTextComment as any).attachment.image);
                 const url = image?.url || '';
@@ -137,7 +137,7 @@ export function formatCommentRuns(runs: any[] | undefined, currentVideoId: strin
                 const margin = image?.margin || { left: 0, right: 0 };
                 const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
                 const alt = text || '';
-                renderFullTextComment += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
+                renderFullTextComment += `<img src="${url}" alt="${encode(alt)}" title="${encode(alt)}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
             } else {
                 renderFullTextComment += encode(text) || '';
             }

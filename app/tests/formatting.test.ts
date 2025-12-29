@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { esc, safeUrl, sanitizeHtml, parseFormattedNumber } from '../src/source/utils/formatting';
 import { formatCommentRuns } from '../src/source/utils/innertube/comments/pipeline';
+import { formatChatRuns } from '../src/source/utils/innertube/chat/utils';
 
 test('esc converts special characters into HTML entities', () => {
     const raw = '<div>&\'"';
@@ -105,4 +106,189 @@ test('parseFormattedNumber handles common formatting edge cases', () => {
     assert.equal(parseFormattedNumber('1 천').number, 1000);
     assert.equal(parseFormattedNumber('1 만').number, 10_000);
     assert.equal(parseFormattedNumber('1 m').number, 1_000_000);
+});
+
+// ============================================================================
+// formatChatRuns XSS Security Tests
+// ============================================================================
+
+test('formatChatRuns: XSS - script tag in text should be encoded', () => {
+    const runs = [{ text: "<script>alert('XSS')</script>" }];
+    const result = formatChatRuns(runs);
+    // html-entities encodes single quotes as &apos;
+    assert.equal(result.richText, "&lt;script&gt;alert(&apos;XSS&apos;)&lt;/script&gt;");
+});
+
+test('formatChatRuns: XSS - HTML injection in text should be encoded', () => {
+    const runs = [{ text: '<img onerror="alert(1)" src="x">' }];
+    const result = formatChatRuns(runs);
+    assert.equal(result.richText, '&lt;img onerror=&quot;alert(1)&quot; src=&quot;x&quot;&gt;');
+});
+
+test('formatChatRuns: XSS - javascript: URL in navigationEndpoint should be blocked', () => {
+    const runs = [
+        {
+            text: 'Click me',
+            navigationEndpoint: {
+                urlEndpoint: {
+                    url: "javascript:alert('XSS')"
+                }
+            }
+        }
+    ];
+    const result = formatChatRuns(runs);
+    // safeUrl should convert javascript: to #
+    assert.ok(result.richText.includes('href="#"'), 'javascript: URL should be converted to #');
+    assert.ok(result.richText.includes('>Click me</a>'), 'Link text should be preserved');
+});
+
+test('formatChatRuns: XSS - data: URL in navigationEndpoint should be blocked', () => {
+    const runs = [
+        {
+            text: 'Click me',
+            navigationEndpoint: {
+                urlEndpoint: {
+                    url: 'data:text/html,<script>alert(1)</script>'
+                }
+            }
+        }
+    ];
+    const result = formatChatRuns(runs);
+    assert.ok(result.richText.includes('href="#"'), 'data: URL should be converted to #');
+});
+
+test('formatChatRuns: XSS - text in timestamp link should be encoded', () => {
+    const runs = [
+        {
+            text: '<script>alert(1)</script>',
+            navigationEndpoint: {
+                watchEndpoint: {
+                    videoId: 'abc123',
+                    startTimeSeconds: 30
+                }
+            }
+        }
+    ];
+    const result = formatChatRuns(runs);
+    assert.ok(result.richText.includes('&lt;script&gt;'), 'Script tag in timestamp link text should be encoded');
+    assert.ok(result.richText.includes('data-offsetvideo="30"'), 'Timestamp data attribute should be preserved');
+});
+
+test('formatChatRuns: XSS - emoji alt text should be encoded', () => {
+    const runs = [
+        {
+            emoji: {
+                shortcuts: ['<script>alert(1)</script>'],
+                image: {
+                    thumbnails: [{ url: 'https://example.com/emoji.png' }],
+                    accessibility: { accessibilityData: { label: 'emoji' } }
+                }
+            }
+        }
+    ];
+    const result = formatChatRuns(runs);
+    assert.ok(result.richText.includes('alt="&lt;script&gt;'), 'Emoji alt should be encoded');
+    assert.ok(result.richText.includes('title="&lt;script&gt;'), 'Emoji title should be encoded');
+});
+
+test('formatChatRuns: valid https URL should be preserved', () => {
+    const runs = [
+        {
+            text: 'Visit my site',
+            navigationEndpoint: {
+                urlEndpoint: {
+                    url: 'https://example.com/page'
+                }
+            }
+        }
+    ];
+    const result = formatChatRuns(runs);
+    assert.ok(result.richText.includes('href="https://example.com/page"'), 'Valid https URL should be preserved');
+});
+
+test('formatChatRuns: relative YouTube URL should be normalized', () => {
+    const runs = [
+        {
+            text: 'Watch this',
+            navigationEndpoint: {
+                browseEndpoint: {
+                    canonicalBaseUrl: '/channel/UC123'
+                }
+            }
+        }
+    ];
+    const result = formatChatRuns(runs);
+    assert.ok(
+        result.richText.includes('href="https://www.youtube.com/channel/UC123"'),
+        'Relative URL should be normalized to absolute'
+    );
+});
+
+// ============================================================================
+// formatCommentRuns XSS Security Tests (additional)
+// ============================================================================
+
+test('formatCommentRuns: XSS - javascript: URL in navigationEndpoint should be blocked', () => {
+    const runs = [
+        {
+            text: 'Click me',
+            navigationEndpoint: {
+                urlEndpoint: {
+                    url: "javascript:alert('XSS')"
+                }
+            }
+        }
+    ];
+    const result = formatCommentRuns(runs, 'video123');
+    assert.ok(result.renderFullText.includes('href="#"'), 'javascript: URL should be converted to #');
+});
+
+test('formatCommentRuns: XSS - text in external link should be encoded', () => {
+    const runs = [
+        {
+            text: '<img src=x onerror=alert(1)>',
+            navigationEndpoint: {
+                urlEndpoint: {
+                    url: 'https://example.com'
+                }
+            }
+        }
+    ];
+    const result = formatCommentRuns(runs, 'video123');
+    assert.ok(result.renderFullText.includes('&lt;img'), 'HTML in link text should be encoded');
+    assert.ok(!result.renderFullText.includes('<img src=x'), 'Raw HTML should not appear');
+});
+
+test('formatCommentRuns: XSS - emoji alt text should be encoded', () => {
+    const runs = [
+        {
+            emoji: {
+                shortcuts: ['"onclick="alert(1)"'],
+                image: {
+                    thumbnails: [{ url: 'https://example.com/emoji.png' }]
+                }
+            }
+        }
+    ];
+    const result = formatCommentRuns(runs, 'video123');
+    assert.ok(result.renderFullText.includes('alt="&quot;onclick'), 'Emoji alt should be encoded');
+});
+
+// ============================================================================
+// safeUrl Security Tests
+// ============================================================================
+
+test('safeUrl: blocks various dangerous protocols', () => {
+    assert.equal(safeUrl('javascript:alert(1)'), '#');
+    assert.equal(safeUrl('JAVASCRIPT:alert(1)'), '#');
+    assert.equal(safeUrl('data:text/html,<script>alert(1)</script>'), '#');
+    assert.equal(safeUrl('vbscript:msgbox(1)'), '#');
+    assert.equal(safeUrl('file:///etc/passwd'), '#');
+    assert.equal(safeUrl('about:blank'), '#');
+});
+
+test('safeUrl: allows safe protocols', () => {
+    assert.equal(safeUrl('https://example.com'), 'https://example.com');
+    assert.equal(safeUrl('http://example.com'), 'http://example.com');
+    assert.equal(safeUrl('HTTPS://EXAMPLE.COM'), 'HTTPS://EXAMPLE.COM');
 });
