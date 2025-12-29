@@ -201,7 +201,7 @@ export function formatChatRuns(runs: any[], options: FormatChatRunsOptions = {})
                 const style = 'margin-left: 2px; margin-right: 2px;';
 
                 if (url) {
-                    result.richText += `<img src="${url}" alt="${encode(alt)}" title="${encode(alt)}" width="24" height="24" style="${style}" class="ycs-attachment">`;
+                    result.richText += `<img src="${safeUrl(url)}" alt="${encode(alt)}" title="${encode(alt)}" width="24" height="24" style="${style}" class="ycs-attachment">`;
                 } else {
                     result.richText += alt;
                 }
@@ -218,7 +218,7 @@ export function formatChatRuns(runs: any[], options: FormatChatRunsOptions = {})
                 const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
                 const alt = (run as any)?.text || '';
 
-                result.richText += `<img src="${url}" alt="${encode(alt)}" title="${encode(alt)}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
+                result.richText += `<img src="${safeUrl(url)}" alt="${encode(alt)}" title="${encode(alt)}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
                 continue;
             }
 

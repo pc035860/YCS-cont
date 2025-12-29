@@ -128,7 +128,7 @@ export function formatCommentRuns(runs: any[] | undefined, currentVideoId: strin
                     }) || '';
                 const alt = (wrapTryCatch(() => (partTextComment as any).emoji.shortcuts?.[0]) as string) || '';
                 const style = `margin-left: 2px; margin-right: 2px;`;
-                renderFullTextComment += `<img src="${url}" alt="${encode(alt)}" title="${encode(alt)}" width="24" height="24" style="${style}" class="ycs-attachment">`;
+                renderFullTextComment += `<img src="${safeUrl(url)}" alt="${encode(alt)}" title="${encode(alt)}" width="24" height="24" style="${style}" class="ycs-attachment">`;
             } else if (wrapTryCatch(() => (partTextComment as any).attachment?.image)) {
                 const image: any = wrapTryCatch(() => (partTextComment as any).attachment.image);
                 const url = image?.url || '';
@@ -137,7 +137,7 @@ export function formatCommentRuns(runs: any[] | undefined, currentVideoId: strin
                 const margin = image?.margin || { left: 0, right: 0 };
                 const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
                 const alt = text || '';
-                renderFullTextComment += `<img src="${url}" alt="${encode(alt)}" title="${encode(alt)}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
+                renderFullTextComment += `<img src="${safeUrl(url)}" alt="${encode(alt)}" title="${encode(alt)}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
             } else {
                 renderFullTextComment += encode(text) || '';
             }

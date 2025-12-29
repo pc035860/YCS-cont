@@ -4,6 +4,7 @@ import test from 'node:test';
 import { safeUrl, parseFormattedNumber } from '../src/source/utils/formatting';
 import { formatCommentRuns } from '../src/source/utils/innertube/comments/pipeline';
 import { formatChatRuns } from '../src/source/utils/innertube/chat/utils';
+import { escapeHtml } from '../src/source/utils/common';
 
 test('safeUrl normalizes common URLs and blocks non-http/https schemes', () => {
     assert.equal(safeUrl('https://example.com/path'), 'https://example.com/path');
@@ -269,4 +270,114 @@ test('safeUrl: allows safe protocols', () => {
     assert.equal(safeUrl('https://example.com'), 'https://example.com');
     assert.equal(safeUrl('http://example.com'), 'http://example.com');
     assert.equal(safeUrl('HTTPS://EXAMPLE.COM'), 'HTTPS://EXAMPLE.COM');
+});
+
+// ============================================================================
+// Image src URL XSS Tests
+// ============================================================================
+
+test('formatCommentRuns: javascript: URL in emoji image should be blocked', () => {
+    const runs = [
+        {
+            emoji: {
+                shortcuts: ['emoji'],
+                image: {
+                    thumbnails: [{ url: 'javascript:alert(1)' }]
+                }
+            }
+        }
+    ];
+    const result = formatCommentRuns(runs, 'video123');
+    assert.ok(result.renderFullText.includes('src="#"'), 'javascript: URL should be replaced with #');
+    assert.ok(!result.renderFullText.includes('javascript:'), 'javascript: should not appear in output');
+});
+
+test('formatCommentRuns: data: URL in emoji image should be blocked', () => {
+    const runs = [
+        {
+            emoji: {
+                shortcuts: ['emoji'],
+                image: {
+                    thumbnails: [{ url: 'data:text/html,<script>alert(1)</script>' }]
+                }
+            }
+        }
+    ];
+    const result = formatCommentRuns(runs, 'video123');
+    assert.ok(result.renderFullText.includes('src="#"'), 'data: URL should be replaced with #');
+    assert.ok(!result.renderFullText.includes('data:'), 'data: should not appear in output');
+});
+
+test('formatChatRuns: javascript: URL in emoji image should be blocked', () => {
+    const runs = [
+        {
+            emoji: {
+                shortcuts: ['emoji'],
+                image: {
+                    thumbnails: [{ url: 'javascript:alert(1)' }],
+                    accessibility: { accessibilityData: { label: 'emoji' } }
+                }
+            }
+        }
+    ];
+    const result = formatChatRuns(runs);
+    assert.ok(result.richText.includes('src="#"'), 'javascript: URL should be replaced with #');
+    assert.ok(!result.richText.includes('javascript:'), 'javascript: should not appear in output');
+});
+
+test('formatChatRuns: valid https URL in emoji image should be allowed', () => {
+    const runs = [
+        {
+            emoji: {
+                shortcuts: ['emoji'],
+                image: {
+                    thumbnails: [{ url: 'https://yt3.ggpht.com/emoji.png' }],
+                    accessibility: { accessibilityData: { label: 'emoji' } }
+                }
+            }
+        }
+    ];
+    const result = formatChatRuns(runs);
+    assert.ok(result.richText.includes('src="https://yt3.ggpht.com/emoji.png"'), 'Valid https URL should be preserved');
+});
+
+// ============================================================================
+// Double-encoding Prevention Tests
+// ============================================================================
+
+test('escapeHtml: pre-encoded HTML entities should not be double-encoded', () => {
+    // Already encoded ampersand should stay as &amp; not become &amp;amp;
+    assert.equal(escapeHtml('&amp;'), '&amp;');
+    assert.equal(escapeHtml('&lt;'), '&lt;');
+    assert.equal(escapeHtml('&gt;'), '&gt;');
+    assert.equal(escapeHtml('&quot;'), '&quot;');
+});
+
+test('escapeHtml: numeric HTML entities should be preserved', () => {
+    // Numeric entities like &#39; should not be double-encoded
+    assert.equal(escapeHtml('&#39;'), '&#39;');
+    assert.equal(escapeHtml('&#x27;'), '&#x27;');
+    assert.equal(escapeHtml('&#60;'), '&#60;');
+});
+
+test('escapeHtml: named HTML entities should be preserved', () => {
+    // Named entities like &copy; should not become &amp;copy;
+    assert.equal(escapeHtml('&copy;'), '&copy;');
+    assert.equal(escapeHtml('&nbsp;'), '&nbsp;');
+    assert.equal(escapeHtml('&reg;'), '&reg;');
+});
+
+test('escapeHtml: mixed content with entities and raw characters', () => {
+    // Mix of already-encoded and raw characters
+    assert.equal(escapeHtml('Hello &amp; World'), 'Hello &amp; World');
+    assert.equal(escapeHtml('Test &lt;script&gt; tag'), 'Test &lt;script&gt; tag');
+    // Raw & should be encoded, but &amp; should stay
+    assert.equal(escapeHtml('A & B &amp; C'), 'A &amp; B &amp; C');
+});
+
+test('escapeHtml: raw special characters should be encoded', () => {
+    // Raw characters that need encoding
+    assert.equal(escapeHtml('<script>'), '&lt;script&gt;');
+    assert.equal(escapeHtml('"quoted"'), '&quot;quoted&quot;');
+    assert.equal(escapeHtml("it's"), 'it&#39;s');
 });
