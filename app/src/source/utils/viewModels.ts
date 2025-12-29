@@ -91,62 +91,6 @@ function normalizeUrl(raw: unknown): string {
     return '';
 }
 
-function sanitizeHtml(html: unknown): string {
-    try {
-        let value = String(html ?? '');
-        if (!value) return '';
-
-        value = value.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-        value = value
-            .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '')
-            .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, '')
-            .replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, '');
-
-        value = value.replace(/href\s*=\s*"([^"]*)"/gi, (_match, href) => {
-            const safe = normalizeUrl(href);
-            return safe ? `href="${escapeHtml(safe)}" rel="noopener noreferrer"` : 'href="#"';
-        });
-
-        value = value.replace(/href\s*=\s*'([^']*)'/gi, (_match, href) => {
-            const safe = normalizeUrl(href);
-            return safe ? `href='${escapeHtml(safe)}' rel="noopener noreferrer"` : "href='#'";
-        });
-
-        value = value.replace(/src\s*=\s*"([^"]*)"/gi, (_match, src) => {
-            const safe = normalizeUrl(src);
-            return safe ? `src="${escapeHtml(safe)}"` : 'src=""';
-        });
-
-        value = value.replace(/src\s*=\s*'([^']*)'/gi, (_match, src) => {
-            const safe = normalizeUrl(src);
-            return safe ? `src='${escapeHtml(safe)}'` : "src=''";
-        });
-
-        const allowedTags = new Set(['a', 'br', 'img', 'span']);
-        value = value.replace(/<(\/)?([a-z0-9-]+)([^>]*)>/gi, (match, closingSlash, tag, attrs) => {
-            const lower = tag.toLowerCase();
-            if (!allowedTags.has(lower)) {
-                return match.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            }
-
-            if (lower === 'br') {
-                return '<br />';
-            }
-
-            if (lower === 'img') {
-                return `<img${attrs}>`;
-            }
-
-            const slash = closingSlash ? '/' : '';
-            return `<${slash}${lower}${attrs}>`;
-        });
-
-        return value;
-    } catch {
-        return '';
-    }
-}
-
 function resolveCommentBadge(renderer: any): MemberBadgeViewModel | undefined {
     const badge = wrapTryCatch(() => renderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer);
     if (!badge) return undefined;
