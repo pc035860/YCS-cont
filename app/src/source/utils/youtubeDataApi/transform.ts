@@ -5,6 +5,7 @@
  * used by YCS for rendering and searching.
  */
 
+import { encode } from 'html-entities';
 import type {
     CommentItem,
     CommentRenderer,
@@ -13,6 +14,7 @@ import type {
     YouTubeApiCommentThread
 } from '../interfaces/i_types';
 import { decodeHtml } from '../common';
+import { safeUrl } from '../formatting';
 
 /**
  * Regex pattern to match timestamps in comment text (e.g., "1:23", "1:23:45")
@@ -235,13 +237,14 @@ function formatRunsToText(runs: CommentRun[]): { fullText: string; renderFullTex
         if (run.navigationEndpoint?.watchEndpoint?.startTimeSeconds !== undefined) {
             // Timestamp link
             const seconds = run.navigationEndpoint.watchEndpoint.startTimeSeconds;
-            renderFullText += `<a class="ycs-goto-comment-time" href="#" data-offsetvideo="${seconds}">${text}</a>`;
+            renderFullText += `<a class="ycs-goto-comment-time" href="#" data-offsetvideo="${seconds}">${encode(text)}</a>`;
         } else if (run.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url) {
             // External link
-            const url = run.navigationEndpoint.commandMetadata.webCommandMetadata.url;
-            renderFullText += `<a class="ycs-comment-link" href="${url}" target="_blank" rel="noopener">${text}</a>`;
+            const rawUrl = run.navigationEndpoint.commandMetadata.webCommandMetadata.url;
+            const url = safeUrl(rawUrl);
+            renderFullText += `<a class="ycs-comment-link" href="${url}" target="_blank" rel="noopener">${encode(text)}</a>`;
         } else {
-            renderFullText += text;
+            renderFullText += encode(text);
         }
     }
 

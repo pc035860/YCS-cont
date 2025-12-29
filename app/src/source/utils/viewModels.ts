@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { encode } from 'html-entities';
 import { decodeHtml, escapeHtml, wrapTryCatch, convertColorToRgba } from './common';
 import { msToShareVideo, tmUsecToDateTime, formatDurationHMS } from './formatting';
 
@@ -88,62 +89,6 @@ function normalizeUrl(raw: unknown): string {
     }
 
     return '';
-}
-
-function sanitizeHtml(html: unknown): string {
-    try {
-        let value = String(html ?? '');
-        if (!value) return '';
-
-        value = value.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-        value = value
-            .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '')
-            .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, '')
-            .replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, '');
-
-        value = value.replace(/href\s*=\s*"([^"]*)"/gi, (_match, href) => {
-            const safe = normalizeUrl(href);
-            return safe ? `href="${escapeHtml(safe)}" rel="noopener noreferrer"` : 'href="#"';
-        });
-
-        value = value.replace(/href\s*=\s*'([^']*)'/gi, (_match, href) => {
-            const safe = normalizeUrl(href);
-            return safe ? `href='${escapeHtml(safe)}' rel="noopener noreferrer"` : "href='#'";
-        });
-
-        value = value.replace(/src\s*=\s*"([^"]*)"/gi, (_match, src) => {
-            const safe = normalizeUrl(src);
-            return safe ? `src="${escapeHtml(safe)}"` : 'src=""';
-        });
-
-        value = value.replace(/src\s*=\s*'([^']*)'/gi, (_match, src) => {
-            const safe = normalizeUrl(src);
-            return safe ? `src='${escapeHtml(safe)}'` : "src=''";
-        });
-
-        const allowedTags = new Set(['a', 'br', 'img', 'span']);
-        value = value.replace(/<(\/)?([a-z0-9-]+)([^>]*)>/gi, (match, closingSlash, tag, attrs) => {
-            const lower = tag.toLowerCase();
-            if (!allowedTags.has(lower)) {
-                return match.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            }
-
-            if (lower === 'br') {
-                return '<br />';
-            }
-
-            if (lower === 'img') {
-                return `<img${attrs}>`;
-            }
-
-            const slash = closingSlash ? '/' : '';
-            return `<${slash}${lower}${attrs}>`;
-        });
-
-        return value;
-    } catch {
-        return '';
-    }
 }
 
 function resolveCommentBadge(renderer: any): MemberBadgeViewModel | undefined {
@@ -294,9 +239,9 @@ function buildChatRunsHtml(runs: any[]): string {
                 continue;
             }
 
-            parts.push(escapeHtml(decodeHtml(coerceString(run.text))));
+            parts.push(encode(run.text));
         } catch {
-            parts.push(escapeHtml(decodeHtml(coerceString(run?.text))));
+            parts.push(encode(coerceString(run?.text)));
         }
     }
 
@@ -309,7 +254,7 @@ function buildChatMessageHtml(renderer: any): string {
 
     const renderFullText = coerceString(wrapTryCatch(() => message.renderFullText));
     if (renderFullText) {
-        return sanitizeHtml(decodeHtml(renderFullText));
+        return renderFullText;
     }
 
     const fullText = coerceString(wrapTryCatch(() => message.fullText));
@@ -411,9 +356,7 @@ export function buildCommentViewModels(
             isReply,
             isReplyType,
             refIndex: coerceString(wrapTryCatch(() => item?.refIndex)) || undefined,
-            contentHtml: renderFullText
-                ? sanitizeHtml(decodeHtml(renderFullText))
-                : escapeHtml(decodeHtml(fallbackText)),
+            contentHtml: renderFullText ? renderFullText : encode(fallbackText),
             replyLevel,
             hideExpandUp,
             forceSmallAvatar

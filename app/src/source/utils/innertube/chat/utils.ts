@@ -1,4 +1,6 @@
+import { encode } from 'html-entities';
 import { deepFindObjKey, getObj, wrapTryCatch } from '../../common';
+import { safeUrl } from '../../formatting';
 
 export interface ChatProcessingContext {
     chatMap: Map<number, object>;
@@ -157,7 +159,7 @@ export function formatChatRuns(runs: any[], options: FormatChatRunsOptions = {})
                 const linkVideoId = (wrapTryCatch(() => run?.navigationEndpoint?.watchEndpoint?.videoId) ||
                     '') as string;
                 const href = `https://www.youtube.com/watch?v=${linkVideoId}&t=${startTimeSeconds}s`;
-                result.richText += `<a class="ycs-cpointer ycs-goto-comment-time" href="${href}" data-offsetvideo="${startTimeSeconds}" data-video-id="${linkVideoId}">${text || ''}</a>`;
+                result.richText += `<a class="ycs-cpointer ycs-goto-comment-time" href="${href}" data-offsetvideo="${startTimeSeconds}" data-video-id="${linkVideoId}">${encode(text || '')}</a>`;
 
                 if (options.currentVideoId && String(linkVideoId || '') === String(options.currentVideoId || '')) {
                     result.hasTimelineLink = true;
@@ -167,14 +169,14 @@ export function formatChatRuns(runs: any[], options: FormatChatRunsOptions = {})
             }
 
             if (run?.navigationEndpoint) {
-                const href =
+                const rawHref =
                     run?.navigationEndpoint?.browseEndpoint?.canonicalBaseUrl ||
                     run?.navigationEndpoint?.urlEndpoint?.url ||
                     run?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url ||
-                    text ||
-                    '#';
+                    '';
+                const href = safeUrl(rawHref);
 
-                result.richText += `<a class="ycs-cpointer ycs-comment-link" href="${href}" target="_blank">${text || ''}</a>`;
+                result.richText += `<a class="ycs-cpointer ycs-comment-link" href="${href}" target="_blank">${encode(text || '')}</a>`;
                 continue;
             }
 
@@ -199,7 +201,7 @@ export function formatChatRuns(runs: any[], options: FormatChatRunsOptions = {})
                 const style = 'margin-left: 2px; margin-right: 2px;';
 
                 if (url) {
-                    result.richText += `<img src="${url}" alt="${alt}" title="${alt}" width="24" height="24" style="${style}" class="ycs-attachment">`;
+                    result.richText += `<img src="${safeUrl(url)}" alt="${encode(alt)}" title="${encode(alt)}" width="24" height="24" style="${style}" class="ycs-attachment">`;
                 } else {
                     result.richText += alt;
                 }
@@ -216,15 +218,15 @@ export function formatChatRuns(runs: any[], options: FormatChatRunsOptions = {})
                 const style = `margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
                 const alt = (run as any)?.text || '';
 
-                result.richText += `<img src="${url}" alt="${alt}" title="${alt}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
+                result.richText += `<img src="${safeUrl(url)}" alt="${encode(alt)}" title="${encode(alt)}" width="${width}" height="${height}" style="${style}" class="ycs-attachment">`;
                 continue;
             }
 
-            result.richText += text || '';
+            result.richText += encode(text || '');
         } catch (error) {
             console.error(error);
             const fallbackText = (wrapTryCatch(() => run?.text) as string) || '';
-            result.richText += fallbackText;
+            result.richText += encode(fallbackText);
         }
     }
 
