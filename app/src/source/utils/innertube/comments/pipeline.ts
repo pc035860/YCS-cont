@@ -84,7 +84,7 @@ export function formatCommentRuns(runs: any[] | undefined, currentVideoId: strin
     let isTimeline = false;
 
     const safeRuns = Array.isArray(runs) ? runs : [];
-
+    console.warn(safeRuns);
     for (const partTextComment of safeRuns) {
         let text = '';
         let navigationEndpoint: any;
@@ -362,7 +362,7 @@ export function generateCommentObjectFromFW(params: {
                             }
                         });
                     } else if (browseEndpoint || webUrl) {
-                        const canonicalBaseUrl = webUrl ? `https://www.youtube.com${webUrl}` : undefined;
+                        const canonicalBaseUrl = webUrl ? `${webUrl}` : undefined;
                         rawRuns.push({
                             text,
                             startIndex,
