@@ -328,6 +328,7 @@ export function normalizeYtInitialData(ytData: any): any {
 /**
  * Updates member-only status from ytInitialData
  * Handles both modern PBJ and legacy formats automatically
+ * Note: Prefer using updateAccessRestrictionStatus() which updates both statuses together
  *
  * @param ytData - Raw ytInitialData from API responses (supports):
  *   - Modern PBJ format (object): `{response: {...}, playerResponse: {...}, ...}` (primary)
@@ -349,7 +350,7 @@ export function updateMemberOnlyStatus(ytData: any): boolean {
 
 /**
  * Updates age-restricted status from ytInitialData
- * Should be called alongside updateMemberOnlyStatus when fetching ytInitialData
+ * Note: Prefer using updateAccessRestrictionStatus() which updates both statuses together
  *
  * @param ytData - Raw ytInitialData from API responses
  * @returns The determined age-restricted status
@@ -358,6 +359,29 @@ export function updateAgeRestrictedStatus(ytData: any): boolean {
     const isAgeRestricted = isAgeRestrictedFromYtInitialData(ytData);
     setCurrentVideoAgeRestricted(isAgeRestricted);
     return isAgeRestricted;
+}
+
+/**
+ * Combined access restriction status result
+ */
+export interface AccessRestrictionStatus {
+    isMemberOnly: boolean;
+    isAgeRestricted: boolean;
+}
+
+/**
+ * Updates both member-only and age-restricted status from ytInitialData
+ * This is the preferred way to update access restriction status as it ensures
+ * both statuses are always updated together.
+ *
+ * @param ytData - Raw ytInitialData from API responses (supports PBJ, legacy array, and object formats)
+ * @returns Object containing both isMemberOnly and isAgeRestricted status
+ */
+export function updateAccessRestrictionStatus(ytData: any): AccessRestrictionStatus {
+    return {
+        isMemberOnly: updateMemberOnlyStatus(ytData),
+        isAgeRestricted: updateAgeRestrictedStatus(ytData)
+    };
 }
 
 /**

@@ -9,6 +9,7 @@ import {
     normalizeYtInitialData,
     updateMemberOnlyStatus,
     updateAgeRestrictedStatus,
+    updateAccessRestrictionStatus,
     setCurrentVideoMemberOnly,
     setCurrentVideoAgeRestricted,
     clearCurrentVideoMemberOnly,
@@ -339,6 +340,134 @@ describe('setCurrentVideoAgeRestricted / clearCurrentVideoAgeRestricted', () => 
         setCurrentVideoAgeRestricted(true);
         clearCurrentVideoAgeRestricted();
         assert.equal((GlobalStore as any).isAgeRestricted, undefined);
+    });
+});
+
+// ============================================================================
+// Group 4: Unified Access Restriction Status
+// ============================================================================
+
+describe('updateAccessRestrictionStatus', () => {
+    beforeEach(() => {
+        resetGlobalStore();
+    });
+
+    test('updateAccessRestrictionStatus - member-only video sets both statuses', () => {
+        resetGlobalStore();
+        const fixture = loadFixture('ytInitialData-member-only-1.json');
+        const result = updateAccessRestrictionStatus(fixture);
+
+        assert.equal(result.isMemberOnly, true, 'Should return isMemberOnly: true');
+        assert.equal(result.isAgeRestricted, false, 'Should return isAgeRestricted: false');
+        assert.equal((GlobalStore as any).isMemberOnly, true, 'Should set GlobalStore.isMemberOnly to true');
+        assert.equal((GlobalStore as any).isAgeRestricted, false, 'Should set GlobalStore.isAgeRestricted to false');
+    });
+
+    test('updateAccessRestrictionStatus - age-restricted video sets both statuses', () => {
+        resetGlobalStore();
+        const fixture = loadFixture('ytInitialData-age-restricted.json');
+        const result = updateAccessRestrictionStatus(fixture);
+
+        assert.equal(result.isMemberOnly, false, 'Should return isMemberOnly: false');
+        assert.equal(result.isAgeRestricted, true, 'Should return isAgeRestricted: true');
+        assert.equal((GlobalStore as any).isMemberOnly, false, 'Should set GlobalStore.isMemberOnly to false');
+        assert.equal((GlobalStore as any).isAgeRestricted, true, 'Should set GlobalStore.isAgeRestricted to true');
+    });
+
+    test('updateAccessRestrictionStatus - non-restricted video sets both statuses to false', () => {
+        resetGlobalStore();
+        const fixture = loadFixture('ytInitialData-non-member.json');
+        const result = updateAccessRestrictionStatus(fixture);
+
+        assert.equal(result.isMemberOnly, false, 'Should return isMemberOnly: false');
+        assert.equal(result.isAgeRestricted, false, 'Should return isAgeRestricted: false');
+        assert.equal((GlobalStore as any).isMemberOnly, false, 'Should set GlobalStore.isMemberOnly to false');
+        assert.equal((GlobalStore as any).isAgeRestricted, false, 'Should set GlobalStore.isAgeRestricted to false');
+    });
+
+    test('updateAccessRestrictionStatus - PBJ format member-only video', () => {
+        resetGlobalStore();
+        const fixture = loadFixture('ytInitialData-pbj-member-only.json');
+        const result = updateAccessRestrictionStatus(fixture);
+
+        assert.equal(result.isMemberOnly, true, 'Should return isMemberOnly: true');
+        assert.equal(result.isAgeRestricted, false, 'Should return isAgeRestricted: false');
+        assert.equal((GlobalStore as any).isMemberOnly, true, 'Should set GlobalStore.isMemberOnly to true');
+    });
+
+    test('updateAccessRestrictionStatus - PBJ format age-restricted video', () => {
+        resetGlobalStore();
+        const fixture = loadFixture('ytInitialData-age-restricted-pbj.json');
+        const result = updateAccessRestrictionStatus(fixture);
+
+        assert.equal(result.isMemberOnly, false, 'Should return isMemberOnly: false');
+        assert.equal(result.isAgeRestricted, true, 'Should return isAgeRestricted: true');
+        assert.equal((GlobalStore as any).isAgeRestricted, true, 'Should set GlobalStore.isAgeRestricted to true');
+    });
+
+    test('updateAccessRestrictionStatus - null input sets both to false', () => {
+        resetGlobalStore();
+        const result = updateAccessRestrictionStatus(null);
+
+        assert.equal(result.isMemberOnly, false, 'Should return isMemberOnly: false for null input');
+        assert.equal(result.isAgeRestricted, false, 'Should return isAgeRestricted: false for null input');
+        assert.equal((GlobalStore as any).isMemberOnly, false, 'Should set GlobalStore.isMemberOnly to false');
+        assert.equal((GlobalStore as any).isAgeRestricted, false, 'Should set GlobalStore.isAgeRestricted to false');
+    });
+
+    test('updateAccessRestrictionStatus - undefined input sets both to false', () => {
+        resetGlobalStore();
+        const result = updateAccessRestrictionStatus(undefined);
+
+        assert.equal(result.isMemberOnly, false, 'Should return isMemberOnly: false for undefined input');
+        assert.equal(result.isAgeRestricted, false, 'Should return isAgeRestricted: false for undefined input');
+        assert.equal((GlobalStore as any).isMemberOnly, false, 'Should set GlobalStore.isMemberOnly to false');
+        assert.equal((GlobalStore as any).isAgeRestricted, false, 'Should set GlobalStore.isAgeRestricted to false');
+    });
+
+    test('updateAccessRestrictionStatus - legacy array format member-only video', () => {
+        resetGlobalStore();
+        // Legacy array format: [{response: {...}}, {playerResponse: {...}}]
+        const legacyArrayInput = [
+            {
+                response: {
+                    currentVideoEndpoint: { watchEndpoint: { videoId: 'legacy-test-id' } },
+                    contents: {
+                        twoColumnWatchNextResults: {
+                            results: {
+                                results: {
+                                    contents: [
+                                        {
+                                            videoPrimaryInfoRenderer: {
+                                                badges: [
+                                                    {
+                                                        metadataBadgeRenderer: {
+                                                            style: 'BADGE_STYLE_TYPE_MEMBERS_ONLY'
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                playerResponse: {
+                    playabilityStatus: { status: 'OK' }
+                }
+            }
+        ];
+
+        const result = updateAccessRestrictionStatus(legacyArrayInput);
+
+        assert.equal(result.isMemberOnly, true, 'Should detect member-only from legacy array format');
+        assert.equal(result.isAgeRestricted, false, 'Should not be age-restricted');
+        assert.equal((GlobalStore as any).isMemberOnly, true, 'Should set GlobalStore.isMemberOnly to true');
+        assert.equal((GlobalStore as any).isAgeRestricted, false, 'Should set GlobalStore.isAgeRestricted to false');
     });
 });
 

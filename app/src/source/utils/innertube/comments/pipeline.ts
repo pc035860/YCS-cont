@@ -10,8 +10,7 @@ import { getInnertubeApiKey, getInitYtData, getInitYtDataFromHtml, getPageCfgDat
 import {
     clearCurrentVideoMemberOnly,
     clearCurrentVideoAgeRestricted,
-    updateMemberOnlyStatus,
-    updateAgeRestrictedStatus,
+    updateAccessRestrictionStatus,
     shouldDisableAuth,
     isPostMemberOnlyFromYtInitialData,
     setCurrentVideoMemberOnly
@@ -1595,17 +1594,13 @@ async function ensureMemberOnlyStatus(
     // Try cached data first
     if (validateCachedYtData(currentVideoId)) {
         const ytData = (GlobalStore as any).getInitYtData;
-        updateMemberOnlyStatus(ytData);
-        updateAgeRestrictedStatus(ytData);
+        updateAccessRestrictionStatus(ytData);
         return;
     }
 
-    // Fetch if needed
+    // Fetch if needed - getInitYtData already calls updateAccessRestrictionStatus internally
     try {
-        const ytData = await getInitYtData(windowRef.location.href, signal as AbortSignal, windowRef);
-        if (ytData) {
-            updateMemberOnlyStatus(ytData);
-        }
+        await getInitYtData(windowRef.location.href, signal as AbortSignal, windowRef);
     } catch (error) {
         console.error('[YCS] Failed to fetch ytInitialData:', error);
     }
@@ -1708,14 +1703,14 @@ async function getParamsForComments(
             clickTrackingParams: clickTrackingParams ?? undefined
         });
 
-        // Update member-only status if not set yet
+        // Update access restriction status if not set yet
         if ((GlobalStore as any).isMemberOnly === undefined) {
             const ytData: any = (GlobalStore as any).getInitYtData;
             if (ytData) {
                 console.log(
-                    '[YCS] [Comments] getParamsForComments: Using GlobalStore.getInitYtData for members-only check'
+                    '[YCS] [Comments] getParamsForComments: Using GlobalStore.getInitYtData for access restriction check'
                 );
-                updateMemberOnlyStatus(ytData);
+                updateAccessRestrictionStatus(ytData);
             } else {
                 console.log(
                     "[YCS] [Comments] getParamsForComments: No ytInitialData available, will use conservative strategy (don't send Authorization to reduce request size)"
@@ -1902,8 +1897,7 @@ async function fetchCommentPage(
                             console.log(
                                 `[YCS] ✓ Successfully fetched and populated GlobalStore.getInitYtData for video: ${currentVideoId}`
                             );
-                            // Status is already updated by getInitYtData
-                            updateMemberOnlyStatus(globalYtData);
+                            // Note: getInitYtData already calls updateAccessRestrictionStatus internally
                         }
                     } catch (error) {
                         console.error(
@@ -1912,8 +1906,8 @@ async function fetchCommentPage(
                         );
                     }
                 } else if (globalYtData) {
-                    // If we're using cached data, ensure members-only status is updated
-                    updateMemberOnlyStatus(globalYtData);
+                    // If we're using cached data, ensure access restriction status is updated
+                    updateAccessRestrictionStatus(globalYtData);
                 }
 
                 if (globalYtData) {
@@ -1957,8 +1951,8 @@ async function fetchCommentPage(
                         );
 
                         if (htmlYtData) {
-                            // Note: getInitYtDataFromHtml already updates age-restricted status via updateAgeRestrictedStatus()
-                            // So we don't need to call isAgeRestrictedFromYtInitialData here again
+                            // Note: getInitYtDataFromHtml already calls updateAccessRestrictionStatus() internally
+                            // So we don't need to update access restriction status here again
 
                             const ytDataSource = (htmlYtData as any).response || htmlYtData;
 
@@ -2024,11 +2018,11 @@ async function fetchCommentPage(
                 console.warn(`[YCS] ⚠️  No clickTrackingParams found for video: ${currentVideoId}`);
             }
 
-            // Ensure members-only status is updated before calling getParamsForComments
+            // Ensure access restriction status is updated before calling getParamsForComments
             if ((GlobalStore as any).isMemberOnly === undefined) {
                 const finalYtData: any = (GlobalStore as any).getInitYtData;
                 if (finalYtData) {
-                    updateMemberOnlyStatus(finalYtData);
+                    updateAccessRestrictionStatus(finalYtData);
                 }
             }
 
