@@ -197,6 +197,103 @@ export function clearCurrentVideoMemberOnly(): void {
     }
 }
 
+// ============================================================================
+// Age-Restricted Video Detection
+// ============================================================================
+
+/**
+ * Determines if the current video is age-restricted based on ytInitialData
+ *
+ * Age restriction is detected via:
+ * 1. playerResponse.playabilityStatus.status === 'LOGIN_REQUIRED'
+ * 2. playerResponse.playabilityStatus.reason containing age-related keywords
+ *
+ * @param ytInitialData - The ytInitialData object from YouTube page
+ * @returns true if the video is age-restricted, false otherwise
+ */
+export function isAgeRestrictedFromYtInitialData(ytInitialData: unknown): boolean {
+    try {
+        if (!ytInitialData || typeof ytInitialData !== 'object') {
+            return false;
+        }
+
+        const normalized = normalizeYtInitialData(ytInitialData);
+        if (!normalized) {
+            return false;
+        }
+
+        // Check playerResponse.playabilityStatus.status
+        const playabilityStatus = objectScan(['**.playerResponse.playabilityStatus.status'], {
+            rtn: 'value',
+            abort: true
+        })(normalized);
+
+        if (playabilityStatus === 'LOGIN_REQUIRED') {
+            console.log('[YCS] [AgeRestricted] ✓ AGE-RESTRICTED (LOGIN_REQUIRED status)');
+            return true;
+        }
+
+        // Check for age gate reason
+        const reason = objectScan(['**.playerResponse.playabilityStatus.reason'], {
+            rtn: 'value',
+            abort: true
+        })(normalized) as string | undefined;
+
+        if (reason && typeof reason === 'string') {
+            const lowerReason = reason.toLowerCase();
+            if (lowerReason.includes('age') || lowerReason.includes('confirm your age')) {
+                console.log('[YCS] [AgeRestricted] ✓ AGE-RESTRICTED (age gate reason found)');
+                return true;
+            }
+        }
+
+        return false;
+    } catch (error) {
+        console.error('[YCS] [AgeRestricted] Failed to parse age-restricted status from ytInitialData:', error);
+        return false;
+    }
+}
+
+/**
+ * Sets the current video's age-restricted status in GlobalStore
+ */
+export function setCurrentVideoAgeRestricted(isAgeRestricted: boolean): void {
+    try {
+        (GlobalStore as any).isAgeRestricted = isAgeRestricted;
+        console.log(
+            `[YCS] [AgeRestricted] setCurrentVideoAgeRestricted: ${isAgeRestricted ? 'true (AGE-RESTRICTED)' : 'false (NOT age-restricted)'}`
+        );
+    } catch (error) {
+        console.error('[YCS] [AgeRestricted] Failed to set current video age-restricted status:', error);
+    }
+}
+
+/**
+ * Gets the current video's age-restricted status from GlobalStore
+ *
+ * @returns true if current video is age-restricted, false otherwise
+ */
+export function isCurrentVideoAgeRestricted(): boolean {
+    try {
+        const status = (GlobalStore as any).isAgeRestricted;
+        return status === true;
+    } catch (error) {
+        console.error('[YCS] [AgeRestricted] Failed to get current video age-restricted status:', error);
+        return false;
+    }
+}
+
+/**
+ * Clears the current video's age-restricted status from GlobalStore
+ */
+export function clearCurrentVideoAgeRestricted(): void {
+    try {
+        delete (GlobalStore as any).isAgeRestricted;
+    } catch (error) {
+        console.error('[YCS] [AgeRestricted] Failed to clear current video age-restricted status:', error);
+    }
+}
+
 /**
  * Normalizes ytInitialData to handle both modern PBJ and legacy formats
  *
@@ -251,12 +348,28 @@ export function updateMemberOnlyStatus(ytData: any): boolean {
 }
 
 /**
+ * Updates age-restricted status from ytInitialData
+ * Should be called alongside updateMemberOnlyStatus when fetching ytInitialData
+ *
+ * @param ytData - Raw ytInitialData from API responses
+ * @returns The determined age-restricted status
+ */
+export function updateAgeRestrictedStatus(ytData: any): boolean {
+    const isAgeRestricted = isAgeRestrictedFromYtInitialData(ytData);
+    setCurrentVideoAgeRestricted(isAgeRestricted);
+    return isAgeRestricted;
+}
+
+/**
  * Determines whether to disable Authorization header
- * Conservative strategy: only send auth if CERTAIN it's members-only
+ * Conservative strategy: only send auth if CERTAIN it's members-only or age-restricted
  *
  * @returns true if auth should be disabled, false if auth should be sent
  */
 export function shouldDisableAuth(): boolean {
-    const status = (GlobalStore as any).isMemberOnly;
-    return status !== true;
+    const memberOnly = (GlobalStore as any).isMemberOnly;
+    const ageRestricted = (GlobalStore as any).isAgeRestricted;
+
+    // Send auth for member-only OR age-restricted videos
+    return memberOnly !== true && ageRestricted !== true;
 }
