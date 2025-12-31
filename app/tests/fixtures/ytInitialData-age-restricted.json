@@ -1,0 +1,24 @@
+{
+  "currentVideoEndpoint": {
+    "watchEndpoint": {
+      "videoId": "age-restricted-video-id"
+    }
+  },
+  "playerResponse": {
+    "playabilityStatus": {
+      "status": "LOGIN_REQUIRED",
+      "reason": "Sign in to confirm your age",
+      "errorScreen": {
+        "playerErrorMessageRenderer": {
+          "reason": {
+            "simpleText": "Sign in to confirm your age"
+          }
+        }
+      }
+    },
+    "videoDetails": {
+      "videoId": "age-restricted-video-id",
+      "title": "Age Restricted Video"
+    }
+  }
+}
