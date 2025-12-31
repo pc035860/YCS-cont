@@ -343,22 +343,41 @@ YouTube's comment system uses an Entity-driven architecture where nested replies
 
 **Documentation**: See `app/docs/innertube-nested-comments.md` for detailed architecture analysis and migration guide.
 
-### Member-Only Video Detection and Authorization Strategy
+### Member-Only and Age-Restricted Video Detection and Authorization Strategy
 
-The extension uses a conservative strategy for sending Authorization headers to minimize request size:
+The extension uses a **tiered strategy** for sending Authorization headers:
 
-- **Detection**: Member-only status is determined by fetching `ytInitialData` via PBJ request (`pbj=1` parameter) and checking for membership badges
-- **Authorization header decision**: 
-  - `isMemberOnly = true` → Send Authorization header (confirmed member-only video)
-  - `isMemberOnly = false` → Do not send Authorization header (confirmed non-member video)
-  - `isMemberOnly = undefined` → Do not send Authorization header (detection failed, conservative fallback)
-- **Design rationale**:
-  - PBJ request failure rate is near zero, so detection failures are extremely rare
-  - Sending Authorization header increases request size by 3-4x, which is costly for the majority of non-member videos
-  - Member-only videos are a small subset, and the combination of member-only + PBJ failure is extremely unlikely
-  - This trade-off prioritizes cost efficiency over handling edge cases
-- **Scope**: This strategy currently applies **only to comments requests**. Chat and transcript requests always send Authorization headers when available, as their request size remains nearly the same regardless of the header presence
-- **Implementation**: See `utils/innertube/memberOnly.ts` for detection logic and `utils/innertube/comments/pipeline.ts` for `ensureMemberOnlyStatus()` function
+**Detection Logic**:
+- **Member-only**: Determined by fetching `ytInitialData` via PBJ request (`pbj=1` parameter) and checking for membership badges
+- **Age-restricted**: Determined by `playabilityStatus.status === 'LOGIN_REQUIRED'`
+  - Note: This broadly treats login-required content as age-restricted to maximize success rate
+
+**Authorization Header Decision** (for comment requests):
+
+| Condition | Action |
+|-----------|--------|
+| `isMemberOnly = true` | Send Authorization header |
+| `isAgeRestricted = true` | Send Authorization header |
+| Both `false` | Do not send Authorization header |
+| Detection failed (`undefined`) | Do not send (conservative fallback) |
+
+**PBJ/HTML Fallback Requests**:
+- **Always send Authorization header** (if available) to ensure age-restricted videos can retrieve initial data
+- This differs from the conservative comment-only strategy but is necessary for restricted content detection
+
+**Design Rationale**:
+- PBJ request failure rate is near zero, so detection failures are extremely rare
+- Sending Authorization header increases request size by 3-4x, which is costly for the majority of non-member videos
+- Age-restricted videos require Auth in initial PBJ request to get valid `ytInitialData`
+- Treating `LOGIN_REQUIRED` broadly as age-restricted prioritizes success rate over precision
+- The trade-off: slightly larger request size for fallback requests, but ensures restricted content works
+
+**Scope**:
+- **Comment requests**: Tiered strategy based on detection results (member-only or age-restricted)
+- **PBJ/HTML Fallback requests**: Always send Auth to support restricted content detection
+- **Chat and transcript requests**: Always send Auth (request size impact is minimal)
+
+**Implementation**: See `utils/innertube/memberOnly.ts` for detection logic and `utils/innertube/comments/pipeline.ts` for `ensureMemberOnlyStatus()` function
 
 ### ytInitialData Format Handling
 
