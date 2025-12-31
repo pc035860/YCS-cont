@@ -377,7 +377,7 @@ The extension uses a **tiered strategy** for sending Authorization headers:
 - **PBJ/HTML Fallback requests**: Always send Auth to support restricted content detection
 - **Chat and transcript requests**: Always send Auth (request size impact is minimal)
 
-**Implementation**: See `utils/innertube/memberOnly.ts` for detection logic and `utils/innertube/comments/pipeline.ts` for `ensureMemberOnlyStatus()` function
+**Implementation**: See `utils/innertube/memberOnly.ts` for detection logic (`updateAccessRestrictionStatus()` for unified status updates) and `utils/innertube/comments/pipeline.ts` for `ensureMemberOnlyStatus()` function
 
 ### ytInitialData Format Handling
 

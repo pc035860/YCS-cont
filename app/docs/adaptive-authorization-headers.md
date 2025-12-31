@@ -46,7 +46,7 @@ export function isMemberOnlyFromYtInitialData(ytInitialData: unknown): boolean
 
 Member-only status is stored in `GlobalStore.isMemberOnly` for the current video session.
 
-**Implementation**: `utils/innertube/memberOnly.ts:121-161`
+**Implementation**: `utils/innertube/memberOnly.ts`
 
 ```typescript
 // Set status
@@ -62,19 +62,19 @@ export function clearCurrentVideoMemberOnly(): void
 **State Initialization** (Three Mechanisms):
 
 1. **Automatic Update** (Primary):
-   - When `getInitYtData()` fetches `ytInitialData` via PBJ request (`utils/innertube/core.ts:181`)
-   - When `getInitYtDataFromHtml()` parses `ytInitialData` from HTML (`utils/innertube/core.ts:284`)
-   - Status is automatically updated via `updateMemberOnlyStatus()` after data retrieval
+   - When `getInitYtData()` fetches `ytInitialData` via PBJ request (`utils/innertube/core.ts`)
+   - When `getInitYtDataFromHtml()` parses `ytInitialData` from HTML (`utils/innertube/core.ts`)
+   - Status is automatically updated via `updateAccessRestrictionStatus()` after data retrieval, which atomically updates both `isMemberOnly` and `isAgeRestricted`
 
 2. **Lazy Initialization** (On-Demand):
-   - `ensureMemberOnlyStatus()` function ensures status is set before comment requests (`utils/innertube/comments/pipeline.ts:1226-1254`)
+   - `ensureMemberOnlyStatus()` function ensures status is set before comment requests (`utils/innertube/comments/pipeline.ts`)
    - First checks if status is already set (early return if `isMemberOnly !== undefined`)
    - Tries cached `ytData` first via `validateCachedYtData()`
    - Only fetches new data if cache is invalid or missing
 
 3. **Fallback Check** (Request-Time):
-   - `getParamsForComments()` checks and updates status if undefined (`utils/innertube/comments/pipeline.ts:1354-1366`)
-   - `fetchCommentPage()` ensures status before building request params (`utils/innertube/comments/pipeline.ts:1630-1635`)
+   - `getParamsForComments()` checks and updates status if undefined (`utils/innertube/comments/pipeline.ts`)
+   - `fetchCommentPage()` ensures status before building request params (`utils/innertube/comments/pipeline.ts`)
    - Uses conservative strategy (no auth header) if `ytInitialData` is unavailable
 
 **State Lifecycle**:
@@ -88,9 +88,9 @@ export function clearCurrentVideoMemberOnly(): void
   - Before building request headers for comment API calls via `shouldDisableAuth()`
   - Decision logic: `status !== true` → disable auth header (conservative strategy)
   
-- **Cleared**: 
-  - **Primary**: When user navigates to a different video (`web-resources/appController.ts:283`)
-  - **Secondary**: When `validateCachedYtData()` detects videoId mismatch (`utils/innertube/comments/pipeline.ts:1211`)
+- **Cleared**:
+  - **Primary**: When user navigates to a different video (`web-resources/appController.ts`)
+  - **Secondary**: When `validateCachedYtData()` detects videoId mismatch (`utils/innertube/comments/pipeline.ts`)
 
 **State Validation**:
 
@@ -111,27 +111,30 @@ The system prevents state pollution across videos through `validateCachedYtData(
 
 ### 3. Authorization Decision
 
-The decision logic uses a **conservative strategy**: only send authorization when certain the video is member-only.
+The decision logic uses a **conservative strategy**: only send authorization when certain the video is member-only or age-restricted.
 
-**Implementation**: `utils/innertube/memberOnly.ts:222-225`
+**Implementation**: `utils/innertube/memberOnly.ts`
 
 ```typescript
 export function shouldDisableAuth(): boolean {
-    const status = (GlobalStore as any).isMemberOnly;
-    return status !== true; // Disable unless explicitly true
+    const memberOnly = (GlobalStore as any).isMemberOnly;
+    const ageRestricted = (GlobalStore as any).isAgeRestricted;
+
+    // Send auth for member-only OR age-restricted videos
+    return memberOnly !== true && ageRestricted !== true;
 }
 ```
 
 **Decision Logic**:
-- `isMemberOnly === true` → Send authorization (member-only confirmed)
-- `isMemberOnly === false` → Skip authorization (public video)
-- `isMemberOnly === undefined` → Skip authorization (status unknown, use conservative approach)
+- `isMemberOnly === true` OR `isAgeRestricted === true` → Send authorization (restricted content confirmed)
+- Both `false` → Skip authorization (public video)
+- Both `undefined` → Skip authorization (status unknown, use conservative approach)
 
 ### 4. Header Construction
 
 The `buildInnertubeHeaders()` function accepts a `disableAuth` option to control authorization header inclusion.
 
-**Implementation**: `utils/innertube/request.ts:43-76`
+**Implementation**: `utils/innertube/request.ts`
 
 ```typescript
 export function buildInnertubeHeaders(
@@ -142,7 +145,7 @@ export function buildInnertubeHeaders(
 ): Record<string, string>
 ```
 
-**Authorization Logic** (line 60-66):
+**Authorization Logic**:
 ```typescript
 // Generate authorization header if globalContext is provided and disableAuth is not true
 if (globalContext && options?.disableAuth !== true) {
@@ -159,18 +162,18 @@ if (globalContext && options?.disableAuth !== true) {
 
 All comment-related API calls use adaptive authorization:
 
-- `getDetailsVideoIDV2()` (line 1268)
-- `getDetailsCommentsVideoIDV2()` (line 1308)
-- `getParamsForComments()` (line 1368)
-- `getParamsForReplies()` (line 1400)
+- `getDetailsVideoIDV2()`
+- `getDetailsCommentsVideoIDV2()`
+- `getParamsForComments()`
+- `getParamsForReplies()`
 
 **Example** (from `getParamsForComments`):
 ```typescript
-// Update member-only status if not set yet
+// Update access restriction status if not set yet
 if ((GlobalStore as any).isMemberOnly === undefined) {
     const ytData: any = (GlobalStore as any).getInitYtData;
     if (ytData) {
-        updateMemberOnlyStatus(ytData);
+        updateAccessRestrictionStatus(ytData);
     } else {
         console.log(
             "[YCS] [Comments] No ytInitialData available, will use conservative strategy (don't send Authorization to reduce request size)"
@@ -193,11 +196,11 @@ Adaptive authorization is **currently applied only to comment requests**, not to
 - Reply list API
 
 **Chat Requests** (always send auth):
-- Live chat API (`utils/innertube/chat.ts:41`)
-- Chat replay API (`utils/innertube/chat.ts:71`)
+- Live chat API (`utils/innertube/chat.ts`)
+- Chat replay API (`utils/innertube/chat.ts`)
 
 **Transcript Requests** (always send auth):
-- Transcript API (`utils/innertube/transcript.ts:45`)
+- Transcript API (`utils/innertube/transcript.ts`)
 
 ### Rationale
 
@@ -232,7 +235,7 @@ Adaptive authorization could potentially be extended to chat and transcript requ
 
 The system handles multiple `ytInitialData` formats through normalization.
 
-**Implementation**: `utils/innertube/memberOnly.ts:172-192`
+**Implementation**: `utils/innertube/memberOnly.ts`
 
 ```typescript
 export function normalizeYtInitialData(ytData: any): any
@@ -247,7 +250,7 @@ export function normalizeYtInitialData(ytData: any): any
 
 To prevent stale member-only status across video navigation, the system validates cached `ytInitialData` against the current video ID.
 
-**Implementation**: `utils/innertube/comments/pipeline.ts:1195-1216`
+**Implementation**: `utils/innertube/comments/pipeline.ts`
 
 ```typescript
 function validateCachedYtData(currentVideoId: string): boolean
