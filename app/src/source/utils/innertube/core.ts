@@ -1,6 +1,7 @@
 import type { GetParams, InnertubeRequestParams } from '../interfaces/i_assist';
 import { GlobalStore, getCleanUrlVideo, getVideoId, getPostId } from '../common';
-import { updateMemberOnlyStatus } from './memberOnly';
+import { updateMemberOnlyStatus, updateAgeRestrictedStatus } from './memberOnly';
+import { buildSapSidAuthorizationHeader } from './authHeaders';
 import type { YtcfgData } from './request';
 
 export interface PageCfgData extends YtcfgData {
@@ -116,6 +117,12 @@ export async function getParams(globalContext: Window & typeof globalThis, signa
         'x-youtube-variants-checksum': (ytcfgData as any)?.VARIANTS_CHECKSUM
     };
 
+    // Generate authorization header for PBJ and HTML fallback requests
+    const authHeader = buildSapSidAuthorizationHeader({ context: globalContext });
+    if (authHeader) {
+        headers.authorization = authHeader;
+    }
+
     const params: InnertubeRequestParams = {
         credentials: 'include',
         headers,
@@ -186,9 +193,10 @@ export async function getInitYtData(
         const result = (await res.json()) as object;
         (GlobalStore as any).getInitYtData = result;
 
-        // Update members-only status
-        console.log('[YCS] [Core] getInitYtData: Updating members-only status from ytInitialData');
+        // Update members-only and age-restricted status
+        console.log('[YCS] [Core] getInitYtData: Updating members-only and age-restricted status from ytInitialData');
         updateMemberOnlyStatus(result);
+        updateAgeRestrictedStatus(result);
 
         return result;
     } catch (e) {
@@ -289,9 +297,12 @@ export async function getInitYtDataFromHtml(
             const result = JSON.parse(jsonStr) as [object];
             (GlobalStore as any).getInitYtData = result;
 
-            // Update members-only status
-            console.log('[YCS] [Core] getInitYtDataFromHtml: Updating members-only status from ytInitialData');
+            // Update members-only and age-restricted status
+            console.log(
+                '[YCS] [Core] getInitYtDataFromHtml: Updating members-only and age-restricted status from ytInitialData'
+            );
             updateMemberOnlyStatus(result);
+            updateAgeRestrictedStatus(result);
 
             return { response: result };
         } catch (parseError) {

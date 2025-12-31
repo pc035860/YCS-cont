@@ -22,7 +22,13 @@ export {
     clearCurrentVideoMemberOnly,
     normalizeYtInitialData,
     updateMemberOnlyStatus,
-    shouldDisableAuth
+    shouldDisableAuth,
+    // Age-restricted video support
+    isAgeRestrictedFromYtInitialData,
+    isCurrentVideoAgeRestricted,
+    setCurrentVideoAgeRestricted,
+    clearCurrentVideoAgeRestricted,
+    updateAgeRestrictedStatus
 } from './innertube/memberOnly';
 
 // YouTube Data API v3 (alternative to Innertube)

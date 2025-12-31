@@ -9,7 +9,9 @@ import { buildInnertubeBody, buildInnertubeHeaders } from '../request';
 import { getInnertubeApiKey, getInitYtData, getInitYtDataFromHtml, getPageCfgData } from '../core';
 import {
     clearCurrentVideoMemberOnly,
+    clearCurrentVideoAgeRestricted,
     updateMemberOnlyStatus,
+    updateAgeRestrictedStatus,
     shouldDisableAuth,
     isPostMemberOnlyFromYtInitialData,
     setCurrentVideoMemberOnly
@@ -1563,6 +1565,7 @@ function validateCachedYtData(currentVideoId: string): boolean {
         console.log(`[YCS] VideoId mismatch (stored: ${storedVideoId}, current: ${currentVideoId}), clearing cache`);
         (GlobalStore as any).getInitYtData = undefined;
         clearCurrentVideoMemberOnly();
+        clearCurrentVideoAgeRestricted();
         return false;
     }
 
@@ -1593,6 +1596,7 @@ async function ensureMemberOnlyStatus(
     if (validateCachedYtData(currentVideoId)) {
         const ytData = (GlobalStore as any).getInitYtData;
         updateMemberOnlyStatus(ytData);
+        updateAgeRestrictedStatus(ytData);
         return;
     }
 
@@ -1812,9 +1816,9 @@ async function fetchCommentPage(
             );
 
             const findPtrn = [
-                '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.clickTrackingParams',
-                '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.command.clickTrackingParams',
-                '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].trackingParams'
+                '**.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.clickTrackingParams',
+                '**.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.command.clickTrackingParams',
+                '**.sortFilterSubMenuRenderer.subMenuItems[?].trackingParams'
             ];
 
             let tokenComments;
@@ -1835,10 +1839,11 @@ async function fetchCommentPage(
 
             // Try to get token from detailsCmntsVIDV2 first
             let continuationToken = wrapTryCatch(() =>
-                objectScan(
-                    ['**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'],
-                    { joined: true, rtn: 'value', abort: true }
-                )(detailsCmntsVIDV2)
+                objectScan(['**.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'], {
+                    joined: true,
+                    rtn: 'value',
+                    abort: true
+                })(detailsCmntsVIDV2)
             ) as string | undefined;
 
             if (continuationToken) {
@@ -1862,14 +1867,16 @@ async function fetchCommentPage(
                         ? globalYtData.find((item: any) => item?.response || item?.contents)
                         : globalYtData;
 
-                    const hasSortMenu = wrapTryCatch(() =>
-                        objectScan(['**.sortMenu'], { joined: true, rtn: 'value', abort: true })(ytDataSource)
+                    const hasSortFilterMenu = wrapTryCatch(() =>
+                        objectScan(['**.sortFilterSubMenuRenderer'], { joined: true, rtn: 'value', abort: true })(
+                            ytDataSource
+                        )
                     );
 
-                    if (!hasSortMenu) {
+                    if (!hasSortFilterMenu) {
                         needsFetch = true;
                         console.log(
-                            `[YCS] 📥 GlobalStore.getInitYtData exists but lacks sortMenu data (likely from cache restore), will refetch for video: ${currentVideoId}`
+                            `[YCS] 📥 GlobalStore.getInitYtData exists but lacks sortFilterSubMenuRenderer data (likely from cache restore), will refetch for video: ${currentVideoId}`
                         );
                     }
 
@@ -1917,9 +1924,7 @@ async function fetchCommentPage(
 
                     continuationToken = wrapTryCatch(() =>
                         objectScan(
-                            [
-                                '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'
-                            ],
+                            ['**.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'],
                             { joined: true, rtn: 'value', abort: true }
                         )(ytDataSource)
                     ) as string | undefined;
@@ -1940,8 +1945,49 @@ async function fetchCommentPage(
                     );
                 }
 
+                // Try HTML fallback for age-restricted videos when PBJ API fails
                 if (!continuationToken) {
-                    console.error(`[YCS] ✗ Both token sources failed for video: ${currentVideoId}`);
+                    console.log(`[YCS] 📥 Attempting HTML fallback for video: ${currentVideoId}`);
+
+                    try {
+                        const htmlYtData = await getInitYtDataFromHtml(
+                            windowRef.location.href,
+                            signal as AbortSignal,
+                            windowRef
+                        );
+
+                        if (htmlYtData) {
+                            // Note: getInitYtDataFromHtml already updates age-restricted status via updateAgeRestrictedStatus()
+                            // So we don't need to call isAgeRestrictedFromYtInitialData here again
+
+                            const ytDataSource = (htmlYtData as any).response || htmlYtData;
+
+                            continuationToken = wrapTryCatch(() =>
+                                objectScan(
+                                    [
+                                        '**.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'
+                                    ],
+                                    { joined: true, rtn: 'value', abort: true }
+                                )(ytDataSource)
+                            ) as string | undefined;
+
+                            if (continuationToken) {
+                                console.log(
+                                    `[YCS] ✓ Got continuation token from HTML fallback for video: ${currentVideoId}`
+                                );
+                            } else {
+                                console.warn(
+                                    `[YCS] ⚠️ HTML fallback retrieved ytInitialData but no continuation token for video: ${currentVideoId}`
+                                );
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`[YCS] ✗ HTML fallback failed for video: ${currentVideoId}`, error);
+                    }
+                }
+
+                if (!continuationToken) {
+                    console.error(`[YCS] ✗ All token sources failed for video: ${currentVideoId}`);
                 }
             }
 
@@ -1960,9 +2006,7 @@ async function fetchCommentPage(
 
                     clickTrackingParams = wrapTryCatch(() =>
                         objectScan(
-                            [
-                                '**.sortMenu.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.clickTrackingParams'
-                            ],
+                            ['**.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.clickTrackingParams'],
                             { joined: true, rtn: 'value', abort: true }
                         )(ytDataSource)
                     );
