@@ -1,0 +1,17 @@
+{
+  "currentVideoEndpoint": {
+    "watchEndpoint": {
+      "videoId": "age-reason-video-id"
+    }
+  },
+  "playerResponse": {
+    "playabilityStatus": {
+      "status": "UNPLAYABLE",
+      "reason": "This video may be inappropriate for some users. Confirm your age to continue."
+    },
+    "videoDetails": {
+      "videoId": "age-reason-video-id",
+      "title": "Age Restricted by Reason Only"
+    }
+  }
+}

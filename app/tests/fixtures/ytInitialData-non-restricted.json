@@ -1,0 +1,17 @@
+{
+  "currentVideoEndpoint": {
+    "watchEndpoint": {
+      "videoId": "normal-video-id"
+    }
+  },
+  "playerResponse": {
+    "playabilityStatus": {
+      "status": "OK",
+      "playableInEmbed": true
+    },
+    "videoDetails": {
+      "videoId": "normal-video-id",
+      "title": "Normal Video"
+    }
+  }
+}
