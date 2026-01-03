@@ -288,6 +288,11 @@ export async function getChatComments(
                     { ...params, signal, cache: 'no-store' }
                 );
 
+                if (!res.ok) {
+                    console.warn(`[YCS] chat replay HTTP error (legacy): ${res.status} ${res.statusText}`);
+                    break;
+                }
+
                 const response = await res.json();
                 const cmnts = response?.continuationContents?.liveChatContinuation?.actions;
 
@@ -336,6 +341,12 @@ export async function getChatComments(
                     cache: 'no-store'
                 }
             );
+
+            if (!res.ok) {
+                // Stage 1 failure → terminate entire flow (Stage 2 requires token from here)
+                console.warn(`[YCS] chat replay HTTP error (initial): ${res.status} ${res.statusText}`);
+                return chatCmnts;
+            }
 
             const response = await res.json();
             const continuations = response?.continuationContents?.liveChatContinuation?.continuations;
@@ -404,6 +415,11 @@ export async function getChatComments(
                     }
                 );
 
+                if (!res.ok) {
+                    console.warn(`[YCS] chat replay HTTP error (playerSeek): ${res.status} ${res.statusText}`);
+                    break;
+                }
+
                 const response = await res.json();
                 const cmnts = response?.continuationContents?.liveChatContinuation?.actions;
 
@@ -461,6 +477,11 @@ export async function getChatComments(
                         cache: 'no-store'
                     }
                 );
+
+                if (!res.ok) {
+                    console.warn(`[YCS] chat replay HTTP error (fallback): ${res.status} ${res.statusText}`);
+                    break;
+                }
 
                 const response = await res.json();
                 const cmnts = response?.continuationContents?.liveChatContinuation?.actions;

@@ -190,7 +190,29 @@ export async function getInitYtData(
         const targetUrl = `${getCleanUrlVideo(url) ?? url}&pbj=1`;
         const res = await fetch(targetUrl, { ...requestInit, signal, cache: 'no-store' });
 
-        const result = (await res.json()) as object;
+        if (!res.ok) {
+            console.warn(`[YCS] [Core] getInitYtData HTTP error: ${res.status} ${res.statusText}`);
+            return undefined;
+        }
+
+        // Handle YouTube's anti-JSON hijacking prefix: )]}'
+        // This prefix is added by Google to prevent JSON hijacking attacks
+        // and is commonly returned for unauthenticated users
+        let text = await res.text();
+        const JSON_SECURITY_PREFIX = ")]}'\n";
+        if (text.startsWith(JSON_SECURITY_PREFIX)) {
+            text = text.slice(JSON_SECURITY_PREFIX.length);
+        }
+
+        const result = JSON.parse(text) as object;
+
+        // Valid PBJ response should have 'response' property
+        // If missing, fallback to HTML parsing method (e.g., unauthenticated users get different response)
+        if (!('response' in result)) {
+            console.log('[YCS] [Core] getInitYtData: PBJ response missing required data, falling back to HTML parsing');
+            return getInitYtDataFromHtml(url, signal, globalContext);
+        }
+
         (GlobalStore as any).getInitYtData = result;
 
         // Update members-only and age-restricted status

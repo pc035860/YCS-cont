@@ -46,28 +46,31 @@ test('getChatComments should trigger expected pbj=1 requests', async () => {
             pbj1CallCount++;
 
             // Return mock response for pbj=1 request
-            return {
-                ok: true,
-                status: 200,
-                json: async () => ({
-                    response: {
-                        contents: {
-                            twoColumnWatchNextResults: {
-                                conversationBar: {
-                                    liveChatRenderer: {
-                                        continuations: [
-                                            {
-                                                reloadContinuationData: {
-                                                    continuation: 'mock-continuation-token'
-                                                }
+            // Note: getInitYtData uses text() + JSON.parse() to handle anti-JSON hijacking prefix
+            const mockData = {
+                response: {
+                    contents: {
+                        twoColumnWatchNextResults: {
+                            conversationBar: {
+                                liveChatRenderer: {
+                                    continuations: [
+                                        {
+                                            reloadContinuationData: {
+                                                continuation: 'mock-continuation-token'
                                             }
-                                        ]
-                                    }
+                                        }
+                                    ]
                                 }
                             }
                         }
                     }
-                })
+                }
+            };
+            return {
+                ok: true,
+                status: 200,
+                text: async () => JSON.stringify(mockData),
+                json: async () => mockData
             } as Response;
         }
 
@@ -178,28 +181,31 @@ test('getChatComments should pass continuation data to getLiveChat', async () =>
             // Record the call with timestamp to verify no duplicates
             pbj1Calls.push(`pbj=1 at ${Date.now()}`);
 
-            return {
-                ok: true,
-                status: 200,
-                json: async () => ({
-                    response: {
-                        contents: {
-                            twoColumnWatchNextResults: {
-                                conversationBar: {
-                                    liveChatRenderer: {
-                                        continuations: [
-                                            {
-                                                reloadContinuationData: {
-                                                    continuation: 'test-continuation'
-                                                }
+            // Note: getInitYtData uses text() + JSON.parse() to handle anti-JSON hijacking prefix
+            const mockData = {
+                response: {
+                    contents: {
+                        twoColumnWatchNextResults: {
+                            conversationBar: {
+                                liveChatRenderer: {
+                                    continuations: [
+                                        {
+                                            reloadContinuationData: {
+                                                continuation: 'test-continuation'
                                             }
-                                        ]
-                                    }
+                                        }
+                                    ]
                                 }
                             }
                         }
                     }
-                })
+                }
+            };
+            return {
+                ok: true,
+                status: 200,
+                text: async () => JSON.stringify(mockData),
+                json: async () => mockData
             } as Response;
         }
 
