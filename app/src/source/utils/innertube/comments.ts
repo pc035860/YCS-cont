@@ -43,7 +43,8 @@ async function getAllCommentsModeV2(
     elShowLoading: HTMLElement,
     signal: AbortSignal | undefined = undefined,
     container: object[] | undefined = undefined,
-    maxComments = 500000
+    maxComments = 500000,
+    sortOrder = 0 // 0 = 熱門評論, 1 = 最新評論
 ): Promise<object[]> {
     const comments: object[] = container || [];
     const replyQueue = new Queue({ concurrency: 4 });
@@ -51,7 +52,8 @@ async function getAllCommentsModeV2(
 
     let batch: CommentBatchResult | undefined = await fetchInitialCommentBatch({
         windowRef: window,
-        signal
+        signal,
+        sortOrder
     });
 
     const replyContinuationStats = { total: 0, unique: 0, skipped: 0, tokenless: 0 };

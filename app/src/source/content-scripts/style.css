@@ -923,6 +923,10 @@ html[dark] #ycs-search-result::-webkit-scrollbar-thumb:hover {
   min-width: 200px;
 }
 
+#ycs_comment_sort_order_menu.ycs_dropdown_menu {
+  min-width: 150px;
+}
+
 html[dark='true'] .ycs_dropdown_menu,
 html[dark] .ycs_dropdown_menu {
   background: #2b2b2b;

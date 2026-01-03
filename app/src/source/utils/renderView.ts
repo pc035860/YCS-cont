@@ -853,6 +853,13 @@ function renderLoadComments(
                                         <div class="ycs_dropdown_item" data-format="${EXPORT_FORMAT.XLSX}">.XLSX</div>
                                     </div>
                                 </div>
+                                <div class="ycs_sort_wrap ycs_dropdown_wrap">
+                                    <button id="ycs-comment-sort-order" class="ycs-btn-search ycs-title ycs_dropdown_trigger"
+                                        name="Comment sort order" type="button" title="Select comment sort order">
+                                        mode ▾
+                                    </button>
+                                    <div id="ycs_comment_sort_order_menu" class="ycs_dropdown_menu" aria-hidden="true"></div>
+                                </div>
                             </div>
                         </div>
                     </div>

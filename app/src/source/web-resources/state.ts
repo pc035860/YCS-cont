@@ -1,4 +1,10 @@
-import type { ChatItem, CommentItem, TranscriptData, TranscriptTrackInfo } from '../utils/interfaces/i_types';
+import type {
+    ChatItem,
+    CommentItem,
+    CommentSortOrder,
+    TranscriptData,
+    TranscriptTrackInfo
+} from '../utils/interfaces/i_types';
 import type { ChatSource } from './services/cacheService';
 
 export interface CountBuckets {
@@ -35,6 +41,7 @@ export interface WebResourcesState {
     commentsTrVideo?: TranscriptData;
     transcriptTracks?: TranscriptTrackInfo[];
     selectedTranscriptLanguage?: string;
+    selectedCommentSortOrder: CommentSortOrder;
     count: CountBuckets;
     countSearch: CountBuckets;
     controller: AbortController;
@@ -77,6 +84,7 @@ export function createState(): WebResourcesState {
         commentsTrVideo: undefined,
         transcriptTracks: undefined,
         selectedTranscriptLanguage: undefined,
+        selectedCommentSortOrder: 1, // 預設最新評論 (Newest first)
         count: createCounts(),
         countSearch: createCounts(),
         controller: new AbortController(),
@@ -157,6 +165,17 @@ export function setSelectedTranscriptLanguage(state: WebResourcesState, language
     return {
         ...state,
         selectedTranscriptLanguage: languageCode
+    };
+}
+
+export function getSelectedCommentSortOrder(state: WebResourcesState): CommentSortOrder {
+    return state.selectedCommentSortOrder;
+}
+
+export function setSelectedCommentSortOrder(state: WebResourcesState, sortOrder: CommentSortOrder): WebResourcesState {
+    return {
+        ...state,
+        selectedCommentSortOrder: sortOrder
     };
 }
 

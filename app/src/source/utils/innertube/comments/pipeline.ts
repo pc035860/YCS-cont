@@ -169,6 +169,7 @@ export function formatCommentRuns(runs: any[] | undefined, currentVideoId: strin
 export interface FetchInitialCommentBatchParams {
     windowRef: Window & typeof globalThis;
     signal?: AbortSignal;
+    sortOrder?: number; // 0 = 熱門評論, 1 = 最新評論
 }
 
 export interface FetchContinuationParams extends FetchInitialCommentBatchParams {
@@ -1766,7 +1767,8 @@ async function getParamsForReplies(
 async function fetchCommentPage(
     windowRef: Window & typeof globalThis,
     signal: AbortSignal | undefined,
-    continuation?: CommentContinuation
+    continuation?: CommentContinuation,
+    sortOrder = 0 // 0 = 熱門評論, 1 = 最新評論
 ): Promise<{ response?: any; params?: RequestInit } | undefined> {
     try {
         let paramsCmnts;
@@ -1811,9 +1813,9 @@ async function fetchCommentPage(
             );
 
             const findPtrn = [
-                '**.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.clickTrackingParams',
-                '**.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.command.clickTrackingParams',
-                '**.sortFilterSubMenuRenderer.subMenuItems[?].trackingParams'
+                `**.sortFilterSubMenuRenderer.subMenuItems[${sortOrder}].serviceEndpoint.clickTrackingParams`,
+                `**.sortFilterSubMenuRenderer.subMenuItems[${sortOrder}].serviceEndpoint.continuationCommand.command.clickTrackingParams`,
+                `**.sortFilterSubMenuRenderer.subMenuItems[${sortOrder}].trackingParams`
             ];
 
             let tokenComments;
@@ -1834,11 +1836,16 @@ async function fetchCommentPage(
 
             // Try to get token from detailsCmntsVIDV2 first
             let continuationToken = wrapTryCatch(() =>
-                objectScan(['**.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'], {
-                    joined: true,
-                    rtn: 'value',
-                    abort: true
-                })(detailsCmntsVIDV2)
+                objectScan(
+                    [
+                        `**.sortFilterSubMenuRenderer.subMenuItems[${sortOrder}].serviceEndpoint.continuationCommand.token`
+                    ],
+                    {
+                        joined: true,
+                        rtn: 'value',
+                        abort: true
+                    }
+                )(detailsCmntsVIDV2)
             ) as string | undefined;
 
             if (continuationToken) {
@@ -1918,7 +1925,9 @@ async function fetchCommentPage(
 
                     continuationToken = wrapTryCatch(() =>
                         objectScan(
-                            ['**.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'],
+                            [
+                                `**.sortFilterSubMenuRenderer.subMenuItems[${sortOrder}].serviceEndpoint.continuationCommand.token`
+                            ],
                             { joined: true, rtn: 'value', abort: true }
                         )(ytDataSource)
                     ) as string | undefined;
@@ -1959,7 +1968,7 @@ async function fetchCommentPage(
                             continuationToken = wrapTryCatch(() =>
                                 objectScan(
                                     [
-                                        '**.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.continuationCommand.token'
+                                        `**.sortFilterSubMenuRenderer.subMenuItems[${sortOrder}].serviceEndpoint.continuationCommand.token`
                                     ],
                                     { joined: true, rtn: 'value', abort: true }
                                 )(ytDataSource)
@@ -2000,7 +2009,9 @@ async function fetchCommentPage(
 
                     clickTrackingParams = wrapTryCatch(() =>
                         objectScan(
-                            ['**.sortFilterSubMenuRenderer.subMenuItems[?].serviceEndpoint.clickTrackingParams'],
+                            [
+                                `**.sortFilterSubMenuRenderer.subMenuItems[${sortOrder}].serviceEndpoint.clickTrackingParams`
+                            ],
                             { joined: true, rtn: 'value', abort: true }
                         )(ytDataSource)
                     );
@@ -2151,9 +2162,10 @@ export async function fetchInitialCommentBatch(
     params: FetchInitialCommentBatchParams
 ): Promise<CommentBatchResult | undefined> {
     try {
+        const sortOrder = params.sortOrder ?? 0; // 預設熱門評論
         const result = params.windowRef.location.href.includes('post')
             ? await fetchPostPage(params.windowRef, params.signal)
-            : await fetchCommentPage(params.windowRef, params.signal);
+            : await fetchCommentPage(params.windowRef, params.signal, undefined, sortOrder);
         const response = result?.response;
         if (!response || response.status !== 200) return undefined;
         const data = await response.json();

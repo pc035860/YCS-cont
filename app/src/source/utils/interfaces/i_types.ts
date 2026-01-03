@@ -303,6 +303,21 @@ export interface IParamSearch {
 
 export type ISelectedSearch = 'comments' | 'chat' | 'video' | 'all';
 
+/**
+ * Comment sort order for YouTube API token extraction
+ * 0 = Top comments (熱門評論)
+ * 1 = Newest comments (最新評論)
+ */
+export type CommentSortOrder = 0 | 1;
+
+/**
+ * Sort order display metadata
+ */
+export interface CommentSortOption {
+    value: CommentSortOrder;
+    label: string;
+}
+
 export interface IYCSOptions {
     autoload?: boolean;
     highlightText?: boolean;
