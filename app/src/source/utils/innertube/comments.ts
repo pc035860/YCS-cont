@@ -2,7 +2,7 @@ import Queue from 'p-queue';
 
 import { showLoadComments } from '../dom';
 import { getPostId, getVideoId } from '../common';
-import type { CommentSortOrder } from '../interfaces/i_types';
+import { CommentSortOrder } from '../interfaces/i_types';
 import {
     applyFrameworkUpdatesToComment,
     dedupeParentComments,
@@ -45,7 +45,7 @@ async function getAllCommentsModeV2(
     signal: AbortSignal | undefined = undefined,
     container: object[] | undefined = undefined,
     maxComments = 500000,
-    sortOrder: CommentSortOrder = 1 // 0 = 熱門評論, 1 = 最新評論 (預設最新)
+    sortOrder: CommentSortOrder = CommentSortOrder.NewestFirst
 ): Promise<object[]> {
     const comments: object[] = container || [];
     const replyQueue = new Queue({ concurrency: 4 });

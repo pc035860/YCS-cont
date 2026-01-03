@@ -16,7 +16,7 @@ import {
     setCurrentVideoMemberOnly
 } from '../memberOnly';
 import { encode } from 'html-entities';
-import type { CommentSortOrder } from '../../interfaces/i_types';
+import { CommentSortOrder } from '../../interfaces/i_types';
 
 export interface CommentContinuation {
     token: string;
@@ -170,7 +170,7 @@ export function formatCommentRuns(runs: any[] | undefined, currentVideoId: strin
 export interface FetchInitialCommentBatchParams {
     windowRef: Window & typeof globalThis;
     signal?: AbortSignal;
-    sortOrder: CommentSortOrder; // 0 = 熱門評論, 1 = 最新評論
+    sortOrder: CommentSortOrder;
 }
 
 export interface FetchContinuationParams extends FetchInitialCommentBatchParams {
@@ -1769,7 +1769,7 @@ async function fetchCommentPage(
     windowRef: Window & typeof globalThis,
     signal: AbortSignal | undefined,
     continuation?: CommentContinuation,
-    sortOrder = 0 // 0 = 熱門評論, 1 = 最新評論
+    sortOrder: CommentSortOrder = CommentSortOrder.TopComments
 ): Promise<{ response?: any; params?: RequestInit } | undefined> {
     try {
         let paramsCmnts;
@@ -2066,7 +2066,7 @@ async function fetchPostPage(
     windowRef: Window & typeof globalThis,
     signal: AbortSignal | undefined,
     continuation?: CommentContinuation,
-    sortOrder = 1 // 0 = 熱門評論, 1 = 最新評論（POST 頁面預設最新）
+    sortOrder: CommentSortOrder = CommentSortOrder.NewestFirst
 ): Promise<{ response?: any; params?: RequestInit } | undefined> {
     try {
         let paramsCmnts;

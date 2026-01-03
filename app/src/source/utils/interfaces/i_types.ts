@@ -305,10 +305,13 @@ export type ISelectedSearch = 'comments' | 'chat' | 'video' | 'all';
 
 /**
  * Comment sort order for YouTube API token extraction
- * 0 = Top comments (熱門評論)
- * 1 = Newest comments (最新評論)
  */
-export type CommentSortOrder = 0 | 1;
+export const CommentSortOrder = {
+    TopComments: 0,
+    NewestFirst: 1
+} as const;
+
+export type CommentSortOrder = (typeof CommentSortOrder)[keyof typeof CommentSortOrder];
 
 /**
  * Sort order display metadata

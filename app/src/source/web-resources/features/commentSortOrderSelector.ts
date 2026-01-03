@@ -1,4 +1,4 @@
-import type { CommentSortOrder, CommentSortOption } from '../../utils/interfaces/i_types';
+import { CommentSortOrder, type CommentSortOption } from '../../utils/interfaces/i_types';
 import type {
     clearComments,
     getController,
@@ -12,8 +12,8 @@ import type {
 // ============================================
 
 const SORT_OPTIONS: CommentSortOption[] = [
-    { value: 1, label: 'Newest (full, default)' },
-    { value: 0, label: 'Top (filtered)' }
+    { value: CommentSortOrder.NewestFirst, label: 'Newest (full, default)' },
+    { value: CommentSortOrder.TopComments, label: 'Top (filtered)' }
 ];
 
 // ============================================

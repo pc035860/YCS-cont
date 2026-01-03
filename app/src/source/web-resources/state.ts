@@ -1,10 +1,5 @@
-import type {
-    ChatItem,
-    CommentItem,
-    CommentSortOrder,
-    TranscriptData,
-    TranscriptTrackInfo
-} from '../utils/interfaces/i_types';
+import type { ChatItem, CommentItem, TranscriptData, TranscriptTrackInfo } from '../utils/interfaces/i_types';
+import { CommentSortOrder } from '../utils/interfaces/i_types';
 import type { ChatSource } from './services/cacheService';
 
 export interface CountBuckets {
@@ -84,7 +79,7 @@ export function createState(): WebResourcesState {
         commentsTrVideo: undefined,
         transcriptTracks: undefined,
         selectedTranscriptLanguage: undefined,
-        selectedCommentSortOrder: 1, // 預設最新評論 (Newest first)
+        selectedCommentSortOrder: CommentSortOrder.NewestFirst,
         count: createCounts(),
         countSearch: createCounts(),
         controller: new AbortController(),
