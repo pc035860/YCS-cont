@@ -2064,7 +2064,8 @@ async function fetchCommentPage(
 async function fetchPostPage(
     windowRef: Window & typeof globalThis,
     signal: AbortSignal | undefined,
-    continuation?: CommentContinuation
+    continuation?: CommentContinuation,
+    sortOrder = 1 // 0 = 熱門評論, 1 = 最新評論（POST 頁面預設最新）
 ): Promise<{ response?: any; params?: RequestInit } | undefined> {
     try {
         let paramsCmnts;
@@ -2114,7 +2115,7 @@ async function fetchPostPage(
                 signal
             );
 
-            // Phase 2: Grab the continuation token of the comments sorted by newest since top comments in post pages are missing
+            // Phase 2: Grab the continuation token of the comments based on sortOrder
             const response = await fetchR(`https://www.youtube.com/youtubei/v1/browse?key=${getInnertubeApiKey()}`, {
                 ...paramsCmnts,
                 signal,
@@ -2122,18 +2123,21 @@ async function fetchPostPage(
             } as RequestInit);
             const data = await response.json();
             const newContinuationToken = wrapTryCatch(() =>
-                objectScan(['**.subMenuItems[1].serviceEndpoint.continuationCommand.token'], {
+                objectScan([`**.subMenuItems[${sortOrder}].serviceEndpoint.continuationCommand.token`], {
                     joined: true,
                     rtn: 'value',
                     abort: true
                 })(data)
             ) as string | undefined;
             const newClickTrackingParams = wrapTryCatch(() =>
-                objectScan(['**.subMenuItems[1].serviceEndpoint.continuationCommand.command.clickTrackingParams'], {
-                    joined: true,
-                    rtn: 'value',
-                    abort: true
-                })(data)
+                objectScan(
+                    [`**.subMenuItems[${sortOrder}].serviceEndpoint.continuationCommand.command.clickTrackingParams`],
+                    {
+                        joined: true,
+                        rtn: 'value',
+                        abort: true
+                    }
+                )(data)
             ) as string | undefined;
             paramsCmnts = await getParamsForComments(
                 windowRef,
@@ -2164,7 +2168,7 @@ export async function fetchInitialCommentBatch(
     try {
         const sortOrder = params.sortOrder ?? 0; // 預設熱門評論
         const result = params.windowRef.location.href.includes('post')
-            ? await fetchPostPage(params.windowRef, params.signal)
+            ? await fetchPostPage(params.windowRef, params.signal, undefined, sortOrder)
             : await fetchCommentPage(params.windowRef, params.signal, undefined, sortOrder);
         const response = result?.response;
         if (!response || response.status !== 200) return undefined;
@@ -2190,8 +2194,8 @@ export async function fetchInitialCommentBatch(
 export async function fetchContinuationBatch(params: FetchContinuationParams): Promise<CommentBatchResult | undefined> {
     try {
         const result = params.windowRef.location.href.includes('post')
-            ? await fetchPostPage(params.windowRef, params.signal, params.continuation)
-            : await fetchCommentPage(params.windowRef, params.signal, params.continuation);
+            ? await fetchPostPage(params.windowRef, params.signal, params.continuation, params.sortOrder)
+            : await fetchCommentPage(params.windowRef, params.signal, params.continuation, params.sortOrder);
         const response = result?.response;
         if (!response || response.status !== 200) return undefined;
         const data = await response.json();
