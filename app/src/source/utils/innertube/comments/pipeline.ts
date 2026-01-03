@@ -1769,7 +1769,7 @@ async function fetchCommentPage(
     windowRef: Window & typeof globalThis,
     signal: AbortSignal | undefined,
     continuation?: CommentContinuation,
-    sortOrder: CommentSortOrder = CommentSortOrder.TopComments
+    sortOrder: CommentSortOrder = CommentSortOrder.NewestFirst
 ): Promise<{ response?: any; params?: RequestInit } | undefined> {
     try {
         let paramsCmnts;
