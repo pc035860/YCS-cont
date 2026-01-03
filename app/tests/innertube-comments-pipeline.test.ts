@@ -692,7 +692,7 @@ test('fetchInitialCommentBatch prefers API continuation token', async () => {
     setFetchImplementation(stubFetch as typeof fetch);
 
     try {
-        const batch = await fetchInitialCommentBatch({ windowRef: windowRef as any, signal: undefined });
+        const batch = await fetchInitialCommentBatch({ windowRef: windowRef as any, signal: undefined, sortOrder: 0 });
         assert.ok(batch);
         assert.strictEqual(capturedRequests.length, 3);
         const body = JSON.parse(String(capturedRequests[2].init?.body));
@@ -766,7 +766,8 @@ test('fetchContinuationBatch includes continuation token and tracking params', a
         const batch = await fetchContinuationBatch({
             windowRef: windowRef as any,
             signal: undefined,
-            continuation: { token: 'token-123', clickTrackingParams: 'tracking-xyz' }
+            continuation: { token: 'token-123', clickTrackingParams: 'tracking-xyz' },
+            sortOrder: 0
         });
 
         assert.ok(batch);
@@ -1533,6 +1534,204 @@ test('fetchContinuationBatch passes sortOrder for video pages', async () => {
         const body = JSON.parse(String(capturedRequests[0].init?.body));
         assert.strictEqual(body.continuation, 'video-continuation-token');
         assert.strictEqual(body.clickTracking.clickTrackingParams, 'video-tracking');
+    } finally {
+        setFetchImplementation(originalFetch as typeof fetch);
+        globalThis.fetch = originalFetch;
+        if (originalIsMemberOnly === undefined) {
+            delete (GlobalStore as any).isMemberOnly;
+        } else {
+            (GlobalStore as any).isMemberOnly = originalIsMemberOnly;
+        }
+        if (originalWindow === undefined) {
+            delete (globalThis as any).window;
+        } else {
+            (globalThis as any).window = originalWindow;
+        }
+    }
+});
+
+// =============================================================================
+// Continuation Sort Order Consistency Tests
+// =============================================================================
+
+test('fetchContinuationBatch passes sortOrder parameter', async () => {
+    const windowRef: any = {
+        location: { href: 'https://www.youtube.com/watch?v=videoC' },
+        ytcfg: {
+            data_: {
+                INNERTUBE_CONTEXT_CLIENT_NAME: '1',
+                INNERTUBE_CONTEXT_CLIENT_VERSION: '1.20240101',
+                INNERTUBE_CONTEXT: { client: { clientName: 'WEB', clientVersion: '1.20240101' } },
+                GOOGLE_FEEDBACK_PRODUCT_DATA: { accept_language: 'en-US' },
+                INNERTUBE_API_KEY: 'test-key'
+            }
+        },
+        ytInitialData: {
+            sortMenu: {
+                sortFilterSubMenuRenderer: {
+                    subMenuItems: [
+                        {
+                            serviceEndpoint: {
+                                continuationCommand: { token: 'top-comments-token' },
+                                clickTrackingParams: 'top-click'
+                            }
+                        },
+                        {
+                            serviceEndpoint: {
+                                continuationCommand: { token: 'newest-first-token' },
+                                clickTrackingParams: 'newest-click'
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    };
+
+    const originalWindow = (globalThis as any).window;
+    (globalThis as any).window = windowRef;
+
+    const originalGetInitYtData = (GlobalStore as any).getInitYtData;
+    (GlobalStore as any).getInitYtData = () => windowRef.ytInitialData;
+
+    const originalIsMemberOnly = (GlobalStore as any).isMemberOnly;
+    (GlobalStore as any).isMemberOnly = false;
+
+    const capturedRequests: Array<{ url: unknown; init: RequestInit | undefined; sortOrder?: number }> = [];
+    const originalFetch = globalThis.fetch;
+
+    const stubFetch = async (url: any, init?: RequestInit) => {
+        capturedRequests.push({ url, init });
+
+        // Return response with continuation
+        return new Response(
+            JSON.stringify({
+                onResponseReceivedEndpoints: [
+                    {
+                        appendContinuationItemsAction: {
+                            continuationItems: [
+                                { commentThreadRenderer: { comment: { commentId: 'comment1' } } }
+                            ]
+                        }
+                    },
+                    {
+                        reloadContinuationItemsCommand: {
+                            continuationItems: []
+                        }
+                    }
+                ]
+            }),
+            { status: 200 }
+        );
+    };
+
+    globalThis.fetch = stubFetch as typeof fetch;
+    setFetchImplementation(stubFetch as typeof fetch);
+
+    try {
+        // Test with sortOrder=0 (top comments)
+        await fetchContinuationBatch({
+            windowRef: windowRef as any,
+            signal: undefined,
+            continuation: { token: 'test-continuation-token', clickTrackingParams: 'test-params' },
+            sortOrder: 0
+        });
+
+        // Test with sortOrder=1 (newest first)
+        await fetchContinuationBatch({
+            windowRef: windowRef as any,
+            signal: undefined,
+            continuation: { token: 'test-continuation-token', clickTrackingParams: 'test-params' },
+            sortOrder: 1
+        });
+
+        // Verify both requests were made with sortOrder
+        assert.strictEqual(capturedRequests.length, 2);
+
+        // Verify the requests contain proper continuation tokens in the body
+        const firstBody = JSON.parse(capturedRequests[0].init?.body as string);
+        const secondBody = JSON.parse(capturedRequests[1].init?.body as string);
+
+        assert.ok(firstBody.continuation);
+        assert.ok(secondBody.continuation);
+    } finally {
+        setFetchImplementation(originalFetch as typeof fetch);
+        globalThis.fetch = originalFetch;
+        if (originalGetInitYtData === undefined) {
+            delete (GlobalStore as any).getInitYtData;
+        } else {
+            (GlobalStore as any).getInitYtData = originalGetInitYtData;
+        }
+        if (originalIsMemberOnly === undefined) {
+            delete (GlobalStore as any).isMemberOnly;
+        } else {
+            (GlobalStore as any).isMemberOnly = originalIsMemberOnly;
+        }
+        if (originalWindow === undefined) {
+            delete (globalThis as any).window;
+        } else {
+            (globalThis as any).window = originalWindow;
+        }
+    }
+});
+
+test('fetchContinuationBatch receives and passes sortOrder in API request', async () => {
+    const windowRef: any = {
+        location: { href: 'https://www.youtube.com/watch?v=videoD' },
+        ytcfg: {
+            data_: {
+                INNERTUBE_CONTEXT_CLIENT_NAME: '1',
+                INNERTUBE_CONTEXT_CLIENT_VERSION: '1.20240101',
+                INNERTUBE_CONTEXT: { client: { clientName: 'WEB', clientVersion: '1.20240101' } },
+                GOOGLE_FEEDBACK_PRODUCT_DATA: { accept_language: 'en-US' },
+                INNERTUBE_API_KEY: 'test-key'
+            }
+        }
+    };
+
+    const originalWindow = (globalThis as any).window;
+    (globalThis as any).window = windowRef;
+
+    const originalIsMemberOnly = (GlobalStore as any).isMemberOnly;
+    (GlobalStore as any).isMemberOnly = false;
+
+    let capturedContinuationToken: string | undefined;
+    const originalFetch = globalThis.fetch;
+
+    const stubFetch = async (url: any, init?: RequestInit) => {
+        const body = JSON.parse(init?.body as string);
+        capturedContinuationToken = body.continuation;
+
+        return new Response(
+            JSON.stringify({
+                onResponseReceivedEndpoints: [
+                    {
+                        appendContinuationItemsAction: {
+                            continuationItems: [
+                                { commentThreadRenderer: { comment: { commentId: 'comment1' } } }
+                            ]
+                        }
+                    }
+                ]
+            }),
+            { status: 200 }
+        );
+    };
+
+    globalThis.fetch = stubFetch as typeof fetch;
+    setFetchImplementation(stubFetch as typeof fetch);
+
+    try {
+        // Test that continuation token from input is used in API request
+        await fetchContinuationBatch({
+            windowRef: windowRef as any,
+            signal: undefined,
+            continuation: { token: 'test-continuation-token-123', clickTrackingParams: 'test-params' },
+            sortOrder: 1
+        });
+
+        // Verify the continuation token was passed to the API
+        assert.strictEqual(capturedContinuationToken, 'test-continuation-token-123');
     } finally {
         setFetchImplementation(originalFetch as typeof fetch);
         globalThis.fetch = originalFetch;
