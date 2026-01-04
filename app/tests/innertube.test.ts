@@ -2,6 +2,7 @@ import assert from 'node:assert';
 import test from 'node:test';
 
 import { applyFrameworkUpdatesToComment, generateCommentObjectFromFW } from '../src/source/utils/innertube';
+import { extractJsonObjectFromHtml, isValidPbjResponse } from '../src/source/utils/innertube/core';
 
 /**
  * Helper: Create minimal frameworkUpdate payload for testing
@@ -466,4 +467,127 @@ test('generateCommentObjectFromFW does not create creatorHeart when not hearted'
         undefined,
         'Expected creatorHeart to not be created when not hearted'
     );
+});
+
+// ============================================================================
+// isValidPbjResponse Tests
+// ============================================================================
+
+test('isValidPbjResponse accepts modern PBJ object format', () => {
+    const input = {
+        response: { contents: { test: 'data' } },
+        playerResponse: { playabilityStatus: { status: 'OK' } }
+    };
+    assert.equal(isValidPbjResponse(input), true, 'Should accept object with response property');
+});
+
+test('isValidPbjResponse rejects legacy array format', () => {
+    const input = [{ response: { test: 1 } }, { playerResponse: { test: 2 } }];
+    assert.equal(isValidPbjResponse(input), false, 'Should reject array format (handled elsewhere)');
+});
+
+// ============================================================================
+// extractJsonObjectFromHtml Tests
+// ============================================================================
+
+test('extractJsonObjectFromHtml extracts simple object', () => {
+    const html = 'var ytInitialData = {"foo": "bar"};';
+    const result = extractJsonObjectFromHtml(html, 'var ytInitialData = ');
+
+    assert.ok(result, 'Expected result to be defined');
+    assert.deepEqual(result, { foo: 'bar' }, 'Expected extracted object to match');
+});
+
+test('extractJsonObjectFromHtml handles nested objects', () => {
+    const html = 'var ytInitialData = {"a": {"b": {"c": 1}}};';
+    const result = extractJsonObjectFromHtml(html, 'var ytInitialData = ');
+
+    assert.ok(result, 'Expected result to be defined');
+    assert.deepEqual(result, { a: { b: { c: 1 } } }, 'Expected nested object to be extracted correctly');
+});
+
+test('extractJsonObjectFromHtml handles strings containing braces', () => {
+    const html = 'var ytInitialData = {"text": "Hello {world}"};';
+    const result = extractJsonObjectFromHtml(html, 'var ytInitialData = ') as { text: string };
+
+    assert.ok(result, 'Expected result to be defined');
+    assert.equal(result.text, 'Hello {world}', 'Expected string with braces to be preserved');
+});
+
+test('extractJsonObjectFromHtml handles escaped quotes', () => {
+    const html = 'var ytInitialData = {"text": "He said \\"hello\\""};';
+    const result = extractJsonObjectFromHtml(html, 'var ytInitialData = ') as { text: string };
+
+    assert.ok(result, 'Expected result to be defined');
+    assert.equal(result.text, 'He said "hello"', 'Expected escaped quotes to be handled correctly');
+});
+
+test('extractJsonObjectFromHtml returns undefined when tag not found', () => {
+    const html = '<html><body>No data here</body></html>';
+    const result = extractJsonObjectFromHtml(html, 'var ytInitialData = ');
+
+    assert.equal(result, undefined, 'Expected undefined when tag not found');
+});
+
+test('extractJsonObjectFromHtml extracts ytInitialPlayerResponse tag', () => {
+    const html = 'var ytInitialPlayerResponse = {"videoDetails": {"videoId": "abc123"}};';
+    const result = extractJsonObjectFromHtml(html, 'var ytInitialPlayerResponse = ') as {
+        videoDetails: { videoId: string };
+    };
+
+    assert.ok(result, 'Expected result to be defined');
+    assert.equal(result.videoDetails.videoId, 'abc123', 'Expected videoId to match');
+});
+
+test('extractJsonObjectFromHtml handles arrays in object', () => {
+    const html = 'var ytInitialData = {"items": [1, 2, 3], "names": ["a", "b"]};';
+    const result = extractJsonObjectFromHtml(html, 'var ytInitialData = ') as { items: number[]; names: string[] };
+
+    assert.ok(result, 'Expected result to be defined');
+    assert.deepEqual(result.items, [1, 2, 3], 'Expected array to be extracted correctly');
+    assert.deepEqual(result.names, ['a', 'b'], 'Expected string array to be extracted correctly');
+});
+
+test('extractJsonObjectFromHtml handles complex real-world structure', () => {
+    const html = `
+        <script>var ytInitialPlayerResponse = {
+            "microformat": {
+                "playerMicroformatRenderer": {
+                    "liveBroadcastDetails": {
+                        "isLiveNow": true,
+                        "startTimestamp": "2026-01-03T14:00:20+00:00"
+                    }
+                }
+            }
+        };</script>
+    `;
+    const result = extractJsonObjectFromHtml(html, 'var ytInitialPlayerResponse = ') as {
+        microformat: {
+            playerMicroformatRenderer: {
+                liveBroadcastDetails: {
+                    isLiveNow: boolean;
+                    startTimestamp: string;
+                };
+            };
+        };
+    };
+
+    assert.ok(result, 'Expected result to be defined');
+    assert.equal(
+        result.microformat.playerMicroformatRenderer.liveBroadcastDetails.startTimestamp,
+        '2026-01-03T14:00:20+00:00',
+        'Expected startTimestamp to match'
+    );
+    assert.equal(
+        result.microformat.playerMicroformatRenderer.liveBroadcastDetails.isLiveNow,
+        true,
+        'Expected isLiveNow to be true'
+    );
+});
+
+test('extractJsonObjectFromHtml returns undefined for malformed JSON', () => {
+    const html = 'var ytInitialData = {invalid json here};';
+    const result = extractJsonObjectFromHtml(html, 'var ytInitialData = ');
+
+    assert.equal(result, undefined, 'Expected undefined for malformed JSON');
 });
