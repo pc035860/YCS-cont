@@ -226,11 +226,84 @@ export async function getInitYtData(
     }
 }
 
+/**
+ * Extract a JSON object from HTML content using brace-counting algorithm.
+ * Handles string escaping and nested structures safely.
+ *
+ * @param html - The HTML content to search
+ * @param tag - The variable declaration tag (e.g., 'var ytInitialData = ')
+ * @returns The parsed JSON object, or undefined if not found/invalid
+ */
+export function extractJsonObjectFromHtml(html: string, tag: string): object | undefined {
+    const start = html.indexOf(tag);
+    if (start === -1) {
+        return undefined;
+    }
+
+    const searchStart = start + tag.length;
+    let braceCount = 0;
+    let endIndex = -1;
+    let foundStart = false;
+    let inString = false;
+    let stringChar = '';
+    let escapeNext = false;
+
+    // Loop is bounded by html.length, no additional iteration limit needed
+    for (let i = searchStart; i < html.length; i++) {
+        const ch = html[i];
+
+        if (escapeNext) {
+            escapeNext = false;
+            continue;
+        }
+
+        if (ch === '\\') {
+            escapeNext = true;
+            continue;
+        }
+
+        if (ch === '"' || ch === "'" || ch === '`') {
+            if (!inString) {
+                inString = true;
+                stringChar = ch;
+            } else if (ch === stringChar) {
+                inString = false;
+                stringChar = '';
+            }
+            continue;
+        }
+
+        if (!inString) {
+            if (ch === '{') {
+                braceCount++;
+                foundStart = true;
+            } else if (ch === '}') {
+                braceCount--;
+                if (foundStart && braceCount === 0) {
+                    endIndex = i + 1;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (endIndex === -1) {
+        return undefined;
+    }
+
+    const jsonStr = html.substring(searchStart, endIndex);
+    try {
+        return JSON.parse(jsonStr) as object;
+    } catch {
+        return undefined;
+    }
+}
+
 export async function getInitYtDataFromHtml(
     url: string,
     signal: AbortSignal | undefined,
     globalContext: Window & typeof globalThis = window
-): Promise<{ response: [object] } | undefined> {
+): Promise<{ response: object; playerResponse?: object } | undefined> {
     try {
         if (!url) return undefined;
 
@@ -251,82 +324,29 @@ export async function getInitYtDataFromHtml(
         const res = await fetch(targetUrl, { ...requestInit, signal, cache: 'no-store' });
         const html = await res.text();
 
-        // Use a safer method to locate ytInitialData
-        const tag = 'var ytInitialData = ';
-        const start = html.indexOf(tag);
-        if (start === -1) {
-            console.error('Failed to find ytInitialData start pattern in HTML');
+        // Extract ytInitialData (required)
+        const ytInitialData = extractJsonObjectFromHtml(html, 'var ytInitialData = ');
+        if (!ytInitialData) {
+            console.error('[YCS] [Core] getInitYtDataFromHtml: Failed to extract ytInitialData from HTML');
             return undefined;
         }
 
-        const searchStart = start + tag.length;
-        const MAX_ITERATIONS = 1000000; // Prevent extreme cases
-        let braceCount = 0;
-        let endIndex = -1;
-        let foundStart = false;
-        let inString = false;
-        let stringChar = '';
-        let escapeNext = false;
-        let iterations = 0;
+        // Extract ytInitialPlayerResponse (optional, for live broadcast details)
+        const ytInitialPlayerResponse = extractJsonObjectFromHtml(html, 'var ytInitialPlayerResponse = ');
 
-        for (let i = searchStart; i < html.length && iterations < MAX_ITERATIONS; i++) {
-            iterations++;
-            const ch = html[i];
+        // Build result matching PBJ format structure
+        const result: { response: object; playerResponse?: object } = {
+            response: ytInitialData,
+            ...(ytInitialPlayerResponse && { playerResponse: ytInitialPlayerResponse })
+        };
 
-            if (escapeNext) {
-                escapeNext = false;
-                continue;
-            }
+        (GlobalStore as any).getInitYtData = result;
 
-            if (ch === '\\') {
-                escapeNext = true;
-                continue;
-            }
+        // Update members-only and age-restricted status
+        console.log('[YCS] [Core] getInitYtDataFromHtml: Updating access restriction status from ytInitialData');
+        updateAccessRestrictionStatus(result);
 
-            if (ch === '"' || ch === "'" || ch === '`') {
-                if (!inString) {
-                    inString = true;
-                    stringChar = ch;
-                } else if (ch === stringChar) {
-                    inString = false;
-                    stringChar = '';
-                }
-                continue;
-            }
-
-            if (!inString) {
-                if (ch === '{') {
-                    braceCount++;
-                    foundStart = true;
-                } else if (ch === '}') {
-                    braceCount--;
-                    if (foundStart && braceCount === 0) {
-                        endIndex = i + 1;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (iterations >= MAX_ITERATIONS || endIndex === -1) {
-            console.error('Failed to locate ytInitialData JSON object boundaries');
-            return undefined;
-        }
-
-        const jsonStr = html.substring(searchStart, endIndex);
-        try {
-            const result = JSON.parse(jsonStr) as [object];
-            (GlobalStore as any).getInitYtData = result;
-
-            // Update members-only and age-restricted status
-            console.log('[YCS] [Core] getInitYtDataFromHtml: Updating access restriction status from ytInitialData');
-            updateAccessRestrictionStatus(result);
-
-            return { response: result };
-        } catch (parseError) {
-            console.error('Failed to parse ytInitialData JSON:', parseError);
-            return undefined;
-        }
+        return result;
     } catch (e) {
         console.error(e);
         return undefined;
