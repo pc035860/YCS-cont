@@ -48,6 +48,7 @@ import {
     extractCueGroups,
     getCueGroupCount
 } from './features/transcriptLoader';
+import { createCommentSortOrderSelector, CommentSortOrderSelectorDeps } from './features/commentSortOrderSelector';
 import { createTimestampVizHandler, TimestampVizDeps } from './features/timestampVizHandler';
 import {
     downloadChatFile,
@@ -75,6 +76,7 @@ import {
     getCommentsTrVideo,
     getController,
     getSelectedTranscriptLanguage,
+    getSelectedCommentSortOrder,
     getTranscriptTracks as getStateTranscriptTracks,
     getCounts,
     getSearchCounts,
@@ -84,6 +86,7 @@ import {
     setCommentsChat,
     setCommentsTrVideo,
     setSelectedTranscriptLanguage,
+    setSelectedCommentSortOrder,
     setTranscriptTracks,
     setCount,
     setSearchCount,
@@ -829,7 +832,14 @@ export function initApp(): void {
                             }
                         } else {
                             // Use Innertube API (default or when YouTube Data API is disabled)
-                            await getAllCommentsModeV2(elLoadCmnts, controller.signal, comments);
+                            const selectedSortOrder = getSelectedCommentSortOrder(state);
+                            await getAllCommentsModeV2(
+                                elLoadCmnts,
+                                controller.signal,
+                                comments,
+                                500000,
+                                selectedSortOrder
+                            );
                         }
 
                         // Verify video or post hasn't changed before saving cache
@@ -1021,6 +1031,10 @@ export function initApp(): void {
         const elTranscriptLangButton = document.getElementById('ycs_transcript_language');
         const elTranscriptLangMenu = document.getElementById('ycs_transcript_language_menu');
 
+        // Comment Sort Order Selector DOM elements
+        const elSortOrderButton = document.getElementById('ycs-comment-sort-order');
+        const elSortOrderMenu = document.getElementById('ycs_comment_sort_order_menu');
+
         const elLoadAll = document.getElementById('ycs-load-all');
         if (elLoadAll) {
             elLoadAll.addEventListener('click', function (): void {
@@ -1156,6 +1170,38 @@ export function initApp(): void {
         };
 
         createTranscriptLoader(transcriptLoaderDeps);
+
+        // Comment Sort Order Selector
+        const commentSortOrderSelectorDeps: CommentSortOrderSelectorDeps = {
+            state: {
+                getState: () => state,
+                setState: (newState) => {
+                    state = newState;
+                },
+                getSelectedCommentSortOrder,
+                setSelectedCommentSortOrder,
+                clearComments,
+                getController,
+                resetController
+            },
+            elements: {
+                elSortOrderButton,
+                elSortOrderMenu,
+                elLoadComments
+            },
+            callbacks: {
+                closeAllDropdowns,
+                setMenuVisibility
+            }
+        };
+
+        createCommentSortOrderSelector(commentSortOrderSelectorDeps);
+
+        // Register comment sort order menu in dropdownMenus for click-outside-to-close
+        if (elSortOrderMenu instanceof HTMLElement) {
+            dropdownMenus.add(elSortOrderMenu);
+            setMenuVisibility(elSortOrderMenu, false);
+        }
 
         const setupDropdown = (
             trigger: HTMLElement | null,

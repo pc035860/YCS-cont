@@ -71,6 +71,7 @@ MV3 security restrictions require web page code to run in isolated context. The 
     - `state.ts`: WebResourcesState management
     - `search/`: Search modules (comments, chat, transcript)
     - `ui/`: UI components (render, filters, interactions)
+    - `features/`: Feature modules (comment sort order selector, transcript loader, timestamp visualization)
     - `services/`: Service layer (cache, export)
   - **`utils/`**: Modular utility system
     - `assist.ts`: Module facade and unified export point
@@ -158,7 +159,23 @@ Runtime state management using IIFE closure pattern. See `app/src/source/web-res
 
 ### Web Resources State Management
 
-`web-resources/state.ts` provides a functional state container with comments, chat data, transcript, counters, and abort controller.
+`web-resources/state.ts` provides a functional state container with comments, chat data, transcript, counters, comment sort order selection, and abort controller.
+
+**State Properties** (`WebResourcesState` interface):
+- `comments`: Array of `CommentItem` objects
+- `commentsChat`: Map of `ChatItem` objects
+- `commentsTrVideo`: Transcript data
+- `transcriptTracks`: Available transcript tracks
+- `selectedTranscriptLanguage`: Currently selected transcript language
+- `selectedCommentSortOrder`: Comment sort order selection (`CommentSortOrder.NewestFirst` by default)
+- `count`: Counter buckets for loaded items
+- `countSearch`: Counter buckets for search results
+- `controller`: AbortController for request cancellation
+- `liveRecording`: Live chat recording state
+
+**State Management Functions**:
+- `getSelectedCommentSortOrder()`: Retrieve current sort order selection
+- `setSelectedCommentSortOrder()`: Update sort order selection
 
 ### IndexedDB Cache Strategy
 
@@ -342,6 +359,25 @@ YouTube's comment system uses an Entity-driven architecture where nested replies
 - **Variable `commentId` location**: Uses fallback pattern (`item?.commentRenderer?.commentId || item?.commentId`) to handle different response formats
 
 **Documentation**: See `app/docs/innertube-nested-comments.md` for detailed architecture analysis and migration guide.
+
+### Comment Sort Order Selection
+
+The extension provides a dropdown selector in the UI for choosing between two comment sort orders when loading comments:
+
+**Sort Options** (`CommentSortOrder` type in `interfaces/i_types.ts:309-314`):
+- **TopComments** (0): "Top (filtered)" - YouTube's filtered top comments
+- **NewestFirst** (1): "Newest (full, default)" - Full chronological comment list
+
+**Implementation Details**:
+- **Feature module**: `web-resources/features/commentSortOrderSelector.ts` - Dropdown UI component with dependency injection pattern
+- **State management**: `selectedCommentSortOrder` in `WebResourcesState` (defaults to `CommentSortOrder.NewestFirst`)
+- **API integration**: The `sortOrder` parameter is passed through `fetchCommentPage()` and `fetchPostPage()` to modify the Innertube API token extraction logic
+- **Auto-reload**: Switching sort options automatically triggers comment reload by simulating a click on the "Load Comments" button
+- **Default values**: All layers use `NewestFirst` as the default (state, fetchCommentPage, fetchPostPage, getAllCommentsModeV2)
+
+**Type Definitions**:
+- `CommentSortOrder`: Const object with `TopComments: 0` and `NewestFirst: 1`
+- `CommentSortOption`: Interface with `value` (CommentSortOrder) and `label` (string) properties
 
 ### Member-Only and Age-Restricted Video Detection and Authorization Strategy
 

@@ -303,6 +303,24 @@ export interface IParamSearch {
 
 export type ISelectedSearch = 'comments' | 'chat' | 'video' | 'all';
 
+/**
+ * Comment sort order for YouTube API token extraction
+ */
+export const CommentSortOrder = {
+    TopComments: 0,
+    NewestFirst: 1
+} as const;
+
+export type CommentSortOrder = (typeof CommentSortOrder)[keyof typeof CommentSortOrder];
+
+/**
+ * Sort order display metadata
+ */
+export interface CommentSortOption {
+    value: CommentSortOrder;
+    label: string;
+}
+
 export interface IYCSOptions {
     autoload?: boolean;
     highlightText?: boolean;

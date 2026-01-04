@@ -2,6 +2,7 @@ import Queue from 'p-queue';
 
 import { showLoadComments } from '../dom';
 import { getPostId, getVideoId } from '../common';
+import { CommentSortOrder } from '../interfaces/i_types';
 import {
     applyFrameworkUpdatesToComment,
     dedupeParentComments,
@@ -43,7 +44,8 @@ async function getAllCommentsModeV2(
     elShowLoading: HTMLElement,
     signal: AbortSignal | undefined = undefined,
     container: object[] | undefined = undefined,
-    maxComments = 500000
+    maxComments = 500000,
+    sortOrder: CommentSortOrder = CommentSortOrder.NewestFirst
 ): Promise<object[]> {
     const comments: object[] = container || [];
     const replyQueue = new Queue({ concurrency: 4 });
@@ -51,7 +53,8 @@ async function getAllCommentsModeV2(
 
     let batch: CommentBatchResult | undefined = await fetchInitialCommentBatch({
         windowRef: window,
-        signal
+        signal,
+        sortOrder
     });
 
     const replyContinuationStats = { total: 0, unique: 0, skipped: 0, tokenless: 0 };
@@ -84,7 +87,8 @@ async function getAllCommentsModeV2(
                 continuations: replyContinuations,
                 queue: replyQueue,
                 currentVideoId,
-                fetchContinuation: (continuation) => fetchRepliesBatch({ windowRef: window, signal, continuation }),
+                fetchContinuation: (continuation) =>
+                    fetchRepliesBatch({ windowRef: window, signal, continuation, sortOrder }),
                 onReply: (reply) => {
                     if (comments.length < maxComments) {
                         comments.push(reply);
@@ -100,7 +104,8 @@ async function getAllCommentsModeV2(
             batch = await fetchContinuationBatch({
                 windowRef: window,
                 signal,
-                continuation: nextContinuation
+                continuation: nextContinuation,
+                sortOrder
             });
         } else {
             batch = undefined;
