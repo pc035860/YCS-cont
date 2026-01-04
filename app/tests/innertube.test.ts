@@ -2,7 +2,7 @@ import assert from 'node:assert';
 import test from 'node:test';
 
 import { applyFrameworkUpdatesToComment, generateCommentObjectFromFW } from '../src/source/utils/innertube';
-import { extractJsonObjectFromHtml } from '../src/source/utils/innertube/core';
+import { extractJsonObjectFromHtml, isValidPbjResponse } from '../src/source/utils/innertube/core';
 
 /**
  * Helper: Create minimal frameworkUpdate payload for testing
@@ -467,6 +467,23 @@ test('generateCommentObjectFromFW does not create creatorHeart when not hearted'
         undefined,
         'Expected creatorHeart to not be created when not hearted'
     );
+});
+
+// ============================================================================
+// isValidPbjResponse Tests
+// ============================================================================
+
+test('isValidPbjResponse accepts modern PBJ object format', () => {
+    const input = {
+        response: { contents: { test: 'data' } },
+        playerResponse: { playabilityStatus: { status: 'OK' } }
+    };
+    assert.equal(isValidPbjResponse(input), true, 'Should accept object with response property');
+});
+
+test('isValidPbjResponse rejects legacy array format', () => {
+    const input = [{ response: { test: 1 } }, { playerResponse: { test: 2 } }];
+    assert.equal(isValidPbjResponse(input), false, 'Should reject array format (handled elsewhere)');
 });
 
 // ============================================================================

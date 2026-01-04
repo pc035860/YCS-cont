@@ -206,9 +206,9 @@ export async function getInitYtData(
 
         const result = JSON.parse(text) as object;
 
-        // Valid PBJ response should have 'response' property
-        // If missing, fallback to HTML parsing method (e.g., unauthenticated users get different response)
-        if (!('response' in result)) {
+        // Modern PBJ is an object with top-level 'response' (and usually 'playerResponse').
+        // Legacy array PBJ is rare and normalized elsewhere; non-PBJ falls back to HTML.
+        if (!isValidPbjResponse(result)) {
             console.log('[YCS] [Core] getInitYtData: PBJ response missing required data, falling back to HTML parsing');
             return getInitYtDataFromHtml(url, signal, globalContext);
         }
@@ -224,6 +224,10 @@ export async function getInitYtData(
         console.error(e);
         return undefined;
     }
+}
+
+export function isValidPbjResponse(result: unknown): result is { response: object } {
+    return !!result && typeof result === 'object' && 'response' in result;
 }
 
 /**
