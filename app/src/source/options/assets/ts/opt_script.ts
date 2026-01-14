@@ -87,22 +87,6 @@ window.onload = async (): Promise<void> => {
             (document.getElementById('y_opts_hidden_by_default') as HTMLInputElement).checked = param;
         };
 
-        const optSetSortTimestamp = async (opt: HTMLInputElement): Promise<void> => {
-            try {
-                await chrome.storage.local.set({
-                    sortTimestamp: opt.checked
-                });
-            } catch (err) {
-                console.error(err);
-            }
-        };
-
-        const setRenderSortTimestampOpt = (param: boolean): void => {
-            if (typeof param !== 'boolean') return;
-
-            (document.getElementById('y_opts_sort_timestamp') as HTMLInputElement).checked = param;
-        };
-
         const setRenderHiddenByDefaultShorts = (param: boolean): void => {
             if (typeof param !== 'boolean') return;
 
@@ -301,9 +285,10 @@ window.onload = async (): Promise<void> => {
                 ycs_btn_members: 'Members',
                 ycs_btn_donated: 'Donated',
                 ycs_btn_random: 'Random',
-                ycs_btn_sort_first: 'All',
+                ycs_btn_comments: 'Comments',
                 ycs_btn_quick_chat: 'Chat (Quick chat search)',
-                ycs_btn_quick_transcript: 'Transcript (Quick transcript search)'
+                ycs_btn_quick_transcript: 'Transcript (Quick transcript search)',
+                ycs_btn_origin: 'Origin'
             };
             return nameMap[buttonId] || buttonId;
         };
@@ -692,10 +677,6 @@ window.onload = async (): Promise<void> => {
                         setRenderHiddenByDefault(storageOpts[key]);
                         break;
 
-                    case 'sortTimestamp':
-                        setRenderSortTimestampOpt(storageOpts[key]);
-                        break;
-
                     case 'hiddenByDefaultShorts':
                         setRenderHiddenByDefaultShorts(storageOpts[key]);
                         break;
@@ -764,10 +745,6 @@ window.onload = async (): Promise<void> => {
 
                 case 'y_opts_hidden_by_default':
                     optSetHiddenByDefault(e.target as HTMLInputElement);
-                    break;
-
-                case 'y_opts_sort_timestamp':
-                    optSetSortTimestamp(e.target as HTMLInputElement);
                     break;
 
                 case 'y_opts_hidden_by_default_shorts':

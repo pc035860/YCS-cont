@@ -1,4 +1,3 @@
-import { iconSortDown, iconSortUp } from '../../utils/icons';
 import { renderComment, renderCommentChat, renderCommentTrVideo } from '../../utils/renderView';
 import { CommentsSearchResult } from '../search/commentsSearch';
 import { ChatSearchResult } from '../search/chatSearch';
@@ -10,7 +9,7 @@ const BUTTON_LABELS: Record<string, string> = {
     ycs_btn_donated: 'Donated',
     ycs_btn_author: 'Author',
     ycs_btn_timestamps: 'Time stamps',
-    ycs_btn_sort_first: 'All'
+    ycs_btn_comments: 'Comments'
 };
 
 const BUTTON_PREFIX_HTML: Record<string, string> = {
@@ -19,7 +18,6 @@ const BUTTON_PREFIX_HTML: Record<string, string> = {
 };
 
 interface ButtonState {
-    order?: 'newest' | 'oldest';
     title?: string;
     label?: string;
     dataset?: Record<string, string>;
@@ -42,21 +40,6 @@ function applyButtonStates(states: ButtonStateMap): void {
 
         if (state.title) {
             button.title = state.title;
-        }
-
-        if (state.order) {
-            const baseLabel = state.label ?? BUTTON_LABELS[id] ?? '';
-            const prefix = BUTTON_PREFIX_HTML[id];
-            const htmlLabel = prefix ? `${prefix}${baseLabel ? ` ${baseLabel}` : ''}` : baseLabel;
-            const icon = state.order === 'oldest' ? iconSortUp() : iconSortDown();
-
-            if (htmlLabel) {
-                button.innerHTML = `${htmlLabel} ${icon}`;
-                button.dataset.labelHtml = htmlLabel;
-            } else {
-                button.innerHTML = icon;
-                button.dataset.labelHtml = '';
-            }
         }
     }
 }

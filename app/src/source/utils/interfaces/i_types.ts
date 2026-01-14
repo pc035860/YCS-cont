@@ -285,9 +285,7 @@ export type ICommentItem = CommentItem;
 
 export interface IParamSearch {
     links?: boolean;
-    likes?: boolean;
     members?: boolean;
-    replied?: boolean;
     author?: boolean;
     heart?: boolean;
     verified?: boolean;
@@ -295,13 +293,24 @@ export interface IParamSearch {
     random?: boolean;
     timestamp?: boolean;
     timestampViz?: boolean;
-    sortFirst?: boolean;
     quickChat?: boolean;
     quickTranscript?: boolean;
-    sortOrder?: 'newest' | 'oldest';
+    quickComments?: boolean;
+    origin?: boolean;
+    sortOrder?: ISelectedSort;
 }
-
-export type ISelectedSearch = 'comments' | 'chat' | 'video' | 'all';
+export type ISelectedSort =
+    | 'newest'
+    | 'oldest'
+    | 'most_likes'
+    | 'least_likes'
+    | 'most_replies'
+    | 'least_replies'
+    | 'author_az'
+    | 'author_za'
+    | 'relevance'
+    | 'longest'
+    | 'shortest';
 
 /**
  * Comment sort order for YouTube API token extraction
@@ -324,7 +333,6 @@ export interface CommentSortOption {
 export interface IYCSOptions {
     autoload?: boolean;
     highlightText?: boolean;
-    sortTimestamp?: boolean;
     highlightExact?: boolean;
     cache?: boolean;
     autoClear?: number;

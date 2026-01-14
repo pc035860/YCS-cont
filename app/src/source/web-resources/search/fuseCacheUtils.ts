@@ -13,7 +13,8 @@ const BASE_FUSE_OPTIONS: FuseOptions = {
     minMatchCharLength: 1,
     shouldSort: true,
     threshold: 0.15,
-    distance: 100000
+    distance: 100000,
+    fieldNormWeight: 0.1
 };
 
 export function cloneFuseOptions(): Fuse.IFuseOptions<any> {

@@ -2,27 +2,23 @@ import Fuse from '../../../../node_modules/fuse.js/dist/fuse';
 
 import { buildKeysSignature, buildOptionsSignature, cloneFuseOptions } from './fuseCacheUtils';
 
-import { getRandomComment } from '../../utils/dom';
-import { filterNewestFirst } from '../../utils/filters/comments';
 import { applyFilters } from '../../utils/filters/engine';
 import {
-    createLikesFilter,
-    createRepliesFilter,
     createVerifiedFilter,
     createMemberFilter,
     createCreatorHeartFilter,
     createLinksFilter,
     createTimelineFilter,
     createDonatedFilter,
-    createChannelOwnerFilter
+    createChannelOwnerFilter,
+    createOriginalCommentsFilter
 } from '../../utils/filters/commentsAgg';
 import { ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
 import { getComments, WebResourcesState } from '../state';
 import { SearchContext } from './types';
-import { GlobalStore } from '../../utils/common';
+import { FilterConfig } from '../../utils/filters/types';
 
 export interface SearchButtonState {
-    order?: 'newest' | 'oldest';
     title?: string;
     label?: string;
     dataset?: Record<string, string>;
@@ -85,22 +81,21 @@ function applyTextMatches(results: ICommentsFuseResult[], matches: Set<any> | nu
     return results.filter((entry) => matches.has(entry.item));
 }
 
-function ensureSortOrder(order?: 'newest' | 'oldest'): 'newest' | 'oldest' {
-    return order === 'oldest' ? 'oldest' : 'newest';
-}
-
-function searchWithinSubset(
-    subset: ICommentsFuseResult[],
-    options: Fuse.IFuseOptions<any>,
-    query: string
-): ICommentsFuseResult[] {
-    if (!query.trim()) {
-        return subset;
-    }
-
-    const base = subset.map((entry) => entry.item);
-    const fuse = new Fuse(base, options);
-    return mapFuseResults(fuse.search(query.trim())) as ICommentsFuseResult[];
+function sortByTimestamp(results: ICommentsFuseResult[]): ICommentsFuseResult[] {
+    return results.sort((a, b) => {
+        const getFirstTimestamp = (item: any): number => {
+            const runs = item.commentRenderer?.contentText?.runs;
+            if (runs && runs.length > 0) {
+                for (const run of runs) {
+                    if (run.navigationEndpoint?.watchEndpoint?.startTimeSeconds >= 0) {
+                        return run.navigationEndpoint.watchEndpoint.startTimeSeconds * 1000;
+                    }
+                }
+            }
+            return 0;
+        };
+        return getFirstTimestamp(a.item) - getFirstTimestamp(b.item);
+    });
 }
 
 export function runSearch(
@@ -155,274 +150,119 @@ export function runSearch(
     const buttonStates: Record<string, SearchButtonState> = {};
     let resultSearch: ICommentsFuseResult[] = [];
 
-    const updateButtonState = (id: string, order: 'newest' | 'oldest', title: string, label?: string): void => {
-        buttonStates[id] = {
-            order,
-            title,
-            label
-        };
-    };
-
-    if (param.likes) {
-        const agg = applyFilters(comments, [createLikesFilter({})]);
-        resultSearch = applyTextMatches(
-            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
-            matches
-        );
-        resultSearch.sort((a, b) => {
-            const likesA = (a.item as any)?.commentRenderer?.likesForSort || 0;
-            const likesB = (b.item as any)?.commentRenderer?.likesForSort || 0;
-            if (likesB !== likesA) return likesB - likesA;
-            return (a.refIndex || 0) - (b.refIndex || 0);
-        });
-    } else if (param.links) {
-        const agg = applyFilters(comments, [createLinksFilter(true)]);
-        resultSearch = applyTextMatches(
-            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
-            matches
-        );
-
-        if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            let sortOrder = param.sortOrder ?? context.sortOrders.comments['ycs_btn_links'];
-            if (sortOrder === undefined && trimmedQuery) {
-                resultSearch = searchWithinSubset(resultSearch, options, trimmedQuery);
-                sortOrder = 'newest';
-            }
-
-            const resolvedOrder = ensureSortOrder(sortOrder);
-            if (resolvedOrder === 'oldest') {
-                resultSearch = Array.from(resultSearch).reverse();
-            }
-
-            updateButtonState(
-                'ycs_btn_links',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Shows links in comments, replies, chat, video transcript (Oldest)'
-                    : 'Shows links in comments, replies, chat, video transcript (Newest)',
-                'Links'
-            );
-        }
-    } else if (param.members) {
-        const agg = applyFilters(comments, [createMemberFilter(true)]);
-        resultSearch = applyTextMatches(
-            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
-            matches
-        );
-
-        if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_members']);
-            if (resolvedOrder === 'oldest') {
-                resultSearch = Array.from(resultSearch).reverse();
-            }
-
-            updateButtonState(
-                'ycs_btn_members',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Show comments, replies, chat from channel members (Oldest)'
-                    : 'Show comments, replies, chat from channel members (Newest)',
-                'Members'
-            );
-        }
-    } else if (param.donated) {
-        const agg = applyFilters(comments, [createDonatedFilter(true)]);
-        resultSearch = applyTextMatches(
-            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
-            matches
-        );
-
-        if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_donated']);
-            if (resolvedOrder === 'oldest') {
-                resultSearch = Array.from(resultSearch).reverse();
-            }
-
-            updateButtonState(
-                'ycs_btn_donated',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Show comments from users who have donated (Oldest)'
-                    : 'Show comments from users who have donated (Newest)',
-                'Donated'
-            );
-        }
-    } else if (param.replied) {
-        const agg = applyFilters(comments, [createRepliesFilter({ min: 1 })]);
-        resultSearch = applyTextMatches(
-            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
-            matches
-        );
-        resultSearch.sort((a, b) => {
-            const repliedA = (a.item as any)?.commentRenderer?.repliedForSort || 0;
-            const repliedB = (b.item as any)?.commentRenderer?.repliedForSort || 0;
-            if (repliedB !== repliedA) return repliedB - repliedA;
-            return (a.refIndex || 0) - (b.refIndex || 0);
-        });
-    } else if (param.author) {
-        const agg = applyFilters(comments, [createChannelOwnerFilter(true)]);
-        resultSearch = applyTextMatches(
-            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
-            matches
-        );
-
-        if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_author']);
-            if (resolvedOrder === 'oldest') {
-                resultSearch = Array.from(resultSearch).reverse();
-            }
-
-            updateButtonState(
-                'ycs_btn_author',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Show comments, replies, chat from the author (Oldest)'
-                    : 'Show comments, replies, chat from the author (Newest)',
-                'Author'
-            );
-        }
-    } else if (param.heart) {
-        const agg = applyFilters(comments, [createCreatorHeartFilter(true)]);
-        resultSearch = applyTextMatches(
-            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
-            matches
-        );
-
-        if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_heart']);
-            if (resolvedOrder === 'oldest') {
-                resultSearch = Array.from(resultSearch).reverse();
-            }
-
-            updateButtonState(
-                'ycs_btn_heart',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Show comments and replies that the author likes (Oldest)'
-                    : 'Show comments and replies that the author likes (Newest)'
-            );
-        }
-    } else if (param.verified) {
-        const agg = applyFilters(comments, [createVerifiedFilter(true)]);
-        resultSearch = applyTextMatches(
-            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
-            matches
-        );
-
-        if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_verified']);
-            if (resolvedOrder === 'oldest') {
-                resultSearch = Array.from(resultSearch).reverse();
-            }
-
-            updateButtonState(
-                'ycs_btn_verified',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Show comments, replies and chat from verified authors (Oldest)'
-                    : 'Show comments, replies and chat from verified authors (Newest)'
-            );
-        }
-    } else if (param.random) {
-        if (trimmedQuery) {
-            const subset = Array.from(matches ?? []);
-            if (subset.length > 0) {
-                const pick = subset[Math.floor(Math.random() * subset.length)];
-                resultSearch = [
-                    {
-                        item: pick,
-                        refIndex: (pick as any)?._index ?? 0
-                    }
-                ];
-            } else {
-                resultSearch = [];
-            }
-        } else {
-            resultSearch = getRandomComment(comments) as ICommentsFuseResult[];
-        }
-    } else if (param.timestamp) {
-        const agg = applyFilters(comments, [createTimelineFilter(true)]);
-        resultSearch = applyTextMatches(
-            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
-            matches
-        );
-
-        if (resultSearch.length > 0) {
-            if (GlobalStore?.sortTimestamp === true) {
-                resultSearch.sort((a, b) => {
-                    const getFirstTimestamp = (item: any): number => {
-                        const runs = item.commentRenderer?.contentText?.runs;
-                        if (runs && runs.length > 0) {
-                            for (const run of runs) {
-                                if (run.navigationEndpoint?.watchEndpoint?.startTimeSeconds >= 0) {
-                                    return run.navigationEndpoint.watchEndpoint.startTimeSeconds * 1000;
-                                }
-                            }
-                        }
-                        return 0;
-                    };
-                    return getFirstTimestamp(a.item) - getFirstTimestamp(b.item);
-                });
-            } else {
-                resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-            }
-
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_timestamps']);
-            if (resolvedOrder === 'oldest') {
-                resultSearch = Array.from(resultSearch).reverse();
-            }
-
-            updateButtonState(
-                'ycs_btn_timestamps',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Show comments, replies, chat with time stamps (Oldest)'
-                    : 'Show comments, replies, chat with time stamps (Newest)',
-                'Time stamps'
-            );
-        }
-    } else if (param.sortFirst) {
-        const newest = filterNewestFirst(comments) || [];
-        resultSearch = applyTextMatches(newest, matches);
-
-        if (resultSearch.length > 0) {
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_sort_first']);
-            if (resolvedOrder === 'oldest') {
-                resultSearch = Array.from(resultSearch).reverse();
-            }
-
-            updateButtonState(
-                'ycs_btn_sort_first',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Show all comments, chat, video transcript sorted by date (Oldest)'
-                    : 'Show all comments, chat, video transcript sorted by date (Newest)',
-                'All'
-            );
-        }
+    if (trimmedQuery) {
+        const fuse = getFuseInstance(comments, options);
+        resultSearch = mapFuseResults(fuse.search(trimmedQuery));
     } else {
-        if (trimmedQuery) {
-            const fuse = getFuseInstance(comments, options);
-            resultSearch = mapFuseResults(fuse.search(trimmedQuery));
-        } else {
-            // Handle empty query by returning all results
-            resultSearch = comments.map((item, index) => ({
-                item,
-                refIndex: index,
-                score: 0
-            }));
+        // Handle empty query by returning all results
+        resultSearch = comments.map((item, index) => ({
+            item,
+            refIndex: index,
+            score: 0
+        }));
+        if (param.sortOrder === 'relevance') {
+            // No such thing as sorting by relevance for empty query, default to newest
+            param.sortOrder = 'newest';
+        }
+    }
+
+    const filterConfigs = [] as FilterConfig[];
+    for (const key of Object.keys(param)) {
+        switch (key) {
+            case 'links':
+                filterConfigs.push(createLinksFilter(true));
+                break;
+            case 'members':
+                filterConfigs.push(createMemberFilter(true));
+                break;
+            case 'donated':
+                filterConfigs.push(createDonatedFilter(true));
+                break;
+            case 'author':
+                filterConfigs.push(createChannelOwnerFilter(true));
+                break;
+            case 'heart':
+                filterConfigs.push(createCreatorHeartFilter(true));
+                break;
+            case 'verified':
+                filterConfigs.push(createVerifiedFilter(true));
+                break;
+            case 'timestamp':
+                filterConfigs.push(createTimelineFilter(true));
+                break;
+            case 'origin':
+                filterConfigs.push(createOriginalCommentsFilter(true));
+                break;
+            default:
+                break;
+        }
+    }
+
+    if (filterConfigs.length > 0) {
+        const agg = applyFilters(comments, filterConfigs);
+        resultSearch = applyTextMatches(
+            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
+            matches
+        );
+    }
+
+    if (param.random && resultSearch.length > 1) {
+        resultSearch = [resultSearch[Math.floor(Math.random() * resultSearch.length)]];
+    }
+
+    if (resultSearch.length > 1) {
+        if (context.timestampSort == true && param.sortOrder === 'newest') {
+            resultSearch = sortByTimestamp(resultSearch);
+        } else if (context.timestampSort == true && param.sortOrder === 'oldest') {
+            resultSearch = sortByTimestamp(resultSearch).reverse();
+        } else if (param.sortOrder === 'newest') {
+            resultSearch.sort((a, b) => a.refIndex - b.refIndex);
+        } else if (param.sortOrder === 'oldest') {
+            resultSearch.sort((a, b) => b.refIndex - a.refIndex);
+        } else if (param.sortOrder === 'most_likes') {
+            resultSearch.sort(
+                (a, b) => (b.item as any)?.commentRenderer?.likeCount - (a.item as any)?.commentRenderer?.likeCount
+            );
+        } else if (param.sortOrder === 'least_likes') {
+            resultSearch.sort(
+                (a, b) => (a.item as any)?.commentRenderer?.likeCount - (b.item as any)?.commentRenderer?.likeCount
+            );
+        } else if (param.sortOrder === 'most_replies') {
+            resultSearch.sort(
+                (a, b) =>
+                    ((b.item as any)?.commentRenderer?.replyCount ?? 0) -
+                    ((a.item as any)?.commentRenderer?.replyCount ?? 0)
+            );
+        } else if (param.sortOrder === 'least_replies') {
+            resultSearch.sort(
+                (a, b) =>
+                    ((a.item as any)?.commentRenderer?.replyCount ?? 0) -
+                    ((b.item as any)?.commentRenderer?.replyCount ?? 0)
+            );
+        } else if (param.sortOrder === 'author_az') {
+            resultSearch.sort((a, b) =>
+                (a.item as any)?.commentRenderer?.authorText?.simpleText.localeCompare(
+                    (b.item as any)?.commentRenderer?.authorText?.simpleText
+                )
+            );
+        } else if (param.sortOrder === 'author_za') {
+            resultSearch.sort((a, b) =>
+                (b.item as any)?.commentRenderer?.authorText?.simpleText.localeCompare(
+                    (a.item as any)?.commentRenderer?.authorText?.simpleText
+                )
+            );
+        } else if (param.sortOrder === 'longest') {
+            resultSearch.sort(
+                (a, b) =>
+                    (b.item as any)?.commentRenderer?.contentText?.fullText.length -
+                    (a.item as any)?.commentRenderer?.contentText?.fullText.length
+            );
+        } else if (param.sortOrder === 'shortest') {
+            resultSearch.sort(
+                (a, b) =>
+                    (a.item as any)?.commentRenderer?.contentText?.fullText.length -
+                    (b.item as any)?.commentRenderer?.contentText?.fullText.length
+            );
         }
     }
 

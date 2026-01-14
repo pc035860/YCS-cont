@@ -300,14 +300,20 @@ async function fetchAllCommentsBackground(
 
 const STORE_CACHE_YCS = 'STORE_CACHE_YCS';
 
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async (details) => {
     const optsStorage = await chrome.storage.local.get();
 
-    await chrome.storage.local.set({
-        ...options,
-        ...optsStorage
-    });
-
+    if (details.reason === 'update') {
+        await chrome.storage.local.set({
+            ...optsStorage,
+            filterButtons: options.filterButtons
+        });
+    } else {
+        await chrome.storage.local.set({
+            ...options,
+            ...optsStorage
+        });
+    }
     chrome.tabs.query({ url: '*://*.youtube.com/*' }, (tabs) => {
         for (const tab of tabs) {
             if (tab.id) {

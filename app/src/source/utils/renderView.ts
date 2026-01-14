@@ -1060,15 +1060,10 @@ function renderLoadComments(
 
 // Generate HTML for a single button
 function generateFilterButtonHTML(buttonId: string): string {
-    const buttonConfigs: Record<
-        string,
-        { name: string; title: string; dataSort?: string; dataSortChat?: string; dataSortTrp?: string; icon?: string }
-    > = {
+    const buttonConfigs: Record<string, { name: string; title: string; icon?: string }> = {
         ycs_btn_timestamps: {
             name: 'timestamps',
-            title: 'Show comments, replies, chat with time stamps (Newest)',
-            dataSort: 'newest',
-            dataSortChat: 'newest'
+            title: 'Show comments, replies, chat with time stamps'
         },
         ycs_btn_timestamp_viz: {
             name: 'timestampViz',
@@ -1077,56 +1072,29 @@ function generateFilterButtonHTML(buttonId: string): string {
         },
         ycs_btn_author: {
             name: 'author',
-            title: 'Show comments, replies, chat from the author (Newest)',
-            dataSort: 'newest',
-            dataSortChat: 'newest'
+            title: 'Show comments, replies, chat from the author'
         },
         ycs_btn_heart: {
             name: 'heart',
-            title: 'Show comments and replies that the author likes (Newest)',
-            dataSort: 'newest',
+            title: 'Show comments and replies that the author likes',
             icon: '<span class="ycs-creator-heart_icon">❤</span>'
         },
         ycs_btn_verified: {
             name: 'verified',
-            title: 'Show comments, replies and chat from a verified authors (Newest)',
-            dataSort: 'newest',
-            dataSortChat: 'newest',
+            title: 'Show comments, replies and chat from a verified authors',
             icon: '<span class="ycs-creator-verified_icon">✔</span>'
         },
         ycs_btn_links: {
             name: 'links',
-            title: 'Shows links in comments, replies, chat, video transcript (Newest)',
-            dataSort: 'newest',
-            dataSortChat: 'newest',
-            dataSortTrp: 'newest'
-        },
-        ycs_btn_likes: {
-            name: 'likes',
-            title: 'Show comments, replies by number of likes (sort largest to smallest)'
-        },
-        ycs_btn_replied_comments: {
-            name: 'replied',
-            title: 'Show comments by number of replies (sort largest to smallest)'
+            title: 'Shows links in comments, replies, chat, video transcript'
         },
         ycs_btn_members: {
             name: 'members',
-            title: 'Show comments, replies, chat from channel members (Newest)',
-            dataSort: 'newest',
-            dataSortChat: 'newest'
+            title: 'Show comments, replies, chat from channel members'
         },
         ycs_btn_donated: {
             name: 'donated',
-            title: 'Show chat comments from users who have donated (Newest)',
-            dataSort: 'newest',
-            dataSortChat: 'newest'
-        },
-        ycs_btn_sort_first: {
-            name: 'sortFirst',
-            title: 'Show all comments, chat, video transcript sorted by date (Newest)',
-            dataSort: 'newest',
-            dataSortChat: 'newest',
-            dataSortTrp: 'newest'
+            title: 'Show chat comments from users who have donated'
         },
         ycs_btn_random: {
             name: 'random',
@@ -1134,32 +1102,29 @@ function generateFilterButtonHTML(buttonId: string): string {
         },
         ycs_btn_quick_chat: {
             name: 'quickChat',
-            title: 'Show chat replay (Newest)',
-            dataSort: 'newest',
-            dataSortChat: 'newest'
+            title: 'Show chat replay'
         },
         ycs_btn_quick_transcript: {
             name: 'quickTranscript',
-            title: 'Show transcript (Newest)',
-            dataSort: 'newest',
-            dataSortTrp: 'newest'
+            title: 'Show transcript'
+        },
+        ycs_btn_comments: {
+            name: 'comments',
+            title: 'Show comments and replies'
+        },
+        ycs_btn_origin: {
+            name: 'origin',
+            title: 'Show non-reply comments only'
         }
     };
 
     const config = buttonConfigs[buttonId];
     if (!config) return '';
 
-    const dataSortAttr = config.dataSort ? `data-sort="${config.dataSort}"` : '';
-    const dataSortChatAttr = config.dataSortChat ? `data-sort-chat="${config.dataSortChat}"` : '';
-    const dataSortTrpAttr = config.dataSortTrp ? `data-sort-trp="${config.dataSortTrp}"` : '';
-    const sortIcon = config.dataSort ? iconSortDown() : '';
     const icon = config.icon || '';
 
     return `
         <button id="${buttonId}"
-            ${dataSortAttr}
-            ${dataSortChatAttr}
-            ${dataSortTrpAttr}
             class="ycs-btn-search ycs-title"
             name="${config.name}" type="button"
             title="${config.title}">
@@ -1185,17 +1150,18 @@ function generateFilterButtonHTML(buttonId: string): string {
                                     ? 'Members'
                                     : config.name === 'donated'
                                       ? 'Donated'
-                                      : config.name === 'sortFirst'
-                                        ? 'All'
+                                      : config.name === 'comments'
+                                        ? 'Comments'
                                         : config.name === 'random'
                                           ? 'Random'
                                           : config.name === 'quickChat'
                                             ? 'Chat'
                                             : config.name === 'quickTranscript'
                                               ? 'Transcript'
-                                              : config.name
+                                              : config.name === 'origin'
+                                                ? 'Origin'
+                                                : config.name
             }
-            ${sortIcon}
         </button>`;
 }
 
@@ -1209,12 +1175,19 @@ function renderSearch(node: HTMLElement): void {
                     <input title="Write the search query, press Enter or click the button Search."
                         class="ycs-search__input ycs_noselect" type="text" id="ycs-input-search" placeholder="Search">
                 </div>
-                <select title="Select a search category." name="ycs_search_select"
-                    id="ycs_search_select" class="ycs-btn-search ycs-title ycs-search-select ycs_noselect">
-                    <option value="comments">Comments</option>
-                    <option value="chat">Chat replay</option>
-                    <option value="video">Trpt. video</option>
-                    <option selected value="all">All</option>
+                <select title="Sort by." name="ycs_sort_select"
+                    id="ycs_sort_select" class="ycs-btn-search ycs-title ycs_sort_select ycs_noselect">
+                    <option selected value="relevance">Relevance</option>
+                    <option value="newest">Newest</option>
+                    <option value="oldest">Oldest</option>
+                    <option value="most_likes">Most Likes</option>
+                    <option value="least_likes">Least Likes</option>
+                    <option value="most_replies">Most Replies</option>
+                    <option value="least_replies">Least Replies</option>
+                    <option value="author_az">Author(a-z)</option>
+                    <option value="author_za">Author(z-a)</option>
+                    <option value="longest">Longest</option>
+                    <option value="shortest">Shortest</option>
                 </select>
                 <button id="ycs_btn_search" class="ycs-btn-search ycs-title ycs_noselect" type="button">
                     Search
@@ -1226,6 +1199,10 @@ function renderSearch(node: HTMLElement): void {
                         <label for="ycs_extended_search" class="ycs_noselect ycs-title" title="Enables the use of unix-like search commands">
                             <input type="checkbox" name="ycs_extended_search" id="ycs_extended_search">
                             <span class="ycs-ext-search_title">Extended search</span>
+                        </label>
+                        <label hidden id="ycs_timestamp_sort_label" for="ycs_timestamp_sort" class="ycs_noselect ycs-title" title="Only applies when sorted by newest or oldest">
+                            <input type="checkbox" id="ycs_timestamp_sort" name="ycs_timestamp_sort">
+                            <span class="ycs-ext-search_title">Sort by video time</span>
                         </label>
                         <div class="ycs-ext-search-opts">
                             <fieldset>
@@ -1239,7 +1216,6 @@ function renderSearch(node: HTMLElement): void {
                                     <input type="radio" id="ycs_extended_search_main" name="ycs_ext_search_opts" value="main" disabled checked>
                                     <span class="ycs-ext-search_title">Main</span>
                                 </label>
-
                             </fieldset>
                         </div>
                         <a href="https://github.com/sonigy/YCS#extended-search" class="ycs-title ycs-ext-search_link" target="_blank" rel="noopener noreferrer" title="How to use">?</a>

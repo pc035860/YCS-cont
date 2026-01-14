@@ -2,14 +2,13 @@ import Fuse from '../../../../node_modules/fuse.js/dist/fuse';
 
 import { buildKeysSignature, buildOptionsSignature, cloneFuseOptions } from './fuseCacheUtils';
 
-import { filterAllTrpVideoComments, filterLinksTrpVideoComments } from '../../utils/filters/comments';
-import { ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
+import { filterLinksTrpVideoComments } from '../../utils/filters/comments';
+import { ICommentsFuseResult, IParamSearch, ISelectedSort } from '../../utils/interfaces/i_types';
 import { wrapTryCatch } from '../../utils/common';
 import { getCommentsTrVideo, WebResourcesState } from '../state';
 import { SearchContext } from './types';
 
 export interface SearchButtonState {
-    order?: 'newest' | 'oldest';
     title?: string;
     label?: string;
     dataset?: Record<string, string>;
@@ -23,16 +22,23 @@ export interface TranscriptSearchResult {
     buttonStates: Record<string, SearchButtonState>;
 }
 
+const UNSUPPORTED_SORTS: ISelectedSort[] = [
+    'most_likes',
+    'least_likes',
+    'most_replies',
+    'least_replies',
+    'author_az',
+    'author_za'
+];
+
 const UNSUPPORTED_FILTERS: (keyof IParamSearch)[] = [
     'heart',
-    'likes',
-    'replied',
     'random',
     'author',
     'donated',
     'members',
     'verified',
-    'quickChat'
+    'origin'
 ];
 
 // Fuse cache for the full cueGroups array (subsets still use transient instances).
@@ -77,10 +83,6 @@ function mapTranscriptResults(raw: readonly Fuse.FuseResult<any>[]): ICommentsFu
             ) || 0,
         score: result.score
     }));
-}
-
-function ensureSortOrder(order?: 'newest' | 'oldest'): 'newest' | 'oldest' {
-    return order === 'oldest' ? 'oldest' : 'newest';
 }
 
 function filterByMatches(results: ICommentsFuseResult[], matches: Set<any> | null): ICommentsFuseResult[] {
@@ -159,154 +161,82 @@ export function runSearch(
     const buttonStates: Record<string, SearchButtonState> = {};
     let resultSearch: ICommentsFuseResult[] = [];
 
-    const updateButtonState = (
-        id: string,
-        order: 'newest' | 'oldest',
-        title: string,
-        label?: string,
-        dataset?: Record<string, string>
-    ): void => {
-        buttonStates[id] = { order, title, label, dataset };
-    };
-
-    if (param.links) {
-        resultSearch = filterLinksTrpVideoComments(cueGroups) as ICommentsFuseResult[];
-        resultSearch = filterByMatches(resultSearch, matches);
-
-        if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.transcript['ycs_btn_links']);
-            if (resolvedOrder === 'newest') {
-                if (trimmedQuery) {
-                    const fuse = getTranscriptFuseInstance<any>(
-                        resultSearch.map((entry) => entry.item),
-                        options
-                    );
-                    resultSearch = mapTranscriptResults(fuse.search(trimmedQuery));
-                }
-            } else {
-                if (trimmedQuery) {
-                    const base = resultSearch.map((entry) => entry.item).reverse();
-                    const fuse = getTranscriptFuseInstance<any>(base, options);
-                    resultSearch = mapTranscriptResults(fuse.search(trimmedQuery));
-                } else {
-                    resultSearch = Array.from(resultSearch).reverse();
-                }
-            }
-
-            updateButtonState(
-                'ycs_btn_links',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Shows links in comments, replies, chat, video transcript (Oldest)'
-                    : 'Shows links in comments, replies, chat, video transcript (Newest)',
-                'Links'
-            );
-        }
-    } else if (param.sortFirst) {
-        resultSearch = (filterAllTrpVideoComments(cueGroups) as ICommentsFuseResult[]) || [];
-        resultSearch = filterByMatches(resultSearch, matches);
-
-        if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            const resolvedOrder = ensureSortOrder(
-                param.sortOrder ?? context.sortOrders.transcript['ycs_btn_sort_first']
-            );
-            if (resolvedOrder === 'oldest') {
-                resultSearch = Array.from(resultSearch).reverse();
-            }
-
-            updateButtonState(
-                'ycs_btn_sort_first',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Show all comments, chat, video transcript sorted by date (Oldest)'
-                    : 'Show all comments, chat, video transcript sorted by date (Newest)',
-                'All'
-            );
-        }
-    } else if (param.timestamp) {
-        const mmRe = /^(\d{1,3})(?::(\d{1,2}))?$/;
-        const match = mmRe.exec(trimmedQuery);
-
-        if (match) {
-            const minutes = parseInt(match[1] || '0', 10);
-            const seconds = match[2] ? parseInt(match[2], 10) : undefined;
-            const fromMs = minutes * 60 * 1000 + (seconds ? seconds * 1000 : 0);
-            const toMs = seconds === undefined ? (minutes + 1) * 60 * 1000 : fromMs + 1000;
-
-            resultSearch = cueGroups
-                .filter((group: any) => {
-                    const start = wrapTryCatch(
-                        () => group?.transcriptCueGroupRenderer?.cues?.[0]?.transcriptCueRenderer?.startOffsetMs
-                    ) as number;
-                    return typeof start === 'number' && start >= fromMs && start < toMs;
-                })
-                .map((group: any) => ({
-                    item: group,
-                    refIndex:
-                        wrapTryCatch(
-                            () => group?.transcriptCueGroupRenderer?.cues?.[0]?.transcriptCueRenderer?.startOffsetMs
-                        ) || 0
-                }));
-
-            const currentOrder = context.sortOrders.transcript['ycs_btn_timestamps'] ?? 'newest';
-            if (currentOrder === 'oldest') {
-                resultSearch = Array.from(resultSearch).reverse();
-                updateButtonState(
-                    'ycs_btn_timestamps',
-                    'oldest',
-                    'Show comments, replies, chat with time stamps (Oldest)',
-                    'Time stamps',
-                    { sortTrp: 'newest' }
-                );
-            } else {
-                updateButtonState(
-                    'ycs_btn_timestamps',
-                    'newest',
-                    'Show comments, replies, chat with time stamps (Newest)',
-                    'Time stamps',
-                    { sortTrp: 'oldest' }
-                );
-            }
-        } else {
-            const fuse = getTranscriptFuseInstance<any>(cueGroups, options);
-            resultSearch = mapTranscriptResults(fuse.search(trimmedQuery));
-        }
+    if (trimmedQuery) {
+        const fuse = getTranscriptFuseInstance<any>(cueGroups, options);
+        resultSearch = mapTranscriptResults(fuse.search(trimmedQuery));
     } else {
         // Handle empty query by returning all results
-        if (!trimmedQuery) {
-            resultSearch = mapTranscriptResults(
-                cueGroups.map((item, index) => ({
-                    item,
-                    refIndex: index,
-                    score: 0
-                }))
-            );
-        } else {
-            const fuse = getTranscriptFuseInstance<any>(cueGroups, options);
-            resultSearch = mapTranscriptResults(fuse.search(trimmedQuery));
+        resultSearch = mapTranscriptResults(
+            cueGroups.map((item, index) => ({
+                item,
+                refIndex: index,
+                score: 0
+            }))
+        );
+        if (param.sortOrder === 'relevance') {
+            // No such thing as sorting by relevance for empty query, default to newest
+            param.sortOrder = 'newest';
         }
+    }
 
-        // Apply sorting for quickTranscript filter
-        if (param.quickTranscript && resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
+    for (const key of Object.keys(param)) {
+        switch (key) {
+            case 'links':
+                resultSearch = filterLinksTrpVideoComments(cueGroups) as ICommentsFuseResult[];
+                resultSearch = filterByMatches(resultSearch, matches);
+                break;
+            case 'timestamp': {
+                const mmRe = /^(\d{1,3})(?::(\d{1,2}))?$/;
+                const match = mmRe.exec(trimmedQuery);
 
-            const resolvedOrder = ensureSortOrder(
-                param.sortOrder ?? context.sortOrders.transcript['ycs_btn_quick_transcript']
-            );
-            if (resolvedOrder === 'oldest') {
-                resultSearch = Array.from(resultSearch).reverse();
+                if (match) {
+                    const minutes = parseInt(match[1] || '0', 10);
+                    const seconds = match[2] ? parseInt(match[2], 10) : undefined;
+                    const fromMs = minutes * 60 * 1000 + (seconds ? seconds * 1000 : 0);
+                    const toMs = seconds === undefined ? (minutes + 1) * 60 * 1000 : fromMs + 1000;
+
+                    resultSearch = cueGroups
+                        .filter((group: any) => {
+                            const start = wrapTryCatch(
+                                () => group?.transcriptCueGroupRenderer?.cues?.[0]?.transcriptCueRenderer?.startOffsetMs
+                            ) as number;
+                            return typeof start === 'number' && start >= fromMs && start < toMs;
+                        })
+                        .map((group: any) => ({
+                            item: group,
+                            refIndex:
+                                wrapTryCatch(
+                                    () =>
+                                        group?.transcriptCueGroupRenderer?.cues?.[0]?.transcriptCueRenderer
+                                            ?.startOffsetMs
+                                ) || 0
+                        }));
+                }
+                break;
             }
+            default:
+                break;
+        }
+    }
 
-            updateButtonState(
-                'ycs_btn_quick_transcript',
-                resolvedOrder,
-                resolvedOrder === 'oldest' ? 'Show transcript (Oldest)' : 'Show transcript (Newest)',
-                'Transcript'
+    if (resultSearch.length > 1) {
+        if (param.sortOrder === 'oldest') {
+            resultSearch.sort((a, b) => b.refIndex - a.refIndex);
+        } else if (param.sortOrder === 'longest') {
+            resultSearch.sort(
+                (a, b) =>
+                    (b.item as any).transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.cue.simpleText.length -
+                    (a.item as any).transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.cue.simpleText.length
             );
+        } else if (param.sortOrder === 'shortest') {
+            resultSearch.sort(
+                (a, b) =>
+                    (a.item as any).transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.cue.simpleText.length -
+                    (b.item as any).transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.cue.simpleText.length
+            );
+        } else if (param.sortOrder === 'newest' || UNSUPPORTED_SORTS.some((key) => param.sortOrder === key)) {
+            // Unsupported sorts default to newest
+            resultSearch.sort((a, b) => a.refIndex - b.refIndex);
         }
     }
 

@@ -25,8 +25,8 @@ import {
     clearCurrentVideoAgeRestricted
 } from '../utils/innertube';
 
-import { IParamSearch, ISelectedSearch, IYCSOptions } from '../utils/interfaces/i_types';
-import type { ChatItem, CommentItem } from '../utils/interfaces/i_types';
+import { IParamSearch, IYCSOptions } from '../utils/interfaces/i_types';
+import type { ChatItem, CommentItem, ISelectedSort } from '../utils/interfaces/i_types';
 
 import { iconOk, iconReload, iconWarning, iconError, iconStop, iconInfo } from '../utils/icons';
 import { renderLoadComments, renderSearch, loadFilterButtons } from '../utils/renderView';
@@ -108,26 +108,22 @@ import { registerCommentInteractions } from './ui/commentInteractions';
 import { runSearch as runCommentsSearch, clearCommentsFuseCache } from './search/commentsSearch';
 import { runSearch as runChatSearch, clearChatFuseCache } from './search/chatSearch';
 import { runSearch as runTranscriptSearch, clearTranscriptFuseCache } from './search/transcriptSearch';
-import { SearchContext, SortOrder } from './search/types';
+import { SearchContext } from './search/types';
 import { renderCommentsResult, renderChatResult, renderTranscriptResult } from './ui/render';
 
 const DEBUG = false;
 
-const CHAT_UNSUPPORTED_FILTERS = ['heart', 'likes', 'replied', 'random', 'quickTranscript', 'timestampViz'] as const;
+const CHAT_UNSUPPORTED_FILTERS = ['heart', 'random', 'timestampViz', 'origin'] as const;
 const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'heart',
-    'likes',
-    'replied',
     'random',
     'author',
     'donated',
     'members',
     'verified',
-    'quickChat',
-    'timestampViz'
+    'timestampViz',
+    'origin'
 ] as const;
-
-type SortAttribute = 'sort' | 'sortChat' | 'sortTrp';
 
 const dropdownMenus = new Set<HTMLElement>();
 
@@ -154,34 +150,6 @@ const cleanupShortsUI = (): void => {
     console.log('YCS: YouTube Shorts support is disabled');
 };
 
-const getSortableButtonIds = (): string[] => {
-    if (filterRegistry?.sortButtonIds?.length) {
-        return filterRegistry.sortButtonIds;
-    }
-
-    return FILTER_BUTTONS.filter((config) => config.supportsSort).map((config) => config.elementId);
-};
-
-const parseSortOrder = (value: string | undefined): SortOrder | undefined => {
-    if (value === 'newest' || value === 'oldest') {
-        return value;
-    }
-    return undefined;
-};
-
-const readSortOrders = (attribute: SortAttribute): Partial<Record<string, SortOrder>> => {
-    const map: Partial<Record<string, SortOrder>> = {};
-    for (const id of getSortableButtonIds()) {
-        const element = document.getElementById(id) as HTMLElement | null;
-        if (!element) continue;
-        const parsed = parseSortOrder(element.dataset?.[attribute]);
-        if (parsed) {
-            map[id] = parsed;
-        }
-    }
-    return map;
-};
-
 const getParamByElementId = (elementId: string): FilterParamKey | undefined => {
     const mapped = filterRegistry?.idToCode?.[elementId];
     if (mapped) {
@@ -203,6 +171,7 @@ const buildSearchContext = (): SearchContext => {
     const extendedToggle = document.getElementById('ycs_extended_search') as HTMLInputElement | null;
     const extendedTitle = document.getElementById('ycs_extended_search_title') as HTMLInputElement | null;
     const extendedMain = document.getElementById('ycs_extended_search_main') as HTMLInputElement | null;
+    const tsSort = document.getElementById('ycs_timestamp_sort') as HTMLInputElement | null;
 
     return {
         extendedSearch: {
@@ -210,11 +179,7 @@ const buildSearchContext = (): SearchContext => {
             title: Boolean(extendedTitle?.checked),
             main: Boolean(extendedMain?.checked)
         },
-        sortOrders: {
-            comments: readSortOrders('sort'),
-            chat: readSortOrders('sortChat'),
-            transcript: readSortOrders('sortTrp')
-        }
+        timestampSort: Boolean(tsSort?.checked)
     };
 };
 
@@ -482,20 +447,22 @@ export function initApp(): void {
 
         const setActiveFilterByElement = (param: FilterParamKey | null, el?: HTMLElement): void => {
             try {
-                FILTER_BUTTONS.forEach(({ elementId }) => {
-                    const button = document.getElementById(elementId);
-                    button?.classList.remove('ycs_btn_active');
-                });
-
-                if (param && el) {
-                    el.classList.add('ycs_btn_active');
+                if (param === null) {
+                    const activeButtons = document.getElementsByClassName('ycs_btn_active');
+                    for (const btn of Array.from(activeButtons)) {
+                        btn.classList.remove('ycs_btn_active');
+                    }
                 }
 
-                // toggle clear-filter button visibility
-                const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
-                if (btnClear) {
-                    const hasActive = !!param;
-                    btnClear.style.visibility = hasActive ? 'visible' : 'hidden';
+                if (param === 'timestamp') {
+                    const tsSortLabel = document.getElementById('ycs_timestamp_sort_label') as HTMLInputElement;
+                    if (tsSortLabel) tsSortLabel.hidden = !tsSortLabel.hidden;
+                }
+
+                if (el?.classList.contains('ycs_btn_active')) {
+                    el.classList.remove('ycs_btn_active');
+                } else {
+                    el?.classList.add('ycs_btn_active');
                 }
             } catch {
                 // Silently ignore DOM manipulation errors
@@ -506,25 +473,16 @@ export function initApp(): void {
 
         const getActiveFilterParam = (): IParamSearch | undefined => {
             try {
-                const active = document.querySelector('.ycs_btn_active') as HTMLElement | null;
-                const paramKey = active?.id ? getParamByElementId(active.id) : undefined;
-                if (!paramKey) return undefined;
-
-                const param: IParamSearch = { [paramKey]: true } as IParamSearch;
-
-                // Get sort order from the active button's dataset
-                if (active) {
-                    const sortDatasetKeys: Array<'sort' | 'sortChat' | 'sortTrp'> = ['sort', 'sortChat', 'sortTrp'];
-
-                    for (const key of sortDatasetKeys) {
-                        const datasetOrder = active.dataset[key] as SortOrder | undefined;
-                        if (datasetOrder === 'newest' || datasetOrder === 'oldest') {
-                            param.sortOrder = datasetOrder;
-                            break;
-                        }
-                    }
+                const activeEls = Array.from(document.querySelectorAll('.ycs_btn_active')) as HTMLElement[];
+                const param: IParamSearch = {};
+                for (const el of activeEls) {
+                    param[getParamByElementId(el.id) as FilterParamKey] = true;
                 }
 
+                const elSelectSortSearch = document.getElementById('ycs_sort_select') as HTMLSelectElement;
+                param.sortOrder = elSelectSortSearch
+                    ? (elSelectSortSearch.options[elSelectSortSearch.options.selectedIndex].value as ISelectedSort)
+                    : 'relevance';
                 return param;
             } catch {
                 return undefined;
@@ -539,49 +497,19 @@ export function initApp(): void {
             },
             callbacks: {
                 updateTotalResultDisplay,
-                getSearchQuery
+                getSearchQuery,
+                getActiveFilterParam
             }
         };
         const handleTimestampViz = createTimestampVizHandler(timestampVizDeps);
 
-        const executeSearchBasedOnType = (param?: IParamSearch, forceType?: ISelectedSearch): void => {
-            const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement | null;
-            const query = getSearchQuery();
-
+        const executeSearchBasedOnType = (param?: IParamSearch): void => {
             // Special handling for timestampViz
             if (param?.timestampViz) {
                 handleTimestampViz();
                 return;
             }
-
-            const selected =
-                forceType ||
-                (elSelectOptSearch
-                    ? (elSelectOptSearch.options[elSelectOptSearch.options.selectedIndex].value as ISelectedSearch)
-                    : 'all');
-
-            switch (selected) {
-                case 'comments': {
-                    const result = runCommentsPipeline('#ycs-search-result', query, param);
-                    updateTotalResultDisplay(result.summary);
-                    break;
-                }
-                case 'chat': {
-                    const result = runChatPipeline('#ycs-search-result', query, param);
-                    updateTotalResultDisplay(result.summary);
-                    break;
-                }
-                case 'video': {
-                    const result = runTranscriptPipeline('#ycs-search-result', query, param);
-                    updateTotalResultDisplay(result.summary);
-                    break;
-                }
-                case 'all':
-                default: {
-                    searchCommentsAll('#ycs-search-result', param);
-                    break;
-                }
-            }
+            searchCommentsAll('#ycs-search-result', param);
         };
 
         const initFilterButtons = (filterButtons?: Array<{ id: string; enabled: boolean }>): void => {
@@ -629,24 +557,20 @@ export function initApp(): void {
 
                         state = resetSearchCounts(state);
 
-                        const eInputSearch = document.getElementById('ycs-input-search') as HTMLInputElement;
+                        const elSearchRes = document.getElementById('ycs-search-result');
+                        const elSearchTotalRes = document.getElementById(
+                            'ycs-search-total-result'
+                        ) as HTMLElement | null;
 
-                        if (eInputSearch?.value && eInputSearch.value.trim()) {
-                            requestAnimationFrame(() => {
-                                const searchBtn = document.getElementById('ycs_btn_search');
-                                searchBtn?.click();
-                            });
-                        } else {
-                            const elSearchRes = document.getElementById('ycs-search-result');
-                            const elSearchTotalRes = document.getElementById(
-                                'ycs-search-total-result'
-                            ) as HTMLElement | null;
-
-                            if (elSearchRes && elSearchTotalRes) {
-                                elSearchRes.innerText = '';
-                                elSearchTotalRes.innerText = 'Search cleared';
-                            }
+                        if (elSearchRes && elSearchTotalRes) {
+                            elSearchRes.innerText = '';
+                            elSearchTotalRes.innerText = 'Search cleared';
                         }
+
+                        const tsSortLabel = document.getElementById('ycs_timestamp_sort_label') as HTMLInputElement;
+                        if (tsSortLabel) tsSortLabel.hidden = true;
+                        const tsSort = document.getElementById('ycs_timestamp_sort') as HTMLInputElement | null;
+                        if (tsSort) tsSort.checked = false;
 
                         const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
                         if (btnClear) btnClear.style.visibility = 'hidden';
@@ -1098,7 +1022,7 @@ export function initApp(): void {
                     const elSearchRes = document.getElementById('ycs-search-result');
                     const elSearchTotalRes = document.getElementById('ycs-search-total-result') as HTMLElement | null;
 
-                    if (activeParam) {
+                    if (Object.keys(activeParam ?? { SortOrder: 'newest' }).length > 1) {
                         // Reapply current filter while only clearing the text query
                         requestAnimationFrame(() => {
                             btnSearch?.click();
@@ -1467,10 +1391,15 @@ export function initApp(): void {
              */
 
             const hasChatUnsupportedFilter = CHAT_UNSUPPORTED_FILTERS.some((filter) => param?.[filter]);
-            const shouldRenderChat = !param || param.sortFirst === true || !hasChatUnsupportedFilter;
+            const shouldRenderChat =
+                (param?.quickChat || (!param?.quickComments && !param?.quickTranscript)) && !hasChatUnsupportedFilter;
 
             const hasTranscriptUnsupportedFilter = TRANSCRIPT_UNSUPPORTED_FILTERS.some((filter) => param?.[filter]);
-            const shouldRenderTranscript = !param || param.sortFirst === true || !hasTranscriptUnsupportedFilter;
+            const shouldRenderTranscript =
+                (param?.quickTranscript || (!param?.quickComments && !param?.quickChat)) &&
+                !hasTranscriptUnsupportedFilter;
+
+            const shouldRenderComments = param?.quickComments || (!param?.quickTranscript && !param?.quickChat);
 
             if (elSearchAll) elSearchAll.textContent = '';
 
@@ -1486,7 +1415,7 @@ export function initApp(): void {
             state = resetSearchCounts(state);
 
             try {
-                if (comments.length > 0) {
+                if (shouldRenderComments && comments.length > 0) {
                     elSearchAll?.appendChild(elWrapComments);
                     runCommentsPipeline('#ycs_allsearch__wrap_comments', query, param);
                 }
@@ -1504,32 +1433,12 @@ export function initApp(): void {
                 const searchCounts = getSearchCounts(state);
                 const resTotalSearch = searchCounts.comments + searchCounts.commentsChat + searchCounts.commentsTrVideo;
 
-                let resultText = '';
-                if (param?.timestamp) {
-                    resultText = `Time stamps, found: ${resTotalSearch}`;
-                } else if (param?.author) {
-                    resultText = `Author, found: ${resTotalSearch}`;
-                } else if (param?.heart) {
-                    resultText = `Heart, found: ${resTotalSearch}`;
-                } else if (param?.verified) {
-                    resultText = `Verified authors, found: ${resTotalSearch}`;
-                } else if (param?.links) {
-                    resultText = `Links, found: ${resTotalSearch}`;
-                } else if (param?.likes) {
-                    resultText = `Likes, found: ${resTotalSearch}`;
-                } else if (param?.replied) {
-                    resultText = `Replied, found: ${resTotalSearch}`;
-                } else if (param?.members) {
-                    resultText = `Members, found: ${resTotalSearch}`;
-                } else if (param?.donated) {
-                    resultText = `Donated, found: ${resTotalSearch}`;
-                } else if (param?.random) {
-                    resultText = `Random, found: ${resTotalSearch}`;
-                } else if (param?.sortFirst) {
-                    resultText = `All comments, found: ${resTotalSearch}`;
-                } else {
-                    resultText = `(All) Found: ${resTotalSearch}`;
+                const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
+                if (param && btnClear) {
+                    btnClear.style.visibility = 'visible';
                 }
+
+                const resultText = `Found: ${resTotalSearch}`;
                 updateTotalResultDisplay(resultText);
             } catch (err) {
                 console.error(err);
@@ -1539,9 +1448,9 @@ export function initApp(): void {
             btnSearch.addEventListener('click', (): void => {
                 // keep current active filter when performing a generic Search
 
-                const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement;
+                const elSelectSortSearch = document.getElementById('ycs_sort_select') as HTMLSelectElement;
 
-                if (elSelectOptSearch) {
+                if (elSelectSortSearch) {
                     const activeParam = getActiveFilterParam();
                     executeSearchBasedOnType(activeParam);
                 }
@@ -1598,14 +1507,6 @@ export function initApp(): void {
                     }
                 };
 
-                const optSortTimestamp = (value: boolean): void => {
-                    try {
-                        GlobalStore.sortTimestamp = value;
-                    } catch (err) {
-                        console.error(err);
-                    }
-                };
-
                 const optHiddenByDefault = (opts: IYCSOptions): void => {
                     try {
                         const app = document.querySelector('.ycs-app') as HTMLElement;
@@ -1654,10 +1555,6 @@ export function initApp(): void {
 
                             case 'cache':
                                 optCached(Boolean(opts.cache));
-                                break;
-
-                            case 'sortTimestamp':
-                                optSortTimestamp(Boolean(opts.sortTimestamp));
                                 break;
 
                             case 'hiddenByDefault':

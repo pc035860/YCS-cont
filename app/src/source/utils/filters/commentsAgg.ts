@@ -77,3 +77,12 @@ export function createTimelineFilter(only = true): FilterConfig<boolean> {
 export function createDonatedFilter(only = true): FilterConfig<boolean> {
     return createFilter('donated', 'Donated Filter', (item, flag) => (!flag ? true : item.isDonated), only);
 }
+
+export function createOriginalCommentsFilter(only = true): FilterConfig<boolean> {
+    return createFilter(
+        'origin',
+        'Original Comments Filter',
+        (item, flag) => (!flag ? true : item.origin.typeComment === 'C'),
+        only
+    );
+}

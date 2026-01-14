@@ -9,7 +9,7 @@
  */
 
 import { extractVideoDuration } from '../../utils/common';
-import type { CommentItem } from '../../utils/interfaces/i_types';
+import type { CommentItem, IParamSearch } from '../../utils/interfaces/i_types';
 import {
     extractTimestamps,
     createTimeIntervals,
@@ -37,6 +37,7 @@ export interface TimestampVizStateDeps {
 export interface TimestampVizCallbacks {
     updateTotalResultDisplay: (text: string) => void;
     getSearchQuery: () => string;
+    getActiveFilterParam: () => IParamSearch | undefined;
 }
 
 export interface TimestampVizDeps {
@@ -71,17 +72,15 @@ export function createTimestampVizHandler(deps: TimestampVizDeps): () => void {
 
             // Get search query and filter comments if needed
             const query = callbacks.getSearchQuery();
+            const filters = callbacks.getActiveFilterParam();
             let filteredComments = comments;
 
-            if (query.trim()) {
-                // Use existing search logic to filter comments by search query
-                const context: SearchContext = {
-                    extendedSearch: { enabled: false, title: false, main: false },
-                    sortOrders: { comments: {}, chat: {}, transcript: {} }
-                };
-                const searchResult = runCommentsSearch(query.trim(), {}, state.getState(), context);
-                filteredComments = searchResult.results.map((result) => result.item as CommentItem);
-            }
+            // Use existing search logic to filter comments by search query
+            const context: SearchContext = {
+                extendedSearch: { enabled: false, title: false, main: false }
+            };
+            const searchResult = runCommentsSearch(query.trim(), filters, state.getState(), context);
+            filteredComments = searchResult.results.map((result) => result.item as CommentItem);
 
             // Extract timestamps from filtered comments
             const timestamps = extractTimestamps(filteredComments);

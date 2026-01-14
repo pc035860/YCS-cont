@@ -2,7 +2,6 @@ import Fuse from '../../../../node_modules/fuse.js/dist/fuse';
 
 import { buildKeysSignature, buildOptionsSignature, cloneFuseOptions } from './fuseCacheUtils';
 
-import { filterChatNewestFirst } from '../../utils/filters/chat';
 import {
     applyChatFilters,
     createChatAuthorFilter,
@@ -10,14 +9,15 @@ import {
     createChatDonatedFilter,
     createChatVerifiedFilter,
     createChatLinksFilter,
-    DerivedChatMessage
+    DerivedChatMessage,
+    ChatFilterConfig
 } from '../../utils/filters/chatAgg';
 import type { ChatItem, FuseSupportedItem, ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
 import { getCommentsChat, WebResourcesState } from '../state';
 import { SearchContext } from './types';
+import { FilterConfig } from '../../utils/filters/types';
 
 export interface SearchButtonState {
-    order?: 'newest' | 'oldest';
     title?: string;
     label?: string;
     dataset?: Record<string, string>;
@@ -31,7 +31,9 @@ export interface ChatSearchResult {
     buttonStates: Record<string, SearchButtonState>;
 }
 
-const UNSUPPORTED_FILTERS: (keyof IParamSearch)[] = ['heart', 'likes', 'replied', 'random', 'quickTranscript'];
+const UNSUPPORTED_FILTERS: (keyof IParamSearch)[] = ['heart', 'random', 'origin'];
+
+const UNSUPPORTED_SORTS: IParamSearch['sortOrder'][] = ['most_likes', 'least_likes', 'most_replies', 'least_replies'];
 
 // Fuse cache for the full chat array (subsets still use transient instances).
 interface ChatFuseCache<T> {
@@ -72,10 +74,6 @@ function mapFuseResults<T extends FuseSupportedItem>(raw: readonly Fuse.FuseResu
         refIndex: (result.item as { _index?: number })?._index ?? result.refIndex ?? 0,
         score: result.score
     }));
-}
-
-function ensureSortOrder(order?: 'newest' | 'oldest'): 'newest' | 'oldest' {
-    return order === 'oldest' ? 'oldest' : 'newest';
 }
 
 function mapDerivedToResults(items: DerivedChatMessage[]): ICommentsFuseResult<ChatItem>[] {
@@ -176,220 +174,104 @@ export function runSearch(
     const buttonStates: Record<string, SearchButtonState> = {};
     let resultSearch: ICommentsFuseResult<ChatItem>[] = [];
 
-    const updateButtonState = (id: string, order: 'newest' | 'oldest', title: string, label?: string): void => {
-        buttonStates[id] = {
-            order,
-            title,
-            label,
-            dataset: {
-                sortChat: order,
-                sort: order
-            }
+    // Convert all chat items to search results format
+    const allResults: ICommentsFuseResult<ChatItem>[] = cmntsChat.map((item, _index) => {
+        const firstAction = item.replayChatItemAction.actions?.[0];
+        const liveChatRenderer = firstAction?.addChatItemAction?.item?.liveChatTextMessageRenderer;
+
+        return {
+            item,
+            refIndex: toTimestampRef(liveChatRenderer?.timestampUsec),
+            score: 0
         };
-    };
+    });
 
-    if (param.author) {
-        const derived = applyChatFilters(cmntsChat, [createChatAuthorFilter()]);
+    // Use filterWithQuery to handle empty queries properly
+    resultSearch = filterWithQuery(allResults, trimmedQuery, options);
+    if (param.sortOrder === 'relevance' && trimmedQuery.length === 0) {
+        // No such thing as sorting by relevance for empty query, default to newest
+        param.sortOrder = 'newest';
+    }
+
+    const filterConfigs = [] as ChatFilterConfig[];
+    for (const key of Object.keys(param)) {
+        switch (key) {
+            case 'author':
+                filterConfigs.push(createChatAuthorFilter());
+                break;
+            case 'donated':
+                filterConfigs.push(createChatDonatedFilter());
+                break;
+            case 'members':
+                filterConfigs.push(createChatMembersFilter());
+                break;
+            case 'timestamp': {
+                const timestampOptions: Fuse.IFuseOptions<any> = {
+                    ...options,
+                    keys: ['replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine']
+                };
+                const fuse = getChatFuseInstance<ChatItem>(cmntsChat, timestampOptions);
+                resultSearch = mapFuseResults(fuse.search('timeline'));
+                break;
+            }
+            case 'verified':
+                filterConfigs.push(createChatVerifiedFilter());
+                break;
+            case 'links':
+                filterConfigs.push(createChatLinksFilter());
+                break;
+            default:
+                break;
+        }
+    }
+
+    if (filterConfigs.length > 0) {
+        const derived = applyChatFilters(cmntsChat, filterConfigs);
         resultSearch = mapDerivedToResults(derived);
+    }
 
-        if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_author']);
-            if (resolvedOrder === 'oldest') {
-                resultSearch = Array.from(resultSearch).reverse();
-            }
-
-            updateButtonState(
-                'ycs_btn_author',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Show comments, replies, chat from the author (Oldest)'
-                    : 'Show comments, replies, chat from the author (Newest)',
-                'Author'
+    if (resultSearch.length > 1) {
+        if (param.sortOrder === 'oldest') {
+            resultSearch.sort((a, b) => b.refIndex - a.refIndex);
+        } else if (param.sortOrder === 'longest') {
+            resultSearch.sort(
+                (a, b) =>
+                    ((b.item as any)?.replayChatItemAction?.actions?.[0]?.addChatItemAction?.item
+                        ?.liveChatTextMessageRenderer?.message?.fullText?.length ?? '') -
+                    ((a.item as any)?.replayChatItemAction?.actions?.[0]?.addChatItemAction?.item
+                        ?.liveChatTextMessageRenderer?.message?.fullText?.length ?? '')
             );
-        }
-    } else if (param.donated) {
-        const derived = applyChatFilters(cmntsChat, [createChatDonatedFilter()]);
-        resultSearch = mapDerivedToResults(derived);
-
-        if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_donated']);
-            if (resolvedOrder === 'newest') {
-                resultSearch = filterWithQuery(resultSearch, trimmedQuery, options);
-            } else {
-                resultSearch = filterWithQuery(resultSearch, trimmedQuery, options, true);
-            }
-
-            updateButtonState(
-                'ycs_btn_donated',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Show chat comments from users who have donated (Oldest)'
-                    : 'Show chat comments from users who have donated (Newest)',
-                'Donated'
+        } else if (param.sortOrder === 'shortest') {
+            resultSearch.sort(
+                (a, b) =>
+                    ((a.item as any)?.replayChatItemAction?.actions?.[0]?.addChatItemAction?.item
+                        ?.liveChatTextMessageRenderer?.message?.fullText?.length ?? '') -
+                    ((b.item as any)?.replayChatItemAction?.actions?.[0]?.addChatItemAction?.item
+                        ?.liveChatTextMessageRenderer?.message?.fullText?.length ?? '')
             );
-        }
-    } else if (param.members) {
-        const derived = applyChatFilters(cmntsChat, [createChatMembersFilter()]);
-        resultSearch = mapDerivedToResults(derived);
-
-        if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_members']);
-            if (resolvedOrder === 'newest') {
-                resultSearch = filterWithQuery(resultSearch, trimmedQuery, options);
-            } else {
-                resultSearch = filterWithQuery(resultSearch, trimmedQuery, options, true);
-            }
-
-            updateButtonState(
-                'ycs_btn_members',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Show comments, replies, chat from channel members (Oldest)'
-                    : 'Show comments, replies, chat from channel members (Newest)',
-                'Members'
+        } else if (param.sortOrder === 'author_az') {
+            resultSearch.sort((a, b) =>
+                (
+                    (a.item as any)?.replayChatItemAction?.actions?.[0]?.addChatItemAction?.item
+                        ?.liveChatTextMessageRenderer?.authorName?.simpleText ?? ''
+                ).localeCompare(
+                    (b.item as any)?.replayChatItemAction?.actions?.[0]?.addChatItemAction?.item
+                        ?.liveChatTextMessageRenderer?.authorName?.simpleText ?? ''
+                )
             );
-        }
-    } else if (param.timestamp) {
-        const timestampOptions: Fuse.IFuseOptions<any> = {
-            ...options,
-            keys: ['replayChatItemAction.actions.addChatItemAction.item.liveChatTextMessageRenderer.isTimeLine']
-        };
-
-        const fuse = getChatFuseInstance<ChatItem>(cmntsChat, timestampOptions);
-        resultSearch = mapFuseResults(fuse.search('timeline'));
-
-        if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_timestamps']);
-            if (resolvedOrder === 'oldest') {
-                resultSearch = Array.from(resultSearch).reverse();
-            }
-
-            updateButtonState(
-                'ycs_btn_timestamps',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Show comments, replies, chat with time stamps (Oldest)'
-                    : 'Show comments, replies, chat with time stamps (Newest)',
-                'Time stamps'
+        } else if (param.sortOrder === 'author_za') {
+            resultSearch.sort((a, b) =>
+                (
+                    (b.item as any)?.replayChatItemAction?.actions?.[0]?.addChatItemAction?.item
+                        ?.liveChatTextMessageRenderer?.authorName?.simpleText ?? ''
+                ).localeCompare(
+                    (a.item as any)?.replayChatItemAction?.actions?.[0]?.addChatItemAction?.item
+                        ?.liveChatTextMessageRenderer?.authorName?.simpleText ?? ''
+                )
             );
-        }
-    } else if (param.sortFirst) {
-        resultSearch = filterChatNewestFirst(commentsChat) ?? [];
-
-        if (trimmedQuery) {
-            try {
-                const fuseBase = getChatFuseInstance<ChatItem>(cmntsChat, options);
-                const matched = new Set<ChatItem>(fuseBase.search(trimmedQuery).map((entry) => entry.item));
-                resultSearch = resultSearch.filter((entry) => matched.has(entry.item));
-            } catch (error) {
-                console.error(error);
-            }
-        }
-
-        if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_sort_first']);
-            if (resolvedOrder === 'oldest') {
-                resultSearch = Array.from(resultSearch).reverse();
-            }
-
-            updateButtonState(
-                'ycs_btn_sort_first',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Show all comments, chat, video transcript sorted by date (Oldest)'
-                    : 'Show all comments, chat, video transcript sorted by date (Newest)',
-                'All'
-            );
-        }
-    } else if (param.verified) {
-        const derived = applyChatFilters(cmntsChat, [createChatVerifiedFilter()]);
-        resultSearch = mapDerivedToResults(derived);
-
-        if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_verified']);
-            if (resolvedOrder === 'newest') {
-                // Use query to further filter if present
-                if (trimmedQuery) {
-                    resultSearch = filterWithQuery(resultSearch, trimmedQuery, options);
-                }
-            } else {
-                resultSearch = filterWithQuery(resultSearch, trimmedQuery, options, true);
-            }
-
-            updateButtonState(
-                'ycs_btn_verified',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Show comments, replies and chat from verified authors (Oldest)'
-                    : 'Show comments, replies and chat from verified authors (Newest)'
-            );
-        }
-    } else if (param.links) {
-        const derived = applyChatFilters(cmntsChat, [createChatLinksFilter()]);
-        resultSearch = mapDerivedToResults(derived);
-
-        if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_links']);
-            if (resolvedOrder === 'newest') {
-                resultSearch = filterWithQuery(resultSearch, trimmedQuery, options);
-            } else {
-                resultSearch = filterWithQuery(resultSearch, trimmedQuery, options, true);
-            }
-
-            updateButtonState(
-                'ycs_btn_links',
-                resolvedOrder,
-                resolvedOrder === 'oldest'
-                    ? 'Shows links in comments, replies, chat, video transcript (Oldest)'
-                    : 'Shows links in comments, replies, chat, video transcript (Newest)',
-                'Links'
-            );
-        }
-    } else {
-        // Convert all chat items to search results format
-        const allResults: ICommentsFuseResult<ChatItem>[] = cmntsChat.map((item, _index) => {
-            const firstAction = item.replayChatItemAction.actions?.[0];
-            const liveChatRenderer = firstAction?.addChatItemAction?.item?.liveChatTextMessageRenderer;
-
-            return {
-                item,
-                refIndex: toTimestampRef(liveChatRenderer?.timestampUsec),
-                score: 0
-            };
-        });
-
-        // Use filterWithQuery to handle empty queries properly
-        resultSearch = filterWithQuery(allResults, trimmedQuery, options);
-
-        // Apply sorting for quickChat filter
-        if (param.quickChat && resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
-
-            const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.chat['ycs_btn_quick_chat']);
-            if (resolvedOrder === 'oldest') {
-                resultSearch = Array.from(resultSearch).reverse();
-            }
-
-            updateButtonState(
-                'ycs_btn_quick_chat',
-                resolvedOrder,
-                resolvedOrder === 'oldest' ? 'Show chat replay (Oldest)' : 'Show chat replay (Newest)',
-                'Chat'
-            );
+        } else if (param.sortOrder === 'newest' || UNSUPPORTED_SORTS.some((key) => param.sortOrder === key)) {
+            // Unsupported sorts default to newest
+            resultSearch.sort((a, b) => a.refIndex - b.refIndex);
         }
     }
 
