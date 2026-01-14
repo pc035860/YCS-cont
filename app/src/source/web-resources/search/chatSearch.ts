@@ -15,7 +15,6 @@ import {
 import type { ChatItem, FuseSupportedItem, ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
 import { getCommentsChat, WebResourcesState } from '../state';
 import { SearchContext } from './types';
-import { FilterConfig } from '../../utils/filters/types';
 
 export interface SearchButtonState {
     title?: string;

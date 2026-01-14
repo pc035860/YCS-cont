@@ -3,20 +3,6 @@ import { CommentsSearchResult } from '../search/commentsSearch';
 import { ChatSearchResult } from '../search/chatSearch';
 import { TranscriptSearchResult } from '../search/transcriptSearch';
 
-const BUTTON_LABELS: Record<string, string> = {
-    ycs_btn_links: 'Links',
-    ycs_btn_members: 'Members',
-    ycs_btn_donated: 'Donated',
-    ycs_btn_author: 'Author',
-    ycs_btn_timestamps: 'Time stamps',
-    ycs_btn_comments: 'Comments'
-};
-
-const BUTTON_PREFIX_HTML: Record<string, string> = {
-    ycs_btn_heart: '<span class="ycs-creator-heart_icon">❤</span>',
-    ycs_btn_verified: '<span class="ycs-creator-verified_icon">✔</span>'
-};
-
 interface ButtonState {
     title?: string;
     label?: string;
