@@ -1175,7 +1175,7 @@ function renderSearch(node: HTMLElement): void {
                     <input title="Write the search query, press Enter or click the button Search."
                         class="ycs-search__input ycs_noselect" type="text" id="ycs-input-search" placeholder="Search">
                 </div>
-                <select title="Sort by." name="ycs_sort_select"
+                <select title="Select a search category" name="ycs_sort_select"
                     id="ycs_sort_select" class="ycs-btn-search ycs-title ycs_sort_select ycs_noselect">
                     <option selected value="relevance">Relevance</option>
                     <option value="newest">Newest</option>
