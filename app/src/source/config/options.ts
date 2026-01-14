@@ -25,7 +25,8 @@ const options = {
         { id: 'ycs_btn_members', enabled: true },
         { id: 'ycs_btn_donated', enabled: true },
         { id: 'ycs_btn_random', enabled: true },
-        { id: 'ycs_btn_origin', enabled: true }
+        { id: 'ycs_btn_origin', enabled: true },
+        { id: 'ycs_btn_emoji', enabled: true }
     ]
 };
 

@@ -288,7 +288,8 @@ window.onload = async (): Promise<void> => {
                 ycs_btn_comments: 'Comments',
                 ycs_btn_quick_chat: 'Chat (Quick chat search)',
                 ycs_btn_quick_transcript: 'Transcript (Quick transcript search)',
-                ycs_btn_origin: 'Origin'
+                ycs_btn_origin: 'Origin',
+                ycs_btn_emoji: '😊 (Emoji)'
             };
             return nameMap[buttonId] || buttonId;
         };

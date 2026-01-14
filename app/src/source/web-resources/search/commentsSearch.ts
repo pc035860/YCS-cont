@@ -11,7 +11,8 @@ import {
     createTimelineFilter,
     createDonatedFilter,
     createChannelOwnerFilter,
-    createOriginalCommentsFilter
+    createOriginalCommentsFilter,
+    createEmojiCommentsFilter
 } from '../../utils/filters/commentsAgg';
 import { ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
 import { getComments, WebResourcesState } from '../state';
@@ -192,6 +193,9 @@ export function runSearch(
                 break;
             case 'origin':
                 filterConfigs.push(createOriginalCommentsFilter(true));
+                break;
+            case 'emoji':
+                filterConfigs.push(createEmojiCommentsFilter(true));
                 break;
             default:
                 break;

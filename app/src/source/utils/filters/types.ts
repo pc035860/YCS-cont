@@ -15,6 +15,7 @@ export interface DerivedComment {
     isTimeline: boolean;
     isChannelOwner: boolean;
     publishedTimeText: string;
+    hasEmoji: boolean;
 }
 
 export interface FilterConfig<T = any> {

@@ -10,7 +10,8 @@ import {
     createChatVerifiedFilter,
     createChatLinksFilter,
     DerivedChatMessage,
-    ChatFilterConfig
+    ChatFilterConfig,
+    createChatEmojiFilter
 } from '../../utils/filters/chatAgg';
 import type { ChatItem, FuseSupportedItem, ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
 import { getCommentsChat, WebResourcesState } from '../state';
@@ -218,6 +219,9 @@ export function runSearch(
                 break;
             case 'links':
                 filterConfigs.push(createChatLinksFilter());
+                break;
+            case 'emoji':
+                filterConfigs.push(createChatEmojiFilter());
                 break;
             default:
                 break;

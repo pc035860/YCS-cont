@@ -11,6 +11,7 @@ export interface DerivedChatMessage {
     isDonated: boolean;
     isVerified: boolean;
     hasLinks: boolean;
+    hasEmoji: boolean;
 }
 
 export interface ChatFilterConfig<T = any> {
@@ -53,6 +54,7 @@ function deriveChatMessage(item: ChatItem): DerivedChatMessage {
 
     const messageText = renderer?.message?.fullText || renderer?.message?.simpleText || '';
     const hasLinks = urlRegex().test(String(messageText));
+    const hasEmoji = renderer?.message?.runs?.some((run: any) => run?.emoji) ?? false;
 
     return {
         origin: item,
@@ -61,7 +63,8 @@ function deriveChatMessage(item: ChatItem): DerivedChatMessage {
         isMember,
         isDonated,
         isVerified,
-        hasLinks
+        hasLinks,
+        hasEmoji
     };
 }
 
@@ -122,4 +125,8 @@ export function createChatVerifiedFilter(): ChatFilterConfig<boolean> {
 
 export function createChatLinksFilter(): ChatFilterConfig<boolean> {
     return createChatFilter('chatLinks', (item, flag) => (!flag ? true : item.hasLinks), true);
+}
+
+export function createChatEmojiFilter(): ChatFilterConfig<boolean> {
+    return createChatFilter('chatEmoji', (item, flag) => (!flag ? true : item.hasEmoji), true);
 }

@@ -38,6 +38,7 @@ export function deriveComment(item: CommentItemLike): DerivedComment {
     const isTimeline = commentRenderer?.isTimeLine === 'timeline';
     const publishedTimeText = commentRenderer?.publishedTimeText?.runs?.[0]?.text || '';
     const isChannelOwner = Boolean(commentRenderer?.authorIsChannelOwner);
+    const hasEmoji = commentRenderer?.contentText?.renderFullText?.includes('class="ycs-attachment">');
 
     return {
         origin: item as Record<string, any>,
@@ -52,7 +53,8 @@ export function deriveComment(item: CommentItemLike): DerivedComment {
         hasLinks,
         isTimeline,
         isChannelOwner,
-        publishedTimeText
+        publishedTimeText,
+        hasEmoji
     };
 }
 

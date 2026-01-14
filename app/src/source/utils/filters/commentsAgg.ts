@@ -86,3 +86,7 @@ export function createOriginalCommentsFilter(only = true): FilterConfig<boolean>
         only
     );
 }
+
+export function createEmojiCommentsFilter(only = true): FilterConfig<boolean> {
+    return createFilter('emoji', 'Emoji Comments Filter', (item, flag) => (!flag ? true : item.hasEmoji), only);
+}

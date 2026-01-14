@@ -297,6 +297,7 @@ export interface IParamSearch {
     quickTranscript?: boolean;
     quickComments?: boolean;
     origin?: boolean;
+    emoji?: boolean;
     sortOrder?: ISelectedSort;
 }
 export type ISelectedSort =

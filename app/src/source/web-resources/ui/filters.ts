@@ -22,7 +22,8 @@ export const FILTER_BUTTONS: FilterButtonConfig[] = [
     { elementId: 'ycs_btn_comments', param: 'quickComments' },
     { elementId: 'ycs_btn_quick_chat', param: 'quickChat' },
     { elementId: 'ycs_btn_quick_transcript', param: 'quickTranscript' },
-    { elementId: 'ycs_btn_origin', param: 'origin' }
+    { elementId: 'ycs_btn_origin', param: 'origin' },
+    { elementId: 'ycs_btn_emoji', param: 'emoji' }
 ];
 
 export interface RegisterFilterButtonsOptions {

@@ -1115,6 +1115,11 @@ function generateFilterButtonHTML(buttonId: string): string {
         ycs_btn_origin: {
             name: 'origin',
             title: 'Show non-reply comments only'
+        },
+        ycs_btn_emoji: {
+            name: 'emoji',
+            title: 'Show comments, replies, chat with emojis',
+            icon: '<span class="ycs-emoji-icon">😊</span>'
         }
     };
 
@@ -1160,7 +1165,9 @@ function generateFilterButtonHTML(buttonId: string): string {
                                               ? 'Transcript'
                                               : config.name === 'origin'
                                                 ? 'Origin'
-                                                : config.name
+                                                : config.name === 'emoji'
+                                                  ? ''
+                                                  : config.name
             }
         </button>`;
 }
