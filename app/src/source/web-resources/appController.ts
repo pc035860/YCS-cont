@@ -29,7 +29,7 @@ import { IParamSearch, IYCSOptions } from '../utils/interfaces/i_types';
 import type { ChatItem, CommentItem, ISelectedSort } from '../utils/interfaces/i_types';
 
 import { iconOk, iconReload, iconWarning, iconError, iconStop, iconInfo } from '../utils/icons';
-import { renderLoadComments, renderSearch, loadFilterButtons } from '../utils/renderView';
+import { renderLoadComments, renderSearch, loadFilterButtons, selectSortOption } from '../utils/renderView';
 import { loadFromCache, saveToCache, updateBadge } from './services/cacheService';
 import type { CacheData } from './services/cacheService';
 import { YouTubeApiMessageError, requestYouTubeApiComments } from './handlers/youtubeDataApiHandler';
@@ -1599,6 +1599,10 @@ export function initApp(): void {
                                 GlobalStore.youtubeApiEnabled = opts.youtubeApiEnabled !== false; // default true
                                 break;
 
+                            case 'defaultSort':
+                                GlobalStore.defaultSort = opts.defaultSort ?? 'relevance';
+                                selectSortOption(GlobalStore.defaultSort);
+                                break;
                             default:
                                 break;
                         }

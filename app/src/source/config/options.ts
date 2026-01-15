@@ -10,6 +10,7 @@ const options = {
     transcriptLanguage: '',
     youtubeApiKey: '', // Empty = use Innertube (default); Filled = use YouTube Data API
     youtubeApiEnabled: true, // Enable YouTube Data API (requires API key to take effect)
+    defaultSort: 'relevance',
     filterButtons: [
         { id: 'ycs_btn_comments', enabled: true },
         { id: 'ycs_btn_quick_chat', enabled: true },

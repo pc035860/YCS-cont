@@ -16,6 +16,7 @@ import {
 } from './viewModels';
 import { iconCollapse, iconExpandShowMore, iconReload, iconCurve } from './icons';
 import { EXPORT_FORMAT } from './constants';
+import { ISelectedSort } from './interfaces/i_types';
 
 /**
  * Options for rendering comments
@@ -1184,7 +1185,7 @@ function renderSearch(node: HTMLElement): void {
                 </div>
                 <select title="Select a search category" name="ycs_sort_select"
                     id="ycs_sort_select" class="ycs-btn-search ycs-title ycs_sort_select ycs_noselect">
-                    <option selected value="relevance">Relevance</option>
+                    <option value="relevance">Relevance</option>
                     <option value="newest">Newest</option>
                     <option value="oldest">Oldest</option>
                     <option value="most_likes">Most Likes</option>
@@ -1241,6 +1242,18 @@ function renderSearch(node: HTMLElement): void {
     `;
 }
 
+function selectSortOption(sortOrder: ISelectedSort): void {
+    const sortSelect = document.getElementById('ycs_sort_select') as HTMLSelectElement | null;
+    if (!sortSelect) return;
+
+    const validOptions = Array.from(sortSelect.options).map((option) => option.value);
+    if (validOptions.includes(sortOrder)) {
+        sortSelect.value = sortOrder;
+    } else {
+        sortSelect.value = 'relevance'; // Default fallback
+    }
+}
+
 // Dynamically load filter buttons
 function loadFilterButtons(filterButtons?: Array<{ id: string; enabled: boolean }>): void {
     try {
@@ -1295,4 +1308,12 @@ function loadFilterButtons(filterButtons?: Array<{ id: string; enabled: boolean 
     }
 }
 
-export { renderComment, renderLoadComments, renderSearch, renderCommentTrVideo, renderCommentChat, loadFilterButtons };
+export {
+    renderComment,
+    renderLoadComments,
+    renderSearch,
+    renderCommentTrVideo,
+    renderCommentChat,
+    loadFilterButtons,
+    selectSortOption
+};

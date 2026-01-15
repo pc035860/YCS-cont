@@ -3,7 +3,7 @@ import { formatBytes } from '../../../utils/formatting';
 import { isNumeric } from '../../../utils/common';
 import { idb } from '../../../utils/libs';
 
-import { IStorageEstimate } from '../../../utils/interfaces/i_types';
+import { ISelectedSort, IStorageEstimate } from '../../../utils/interfaces/i_types';
 
 const STORE_CACHE_YCS = 'STORE_CACHE_YCS';
 
@@ -142,6 +142,32 @@ window.onload = async (): Promise<void> => {
             try {
                 await chrome.storage.local.set({
                     transcriptLanguage: value
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        const optSetRenderDefaultSort = (param?: ISelectedSort): void => {
+            const select = document.getElementById('y_opts_default_sort_select') as HTMLSelectElement | null;
+
+            if (!select) return;
+
+            const value = param ?? 'relevance';
+
+            const matchingOption = Array.from(select.options).find((option) => option.value === value);
+
+            if (matchingOption) {
+                select.value = value;
+            } else {
+                select.value = 'relevance';
+            }
+        };
+
+        const optSetDefaultSort = async (value: ISelectedSort): Promise<void> => {
+            try {
+                await chrome.storage.local.set({
+                    defaultSort: value
                 });
             } catch (err) {
                 console.error(err);
@@ -690,6 +716,10 @@ window.onload = async (): Promise<void> => {
                         setRenderTranscriptLanguage(storageOpts[key]);
                         break;
 
+                    case 'defaultSort':
+                        optSetRenderDefaultSort(storageOpts[key]);
+                        break;
+
                     case 'filterButtons':
                         setRenderFilterButtons(storageOpts[key]);
                         break;
@@ -804,6 +834,15 @@ window.onload = async (): Promise<void> => {
         transcriptLanguageSelect?.addEventListener('change', handleTranscriptLanguageSelectChange);
         transcriptLanguageInput?.addEventListener('input', handleTranscriptLanguageInputChange);
         transcriptLanguageInput?.addEventListener('change', handleTranscriptLanguageInputChange);
+
+        const defaultSortSelect = document.getElementById('y_opts_default_sort_select') as HTMLSelectElement | null;
+        const handleDefaultSortSelectChange = (event: Event): void => {
+            const target = event.target as HTMLSelectElement | null;
+            if (!target) return;
+            const nextValue = target.value as ISelectedSort;
+            optSetDefaultSort(nextValue);
+        };
+        defaultSortSelect?.addEventListener('change', handleDefaultSortSelectChange);
 
         const elPageCache = document.getElementById('ycs_opts_btn_export_page') as HTMLElement;
         elPageCache.onclick = () => {
