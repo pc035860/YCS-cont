@@ -17,7 +17,7 @@ const activeYouTubeApiRequests = new Map<string, ActiveRequest>();
  */
 interface FetchState {
     quotaUsed: number;
-    maxComments: number;
+    maxComments: number | undefined;
     signal: AbortSignal | undefined;
     replyFetchErrors: number; // Track failed reply fetches
 }
@@ -158,14 +158,14 @@ async function fetchAllRepliesBackground(
 
     do {
         if (fetchState.signal?.aborted) break;
-        if (comments.length >= fetchState.maxComments) break;
+        if (fetchState.maxComments && comments.length >= fetchState.maxComments) break;
 
         try {
             const response = await fetchCommentReplies(parentId, apiKey, pageToken, fetchState.signal);
             fetchState.quotaUsed += 1;
 
             for (const apiComment of response.items) {
-                if (comments.length >= fetchState.maxComments) break;
+                if (fetchState.maxComments && comments.length >= fetchState.maxComments) break;
                 const replyItem = transformReplyToCommentItem(apiComment, videoId, parentItem);
                 comments.push(replyItem);
             }
@@ -176,7 +176,11 @@ async function fetchAllRepliesBackground(
             fetchState.replyFetchErrors += 1;
             break;
         }
-    } while (pageToken && comments.length < fetchState.maxComments && !fetchState.signal?.aborted);
+    } while (
+        pageToken &&
+        (!fetchState.maxComments || comments.length < fetchState.maxComments) &&
+        !fetchState.signal?.aborted
+    );
 }
 
 /**
@@ -187,11 +191,11 @@ async function fetchAllCommentsBackground(
     apiKey: string,
     tabId: number,
     requestId: string,
-    signal: AbortSignal
+    signal: AbortSignal,
+    maxComments: number | undefined
 ): Promise<void> {
     const comments: CommentItem[] = [];
     let pageToken: string | undefined;
-    const maxComments = 500000;
 
     const fetchState: FetchState = {
         quotaUsed: 0,
@@ -206,13 +210,13 @@ async function fetchAllCommentsBackground(
     try {
         do {
             if (signal.aborted) break;
-            if (comments.length >= maxComments) break;
+            if (maxComments && comments.length >= maxComments) break;
 
             const response = await fetchCommentThreads(videoId, apiKey, pageToken, signal);
             fetchState.quotaUsed += 1;
 
             for (const thread of response.items) {
-                if (comments.length >= maxComments) break;
+                if (maxComments && comments.length >= maxComments) break;
 
                 const threadItems = transformThreadToCommentItems(thread, videoId);
                 const parentItem = threadItems[0];
@@ -221,7 +225,7 @@ async function fetchAllCommentsBackground(
                 // Add inline replies
                 const inlineReplies = threadItems.slice(1);
                 for (const reply of inlineReplies) {
-                    if (comments.length >= maxComments) break;
+                    if (maxComments && comments.length >= maxComments) break;
                     comments.push(reply);
                 }
 
@@ -229,7 +233,7 @@ async function fetchAllCommentsBackground(
                 const totalReplyCount = thread.snippet.totalReplyCount;
                 const inlineReplyCount = thread.replies?.comments?.length ?? 0;
 
-                if (totalReplyCount > inlineReplyCount && comments.length < maxComments) {
+                if (totalReplyCount > inlineReplyCount && (!maxComments || comments.length < maxComments)) {
                     const parentId = thread.snippet.topLevelComment.id;
                     const replyPromise = replyQueue.add(async () => {
                         await fetchAllRepliesBackground(parentId, apiKey, videoId, parentItem, comments, fetchState);
@@ -257,7 +261,7 @@ async function fetchAllCommentsBackground(
             }
 
             pageToken = response.nextPageToken;
-        } while (pageToken && comments.length < maxComments && !signal.aborted);
+        } while (pageToken && (!maxComments || comments.length < maxComments) && !signal.aborted);
 
         // Wait for all reply fetches
         await Promise.all(replyPromises);
@@ -394,7 +398,7 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
 
     // YouTube Data API: Start loading comments
     if (message?.type === 'YCS_YT_API_COMMENTS_START') {
-        const { videoId, requestId } = message.body ?? {};
+        const { videoId, requestId, maxComments } = message.body ?? {};
         const tabId = sender.tab?.id;
 
         if (!tabId || !videoId || !requestId) {
@@ -403,7 +407,7 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
         }
 
         // Read API key from storage (secure - never sent to web page)
-        const opts = await chrome.storage.local.get(['youtubeApiKey', 'youtubeApiEnabled']);
+        const opts = await chrome.storage.local.get(['youtubeApiKey', 'youtubeApiEnabled', 'maxComments']);
         const apiKey = (opts.youtubeApiKey as string)?.trim();
         const apiEnabled = opts.youtubeApiEnabled !== false;
 
@@ -423,7 +427,7 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
         activeYouTubeApiRequests.set(requestId, { controller, tabId });
 
         // Execute fetch (non-blocking)
-        fetchAllCommentsBackground(videoId, apiKey, tabId, requestId, controller.signal).then(
+        fetchAllCommentsBackground(videoId, apiKey, tabId, requestId, controller.signal, maxComments).then(
             () => activeYouTubeApiRequests.delete(requestId),
             () => activeYouTubeApiRequests.delete(requestId)
         );
