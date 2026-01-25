@@ -1654,7 +1654,7 @@ export function initApp(): void {
                     if (typeof opts.maxComments !== 'undefined') {
                         optMaxComments(Number(opts.maxComments));
                     }
-                    if (typeof opts.youtubeApiEnabled !== 'undefined') {
+                    if (typeof opts.hasYoutubeApiKey !== 'undefined') {
                         GlobalStore.hasYoutubeApiKey = Boolean(opts.hasYoutubeApiKey);
                     }
                     if (typeof opts.youtubeApiEnabled !== 'undefined') {
