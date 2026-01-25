@@ -842,7 +842,6 @@ export function initApp(): void {
                                 selectedSortOrder
                             );
                         }
-                        GlobalStore.autoload = false;
 
                         // Verify video or post hasn't changed before saving cache
                         const currentId = getVideoId(window.location.href) ?? getPostId(window.location.href);
@@ -891,6 +890,7 @@ export function initApp(): void {
 
                     updateTitleCount(totalCount);
                 } finally {
+                    GlobalStore.autoload = false;
                     currentTarget.disabled = false;
                     currentTarget.innerText = defaultLabel;
                 }
@@ -1577,6 +1577,7 @@ export function initApp(): void {
                 };
 
                 const wrapOptAutoload = (value: boolean, opts: IYCSOptions): void => {
+                    GlobalStore.autoload = value;
                     if (!opts.cache) {
                         optAutoload(value);
                     }
@@ -1649,18 +1650,14 @@ export function initApp(): void {
                         return;
                     }
 
-                    if (opts.maxComments) {
-                        // Set maxComments first before autoload
+                    // Set following options first before autoload
+                    if (typeof opts.maxComments !== 'undefined') {
                         optMaxComments(Number(opts.maxComments));
                     }
-
-                    if (opts.hasYoutubeApiKey) {
-                        // Set hasYoutubeApiKey flag before autoload
+                    if (typeof opts.youtubeApiEnabled !== 'undefined') {
                         GlobalStore.hasYoutubeApiKey = Boolean(opts.hasYoutubeApiKey);
                     }
-
-                    if (opts.youtubeApiEnabled) {
-                        // Set youtubeApiEnabled flag before autoload
+                    if (typeof opts.youtubeApiEnabled !== 'undefined') {
                         GlobalStore.youtubeApiEnabled = Boolean(opts.youtubeApiEnabled);
                     }
 
@@ -1854,7 +1851,6 @@ export function initApp(): void {
             }
 
             if (e.data?.type === 'YCS_AUTOLOAD') {
-                GlobalStore.autoload = true;
                 elLoadAll?.click();
             }
         };
