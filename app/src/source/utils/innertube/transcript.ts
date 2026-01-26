@@ -158,6 +158,20 @@ async function getTranscriptTrackInfo(
 ): Promise<{ tracks: TranscriptTrackInfo[]; defaultTrack?: TranscriptTrackInfo } | undefined> {
     const baseUrl = `https://www.youtube.com/youtubei/v1/player?key=${getInnertubeApiKey()}`;
     const videoId = getVideoId(globalContext.location.href);
+    if (!videoId) {
+        return undefined;
+    }
+    const pageCfgData = await getPageCfgData(globalContext, signal);
+    const ytcfgClient = pageCfgData?.INNERTUBE_CONTEXT?.client as Record<string, unknown> | undefined;
+
+    const navigatorLang = globalContext.navigator?.language;
+    const langParts = navigatorLang?.split('-') || [];
+    const lastPart = langParts[langParts.length - 1];
+    const navigatorRegion = lastPart?.length === 2 && lastPart === lastPart.toUpperCase() ? lastPart : undefined;
+
+    const hl = (ytcfgClient?.hl as string) || navigatorLang || 'en';
+    const gl = (ytcfgClient?.gl as string) || navigatorRegion || 'US';
+
     const res = await fetch(baseUrl, {
         method: 'POST',
         mode: 'no-cors' as RequestMode,
@@ -168,7 +182,7 @@ async function getTranscriptTrackInfo(
             buildInnertubeBody({
                 ytcfgData: undefined,
                 videoId,
-                clientFallback: { clientName: 'ANDROID', clientVersion: '21.03.36' }
+                clientOverride: { clientName: 'ANDROID', clientVersion: '21.03.36', hl, gl }
             })
         )
     } as RequestInit);

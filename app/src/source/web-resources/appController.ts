@@ -1660,6 +1660,14 @@ export function initApp(): void {
                     if (typeof opts.youtubeApiEnabled !== 'undefined') {
                         GlobalStore.youtubeApiEnabled = Boolean(opts.youtubeApiEnabled);
                     }
+                    if (typeof opts.transcriptLanguage !== 'undefined') {
+                        state = setSelectedTranscriptLanguage(
+                            state,
+                            typeof opts.transcriptLanguage === 'string' && opts.transcriptLanguage.trim()
+                                ? opts.transcriptLanguage.trim()
+                                : undefined
+                        );
+                    }
 
                     (Object.keys(opts) as Array<keyof IYCSOptions>).forEach((key) => {
                         switch (key) {
@@ -1704,16 +1712,6 @@ export function initApp(): void {
                                     initFilterButtons(opts.filterButtons);
                                 }
                                 break;
-
-                            case 'transcriptLanguage':
-                                state = setSelectedTranscriptLanguage(
-                                    state,
-                                    typeof opts.transcriptLanguage === 'string' && opts.transcriptLanguage.trim()
-                                        ? opts.transcriptLanguage.trim()
-                                        : undefined
-                                );
-                                break;
-
                             default:
                                 break;
                         }
