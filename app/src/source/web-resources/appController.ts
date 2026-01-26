@@ -735,7 +735,7 @@ export function initApp(): void {
 
                         // Check if YouTube Data API key is configured and enabled
                         const hasApiKey = GlobalStore.hasYoutubeApiKey;
-                        const apiEnabled = GlobalStore.youtubeApiEnabled !== false; // default true
+                        const apiEnabled = GlobalStore.youtubeApiEnabled;
                         // Track if YouTube API result was incomplete (for status icon)
                         let youtubeApiIncomplete = false;
 
@@ -746,6 +746,7 @@ export function initApp(): void {
                                 const result = await requestYouTubeApiComments(
                                     startVideoId,
                                     controller.signal,
+                                    GlobalStore.autoload ? GlobalStore.maxComments : undefined,
                                     (count) => showLoadComments(count, elLoadCmnts)
                                 );
                                 comments.push(...result.comments);
@@ -837,7 +838,7 @@ export function initApp(): void {
                                 elLoadCmnts,
                                 controller.signal,
                                 comments,
-                                500000,
+                                GlobalStore.autoload ? GlobalStore.maxComments : undefined,
                                 selectedSortOrder
                             );
                         }
@@ -889,6 +890,7 @@ export function initApp(): void {
 
                     updateTitleCount(totalCount);
                 } finally {
+                    GlobalStore.autoload = false;
                     currentTarget.disabled = false;
                     currentTarget.innerText = defaultLabel;
                 }
@@ -1560,6 +1562,14 @@ export function initApp(): void {
             if (e.data?.type === 'YCS_OPTIONS' && e.data?.text) {
                 console.log('YCS_OPTIONS', e.data);
 
+                const optMaxComments = (value: number): void => {
+                    try {
+                        GlobalStore.maxComments = value;
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
                 const optAutoload = (value: boolean): void => {
                     if (value === true) {
                         elLoadAll?.click();
@@ -1567,6 +1577,7 @@ export function initApp(): void {
                 };
 
                 const wrapOptAutoload = (value: boolean, opts: IYCSOptions): void => {
+                    GlobalStore.autoload = value;
                     if (!opts.cache) {
                         optAutoload(value);
                     }
@@ -1639,6 +1650,17 @@ export function initApp(): void {
                         return;
                     }
 
+                    // Set following options first before autoload
+                    if (typeof opts.maxComments !== 'undefined') {
+                        optMaxComments(Number(opts.maxComments));
+                    }
+                    if (typeof opts.hasYoutubeApiKey !== 'undefined') {
+                        GlobalStore.hasYoutubeApiKey = Boolean(opts.hasYoutubeApiKey);
+                    }
+                    if (typeof opts.youtubeApiEnabled !== 'undefined') {
+                        GlobalStore.youtubeApiEnabled = Boolean(opts.youtubeApiEnabled);
+                    }
+
                     (Object.keys(opts) as Array<keyof IYCSOptions>).forEach((key) => {
                         switch (key) {
                             case 'autoload':
@@ -1690,16 +1712,6 @@ export function initApp(): void {
                                         ? opts.transcriptLanguage.trim()
                                         : undefined
                                 );
-                                break;
-
-                            case 'hasYoutubeApiKey':
-                                // Store whether API key is configured (actual key stays in background)
-                                GlobalStore.hasYoutubeApiKey = Boolean(opts.hasYoutubeApiKey);
-                                break;
-
-                            case 'youtubeApiEnabled':
-                                // Store YouTube Data API enabled state in GlobalStore
-                                GlobalStore.youtubeApiEnabled = opts.youtubeApiEnabled !== false; // default true
                                 break;
 
                             default:

@@ -499,6 +499,17 @@ tbody#ycs_all_cache_body_table > tr > td > div {
   font-size: 14px;
 }
 
+#y_opts_max_comments_input {
+  height: 36px;
+  width: 20%;
+  font-size: 16px;
+  padding: 0px 8px;
+  background-color: #1f1f1f;
+  color: #fff;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+}
+
 /* Code tag styling */
 code {
   background-color: #1f1f1f;

@@ -44,7 +44,7 @@ async function getAllCommentsModeV2(
     elShowLoading: HTMLElement,
     signal: AbortSignal | undefined = undefined,
     container: object[] | undefined = undefined,
-    maxComments = 500000,
+    maxComments: number | undefined = undefined,
     sortOrder: CommentSortOrder = CommentSortOrder.NewestFirst
 ): Promise<object[]> {
     const comments: object[] = container || [];
@@ -74,7 +74,7 @@ async function getAllCommentsModeV2(
         }
 
         for (const comment of parentResults) {
-            if (comments.length >= maxComments) {
+            if (maxComments && comments.length >= maxComments) {
                 limitReached = true;
                 break;
             }
@@ -90,7 +90,7 @@ async function getAllCommentsModeV2(
                 fetchContinuation: (continuation) =>
                     fetchRepliesBatch({ windowRef: window, signal, continuation, sortOrder }),
                 onReply: (reply) => {
-                    if (comments.length < maxComments) {
+                    if (!maxComments || comments.length < maxComments) {
                         comments.push(reply);
                         showLoadComments(comments.length, elShowLoading);
                     }
@@ -130,7 +130,7 @@ async function getAllCommentsModeV2(
         (comments[idx] as any)._index = idx;
     }
 
-    if (comments.length >= maxComments) {
+    if (maxComments && comments.length >= maxComments) {
         console.warn(`[YCS] Reached comment limit: ${maxComments} for post/video ${currentVideoId}`);
     }
     return comments;

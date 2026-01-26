@@ -164,6 +164,23 @@ window.onload = async (): Promise<void> => {
             }
         };
 
+        const setRenderMaxComments = (param: number): void => {
+            const input = document.getElementById('y_opts_max_comments_input') as HTMLInputElement | null;
+            if (!input) return;
+            input.valueAsNumber = param ?? 500000;
+        };
+
+        const optSetMaxComments = async (e: Event): Promise<void> => {
+            try {
+                const value = (e.target as HTMLInputElement).valueAsNumber;
+                await chrome.storage.local.set({
+                    maxComments: value
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
         // YouTube Data API handlers
         let currentApiEnabled = true;
         let currentApiKey = '';
@@ -708,6 +725,10 @@ window.onload = async (): Promise<void> => {
                         setRenderTranscriptLanguage(storageOpts[key]);
                         break;
 
+                    case 'maxComments':
+                        setRenderMaxComments(storageOpts[key]);
+                        break;
+
                     case 'filterButtons':
                         setRenderFilterButtons(storageOpts[key]);
                         break;
@@ -793,6 +814,9 @@ window.onload = async (): Promise<void> => {
 
         const elCacheQuota = document.getElementById('y_opts_cache_quota') as HTMLInputElement;
         elCacheQuota?.addEventListener('input', optSetAutoClearCache);
+
+        const elMaxComments = document.getElementById('y_opts_max_comments_input') as HTMLInputElement;
+        elMaxComments?.addEventListener('input', optSetMaxComments);
 
         const transcriptLanguageSelect = document.getElementById(
             'y_opts_transcript_language_select'

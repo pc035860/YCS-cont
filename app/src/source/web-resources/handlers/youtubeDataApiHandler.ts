@@ -57,6 +57,7 @@ const REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 export function requestYouTubeApiComments(
     videoId: string,
     signal: AbortSignal | undefined,
+    maxComments: number | undefined,
     onProgress: (count: number) => void
 ): Promise<YouTubeApiCommentsResult> {
     const requestId = crypto.randomUUID();
@@ -176,7 +177,7 @@ export function requestYouTubeApiComments(
         window.postMessage(
             {
                 type: 'YCS_YT_API_COMMENTS_START',
-                body: { videoId, requestId }
+                body: { videoId, requestId, maxComments }
             },
             window.location.origin
         );
