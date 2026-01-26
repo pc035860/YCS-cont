@@ -1,4 +1,4 @@
-import { deepFindObjKey, getCleanUrlVideo, wrapTryCatch } from '../common';
+import { deepFindObjKey, getCleanUrlVideo, getVideoId, wrapTryCatch } from '../common';
 import type { TranscriptData, TranscriptTrackInfo } from '../interfaces/i_types';
 import { buildInnertubeBody, buildInnertubeHeaders } from './request';
 import { getInitYtData, getInnertubeApiKey, getPageCfgData, type InnertubeRequestParams } from './core';
@@ -153,23 +153,27 @@ function parseCaptionTracks(captions: any | undefined): TranscriptTrackInfo[] {
 }
 
 async function getTranscriptTrackInfo(
-    globalContext: Window,
+    globalContext: Window & typeof globalThis,
     signal: AbortSignal
 ): Promise<{ tracks: TranscriptTrackInfo[]; defaultTrack?: TranscriptTrackInfo } | undefined> {
-    const baseUrl = getCleanUrlVideo(globalContext.location.href) as string;
-    const htmlResp = await fetch(baseUrl, {
-        method: 'GET',
+    const baseUrl = `https://www.youtube.com/youtubei/v1/player?key=${getInnertubeApiKey()}`;
+    const videoId = getVideoId(globalContext.location.href);
+    const res = await fetch(baseUrl, {
+        method: 'POST',
         mode: 'no-cors' as RequestMode,
         credentials: 'include',
         signal,
-        cache: 'no-store'
+        cache: 'no-store',
+        body: JSON.stringify(
+            buildInnertubeBody({
+                ytcfgData: undefined,
+                videoId,
+                clientFallback: { clientName: 'ANDROID', clientVersion: '20.45.34' }
+            })
+        )
     } as RequestInit);
-    const html = await htmlResp.text();
-    const splitted = html.split('"captions":');
-    if (splitted.length <= 1) throw new Error('Fail to load video html');
-    const captions = JSON.parse(
-        splitted[1].split(',"videoDetails')[0].replace('\n', '')
-    ).playerCaptionsTracklistRenderer;
+    const json = await res.json();
+    const captions = json?.captions.playerCaptionsTracklistRenderer;
 
     const tracks = parseCaptionTracks(captions);
 
@@ -448,7 +452,7 @@ export async function getTranscriptVideo(
         const info = await getTranscriptTrackInfo(window, signal);
         const tracks: TranscriptTrackInfo[] = info?.tracks ?? [];
         const selectedTrack = selectTranscriptTrack(tracks, options?.languageCode, info?.defaultTrack);
-        const trackBaseUrl = selectedTrack?.baseUrl;
+        const trackBaseUrl = selectedTrack?.baseUrl?.replace('&fmt=srv3', '') || undefined;
 
         if (trackBaseUrl) {
             try {
