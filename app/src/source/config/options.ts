@@ -9,6 +9,7 @@ const options = {
     hiddenByDefaultShorts: false,
     enableShortsSupport: true,
     transcriptLanguage: '',
+    maxComments: 500000,
     youtubeApiKey: '', // Empty = use Innertube (default); Filled = use YouTube Data API
     youtubeApiEnabled: true, // Enable YouTube Data API (requires API key to take effect)
     filterButtons: [

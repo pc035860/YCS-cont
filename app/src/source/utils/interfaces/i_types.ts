@@ -322,6 +322,7 @@ export interface CommentSortOption {
 }
 
 export interface IYCSOptions {
+    maxComments?: number;
     autoload?: boolean;
     highlightText?: boolean;
     sortTimestamp?: boolean;
