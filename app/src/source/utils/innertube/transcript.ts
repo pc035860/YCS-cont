@@ -168,7 +168,7 @@ async function getTranscriptTrackInfo(
             buildInnertubeBody({
                 ytcfgData: undefined,
                 videoId,
-                clientFallback: { clientName: 'ANDROID', clientVersion: '20.45.34' }
+                clientFallback: { clientName: 'ANDROID', clientVersion: '21.03.36' }
             })
         )
     } as RequestInit);
