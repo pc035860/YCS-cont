@@ -56,11 +56,19 @@ export function adjustEngagementPanelHeightForShorts(): void {
     if (!isShortsPage()) return;
 
     const app = document.querySelector('.ycs-app') as HTMLElement;
-    const engagementPanelContent = document.querySelector(
-        '#content.ytd-engagement-panel-section-list-renderer'
-    ) as HTMLElement;
+    if (!app) return;
 
-    if (!engagementPanelContent || !app) return;
+    const engagementPanelContents = Array.from(
+        document.querySelectorAll('#content.ytd-engagement-panel-section-list-renderer')
+    ) as HTMLElement[];
+
+    const structuredDescriptionContents = Array.from(
+        document.querySelectorAll(
+            'ytd-structured-description-content-renderer[panel-target-id="engagement-panel-structured-description"]'
+        )
+    ) as HTMLElement[];
+
+    if (engagementPanelContents.length === 0 && structuredDescriptionContents.length === 0) return;
 
     try {
         // Get .ycs-app current height (even when collapsed, it still has height for toggle button)
@@ -69,8 +77,18 @@ export function adjustEngagementPanelHeightForShorts(): void {
         // Set height and min-height using calc() expression
         // Original: calc(var(--ytd-engagement-panel-content-height) - 56px)
         // New: calc(var(--ytd-engagement-panel-content-height) - 56px - [.ycs-app height]px)
-        engagementPanelContent.style.height = `calc(var(--ytd-engagement-panel-content-height) - 56px - ${ycsAppHeight}px)`;
-        engagementPanelContent.style.minHeight = `calc(var(--ytd-engagement-panel-content-min-height) - 56px - ${ycsAppHeight}px)`;
+        const heightValue = `calc(var(--ytd-engagement-panel-content-height) - 56px - ${ycsAppHeight}px)`;
+        const minHeightValue = `calc(var(--ytd-engagement-panel-content-min-height) - 56px - ${ycsAppHeight}px)`;
+
+        engagementPanelContents.forEach((content) => {
+            content.style.height = heightValue;
+            content.style.minHeight = minHeightValue;
+        });
+
+        structuredDescriptionContents.forEach((content) => {
+            content.style.height = heightValue;
+            content.style.minHeight = minHeightValue;
+        });
     } catch (error) {
         console.error('YCS: Failed to adjust engagement panel height for Shorts', error);
     }
