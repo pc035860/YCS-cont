@@ -1036,6 +1036,15 @@ export function initApp(): void {
         // Comment Sort Order Selector DOM elements
         const elSortOrderButton = document.getElementById('ycs-comment-sort-order');
         const elSortOrderMenu = document.getElementById('ycs_comment_sort_order_menu');
+        const isShorts = isShortsPage();
+        if (isShorts) {
+            if (elSortOrderButton instanceof HTMLElement) {
+                elSortOrderButton.style.display = 'none';
+            }
+            if (elSortOrderMenu instanceof HTMLElement) {
+                elSortOrderMenu.style.display = 'none';
+            }
+        }
 
         const elLoadAll = document.getElementById('ycs-load-all');
         if (elLoadAll) {
@@ -1174,35 +1183,37 @@ export function initApp(): void {
         createTranscriptLoader(transcriptLoaderDeps);
 
         // Comment Sort Order Selector
-        const commentSortOrderSelectorDeps: CommentSortOrderSelectorDeps = {
-            state: {
-                getState: () => state,
-                setState: (newState) => {
-                    state = newState;
+        if (!isShorts) {
+            const commentSortOrderSelectorDeps: CommentSortOrderSelectorDeps = {
+                state: {
+                    getState: () => state,
+                    setState: (newState) => {
+                        state = newState;
+                    },
+                    getSelectedCommentSortOrder,
+                    setSelectedCommentSortOrder,
+                    clearComments,
+                    getController,
+                    resetController
                 },
-                getSelectedCommentSortOrder,
-                setSelectedCommentSortOrder,
-                clearComments,
-                getController,
-                resetController
-            },
-            elements: {
-                elSortOrderButton,
-                elSortOrderMenu,
-                elLoadComments
-            },
-            callbacks: {
-                closeAllDropdowns,
-                setMenuVisibility
+                elements: {
+                    elSortOrderButton,
+                    elSortOrderMenu,
+                    elLoadComments
+                },
+                callbacks: {
+                    closeAllDropdowns,
+                    setMenuVisibility
+                }
+            };
+
+            createCommentSortOrderSelector(commentSortOrderSelectorDeps);
+
+            // Register comment sort order menu in dropdownMenus for click-outside-to-close
+            if (elSortOrderMenu instanceof HTMLElement) {
+                dropdownMenus.add(elSortOrderMenu);
+                setMenuVisibility(elSortOrderMenu, false);
             }
-        };
-
-        createCommentSortOrderSelector(commentSortOrderSelectorDeps);
-
-        // Register comment sort order menu in dropdownMenus for click-outside-to-close
-        if (elSortOrderMenu instanceof HTMLElement) {
-            dropdownMenus.add(elSortOrderMenu);
-            setMenuVisibility(elSortOrderMenu, false);
         }
 
         const setupDropdown = (
