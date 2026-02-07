@@ -1100,9 +1100,19 @@ export function initApp(): void {
                         (eInputSearch as HTMLInputElement).value = '';
                     }
 
-                    requestAnimationFrame(() => {
-                        btnSearch?.click();
-                    });
+                    const activeParam = getActiveFilterParam();
+                    const elSearchRes = document.getElementById('ycs-search-result');
+                    const elSearchTotalRes = document.getElementById('ycs-search-total-result') as HTMLElement | null;
+
+                    if (activeParam) {
+                        // Reapply current filter while only clearing the text query
+                        requestAnimationFrame(() => {
+                            btnSearch?.click();
+                        });
+                    } else if (elSearchRes) {
+                        elSearchRes.innerText = '';
+                        if (elSearchTotalRes) elSearchTotalRes.innerText = 'Search cleared';
+                    }
 
                     // hide clear button after clearing
                     (btnSearchClearText as HTMLButtonElement).style.visibility = 'hidden';
