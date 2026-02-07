@@ -474,9 +474,7 @@ export function initApp(): void {
                 }
             }
             const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
-            if (btnClear && !text.includes('Found: 0')) {
-                btnClear.style.visibility = 'visible';
-            }
+            if (btnClear) btnClear.style.visibility = !text.includes('Found: 0') ? 'visible' : 'hidden';
         };
 
         const getSearchQuery = (): string => {
