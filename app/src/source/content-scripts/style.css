@@ -159,6 +159,8 @@ html[dark] .ycs_btn_load-stop:hover {
 /* clear-text button near the input */
 #ycs_btn_search_clear_text {
   padding: 0px 7px;
+  border-left: 0px;
+  vertical-align: top;
   height: 32px;
   line-height: 1;
   visibility: hidden; /* toggled by script */

@@ -473,8 +473,13 @@ export function initApp(): void {
                     nodeTotalSearchResult.classList.add('ycs-hidden');
                 }
             }
+            const searchCounts = getSearchCounts(state);
+            const resTotalSearch = searchCounts.comments + searchCounts.commentsChat + searchCounts.commentsTrVideo;
             const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
-            if (btnClear) btnClear.style.visibility = !text.includes('Found: 0') ? 'visible' : 'hidden';
+            const hasActiveFilter = document.querySelector('.ycs_btn_active') !== null;
+            const hasQuery = getSearchQuery().trim().length > 0;
+            if (btnClear)
+                btnClear.style.visibility = (!hasQuery && resTotalSearch > 0) || hasActiveFilter ? 'visible' : 'hidden';
         };
 
         const getSearchQuery = (): string => {
@@ -491,13 +496,6 @@ export function initApp(): void {
 
                 if (param && el) {
                     el.classList.add('ycs_btn_active');
-                }
-
-                // toggle clear-filter button visibility
-                const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
-                if (btnClear) {
-                    const hasActive = !!param;
-                    btnClear.style.visibility = hasActive ? 'visible' : 'hidden';
                 }
             } catch {
                 // Silently ignore DOM manipulation errors
@@ -631,14 +629,23 @@ export function initApp(): void {
 
                         state = resetSearchCounts(state);
 
-                        const elSearchRes = document.getElementById('ycs-search-result');
-                        const elSearchTotalRes = document.getElementById(
-                            'ycs-search-total-result'
-                        ) as HTMLElement | null;
+                        const eInputSearch = document.getElementById('ycs-input-search') as HTMLInputElement;
 
-                        if (elSearchRes && elSearchTotalRes) {
-                            elSearchRes.innerText = '';
-                            elSearchTotalRes.innerText = 'Search cleared';
+                        if (eInputSearch?.value && eInputSearch.value.trim()) {
+                            requestAnimationFrame(() => {
+                                const searchBtn = document.getElementById('ycs_btn_search');
+                                searchBtn?.click();
+                            });
+                        } else {
+                            const elSearchRes = document.getElementById('ycs-search-result');
+                            const elSearchTotalRes = document.getElementById(
+                                'ycs-search-total-result'
+                            ) as HTMLElement | null;
+
+                            if (elSearchRes && elSearchTotalRes) {
+                                elSearchRes.innerText = '';
+                                elSearchTotalRes.innerText = 'Search cleared';
+                            }
                         }
 
                         const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
@@ -1093,19 +1100,9 @@ export function initApp(): void {
                         (eInputSearch as HTMLInputElement).value = '';
                     }
 
-                    const activeParam = getActiveFilterParam();
-                    const elSearchRes = document.getElementById('ycs-search-result');
-                    const elSearchTotalRes = document.getElementById('ycs-search-total-result') as HTMLElement | null;
-
-                    if (activeParam) {
-                        // Reapply current filter while only clearing the text query
-                        requestAnimationFrame(() => {
-                            btnSearch?.click();
-                        });
-                    } else if (elSearchRes) {
-                        elSearchRes.innerText = '';
-                        if (elSearchTotalRes) elSearchTotalRes.innerText = 'Search cleared';
-                    }
+                    requestAnimationFrame(() => {
+                        btnSearch?.click();
+                    });
 
                     // hide clear button after clearing
                     (btnSearchClearText as HTMLButtonElement).style.visibility = 'hidden';

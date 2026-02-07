@@ -1218,7 +1218,7 @@ function renderSearch(node: HTMLElement): void {
                 </select>
                 <button id="ycs_btn_search" class="ycs-btn-search ycs-title ycs_noselect" type="button">
                     Search
-                </button><button id="ycs_btn_search_clear_text" class="ycs-btn-search ycs-title ycs-search-clear" type="button" title="Clear text" style="margin-left:1px;">✕</button>
+                </button><button id="ycs_btn_search_clear_text" class="ycs-btn-search ycs-title ycs-search-clear" type="button" title="Clear text">✕</button>
 
                 <div class="ycs-ext-search_block">
                     <p id="ycs-search-total-result" class="ycs-title"></p>
