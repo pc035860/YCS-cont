@@ -473,6 +473,13 @@ export function initApp(): void {
                     nodeTotalSearchResult.classList.add('ycs-hidden');
                 }
             }
+            const searchCounts = getSearchCounts(state);
+            const resTotalSearch = searchCounts.comments + searchCounts.commentsChat + searchCounts.commentsTrVideo;
+            const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
+            const hasActiveFilter = document.querySelector('.ycs_btn_active') !== null;
+            const hasQuery = getSearchQuery().trim().length > 0;
+            if (btnClear)
+                btnClear.style.visibility = (!hasQuery && resTotalSearch > 0) || hasActiveFilter ? 'visible' : 'hidden';
         };
 
         const getSearchQuery = (): string => {
@@ -489,13 +496,6 @@ export function initApp(): void {
 
                 if (param && el) {
                     el.classList.add('ycs_btn_active');
-                }
-
-                // toggle clear-filter button visibility
-                const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
-                if (btnClear) {
-                    const hasActive = !!param;
-                    btnClear.style.visibility = hasActive ? 'visible' : 'hidden';
                 }
             } catch {
                 // Silently ignore DOM manipulation errors
@@ -1075,15 +1075,6 @@ export function initApp(): void {
         const eInputSearch = document.getElementById('ycs-input-search');
         const btnSearchClearText = document.getElementById('ycs_btn_search_clear_text');
 
-        const setClearTextButtonVisibility = (): void => {
-            const btnVisible =
-                ((eInputSearch as HTMLInputElement)?.value?.trim()?.length ?? 0) > 0 ||
-                document.getElementById('ycs-search-result')?.hasChildNodes();
-            if (btnSearchClearText) {
-                (btnSearchClearText as HTMLButtonElement).style.visibility = btnVisible ? 'visible' : 'hidden';
-            }
-        };
-
         if (eInputSearch) {
             eInputSearch.onkeyup = (e): void => {
                 if (e.key === 'Enter' || e.code === 'Enter') {
@@ -1092,13 +1083,17 @@ export function initApp(): void {
             };
             // toggle clear-text button visibility
             eInputSearch.addEventListener('input', () => {
-                setClearTextButtonVisibility();
+                const hasText = (eInputSearch as HTMLInputElement).value.trim().length > 0;
+                if (btnSearchClearText) {
+                    (btnSearchClearText as HTMLButtonElement).style.visibility = hasText ? 'visible' : 'hidden';
+                }
             });
         }
 
         // initialize clear-text button visibility
         if (btnSearchClearText) {
-            setClearTextButtonVisibility();
+            (btnSearchClearText as HTMLButtonElement).style.visibility =
+                (eInputSearch as HTMLInputElement)?.value?.trim()?.length > 0 ? 'visible' : 'hidden';
             btnSearchClearText.addEventListener('click', () => {
                 try {
                     if (eInputSearch) {
@@ -1121,6 +1116,10 @@ export function initApp(): void {
 
                     // hide clear button after clearing
                     (btnSearchClearText as HTMLButtonElement).style.visibility = 'hidden';
+                    const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
+                    if (btnClear) {
+                        (btnClear as HTMLButtonElement).style.visibility = 'hidden';
+                    }
                 } catch (err) {
                     console.error(err);
                 }
@@ -1583,12 +1582,12 @@ export function initApp(): void {
 
                 const optAutoload = (value: boolean): void => {
                     if (value === true) {
+                        GlobalStore.autoload = true;
                         elLoadAll?.click();
                     }
                 };
 
                 const wrapOptAutoload = (value: boolean, opts: IYCSOptions): void => {
-                    GlobalStore.autoload = value;
                     if (!opts.cache) {
                         optAutoload(value);
                     }
@@ -1860,6 +1859,7 @@ export function initApp(): void {
             }
 
             if (e.data?.type === 'YCS_AUTOLOAD') {
+                GlobalStore.autoload = true;
                 elLoadAll?.click();
             }
         };
