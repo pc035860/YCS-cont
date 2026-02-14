@@ -1,315 +1,247 @@
-# YouTube Data API Messaging Architecture
+# YouTube Data API Messaging Architecture (Current)
 
-This document describes the messaging architecture introduced to support YouTube Data API v3 integration in the `feat/youtube-data-api-support` branch.
+This document describes the current messaging architecture for YouTube Data API v3 integration.
+
+---
 
 ## Overview
 
-The YouTube Data API integration requires a new messaging layer between the web page and background service worker. This is necessary because:
+YCS routes YouTube Data API requests through background service worker to keep API keys out of web page context.
 
-1. **Security**: API keys must be stored securely in the background and never exposed to the web page context
-2. **MV3 Constraints**: Web page code cannot directly access `chrome.storage` or make authenticated API requests
-3. **Message Size Limits**: Chrome has a ~50-64 MB limit on `chrome.runtime.sendMessage()` payloads, requiring chunked transfer for large comment datasets
+Core reasons:
+
+1. API key must stay in background storage.
+2. Web page cannot directly use extension storage APIs.
+3. Large comment sets require chunked transfer for message-size safety.
+
+---
 
 ## Three-Layer Communication Model
 
 ```
 YouTube.com Page (Web Resources)
-├── appController.ts
-│   └── requestYouTubeApiComments()
-│   └── window.postMessage() ↕️
-│
-├── Content Script (cscripts.ts)
-│   └── Message relay bridge
-│   └── window.addEventListener('message') ↔ chrome.runtime.sendMessage() ↕️
-│
-└── Background Service Worker (background.ts)
-    └── fetchAllCommentsBackground()
-    └── YouTube Data API v3 requests
-    └── API key storage (chrome.storage.local)
+|- appController.ts
+|  |- invokes requestYouTubeApiComments(...) via handler
+|
+|- Handler: web-resources/handlers/youtubeDataApiHandler.ts
+|  |- requestYouTubeApiComments()
+|  |- window.postMessage() <-> Content Script
+|
+|- Content Script: content-scripts/cscripts.ts
+|  |- relay window messages <-> chrome.runtime.sendMessage
+|
+`- Background: background.ts
+   |- fetchAllCommentsBackground()
+   |- API key in chrome.storage.local
+   |- chunk/progress/error responses
 ```
+
+---
+
+## Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant Web as Web Page
+    participant Handler as youtubeDataApiHandler
+    participant CS as Content Script
+    participant BG as Background
+
+    Web->>Handler: requestYouTubeApiComments(videoId, maxComments)
+    Handler->>CS: postMessage START(requestId, videoId, maxComments)
+    CS->>BG: runtime.sendMessage START
+    BG-->>CS: PROGRESS(totalCount, quotaUsed)
+    CS-->>Handler: PROGRESS
+    BG-->>CS: CHUNK(0..n)
+    CS-->>Handler: CHUNK(0..n)
+    Handler-->>Web: resolve(comments) or reject(error)
+```
+
+---
 
 ## Message Types
 
-### Request Messages (Web Page → Background)
+### Requests (Web -> Background)
 
-| Message Type | Direction | Purpose |
-|-------------|-----------|---------|
-| `YCS_YT_API_COMMENTS_START` | Web → BG | Start fetching comments for a video |
-| `YCS_YT_API_COMMENTS_ABORT` | Web → BG | Cancel an in-progress fetch request |
+- `YCS_YT_API_COMMENTS_START`
+- `YCS_YT_API_COMMENTS_ABORT`
 
-### Response Messages (Background → Web Page)
+### Responses (Background -> Web)
 
-| Message Type | Direction | Purpose |
-|-------------|-----------|---------|
-| `YCS_YT_API_COMMENTS_PROGRESS` | BG → Web | Progress update with current comment count |
-| `YCS_YT_API_COMMENTS_CHUNK` | BG → Web | Chunked comment data (handles large payloads) |
-| `YCS_YT_API_COMMENTS_COMPLETE` | BG → Web | Backward compatibility for small payloads |
-| `YCS_YT_API_COMMENTS_ERROR` | BG → Web | Error response with optional partial results |
+Primary active responses:
+- `YCS_YT_API_COMMENTS_PROGRESS`
+- `YCS_YT_API_COMMENTS_CHUNK`
+- `YCS_YT_API_COMMENTS_ERROR`
 
-## Message Flow
+Compatibility path retained in handler/content script:
+- `YCS_YT_API_COMMENTS_COMPLETE` (legacy small-payload handling)
 
-### Normal Flow (Success)
+---
 
-```
-Web Page                    Content Script              Background
-    |                            |                          |
-    |-- START ------------------>|                          |
-    |                            |-- START ---------------->|
-    |                            |                          |-- API Request
-    |                            |                          |<- Response
-    |                            |<-- PROGRESS -------------|
-    |<-- PROGRESS ---------------|                          |
-    |                            |                          |-- More requests...
-    |                            |<-- CHUNK (0/3) ---------|
-    |<-- CHUNK (0/3) ------------|                          |
-    |                            |<-- CHUNK (1/3) ---------|
-    |<-- CHUNK (1/3) ------------|                          |
-    |                            |<-- CHUNK (2/3, last) ---|
-    |<-- CHUNK (2/3, last) ------|                          |
-    |                            |                          |
-```
+## Payloads
 
-### Abort Flow
-
-```
-Web Page                    Content Script              Background
-    |                            |                          |
-    |-- ABORT ------------------>|                          |
-    |                            |-- ABORT ---------------->|
-    |                            |                          |-- controller.abort()
-    |                            |<-- CHUNK (partial) -----|
-    |<-- CHUNK (partial) --------|                          |
-    |                            |                          |
-```
-
-## Message Payloads
-
-### YCS_YT_API_COMMENTS_START
+### START
 
 ```typescript
 {
-    type: 'YCS_YT_API_COMMENTS_START',
-    body: {
-        videoId: string,    // YouTube video ID (11 characters)
-        requestId: string   // UUID for tracking this request
-    }
+  type: 'YCS_YT_API_COMMENTS_START',
+  body: {
+    videoId: string,
+    requestId: string,
+    maxComments?: number
+  }
 }
 ```
 
-### YCS_YT_API_COMMENTS_ABORT
+Example:
+
+```json
+{
+  "type": "YCS_YT_API_COMMENTS_START",
+  "body": {
+    "videoId": "dQw4w9WgXcQ",
+    "requestId": "d4821f60-6b1a-4d42-9a3f-2f2f9c4e9c3e",
+    "maxComments": 5000
+  }
+}
+```
+
+### ABORT
 
 ```typescript
 {
-    type: 'YCS_YT_API_COMMENTS_ABORT',
-    body: {
-        requestId: string   // UUID of the request to abort
-    }
+  type: 'YCS_YT_API_COMMENTS_ABORT',
+  body: {
+    requestId: string
+  }
 }
 ```
 
-### YCS_YT_API_COMMENTS_PROGRESS
+### PROGRESS
 
 ```typescript
 {
-    type: 'YCS_YT_API_COMMENTS_PROGRESS',
-    body: {
-        requestId: string,
-        totalCount: number,  // Current number of comments fetched
-        quotaUsed: number    // API quota units consumed
-    }
+  type: 'YCS_YT_API_COMMENTS_PROGRESS',
+  body: {
+    requestId: string,
+    totalCount: number,
+    quotaUsed: number
+  }
 }
 ```
 
-### YCS_YT_API_COMMENTS_CHUNK
+### CHUNK
 
 ```typescript
 {
-    type: 'YCS_YT_API_COMMENTS_CHUNK',
-    body: {
-        requestId: string,
-        comments: CommentItem[],  // Chunk of comments (max 20,000 per chunk)
-        chunkIndex: number,       // 0-based index
-        totalChunks: number,
-        isLastChunk: boolean,
-        // Only present in last chunk:
-        quotaUsed?: number,
-        incomplete?: boolean,      // true if some replies failed to fetch
-        replyFetchErrors?: number, // Count of failed reply fetches
-        // Present if error occurred:
-        error?: { type: string, message: string, code?: number },
-        isError?: boolean
-    }
+  type: 'YCS_YT_API_COMMENTS_CHUNK',
+  body: {
+    requestId: string,
+    comments: CommentItem[],
+    chunkIndex: number,
+    totalChunks: number,
+    isLastChunk: boolean,
+    quotaUsed?: number,
+    incomplete?: boolean,
+    replyFetchErrors?: number,
+    error?: { type: string, message: string, code?: number },
+    isError?: boolean
+  }
 }
 ```
 
-### YCS_YT_API_COMMENTS_ERROR
+Example (last chunk with metadata):
+
+```json
+{
+  "type": "YCS_YT_API_COMMENTS_CHUNK",
+  "body": {
+    "requestId": "d4821f60-6b1a-4d42-9a3f-2f2f9c4e9c3e",
+    "comments": [{ "_index": 19999 }, { "_index": 20000 }],
+    "chunkIndex": 2,
+    "totalChunks": 3,
+    "isLastChunk": true,
+    "quotaUsed": 37,
+    "incomplete": false,
+    "replyFetchErrors": 0
+  }
+}
+```
+
+### ERROR
 
 ```typescript
 {
-    type: 'YCS_YT_API_COMMENTS_ERROR',
-    body: {
-        requestId: string,
-        error: {
-            type: string,     // 'quotaExceeded' | 'invalidApiKey' | 'unsupported' | 'apiError' | 'aborted' | 'unknown'
-            message: string,
-            code?: number     // HTTP status code if applicable
-        },
-        partialComments?: CommentItem[]  // Partial results if available
-    }
+  type: 'YCS_YT_API_COMMENTS_ERROR',
+  body: {
+    requestId: string,
+    error: {
+      type: string,
+      message: string,
+      code?: number
+    },
+    partialComments?: CommentItem[]
+  }
 }
 ```
 
-## Chunked Transfer Mechanism
+---
 
-Chrome's `chrome.runtime.sendMessage()` has a message size limit of approximately 50-64 MB. For videos with hundreds of thousands of comments, this limit can be exceeded.
+## Chunking Strategy
 
-### Implementation
+Background uses:
 
-**Chunk Size**: 20,000 comments per chunk (defined as `CHUNK_SIZE` in `background.ts:63`)
+- `CHUNK_SIZE = 20000` in `background.ts`
+- `sendCommentsInChunks(...)` for completion and fetch-time error delivery
+- Preflight validation errors (e.g., missing/disabled API key) use direct `YCS_YT_API_COMMENTS_ERROR`
 
-**Chunking Logic** (`background.ts:68`):
+Handler (`youtubeDataApiHandler.ts`) reassembles chunks by `chunkIndex` and resolves/rejects when `isLastChunk` is received.
 
-```typescript
-function chunkArray<T>(array: T[], chunkSize: number): T[][] {
-    const chunks: T[][] = [];
-    for (let i = 0; i < array.length; i += chunkSize) {
-        chunks.push(array.slice(i, i + chunkSize));
-    }
-    return chunks;
-}
-```
+---
 
-**Reassembly Logic** (`appController.ts:195`):
+## Request Safety
 
-```typescript
-// Chunk accumulation
-const receivedChunks: CommentItem[][] = [];
+Handler-level safety in `requestYouTubeApiComments(...)`:
 
-// On receiving chunk
-receivedChunks[chunkIndex] = comments;
+- global request timeout: 5 minutes
+- abort wait timeout: 3 seconds after ABORT request
+- per-request filtering by `requestId`
 
-if (isLastChunk) {
-    const allComments: CommentItem[] = [];
-    for (const chunk of receivedChunks) {
-        if (chunk) allComments.push(...chunk);
-    }
-    // Use allComments...
-}
-```
+Background-level safety:
 
-### Metadata Handling
+- active request tracking via `activeYouTubeApiRequests: Map<requestId, { controller, tabId }>`
+- tab close cleanup aborts in-flight requests
 
-- Metadata (quotaUsed, incomplete, error) is only included in the **last chunk**
-- This ensures the web page receives complete status information after all data is received
-- Implementation: `background.ts:128-133`
+---
 
-## Security Design
+## Security Model
 
-### API Key Isolation
+- API key stored only in background (`chrome.storage.local`).
+- Content script strips `youtubeApiKey` before sending options to web page.
+- Web page receives only `hasYoutubeApiKey` flag and uses messaging APIs.
 
-The API key is stored exclusively in the background service worker and **never exposed to the web page**:
+---
 
-1. **Storage**: API key is stored in `chrome.storage.local` under `youtubeApiKey`
-2. **Flag Exposure**: Only a boolean `hasYoutubeApiKey` flag is sent to the web page
-3. **Request Handling**: All YouTube Data API requests are made from the background service worker
+## Error Model
 
-**Content Script Filtering** (`cscripts.ts:106-111`):
+Mapped response types include:
 
-```typescript
-// Security: Filter out sensitive data, only expose hasYoutubeApiKey flag
-const { youtubeApiKey, ...safeOpts } = opts;
-const sanitizedOpts = {
-    ...safeOpts,
-    hasYoutubeApiKey: !!(youtubeApiKey as string)?.trim()
-};
-```
+- `quotaExceeded`
+- `invalidApiKey`
+- `unsupported`
+- `apiError`
+- `aborted`
+- `unknown`
 
-### Request Validation
+Partial comments are preserved when available and returned in chunk/error responses.
 
-- Video IDs are validated against regex pattern before processing
-- Request IDs are UUIDs generated by `crypto.randomUUID()`
-- Message origin is verified: `e.origin !== window.location.origin`
-
-## Error Handling
-
-### Error Types
-
-| Type | Description | User Action |
-|------|-------------|-------------|
-| `quotaExceeded` | Daily API quota (10,000 units) exhausted | Wait until tomorrow or use different API key |
-| `invalidApiKey` | API key is invalid or not configured | Check API key in settings |
-| `unsupported` | Comments disabled or video not found | None (graceful skip) |
-| `apiError` | Other YouTube API errors | Check console for details |
-| `aborted` | User cancelled via STOP button | None (intentional) |
-| `unknown` | Unexpected errors | Check console for details |
-
-### Partial Results
-
-When errors occur mid-fetch, partial results are preserved and returned:
-
-1. Background sends partial comments in the error response
-2. Web page displays appropriate status icon (warning/error/stop/info)
-3. User can still search within the partial results
-
-**Implementation**: `background.ts:288-297` (error handling with partial results)
-
-## Abort Handling
-
-### User-Initiated Abort
-
-When user clicks STOP button:
-
-1. Web page sends `YCS_YT_API_COMMENTS_ABORT` message
-2. Background calls `controller.abort()` on the AbortController
-3. All in-flight fetch requests are cancelled
-4. Partial results (if any) are sent back via `YCS_YT_API_COMMENTS_CHUNK`
-
-### Tab Close Handling
-
-When user closes the tab or navigates away:
-
-1. `chrome.tabs.onRemoved` listener triggers
-2. All requests associated with that tab are aborted
-3. Resources are cleaned up
-
-**Implementation**: `background.ts:445-453`
-
-### Timeout Safety
-
-Web page has a 3-second timeout after sending abort:
-
-```typescript
-// Safety timeout: if background doesn't respond within 3 seconds, reject
-abortTimeoutId = setTimeout(() => {
-    window.removeEventListener('message', handleMessage);
-    reject(new DOMException('Aborted', 'AbortError'));
-}, 3000);
-```
-
-## Active Request Tracking
-
-Background maintains a map of active requests for abort handling:
-
-```typescript
-interface ActiveRequest {
-    controller: AbortController;
-    tabId: number;
-}
-const activeYouTubeApiRequests = new Map<string, ActiveRequest>();
-```
-
-- Keyed by `requestId` (UUID)
-- Stores AbortController for cancellation
-- Stores tabId for tab-close cleanup
-- Automatically cleaned up on completion or abort
+---
 
 ## Related Files
 
-| File | Purpose |
-|------|---------|
-| `background.ts:1-300` | Background service worker with YouTube API handling |
-| `cscripts.ts:7-175` | Content script message relay |
-| `appController.ts:118-260` | Web page request handling and chunk reassembly |
-| `i_types.ts:311-412` | TypeScript interfaces for YouTube Data API |
-| `youtubeDataApi/client.ts` | YouTube Data API client |
-| `youtubeDataApi/transform.ts` | Response transformation to CommentItem |
+- `app/src/source/web-resources/handlers/youtubeDataApiHandler.ts`
+- `app/src/source/background.ts`
+- `app/src/source/content-scripts/cscripts.ts`
+- `app/src/source/web-resources/appController.ts`
+- `app/src/source/utils/youtubeDataApi/client.ts`
+- `app/src/source/utils/youtubeDataApi/transform.ts`

@@ -1,92 +1,181 @@
-# 4c15768 Alignment: processComments vs migrateContinuationItems (Differences and Mapping)
+# Continuation Processing (Current Architecture)
 
 ## Goals
 
-- Clarify the responsibilities and data flow of `processComments` and `migrateContinuationItems` in the JS (new) implementation.
-- Map them to the TS (origin) implementation.
-- Summarize differences between legacy and new Innertube responses and provide unification guidance.
+- Describe the current continuation processing flow used by YCS comment loading.
+- Clarify responsibilities between orchestration and normalization layers.
+- Document the modern frameworkUpdates-based pipeline and reply pagination behavior.
 
 ---
 
-## New (JS) flow overview
+## Current Ownership
 
-- Core functions:
-    - `processComments(continuationItems, state)`
-        - Iterate continuation blocks:
-            - If `commentThreadRenderer.comment` → collect and annotate (verified, heart)
-            - If `continuationItemRenderer` → extract token/tracking and fetch next
-            - After response, read `appendContinuationItemsAction.continuationItems`, normalize via `migrateContinuationSubItems()` and recurse
-        - Replies pagination is supported via `replies.commentRepliesRenderer.continuations[0].nextContinuationData`
-    - `migrateContinuationItems(...)` / `migrateContinuationSubItems(...)`
-        - Normalize payloads (`reload...` / `append...`) into a unified item shape
-        - Use `frameworkUpdates` (via `getFrameworkUpdatesById(response)`) to enrich item attributes (e.g., heart)
-    - Utilities: widely use `objectScan` to extract tokens, clickTrackingParams, sort params, etc.
+- Orchestration: `app/src/source/utils/innertube/comments.ts`
+  - `getAllCommentsModeV2(...)`
+  - Controls batch loop, reply queue scheduling, dedupe, and post-processing.
 
-- Pagination strategy:
-    - First page: find the initial `continuation` token from `ytInitialData` or initial `details` response
-    - Next pages: read `reloadContinuationItemsCommand.continuationItems` then `appendContinuationItemsAction.continuationItems`
-    - Detect end: check the last item's `continuationItemRenderer.button.buttonRenderer.command.continuationCommand`
+- Normalization and extraction: `app/src/source/utils/innertube/comments/pipeline.ts`
+  - `getFrameworkUpdatesById(...)`
+  - `migrateContinuationItemsWithFW(...)`
+  - `processParentComment(...)`
+  - `extractReplyContinuationFromItem(...)`
+  - `extractSubThreads(...)`
+  - `extractNextContinuation(...)`
+  - `fetchInitialCommentBatch(...)`, `fetchContinuationBatch(...)`, `fetchRepliesBatch(...)`
 
----
-
-## Current (TS) mapping (aligned with new)
-
-- Where and how:
-    - Main: `utils/assist.ts`
-        - Top‑level loading (now fully aligned with the new model):
-            - Initial token: same as new JS
-            - Continuation items: read from `onResponseReceivedEndpoints`
-            - Normalize: `migrateContinuationItemsWithFW(items, getFrameworkUpdatesById(response))`
-                - For `commentThreadRenderer.commentViewModel` / `commentViewModel`, build standard `commentRenderer` via `generateCommentObjectFromFW(...)`
-                - Also reconstruct replies `commentRepliesRenderer.continuations` structure
-            - Before/after pushing, call `applyFrameworkUpdatesToComment(...)` to map heart/verified/owner/sponsor
-        - Replies:
-            - Parse token via `extractReplyContinuationFromItem(...)`
-            - Normalize each batch via `migrateContinuationItemsWithFW(...)`
-        - Fields/flags:
-            - `generateCommentObjectFromFW(...)` outputs `contentText.runs/fullText`, `likeCount/replyCount`, heart/verified/sponsor, publishedTime
-
-### Mapping (JS → TS)
-
-- `processComments(...)` (JS)
-    - Maps to TS: `getAllCommentsModeV2(...)` looping through continuationItems and pagination, plus `_getAllRepliesComment(...)` for replies
-- `migrateContinuationItems(...)` / `migrateContinuationSubItems(...)` (JS)
-    - TS provides equivalent behavior via the FW‑driven normalizers described above
+- Web entry script: `app/src/source/web-resources/wresources.ts`
+  - Bootstrap only. It is not a comment-processing implementation reference.
 
 ---
 
-## Innertube response and usage (current)
+## End-to-End Flow
 
-- Response paths to support:
-    - Top-level:
-        - First page: `...reloadContinuationItemsCommand.continuationItems`
-        - Next pages: `...appendContinuationItemsAction.continuationItems`
-    - Replies:
-        - Entry: `replies.commentRepliesRenderer.continuations[0].nextContinuationData`
-
-- Normalization strategy:
-    - Both JS/TS are frameworkUpdates‑driven: `getFrameworkUpdatesById` → `generateCommentObject*` → `migrateContinuation*`
-
-- Attributes (heart/verified/owner/sponsor):
-    - Use `frameworkUpdates` as source of truth; fallback to existing fields only when absent
+1. `getAllCommentsModeV2(...)` fetches first page via `fetchInitialCommentBatch(...)`.
+2. `migrateContinuationItemsWithFW(...)` converts continuation items to normalized comment objects.
+3. `processParentComment(...)` builds parent/reply candidates and continuation tokens.
+4. `scheduleReplyFetches(...)` processes reply continuations with queue control.
+5. Main loop fetches next page through `fetchContinuationBatch(...)` + `extractNextContinuation(...)`.
+6. Finalization runs:
+   - `dedupeParentComments(...)`
+   - `recomputeNestedReplyCounts(...)` (in `comments.ts`)
+   - `_index` re-assignment for stable ordering.
 
 ---
 
-## Notes
+## Flow Diagram
 
-- Token parsing helpers are extracted as `extractNextContinuation(...)` and `extractReplyContinuationFromItem(...)`.
+```mermaid
+flowchart TD
+    A[getAllCommentsModeV2] --> B[fetchInitialCommentBatch]
+    B --> C[getFrameworkUpdatesById]
+    C --> D[migrateContinuationItemsWithFW]
+    D --> E[processParentComment]
+    E --> F[scheduleReplyFetches]
+    F --> G[fetchRepliesBatch]
+    E --> H[extractNextContinuation]
+    H -->|has token| I[fetchContinuationBatch]
+    I --> C
+    H -->|no token| J[replyQueue.onIdle]
+    J --> K[dedupeParentComments]
+    K --> L[recomputeNestedReplyCounts]
+    L --> M[assign _index]
+```
 
 ---
 
-## References (quick index)
+## Continuation Sources
 
-- JS reference: `web-resources/wresources.js`
-    - `processComments(...)`
-    - `migrateContinuationItems(...)`
-    - `migrateContinuationSubItems(...)`
-    - `getFrameworkUpdatesById(...)`
+Top-level pages:
+- Prefer `reloadContinuationItemsCommand.continuationItems`
+- Fallback to `appendContinuationItemsAction.continuationItems`
 
-- TS implementation: `src/source/utils/assist.ts`
-    - Top-level: `getAllCommentsModeV2(...)`
-    - Replies: `_getAllRepliesComment(...)`
-    - Field cleanup: `_prepareFieldsComment(...)` and `renderFullText` assembly
+Replies:
+- `replies.commentRepliesRenderer.continuations[0].nextContinuationData`
+- Fallback deep scan via `extractReplyContinuationFromItem(...)`
+
+Nested replies:
+- Recursive `subThreads` extraction through `extractSubThreads(...)`
+- Supports continuation tokens at nested levels.
+
+---
+
+## Minimal Response Examples
+
+Top-level continuation containers:
+
+```json
+{
+  "onResponseReceivedEndpoints": [
+    {
+      "appendContinuationItemsAction": {
+        "continuationItems": [{ "commentThreadRenderer": {} }]
+      }
+    },
+    {
+      "reloadContinuationItemsCommand": {
+        "continuationItems": [{ "commentThreadRenderer": {} }]
+      }
+    }
+  ]
+}
+```
+
+Reply token shape:
+
+```json
+{
+  "commentThreadRenderer": {
+    "replies": {
+      "commentRepliesRenderer": {
+        "continuations": [
+          {
+            "nextContinuationData": {
+              "continuation": "Egh4eHl6",
+              "clickTrackingParams": "CBkQ8JMBGAEiE..."
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+Nested `subThreads` continuation shape:
+
+```json
+{
+  "commentRepliesRenderer": {
+    "subThreads": [
+      {
+        "continuationItemRenderer": {
+          "continuationEndpoint": {
+            "continuationCommand": { "token": "EgpzdWJ0aHJlYWQ=" },
+            "clickTrackingParams": "CB4Q8JMBGAEiE..."
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+---
+
+## FrameworkUpdates Strategy
+
+- Build lookup map with `getFrameworkUpdatesById(response)`.
+- Index by both `commentId` and entity `key`.
+- Reconstruct comment renderer via `generateCommentObjectFromFW(...)`.
+- Apply attribute enrichment (heart/verified/owner/sponsor) through FW data first.
+
+---
+
+## Legacy Name Mapping
+
+The following names are historical and are no longer active entry points in the TypeScript source:
+
+- `processComments(...)`
+- `migrateContinuationItems(...)` / `migrateContinuationSubItems(...)`
+- `_getAllRepliesComment(...)`
+- `_prepareFieldsComment(...)`
+
+Use current equivalents documented in this file instead.
+
+---
+
+## Quick Reference
+
+- `app/src/source/utils/innertube/comments.ts`
+  - `getAllCommentsModeV2(...)`
+
+- `app/src/source/utils/innertube/comments/pipeline.ts`
+  - `getFrameworkUpdatesById(...)`
+  - `migrateContinuationItemsWithFW(...)`
+  - `processParentComment(...)`
+  - `extractReplyContinuationFromItem(...)`
+  - `extractSubThreads(...)`
+  - `extractNextContinuation(...)`
+  - `fetchInitialCommentBatch(...)`
+  - `fetchContinuationBatch(...)`
+  - `fetchRepliesBatch(...)`

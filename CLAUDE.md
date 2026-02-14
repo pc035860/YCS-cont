@@ -1,479 +1,245 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides practical guidance for contributors working on YCS.
 
 ## Project Overview
 
-YCS (YouTube Comment Search) is a browser extension for Chrome and Firefox that enables searching, filtering, and exporting YouTube comments, replies, chat replays, and video transcripts.
+YCS (YouTube Comment Search) is a browser extension for Chrome/Firefox that loads, searches, filters, and exports:
+- YouTube comments/replies
+- chat replay
+- video transcript
 
-- **Extension type**: Manifest V3 (MV3)
-- **Build system**: Parcel 2.0.1
-- **Target browsers**: Chrome 88+, Firefox
-- **Main branch**: `v2-source` (default branch for development and releases)
-- **Node.js version**: 22+ (defined in `app/.nvmrc`)
+Core stack:
+- MV3 extension
+- TypeScript + Parcel 2
+- Node.js 22+
 
-## Development Commands
+Default development branch: `v2-source`
+
+---
+
+## Working Directories
+
+- Repo root: release scripts, docs, packaging
+- `app/`: extension source, tests, build outputs
+- `app/src/source/web-resources/`: main UI + search behavior
+- `app/src/source/utils/innertube/`: data loading from YouTube internals
+- `app/docs/`: technical docs and behavior specs
+
+---
+
+## Essential Commands
+
+Run from `app/` unless noted.
 
 ```bash
-# Development (from app/ directory)
-cd app
-npm run dev       # Start Parcel dev server (HMR disabled)
-npm run build     # Production build → app/dist/
-npm run rebuild   # Clean cache and rebuild
-npm run lint      # Run ESLint
-npm run typecheck # Run TypeScript type checking
-npm run format    # Format code with Prettier
-npm run format:check # Check code formatting without modifying
-npm test          # Run tests with Node.js test runner
-npm run rm        # Clean all build artifacts
+# Dev/build
+npm run dev
+npm run build
+npm run rebuild
 
-# Release workflow (from project root)
-make release TYPE=patch   # Auto bump version, commit, tag, build, package
-make release TYPE=minor
-make release TYPE=major
+# Quality
+npm run lint
+npm run typecheck
+npm test
+npm run format
+npm run format:check
 
-# Manual build steps (if not using Makefile)
-./scripts/bump-version.sh patch          # Update version in manifests
-./scripts/build-extension.sh chrome      # Build Chrome version
-./scripts/build-extension.sh firefox     # Build Firefox version
-./scripts/package-extension.sh chrome    # Package as .zip
+# Clean
+npm run rm
 ```
 
-## Architecture
-
-### Three-Layer Communication Model
-
-```
-YouTube.com Page
-  ├─ web-resources.ts (Web Page Layer)
-  │  └─ Search logic, UI rendering, Fuse.js integration
-  │  └─ window.postMessage() ↕️
-  ├─ content-scripts.ts (Content Script Layer)
-  │  └─ Message relay, script injection management
-  │  └─ chrome.runtime.sendMessage() ↕️
-  └─ background.ts (Service Worker)
-     └─ IndexedDB cache, storage monitoring, badge updates
-     └─ YouTube Data API requests (API key stored securely)
-```
-
-**Why this structure?**
-MV3 security restrictions require web page code to run in isolated context. The content script acts as a secure bridge between web page and extension background. For YouTube Data API integration, API keys are stored securely in the background and never exposed to the web page.
-
-### Key Directories
-
-- **`app/src/source/`**: TypeScript source code
-  - `background.ts`: Service Worker (cache, storage management)
-  - `content-scripts/`: Message relay bridge (web page ↔ extension)
-  - **`web-resources/`**: Main search and UI logic
-    - `wresources.ts`: Entry point for web page layer
-    - `bootstrap.ts`: Initialization and SPA navigation handling
-    - `appController.ts`: Core application control logic
-    - `state.ts`: WebResourcesState management
-    - `search/`: Search modules (comments, chat, transcript)
-    - `ui/`: UI components (render, filters, interactions)
-    - `features/`: Feature modules (comment sort order selector, transcript loader, timestamp visualization)
-    - `services/`: Service layer (cache, export)
-  - **`utils/`**: Modular utility system
-    - `assist.ts`: Module facade and unified export point
-    - `common.ts`: Shared utilities and GlobalStore
-    - `libs.ts`: External library wrappers (fetchR, IndexedDB)
-    - `dom.ts`, `formatting.ts`: DOM and data transformation
-    - `innertube/`: Modularized YouTube Innertube API integration
-      - `comments/`: Comment fetching and processing pipeline
-      - `chat/`: Chat replay modules (live/replay)
-      - `core.ts`, `request.ts`, `authHeaders.ts`, `transcript.ts`: Core utilities
-    - `youtubeDataApi/`: YouTube Data API v3 integration (optional, requires API key)
-      - `client.ts`: API client with error handling
-      - `comments.ts`: Comment fetching logic
-      - `transform.ts`: Response transformation to CommentItem
-      - `index.ts`: Module exports
-    - `filters/`: Comment and chat filtering modules
-    - `sheets.ts`: Excel export functionality
-    - `renderView.ts`, `viewModels.ts`: HTML rendering and view models
-    - `interfaces/`: TypeScript type definitions (CommentItem, ChatItem, etc.)
-  - `options/`: Extension settings page
-  - `browser-action/`: Extension popup UI
-
-- **`app/src/static/`**: Static assets (manifest, locales, icons)
-- **`app/docs/`**: Technical documentation (Innertube API integration guides)
-- **`scripts/`**: Build automation (build, package, version bump)
-- **`packing/`**: Release artifacts (.zip files)
-
-### Extension Manifest Files
-
-- **`app/manifest.json`**: Chrome MV3 manifest (in app root)
-- **`app/manifest.firefox.json`**: Firefox-specific manifest
-- **Build process**: Copies the appropriate manifest to `app/src/static/manifest.json` before build
-
-## Important Dependencies
-
-| Package | Usage |
-|---------|-------|
-| `fuse.js` v6.6.2 | Fuzzy search engine for comments |
-| `mark.js` v8.11.1 | Search result highlighting |
-| `idb` v7.0.2 | IndexedDB wrapper for caching |
-| `p-queue` v6.6.2 | Async queue for API rate limiting |
-| `fetch-retry` v5.0.3 | HTTP retry with exponential backoff |
-| `xlsx` v0.18.2 | Excel export functionality |
-| `html-entities` v2.6.0 | HTML entity encoding/decoding |
-| `url-regex` v5.0.0 | URL pattern matching |
-| `object-scan` v18.3.4 | Deep object scanning utility |
-| `crypto-js` v4.2.0 | SHA-1 hashing for authorization headers |
-| `@types/crypto-js` v4.2.2 | TypeScript definitions for crypto-js |
-
-## Build System
-
-### Parcel Configuration (`.parcelrc`)
-
-- **Static file copy**: Uses `parcel-reporter-static-files-copy` to copy `app/src/static/` to `app/dist/`
-- **No source maps in production**: Disabled to reduce bundle size
-- **TypeScript**: ES6 target, strict mode enabled
-
-### Build Scripts Flow
-
-1. **`build-extension.sh [chrome|firefox]`** - Copies platform-specific manifest to `app/src/static/`, runs `npm run build`, outputs to `app/dist/`
-2. **`package-extension.sh [chrome|firefox]`** - Creates `packing/{platform}-{version}.zip` from `app/dist/`
-3. **`bump-version.sh [major|minor|patch]`** - Updates version in both manifests using semantic versioning
-
-### Makefile Workflow
-
-The `Makefile` automates the entire release process:
+From repo root:
 
 ```bash
 make release TYPE=patch
+make release TYPE=minor
+make release TYPE=major
 ```
 
-Steps: bump version → git commit/tag → build/package both platforms → output to `packing/`
+Manual release scripts (root):
 
-## Code Architecture Patterns
-
-### Module Facade Pattern
-
-The utility layer uses a facade pattern via `utils/assist.ts` as a unified export point. This provides centralized module exports and clear dependency hierarchy (common → dom → formatting → filters → innertube → sheets).
-
-Example: `import { getVideoId, formatLikes } from '../utils/assist';`
-
-### GlobalStore Pattern
-
-Runtime state management using IIFE closure pattern. See `app/src/source/web-resources/wresources.ts` for implementation.
-
-### Web Resources State Management
-
-`web-resources/state.ts` provides a functional state container with comments, chat data, transcript, counters, comment sort order selection, and abort controller.
-
-**State Properties** (`WebResourcesState` interface):
-- `comments`: Array of `CommentItem` objects
-- `commentsChat`: Map of `ChatItem` objects
-- `commentsTrVideo`: Transcript data
-- `transcriptTracks`: Available transcript tracks
-- `selectedTranscriptLanguage`: Currently selected transcript language
-- `selectedCommentSortOrder`: Comment sort order selection (`CommentSortOrder.NewestFirst` by default)
-- `count`: Counter buckets for loaded items
-- `countSearch`: Counter buckets for search results
-- `controller`: AbortController for request cancellation
-- `liveRecording`: Live chat recording state
-
-**State Management Functions**:
-- `getSelectedCommentSortOrder()`: Retrieve current sort order selection
-- `setSelectedCommentSortOrder()`: Update sort order selection
-
-### IndexedDB Cache Strategy
-
-- **Store**: `STORE_CACHE_YCS` (key: video ID, data: comment/transcript)
-- **Auto cleanup**: Clears cache when storage quota exceeded
-- **Quota limit**: 200 MB (configurable in options)
-- **Implementation**: `app/src/source/background.ts`
-
-### Message Passing
-
-Three-layer communication using `window.postMessage()` (Web Page ↔ Content Script) and `chrome.runtime.sendMessage()` (Content Script ↔ Service Worker). See Architecture section above.
-
-**YouTube Data API Messaging**: When YouTube Data API is enabled, a specialized messaging protocol handles comment fetching with chunked transfer (to overcome Chrome's ~50-64 MB message size limit) and secure API key isolation. See `app/docs/youtube-data-api-messaging.md` for detailed architecture.
-
-### Retry Mechanism
-
-Uses `fetch-retry` with exponential backoff (2s → 10s → 60s, max 100 retries) to handle YouTube API instability. Implemented in `utils/innertube.ts`.
-
-### HTML Encoding Strategy (XSS Prevention)
-
-User content (comments, chat messages) is encoded using `html-entities` library's `encode()` function to prevent XSS attacks.
-
-**YouTube API Text Format**:
-- YouTube returns text content as **plain text**, not HTML entities
-- Special characters like `<`, `>`, `&` are transmitted via JSON Unicode escapes (`\u003c`, `\u003e`, `\u0026`)
-- After JSON parsing, these become literal characters (`<`, `>`, `&`)
-- Therefore, `encode()` correctly converts them to safe HTML entities (`&lt;`, `&gt;`, `&amp;`)
-
-**Example** (from actual API response):
-```json
-// JSON response contains Unicode escapes
-"content": "The img tag: \u003cimg src=\"test.jpg\"\u003e"
-
-// After JSON.parse(), becomes plain text
-"The img tag: <img src=\"test.jpg\">"
-
-// After encode(), safe for HTML rendering
-"The img tag: &lt;img src=&quot;test.jpg&quot;&gt;"
+```bash
+./scripts/bump-version.sh patch
+./scripts/build-extension.sh chrome
+./scripts/build-extension.sh firefox
+./scripts/package-extension.sh chrome
 ```
 
-**Key Files**:
-- `utils/common.ts`: `escapeHtml()` - smart encoding that preserves existing entities
-- `utils/innertube/chat/utils.ts`: `formatChatRuns()` - chat message encoding
-- `utils/innertube/comments/pipeline.ts`: `formatCommentRuns()` - comment encoding
-- `utils/viewModels.ts`: `buildChatRunsHtml()`, `buildCommentViewModels()` - view layer encoding
+---
 
-**Design Decision**: Direct `encode()` is used instead of `decodeHtml()` + `escapeHtml()` because YouTube API returns plain text, not pre-encoded HTML entities. Double-encoding would only occur if YouTube changed their API to return entities, which has not been observed in practice.
+## Commit/Hook Reality
 
-## TypeScript Configuration
+- Husky pre-commit is configured at `app/.husky/pre-commit`.
+- Current pre-commit pipeline runs:
+  1. `npm run typecheck`
+  2. `npm test`
+  3. `npx lint-staged`
+- Keep staged changes minimal before committing, because tests run pre-commit.
 
-- **Target**: ES6
-- **Module**: ES6 (Parcel handles bundling)
-- **Strict**: Enabled
-- **Module Resolution**: Node
-- **ESM Interop**: Enabled
-- **Types**: `@types/chrome`, `@types/mark.js`
+---
 
-## Code Style
+## Architecture Snapshot
 
-- **Language**: All code documentation, comments, commit messages, and technical documents must be written in English
+Three-layer message flow:
 
-- **Formatter**: Prettier (`app/.prettierrc.json`)
-  - Line width: 120 chars, single quotes, LF endings, semicolons
-  - Usage: `npx prettier --write "src/**/*.{ts,js,json,css,html}"`
-  - Format before committing, after feature completion, when resolving merge conflicts
-  - Most IDEs can auto-format on save
+1. Web page layer (`web-resources`)  
+2. Content script bridge (`content-scripts`)  
+3. Service worker (`background.ts`)
 
-- **Linter**: ESLint with TypeScript parser (`npm run lint` from `app/`)
-  - Config: `app/.eslintrc.cjs`
-  - Key rules:
-    - `no-console`: OFF (extension debugging)
-    - `@typescript-eslint/no-explicit-any`: OFF (YouTube API complexity)
-    - `prefer-const`: WARN
-    - `@typescript-eslint/no-unused-vars`: WARN (allow `_` prefix)
+Main state container:
+- `app/src/source/web-resources/state.ts`
+- Holds loaded datasets, search counters, selected sort settings, and abort controller
 
-- **Indentation**:
-  - TS/JS: 4 spaces (`.editorconfig`)
-  - JSON/HTML/CSS: 2 spaces
-  - Makefile: Tabs
+Search entry point:
+- `app/src/source/web-resources/appController.ts`
 
-- **Naming Conventions**:
-  - **Variables**: camelCase (`videoId`, `currentIndex`)
-  - **Constants**: UPPER_SNAKE_CASE (`STORE_CACHE_YCS`, `MAX_RETRIES`)
-  - **Functions**: camelCase with verb (`getVideoId()`, `processComment()`)
-  - **Classes/Interfaces**: PascalCase (`CommentItem`, `CacheData`)
-  - **Type aliases**: PascalCase (`type ReplyContinuation = ...`)
-  - **Unused params**: `_` prefix (`_event: Event`)
-  - **Files**: camelCase (`cacheService.ts`, `innertube.ts`)
-  - **Type definition files**: `i_` prefix (`i_types.ts`, `i_assist.ts`)
+Search engines:
+- `app/src/source/web-resources/search/commentsSearch.ts`
+- `app/src/source/web-resources/search/chatSearch.ts`
+- `app/src/source/web-resources/search/transcriptSearch.ts`
 
-- **Documentation**:
-  - Do not include file line numbers in documentation
-  - Do not add test coverage reports to documentation
-  - Avoid temporal markers (e.g., "Updated", "Updated on YYYY/MM/DD", "New") unless explicitly requested
-  - Documentation should reflect the current state, not historical changes
+---
 
-## Git Workflow
+## Philosophy and Conventions
 
-- **Main branch**: `v2-source` (default branch for development and releases)
-- All development work should be based on this branch
-- The project uses Husky pre-commit hooks for automatic formatting and linting
+1. Behavior stability over clever refactors  
+   If a UX behavior is already established, treat changes as product decisions, not refactor side effects.
 
-## Testing
+2. Regression-first review mindset  
+   If behavior changes without explicit requirement, flag it as regression.
 
-### Automated Testing
+3. Explicit user action for search refresh  
+   Text input changes alone should not silently alter result lists.
 
-The project uses **Node.js built-in test runner** with TypeScript support:
+4. Keep search/filter logic centralized  
+   Prefer changing behavior in `appController.ts` / search modules, not ad-hoc UI patches.
 
-- **Test runner**: Node.js `node:test` module
-- **Assertion**: Node.js `node:assert` (strict mode)
-- **TypeScript**: `--experimental-strip-types` flag + custom loader
-- **Command**: `npm test` (from `app/` directory)
+5. Documentation is part of the feature  
+   New recurring behavior rules belong in `app/docs/` so reviewers can enforce them.
 
-**Test files** (in `app/tests/`):
-- `common.test.ts` - Common utilities
-- `formatting.test.ts` - Data formatting
-- `innertube.test.ts` - Innertube API
-- `innertube-comments-pipeline.test.ts` - Comment pipeline
-- `viewModels.test.ts` - View models
+6. Write docs/comments in English  
+   Keep technical docs concise and state-focused.
 
-Example:
-```typescript
-import { strict as assert } from 'node:assert';
-import test from 'node:test';
+---
 
-test('description', () => {
-    assert.equal(myFunction(input), expected);
-});
+## High-Value Gotchas (Frequent Regression Sources)
+
+### 1) Search text clear vs filter clear are different operations
+
+- `#ycs_btn_search_clear_text` (input-side clear):
+  - Clears text
+  - If a filter is active, re-runs search with empty query + same filter
+  - If no filter is active, clears rendered results and shows "Search cleared"
+
+- `#ycs_btn_clear` (filter clear):
+  - Clears active filter
+  - If query exists, re-runs search with query preserved and no filter
+  - If query is empty, clears rendered results and shows "Search cleared"
+
+Do not merge these semantics.
+
+### 2) Backspace-to-empty does not auto-search
+
+- Input events only update clear-text button visibility.
+- Search refresh happens on explicit actions (Enter/Search/filter clicks).
+
+### 3) Filter model is single-select
+
+- Only one `.ycs_btn_active` at a time.
+- Re-clicking sortable filters toggles `newest/oldest`.
+- Re-clicking non-sortable filters re-runs search but does not toggle-off.
+
+### 4) Quick filters are force-type actions, not type selector changes
+
+- `quickChat` and `quickTranscript` force search type only for that click action.
+- They do not permanently change dropdown search type.
+
+### 5) Unsupported filter matrix differs by data source
+
+- Some filters intentionally return no results for chat/transcript modes.
+- In `all` mode, unsupported sources are skipped by design.
+- Validate compatibility before changing filter behavior.
+
+Canonical behavior baseline doc:
+- `app/docs/filter-search-behavior-regression-spec.md`
+
+---
+
+## Innertube/Data Gotchas
+
+1. Access restriction status is unified  
+   Use consolidated status update flow (member-only + age-restricted), not split ad-hoc calls.
+
+2. Logged-out chat replay has fallback handling  
+   Do not remove fallback paths without verifying logged-out scenarios.
+
+3. Transcript loading has multiple paths  
+   Recent changes improved Player API handling; preserve fallback behavior.
+
+4. Empty query search should still return full dataset  
+   This is expected behavior, not a bug.
+
+---
+
+## Recent Significant Changes (Keep in Mind)
+
+1. Search/filter UX hardening (`#139`)
+- Button visibility behavior refined
+- Clear/autoload timing stabilized in app controller flow
+
+2. Shorts UX update
+- Comment sort order selector is hidden on Shorts pages
+
+3. Transcript loading improvements (`#137`)
+- Innertube Player API path improved with safer loading flow
+
+4. Options capability expansion (`#132`)
+- Added `maxComments` option to cap autoload comment count
+
+5. Innertube reliability for logged-out users (`#130`)
+- Chat replay loading improved with HTML fallback path
+
+6. Comment loading mode selection (`#129`)
+- Added selectable loading behavior for comments pipeline
+
+7. Access restriction refactor (`#126`) + age-restricted support (`#125`)
+- Consolidated status update strategy
+- Stabilized authorization decisions for restricted content
+
+8. Search behavior fix
+- Empty query now returns all results in comments search
+
+---
+
+## Testing Guidance
+
+Run automated checks from `app/`:
+
+```bash
+npm run typecheck
+npm test
+npm run lint
 ```
 
-### Manual Testing
+Manual smoke checklist:
+1. Load extension in browser (`app/dist`)
+2. Verify comments/chat/transcript load flows
+3. Verify search + filter + clear-button interactions
+4. Verify export still works
+5. Verify Shorts page behavior
 
-1. Load unpacked extension from `app/dist/` in Chrome/Firefox
-2. Test on YouTube video pages with comments
-3. Verify search, filtering, and export functionality
+---
 
-## Multi-Platform Support
+## Documentation Map
 
-### Chrome vs Firefox Differences
+- `app/docs/innertube-migration-guide.md`
+- `app/docs/innertube-comments-integration.md`
+- `app/docs/innertube-chat-replay-api-changes.md`
+- `app/docs/innertube-nested-comments.md`
+- `app/docs/sap-sid-authorization.md`
+- `app/docs/adaptive-authorization-headers.md`
+- `app/docs/youtube-data-api-messaging.md`
+- `app/docs/filter-search-behavior-regression-spec.md`
 
-Both platforms use mostly identical code, with only manifest differences:
-
-**Chrome** (`manifest.json`):
-- `action` key for toolbar icon
-- `scripting` permission for dynamic injection
-
-**Firefox** (`manifest.firefox.json`):
-- `browser_action` key (older Firefox versions)
-- Identical otherwise
-
-Build scripts handle platform selection automatically.
-
-## YouTube Innertube API Integration
-
-The extension integrates with YouTube's internal Innertube API for fetching comments, chat replays, and transcripts.
-
-- **Dual-track support**: Legacy and frameworkUpdates-driven response formats
-- **Key modules**: Comment fetching, chat replay, pagination handling
-- **Authorization**: SAPISID-based authorization headers for authenticated requests
-- **Documentation**: See `app/docs/innertube-*.md` and `app/docs/sap-sid-authorization.md` for detailed implementation guides
-
-Implementation: `app/src/source/utils/innertube/` with type definitions in `utils/interfaces/i_assist.ts`
-
-### Nested Comments (subThreads) Support
-
-YouTube's comment system uses an Entity-driven architecture where nested replies (replies to replies) are organized through `subThreads` arrays.
-
-**Key Concepts**:
-- **Entity-driven format**: Comment data is separated from renderers via `frameworkUpdates.entityBatchUpdate.mutations`, linked by `commentKey`/`entityKey`
-- **Nested structure**: Replies are organized recursively in `commentRepliesRenderer.subThreads` arrays
-- **Reply level tracking**: Each comment includes a `replyLevel` property (0 = parent, 1+ = nested depth)
-
-**Implementation Details**:
-- **`extractSubThreads()`**: Recursively scans `subThreads` arrays up to `MAX_SUBTHREAD_DEPTH` (5 levels) to prevent infinite loops
-- **`CommentItem.replyLevel`**: Tracks nesting depth for UI indentation and tree structure representation
-- **`SubThreadContinuation`**: Extended continuation interface with `replyLevel` and `parentCommentId` for nested pagination
-- **Empty subThreads handling**: Validates `subThreads` content before assuming nested replies exist; clears `replyCount` for comments with empty nested structures
-
-**Edge Cases**:
-- **Unreliable `replyCount`**: Entity payload's `toolbar.replyCount` is an estimate; the implementation recomputes counts based on actually retrieved child comments
-- **Variable `commentId` location**: Uses fallback pattern (`item?.commentRenderer?.commentId || item?.commentId`) to handle different response formats
-
-**Documentation**: See `app/docs/innertube-nested-comments.md` for detailed architecture analysis and migration guide.
-
-### Comment Sort Order Selection
-
-The extension provides a dropdown selector in the UI for choosing between two comment sort orders when loading comments:
-
-**Sort Options** (`CommentSortOrder` type in `interfaces/i_types.ts:309-314`):
-- **TopComments** (0): "Top (filtered)" - YouTube's filtered top comments
-- **NewestFirst** (1): "Newest (full, default)" - Full chronological comment list
-
-**Implementation Details**:
-- **Feature module**: `web-resources/features/commentSortOrderSelector.ts` - Dropdown UI component with dependency injection pattern
-- **State management**: `selectedCommentSortOrder` in `WebResourcesState` (defaults to `CommentSortOrder.NewestFirst`)
-- **API integration**: The `sortOrder` parameter is passed through `fetchCommentPage()` and `fetchPostPage()` to modify the Innertube API token extraction logic
-- **Auto-reload**: Switching sort options automatically triggers comment reload by simulating a click on the "Load Comments" button
-- **Default values**: All layers use `NewestFirst` as the default (state, fetchCommentPage, fetchPostPage, getAllCommentsModeV2)
-
-**Type Definitions**:
-- `CommentSortOrder`: Const object with `TopComments: 0` and `NewestFirst: 1`
-- `CommentSortOption`: Interface with `value` (CommentSortOrder) and `label` (string) properties
-
-### Member-Only and Age-Restricted Video Detection and Authorization Strategy
-
-The extension uses a **tiered strategy** for sending Authorization headers:
-
-**Detection Logic**:
-- **Member-only**: Determined by fetching `ytInitialData` via PBJ request (`pbj=1` parameter) and checking for membership badges
-- **Age-restricted**: Determined by `playabilityStatus.status === 'LOGIN_REQUIRED'`
-  - Note: This broadly treats login-required content as age-restricted to maximize success rate
-
-**Authorization Header Decision** (for comment requests):
-
-| Condition | Action |
-|-----------|--------|
-| `isMemberOnly = true` | Send Authorization header |
-| `isAgeRestricted = true` | Send Authorization header |
-| Both `false` | Do not send Authorization header |
-| Detection failed (`undefined`) | Do not send (conservative fallback) |
-
-**PBJ/HTML Fallback Requests**:
-- **Always send Authorization header** (if available) to ensure age-restricted videos can retrieve initial data
-- This differs from the conservative comment-only strategy but is necessary for restricted content detection
-
-**Design Rationale**:
-- PBJ request failure rate is near zero, so detection failures are extremely rare
-- Sending Authorization header increases request size by 3-4x, which is costly for the majority of non-member videos
-- Age-restricted videos require Auth in initial PBJ request to get valid `ytInitialData`
-- Treating `LOGIN_REQUIRED` broadly as age-restricted prioritizes success rate over precision
-- The trade-off: slightly larger request size for fallback requests, but ensures restricted content works
-
-**Scope**:
-- **Comment requests**: Tiered strategy based on detection results (member-only or age-restricted)
-- **PBJ/HTML Fallback requests**: Always send Auth to support restricted content detection
-- **Chat and transcript requests**: Always send Auth (request size impact is minimal)
-
-**Implementation**: See `utils/innertube/memberOnly.ts` for detection logic (`updateAccessRestrictionStatus()` for unified status updates) and `utils/innertube/comments/pipeline.ts` for `ensureMemberOnlyStatus()` function
-
-### ytInitialData Format Handling
-
-When fetching YouTube page data with `pbj=1` parameter, the API returns `ytInitialData` in different formats:
-
-**Modern PBJ Format (Primary)**:
-- **Structure**: Single object with both `response` and `playerResponse` properties
-- **Format**: `{response: {...}, playerResponse: {...}, page: "watch", ...}`
-- **Usage**: This is the current standard format returned by YouTube
-- **Detection**: Check for both `data.response` and `data.playerResponse` at top level
-
-**Legacy Array Format (Rarely Seen)**:
-- **Structure**: Array of objects, each containing either `response` or `playerResponse`
-- **Format**: `[{response: {...}}, {playerResponse: {...}}]`
-- **Usage**: Old format kept for backward compatibility
-- **Handling**: `normalizeYtInitialData()` merges all array elements to preserve both properties
-
-**Important Notes**:
-- The `normalizeYtInitialData()` function in `utils/innertube/memberOnly.ts` handles format normalization
-- For array format, all elements are merged using `Object.assign()` to ensure both `response` and `playerResponse` are preserved
-- This is critical for member-only video detection, which requires both properties to correctly identify PBJ format
-- Type definitions use `object` (not `[object]`) to reflect the modern object format as primary
-
-## YouTube Data API v3 Integration (Optional)
-
-The extension optionally supports YouTube Data API v3 as an alternative to Innertube for comment fetching.
-
-- **API key required**: Users must provide their own API key in extension settings
-- **Security**: API key is stored in background service worker and never exposed to web page
-- **Chunked transfer**: Large comment datasets are transferred in chunks to avoid Chrome's message size limit (~50-64 MB)
-- **Partial results**: Supports returning partial results on errors or user cancellation
-- **Fallback**: When API key is not configured or disabled, falls back to Innertube API
-
-### Nested Comments Limitation (Data API v3 vs Innertube)
-
-YouTube Data API v3 **does not support nested replies** (replies to replies). This is an official API limitation, not an implementation gap.
-
-**Official Documentation Statement**:
-> "YouTube currently supports replies only for top-level comments. However, replies to replies may be supported in the future."
-
-**Comparison**:
-
-| Feature | YouTube Data API v3 | Innertube API |
-|---------|---------------------|---------------|
-| Nested replies | ❌ Not supported | ✅ Supported via `subThreads` |
-| Reply depth | 1 level (parent + replies) | N levels (MAX_SUBTHREAD_DEPTH=5) |
-| `replyLevel` field | ❌ Not provided | ✅ From `properties.replyLevel` |
-| `parentId` usage | Top-level comment IDs only | Any comment ID |
-
-**Implications**:
-- Data API v3 returns flat structure: `commentThread.replies.comments[]` contains only direct replies
-- All replies from Data API v3 are rendered at the same indentation level (replyLevel defaults to 1)
-- The rendering layer has safe fallback: `viewModels.ts` defaults replyLevel based on `typeComment`
-- For true nested comment support, use Innertube API (default)
-
-**Message Types**:
-- `YCS_YT_API_COMMENTS_START` / `YCS_YT_API_COMMENTS_ABORT`: Request control
-- `YCS_YT_API_COMMENTS_PROGRESS` / `YCS_YT_API_COMMENTS_CHUNK`: Response streaming
-- `YCS_YT_API_COMMENTS_ERROR`: Error handling with partial results
-
-**Documentation**: See `app/docs/youtube-data-api-messaging.md` for detailed messaging architecture.
-
-Implementation: `app/src/source/utils/youtubeDataApi/` with background handling in `background.ts`
+When behavior rules change, update the relevant doc in the same PR.

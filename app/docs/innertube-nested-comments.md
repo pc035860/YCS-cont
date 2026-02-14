@@ -1,52 +1,107 @@
-# YouTube Innertube API Nested Comments and Entity Architecture Analysis
+# Innertube Nested Comments: Current Implementation Status
 
-**Document Version:** 1.1
-**Date:** 2025-12-19
-**Document Type:** Technical Analysis and Migration Guide
-
----
-
-## 1. Core Changes Overview
-
-YouTube's comment system is transitioning from the traditional "renderer directly contains data" model to an "Entity-driven" architecture with renderer and data separation, while introducing true nested replies (replies to replies).
-
-### Key Changes:
-- **Data and Renderer Separation (FrameworkUpdates)**: The `commentViewModel` renderer no longer directly contains comment text. Instead, it holds a `commentKey`. The actual comment content is stored in `frameworkUpdates.entityBatchUpdate.mutations`.
-- **Nested Replies**: The reply structure has changed from a single-level list to a recursive organization through `subThreads`.
-- **Reply Level Marker**: Entity data now includes a `replyLevel` field to indicate comment depth.
+**Document Version:** 2.0
+**Date:** 2026-02-14
+**Document Type:** Implementation Status and Technical Notes
 
 ---
 
-## 2. Data Format Examples
+## Summary
 
-### A. UI Renderer Structure (`v1/next` Response)
-In the `continuationItems` of `onResponseReceivedEndpoints`, comments now appear as `commentViewModel`.
+Nested comment support is implemented in the current pipeline.
+
+Implemented capabilities include:
+
+- Recursive `subThreads` traversal
+- Nested continuation token extraction
+- `replyLevel` propagation into `CommentItem`
+- Parent/reply relationship preservation
+- Reply count correction for nested structures
+
+---
+
+## Structure Diagram
+
+```mermaid
+flowchart TD
+    A[commentThreadRenderer parent] --> B[commentRepliesRenderer]
+    B --> C[subThreads]
+    C --> D[commentThreadRenderer nested reply]
+    C --> E[continuationItemRenderer token]
+    D --> F[commentRepliesRenderer]
+    F --> C
+```
+
+---
+
+## Implemented Components
+
+### 1) FrameworkUpdates indexing
+
+`app/src/source/utils/innertube/comments/pipeline.ts`
+
+- `getFrameworkUpdatesById(...)`
+- Indexes by both `commentId` and entity `key`.
+
+### 2) Nested extraction
+
+`app/src/source/utils/innertube/comments/pipeline.ts`
+
+- `extractSubThreads(...)`
+- Recursively scans `commentRepliesRenderer.subThreads`
+- Supports nested continuation tokens
+- Applies depth guard with `MAX_SUBTHREAD_DEPTH`
+
+### 3) Continuation handling
+
+`app/src/source/utils/innertube/comments/pipeline.ts`
+
+- `extractReplyContinuationFromItem(...)`
+- Supports common renderer paths and deep fallback scanning
+
+### 4) Reply level field
+
+`app/src/source/utils/interfaces/i_types.ts`
+
+- `CommentItem.replyLevel?: number`
+- Used for nesting semantics and rendering logic.
+
+### 5) Post-processing corrections
+
+`app/src/source/utils/innertube/comments.ts`
+
+- `recomputeNestedReplyCounts(...)`
+- Corrects reply counts for nested levels based on collected children.
+
+---
+
+## Data Examples
+
+Nested input shape (simplified):
 
 ```json
 {
   "commentThreadRenderer": {
-    "comment": {
-      "commentViewModel": {
-        "commentKey": "comment-entity-root-123", // Used to lookup in frameworkUpdates
-        "rendererContext": { ... },
-        "replyLevel": 0
-      }
-    },
+    "comment": { "commentViewModel": { "commentViewModel": { "commentId": "PARENT" } } },
     "replies": {
       "commentRepliesRenderer": {
-        "contents": [ ... ],
-        "subThreads": [ // New: nested replies container
+        "subThreads": [
           {
-            "commentRepliesRenderer": {
-              "contents": [
-                {
-                  "commentViewModel": {
-                    "commentKey": "comment-entity-child-456",
-                    "replyLevel": 1
-                  }
+            "commentThreadRenderer": {
+              "comment": { "commentViewModel": { "commentViewModel": { "commentId": "CHILD_1" } } },
+              "replies": {
+                "commentRepliesRenderer": {
+                  "subThreads": [
+                    {
+                      "continuationItemRenderer": {
+                        "continuationEndpoint": {
+                          "continuationCommand": { "token": "SUBTOKEN_L2" }
+                        }
+                      }
+                    }
+                  ]
                 }
-              ],
-              "continuations": [ ... ] // Pagination token for nested level
+              }
             }
           }
         ]
@@ -56,115 +111,69 @@ In the `continuationItems` of `onResponseReceivedEndpoints`, comments now appear
 }
 ```
 
-### B. Entity Data Structure (`frameworkUpdates`)
-Actual content must be extracted from this block using `commentKey`.
+Normalized result shape (simplified):
+
+```json
+[
+  { "commentRenderer": { "commentId": "PARENT" }, "typeComment": "C", "replyLevel": 0 },
+  {
+    "commentRenderer": { "commentId": "CHILD_1" },
+    "typeComment": "R",
+    "replyLevel": 1,
+    "originComment": { "commentRenderer": { "commentId": "PARENT" } }
+  }
+]
+```
+
+Nested continuation entry carried to queue:
 
 ```json
 {
-  "frameworkUpdates": {
-    "entityBatchUpdate": {
-      "mutations": [
-        {
-          "entityKey": "comment-entity-child-456",
-          "payload": {
-            "commentEntityPayload": {
-              "properties": {
-                "content": {
-                  "content": "This is the text content of a nested reply"
-                },
-                "publishedTimeText": "1 hour ago",
-                "replyLevel": 1
-              },
-              "author": {
-                "displayName": "Username",
-                "avatar": { ... }
-              },
-              "toolbar": {
-                "likeCountNotliked": "5",
-                "replyCount": "2"
-              }
-            }
-          }
-        }
-      ]
-    }
-  }
+  "token": "SUBTOKEN_L2",
+  "originComment": { "commentRenderer": { "commentId": "CHILD_1" } },
+  "replyLevel": 2
 }
 ```
 
 ---
 
-## 3. Migration Implementation Recommendations
+## Current Processing Flow
 
-### I. Recursive Processing of `subThreads`
-The current `pipeline.ts` only handles one level of replies.
-- **Recommendation**: Refactor the `migrateContinuationItemsWithFW` function to recursively scan the `subThreads` array, flattening all discovered comment objects or preserving hierarchy information in `CommentItem`.
-
-### II. Build Entity Cache Map (Mutation Map)
-Since the API separates renderers from data, simply iterating through `continuationItems` is insufficient.
-- **Recommendation**: At the beginning of response processing, convert `frameworkUpdates.entityBatchUpdate.mutations` into a `Map` indexed by `entityKey`.
-
-### III. Update `CommentItem` Interface
-- **Recommendation**: Add a `replyLevel?: number` field to the `CommentItem` interface in `i_types.ts`. This is essential for subsequent UI rendering indentation logic.
-
-### IV. Pagination Token Extraction
-Pagination tokens (continuation tokens) for nested comments may appear at each `subThreads` level.
-- **Recommendation**: Update `extractReplyContinuationFromItem` to support deep searching for nested continuations.
+1. Normalize continuation items with `migrateContinuationItemsWithFW(...)`.
+2. Process each parent via `processParentComment(...)`.
+3. For replies renderer with subThreads:
+   - call `extractSubThreads(...)`
+   - collect nested comments + continuations
+4. Schedule continuation fetch with `scheduleReplyFetches(...)`.
+5. After all loads complete:
+   - run parent dedupe
+   - recompute nested reply counts
+   - assign stable indices
 
 ---
 
-## 4. Data Layer Considerations and Edge Cases
+## Edge Cases Handled
 
-### I. Unreliable `replyCount` in Entity Payload
-
-The `toolbar.replyCount` field in `commentEntityPayload` is an **estimate**, not an accurate count:
-
-- May include deleted or hidden replies
-- **Level 2+ (deeply nested) comments have particularly inaccurate replyCount values**
-- The `subThreads` structure may exist with a non-zero parent `replyCount`, yet contain no actual content
-
-**Recommendation**: After collecting all comments, recompute reply counts based on actually retrieved child comments rather than trusting the entity payload value.
-
-### II. Empty `subThreads` Edge Case
-
-The `subThreads` array may exist but be effectively empty:
-
-```json
-{
-  "commentRepliesRenderer": {
-    "subThreads": [
-      {
-        "commentRepliesRenderer": {
-          "contents": [],        // No actual comments
-          "continuations": []    // No pagination tokens
-        }
-      }
-    ]
-  }
-}
-```
-
-**Recommendation**: Always validate that `subThreads` contains actual content or continuation tokens before assuming nested replies exist.
-
-### III. Variable `commentId` Location
-
-After Entity-driven processing, `commentId` may appear in different locations:
-
-| Source | Location |
-|--------|----------|
-| Traditional renderer | `commentRenderer.commentId` |
-| After entity merge | `commentId` (top-level) or `commentRenderer.commentId` |
-| `originComment` reference | Either location |
-
-**Recommendation**: Use fallback pattern when accessing comment IDs:
-```javascript
-const id = item?.commentRenderer?.commentId || item?.commentId;
-```
+- Empty `subThreads` containers
+- Nested comments with missing immediate payload content
+- Continuation entries appearing at nested depths
+- Duplicate continuation tokens are deduped; tokenless continuations are tracked but not deduped
+- Cases where renderer `replyCount` creates ghost-expand behavior
 
 ---
 
-## 5. Related Technical Documents
+## Known Constraints
 
-- [Innertube Comments Integration](./innertube-comments-integration.md)
-- [Innertube Migration Guide](./innertube-migration-guide.md)
-- [Continuation Processing](./continuation-processing.md)
+- Recursion depth is intentionally capped (`MAX_SUBTHREAD_DEPTH = 5`) to avoid runaway traversal.
+- API response shapes continue evolving; deep fallback extraction remains necessary.
+- Reply count still depends on retrieved data scope (e.g., aborted/limited loads can undercount).
+
+---
+
+## Verification Checklist
+
+- Nested replies (reply-to-reply) are present in exported and searchable data.
+- `replyLevel` is populated for parent, direct reply, and deeper replies.
+- Nested continuation tokens are discovered and fetched.
+- Parent/reply linkage (`originComment`) remains stable after normalization.
+- No duplicate continuation storms in deep threads.
