@@ -56,6 +56,35 @@ test('active filter keeps intent active even when query is empty', () => {
     );
 });
 
+test('resetExecution explicitly clears execution state', () => {
+    const state = createSearchIntentState();
+    state.markSearchExecuted();
+    state.resetExecution();
+
+    assert.equal(
+        state.isIntentActive({
+            query: 'hello',
+            hasActiveFilter: false,
+            isCollapsed: false
+        }),
+        false
+    );
+});
+
+test('query with only whitespace is treated as empty', () => {
+    const state = createSearchIntentState();
+    state.markSearchExecuted();
+
+    assert.equal(
+        state.isIntentActive({
+            query: '   ',
+            hasActiveFilter: false,
+            isCollapsed: false
+        }),
+        false
+    );
+});
+
 test('clearing query and filter resets execution state', () => {
     const state = createSearchIntentState();
     state.markSearchExecuted();
