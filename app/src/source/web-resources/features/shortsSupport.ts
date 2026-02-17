@@ -19,11 +19,73 @@ export interface ShortsPanelStabilityResult {
 const SHORTS_PANEL_SELECTOR = '#anchored-panel';
 const SHORTS_COMMENTS_CONTENT_SELECTOR =
     'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"] #content.ytd-engagement-panel-section-list-renderer';
+const SHORTS_COMMENTS_NATIVE_FOOTER_SELECTOR =
+    'ytd-section-list-renderer[panel-target-id="engagement-panel-comments-section"]';
 const DEFAULT_QUIET_WINDOW_MS = 350;
 const DEFAULT_TIMEOUT_MS = 3000;
 const SHORTS_PANEL_ATTRIBUTE_FILTER = ['style', 'class', 'hidden', 'visibility'];
 const YCS_PANEL_HEIGHT_SIGNATURE = 'var(--ytd-engagement-panel-content-height) - 56px -';
 const YCS_PANEL_MIN_HEIGHT_SIGNATURE = 'var(--ytd-engagement-panel-content-min-height) - 56px -';
+const YCS_SHORTS_FOOTER_HIDDEN_ATTR = 'data-ycs-shorts-footer-hidden';
+const YCS_SHORTS_FOOTER_ORIGINAL_DISPLAY_ATTR = 'data-ycs-shorts-footer-original-display';
+const SHORTS_SEARCH_RESULTS_BASE_PADDING_PX = 20;
+const SHORTS_SEARCH_RESULTS_EXTRA_BOTTOM_PADDING_PX = 20;
+
+const getShortsNativeFooterElements = (): HTMLElement[] => {
+    const commentsContent = document.querySelector(SHORTS_COMMENTS_CONTENT_SELECTOR) as HTMLElement | null;
+    if (!commentsContent) return [];
+
+    return Array.from(commentsContent.querySelectorAll(SHORTS_COMMENTS_NATIVE_FOOTER_SELECTOR)).filter((child) => {
+        if (!(child instanceof HTMLElement)) return false;
+        if (child.classList.contains('ycs-app')) return false;
+        if (child.closest('.ycs-app')) return false;
+        if (child.getAttribute(YCS_SHORTS_FOOTER_HIDDEN_ATTR) === '1') return true;
+
+        const rectHeight = Math.ceil(child.getBoundingClientRect().height);
+        return rectHeight > 0;
+    }) as HTMLElement[];
+};
+
+const getVisibleShortsNativeFooterHeight = (): number => {
+    const footerEls = getShortsNativeFooterElements();
+    return footerEls.reduce((sum, footer) => {
+        const style = window.getComputedStyle(footer);
+        if (style.display === 'none' || style.visibility === 'hidden') return sum;
+
+        return sum + Math.ceil(footer.getBoundingClientRect().height);
+    }, 0);
+};
+
+export function syncShortsNativeFooterVisibility(shouldHide: boolean): void {
+    if (!isShortsPage()) return;
+
+    const footerEls = getShortsNativeFooterElements();
+    footerEls.forEach((footer) => {
+        if (shouldHide) {
+            if (!footer.hasAttribute(YCS_SHORTS_FOOTER_ORIGINAL_DISPLAY_ATTR)) {
+                footer.setAttribute(YCS_SHORTS_FOOTER_ORIGINAL_DISPLAY_ATTR, footer.style.display || '');
+            }
+            footer.style.display = 'none';
+            footer.setAttribute(YCS_SHORTS_FOOTER_HIDDEN_ATTR, '1');
+            return;
+        }
+
+        if (footer.getAttribute(YCS_SHORTS_FOOTER_HIDDEN_ATTR) !== '1') return;
+
+        const originalDisplay = footer.getAttribute(YCS_SHORTS_FOOTER_ORIGINAL_DISPLAY_ATTR) ?? '';
+        if (originalDisplay) {
+            footer.style.display = originalDisplay;
+        } else {
+            footer.style.removeProperty('display');
+        }
+        footer.removeAttribute(YCS_SHORTS_FOOTER_ORIGINAL_DISPLAY_ATTR);
+        footer.removeAttribute(YCS_SHORTS_FOOTER_HIDDEN_ATTR);
+    });
+}
+
+export function restoreShortsNativeFooterVisibility(): void {
+    syncShortsNativeFooterVisibility(false);
+}
 
 /**
  * Wait until Shorts panel mutations settle for a short quiet window.
@@ -122,6 +184,7 @@ export function adjustSearchResultHeightForShorts(): void {
     try {
         const targetContainer = commentsContent ?? anchoredPanel;
         const panelHeight = targetContainer.offsetHeight;
+        const footerHeight = getVisibleShortsNativeFooterHeight();
 
         // Get ycs-search bottom position relative to target container top
         const ycsSearchRect = ycsSearch.getBoundingClientRect();
@@ -129,11 +192,13 @@ export function adjustSearchResultHeightForShorts(): void {
         const ycsSearchBottom = ycsSearchRect.bottom - panelRect.top;
 
         // Calculate available height
-        const availableHeight = panelHeight - ycsSearchBottom;
+        const availableHeight = panelHeight - ycsSearchBottom - footerHeight;
 
-        // Set max-height with some padding (20px)
+        // Set max-height with padding plus a Shorts-specific extra safety gap.
         if (availableHeight > 100) {
-            searchResult.style.maxHeight = `${availableHeight - 20}px`;
+            const totalPaddingPx =
+                SHORTS_SEARCH_RESULTS_BASE_PADDING_PX + SHORTS_SEARCH_RESULTS_EXTRA_BOTTOM_PADDING_PX;
+            searchResult.style.maxHeight = `${Math.max(80, availableHeight - totalPaddingPx)}px`;
         }
     } catch (error) {
         console.error('YCS: Failed to adjust search result height for Shorts', error);

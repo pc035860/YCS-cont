@@ -43,8 +43,11 @@ import {
 import {
     adjustSearchResultHeightForShorts,
     adjustEngagementPanelHeightForShorts,
+    restoreShortsNativeFooterVisibility,
+    syncShortsNativeFooterVisibility,
     waitForShortsPanelStable
 } from './features/shortsSupport';
+import { createSearchIntentState } from './features/searchIntentState';
 import { createLiveChatRecorder, LiveChatRecorderDeps } from './features/liveChatRecorder';
 import {
     createTranscriptLoader,
@@ -153,6 +156,7 @@ const isExportFormat = (value: string | undefined): value is ExportFormat => {
 const cleanupShortsUI = (): void => {
     // Update bootstrap state first to prevent MutationObserver from triggering retries
     setShortsSupport(false);
+    restoreShortsNativeFooterVisibility();
     removeNodeList('.ycs-app');
     dropdownMenus.clear();
     if (handleDocumentClick) {
@@ -260,6 +264,7 @@ export function initApp(): void {
     let appRunRequestSeq = 0;
 
     let state = createState();
+    const searchIntentState = createSearchIntentState();
 
     function app(): void {
         if (!isVideoPage()) return;
@@ -354,6 +359,8 @@ export function initApp(): void {
 
         updateBadge('NUMBER_COMMENTS', '');
 
+        searchIntentState.resetExecution();
+        restoreShortsNativeFooterVisibility();
         removeNodeList('.ycs-app');
         dropdownMenus.clear();
         if (handleDocumentClick) {
@@ -457,7 +464,7 @@ export function initApp(): void {
                                 // Recalculate height when app is toggled on Shorts pages
                                 if (isShortsPage()) {
                                     setTimeout(() => {
-                                        adjustSearchResultHeightForShorts();
+                                        syncShortsFooterBySearchState();
                                         adjustEngagementPanelHeightForShorts();
                                     }, 100);
                                 }
@@ -474,6 +481,37 @@ export function initApp(): void {
         // Element references - declared early to be accessible by all search functions
         const elExtSearch = document.getElementById('ycs_extended_search') as HTMLInputElement;
 
+        const hasActiveSearchFilter = (): boolean => document.querySelector('.ycs_btn_active') !== null;
+
+        const syncShortsFooterBySearchState = (): void => {
+            if (!isShortsPage()) return;
+
+            const app = document.querySelector('.ycs-app') as HTMLElement | null;
+            const isCollapsed = app?.classList.contains('ycs-collapsed') ?? false;
+            const query = getSearchQuery();
+            const hasActiveFilter = hasActiveSearchFilter();
+            const shouldHideFooter = searchIntentState.isIntentActive({
+                query,
+                hasActiveFilter,
+                isCollapsed
+            });
+
+            syncShortsNativeFooterVisibility(shouldHideFooter);
+            adjustSearchResultHeightForShorts();
+        };
+        let shortsFooterResyncTimer: ReturnType<typeof setTimeout> | null = null;
+        const scheduleShortsFooterResync = (): void => {
+            if (!isShortsPage()) return;
+            if (shortsFooterResyncTimer !== null) {
+                clearTimeout(shortsFooterResyncTimer);
+            }
+
+            shortsFooterResyncTimer = setTimeout(() => {
+                syncShortsFooterBySearchState();
+                shortsFooterResyncTimer = null;
+            }, 120);
+        };
+
         // Helper function to manage #ycs-search-total-result element visibility and content
         // This ensures consistent behavior across all search functions
         const updateTotalResultDisplay = (text: string, forceShow = true): void => {
@@ -489,10 +527,13 @@ export function initApp(): void {
             const searchCounts = getSearchCounts(state);
             const resTotalSearch = searchCounts.comments + searchCounts.commentsChat + searchCounts.commentsTrVideo;
             const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
-            const hasActiveFilter = document.querySelector('.ycs_btn_active') !== null;
+            const hasActiveFilter = hasActiveSearchFilter();
             const hasQuery = getSearchQuery().trim().length > 0;
             if (btnClear)
                 btnClear.style.visibility = (!hasQuery && resTotalSearch > 0) || hasActiveFilter ? 'visible' : 'hidden';
+
+            syncShortsFooterBySearchState();
+            scheduleShortsFooterResync();
         };
 
         const getSearchQuery = (): string => {
@@ -560,6 +601,9 @@ export function initApp(): void {
         const executeSearchBasedOnType = (param?: IParamSearch, forceType?: ISelectedSearch): void => {
             const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement | null;
             const query = getSearchQuery();
+            searchIntentState.markSearchExecuted();
+            syncShortsFooterBySearchState();
+            scheduleShortsFooterResync();
 
             // Special handling for timestampViz
             if (param?.timestampViz) {
@@ -650,6 +694,7 @@ export function initApp(): void {
                                 searchBtn?.click();
                             });
                         } else {
+                            searchIntentState.resetExecution();
                             const elSearchRes = document.getElementById('ycs-search-result');
                             const elSearchTotalRes = document.getElementById(
                                 'ycs-search-total-result'
@@ -659,6 +704,7 @@ export function initApp(): void {
                                 elSearchRes.innerText = '';
                                 elSearchTotalRes.innerText = 'Search cleared';
                             }
+                            syncShortsFooterBySearchState();
                         }
 
                         const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
@@ -1123,8 +1169,10 @@ export function initApp(): void {
                             btnSearch?.click();
                         });
                     } else if (elSearchRes) {
+                        searchIntentState.resetExecution();
                         elSearchRes.innerText = '';
                         if (elSearchTotalRes) elSearchTotalRes.innerText = 'Search cleared';
+                        syncShortsFooterBySearchState();
                     }
 
                     // hide clear button after clearing
