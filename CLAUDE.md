@@ -171,7 +171,7 @@ Do not merge these semantics.
 ### 6) Shorts panel DOM is volatile during navigation and panel switches
 
 - Shorts panel children/order/visibility can be re-rendered after user actions.
-- Prefer stability gates and post-action re-sync for UI state that must persist.
+- Keep Shorts UI state sync idempotent and re-apply after user actions when needed.
 - Mount target for Shorts should be comments panel content, not generic top-level panel insertion.
 
 ### 7) Shorts native comments visibility follows search intent
@@ -201,45 +201,20 @@ Canonical behavior baseline doc:
 
 ---
 
-## Recent Significant Changes (Keep in Mind)
+## Recent Significant Changes
 
-1. Shorts panel stability and mounting refactor
-- Added Shorts panel mutation-settling before YCS mount
-- Shorts insertion target moved to comments panel content scope
+1. Shorts mounting behavior was refactored around comments panel scope
+- YCS mount target is the Shorts comments panel content area
+- Current strategy is synchronous mount/retry without pre-mount mutation waiting
 
-2. Shorts native comments visibility is now intent-driven
-- Visibility is based on search intent lifecycle rather than rendered result count
-- Added dedicated intent-state utility and focused tests
+2. Shorts native comments visibility now follows search intent state
+- Any executed search/filter intent hides native comments even with `0` results
+- Native comments restore only after clearing search text and removing active filter (or when YCS is collapsed/cleaned up)
+- Shorts UI state re-sync is applied after actions to handle panel re-render timing
 
-3. Shorts layout cleanup
+3. Shorts layout logic is now isolated to YCS-owned elements
 - Removed legacy engagement/description panel-wide height manipulation
-- Shorts height adjustment now stays scoped to YCS container
-
-4. Search/filter UX hardening (`#139`)
-- Button visibility behavior refined
-- Clear/autoload timing stabilized in app controller flow
-
-5. Shorts UX update
-- Comment sort order selector is hidden on Shorts pages
-
-6. Transcript loading improvements (`#137`)
-- Innertube Player API path improved with safer loading flow
-
-7. Options capability expansion (`#132`)
-- Added `maxComments` option to cap autoload comment count
-
-8. Innertube reliability for logged-out users (`#130`)
-- Chat replay loading improved with HTML fallback path
-
-9. Comment loading mode selection (`#129`)
-- Added selectable loading behavior for comments pipeline
-
-10. Access restriction refactor (`#126`) + age-restricted support (`#125`)
-- Consolidated status update strategy
-- Stabilized authorization decisions for restricted content
-
-11. Search behavior fix
-- Empty query now returns all results in comments search
+- Height adjustments now stay scoped to YCS container/search area and respect native footer overlap
 
 ---
 
@@ -253,7 +228,7 @@ npm test
 npm run lint
 
 # Focused regression checks
-npm test -- tests/shortsSupport.test.ts tests/searchIntentState.test.ts
+npm test -- tests/searchIntentState.test.ts
 ```
 
 Manual smoke checklist:

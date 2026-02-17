@@ -260,7 +260,6 @@ export function retryApp(): boolean {
 export function initApp(): void {
     let handleMessageEvent: ((ev: MessageEvent<ExtensionMessagePayload>) => void) | null = null;
     let resizeObserver: ResizeObserver | null = null;
-    let appRunRequestSeq = 0;
 
     let state = createState();
     const searchIntentState = createSearchIntentState();
@@ -1954,38 +1953,20 @@ export function initApp(): void {
         }
     }
 
-    const runAppWithShortsStability = (onFinish?: (rendered: boolean) => void): void => {
-        const requestSeq = ++appRunRequestSeq;
-
-        const executeApp = (): void => {
-            if (requestSeq !== appRunRequestSeq) {
-                onFinish?.(false);
-                return;
-            }
-
-            try {
-                app();
-            } catch (error) {
-                console.error('YCS: app() execution failed', error);
-                onFinish?.(false);
-                return;
-            }
-
+    const runAppAndReportRender = (onFinish?: (rendered: boolean) => void): void => {
+        try {
+            app();
             onFinish?.(Boolean(document.querySelector('.ycs-app')));
-        };
-
-        if (!isShortsPage()) {
-            executeApp();
-            return;
+        } catch (error) {
+            console.error('YCS: app() execution failed', error);
+            onFinish?.(false);
         }
-
-        executeApp();
     };
 
     // Store app() reference for retry mechanism in polling
     // This allows retrying rendering without re-initializing listeners/intervals
     appFunction = () => {
-        runAppWithShortsStability();
+        runAppAndReportRender();
     };
 
     function startObserve(): void {
@@ -2067,7 +2048,7 @@ export function initApp(): void {
                 if (!liveRecording.isRecording) {
                     getController(state).abort();
                 }
-                runAppWithShortsStability((didRender) => {
+                runAppAndReportRender((didRender) => {
                     if (pendingUrl === scheduledUrl) {
                         pendingUrl = null;
                     }
@@ -2094,6 +2075,6 @@ export function initApp(): void {
     startObserve();
 
     if (isVideoPage()) {
-        runAppWithShortsStability();
+        runAppAndReportRender();
     }
 }

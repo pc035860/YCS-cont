@@ -6,24 +6,10 @@
 
 import { isShortsPage } from '../../utils/common';
 
-export interface ShortsPanelStabilityOptions {
-    quietWindowMs?: number;
-    timeoutMs?: number;
-}
-
-export interface ShortsPanelStabilityResult {
-    stable: boolean;
-    reason: 'quiet' | 'timeout' | 'unavailable';
-}
-
-const SHORTS_PANEL_SELECTOR = '#anchored-panel';
 const SHORTS_COMMENTS_CONTENT_SELECTOR =
     'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"] #content.ytd-engagement-panel-section-list-renderer';
 const SHORTS_COMMENTS_NATIVE_FOOTER_SELECTOR =
     'ytd-section-list-renderer[panel-target-id="engagement-panel-comments-section"]';
-const DEFAULT_QUIET_WINDOW_MS = 350;
-const DEFAULT_TIMEOUT_MS = 3000;
-const SHORTS_PANEL_ATTRIBUTE_FILTER = ['style', 'class', 'hidden', 'visibility'];
 const YCS_SHORTS_FOOTER_HIDDEN_ATTR = 'data-ycs-shorts-footer-hidden';
 const YCS_SHORTS_FOOTER_ORIGINAL_DISPLAY_ATTR = 'data-ycs-shorts-footer-original-display';
 const SHORTS_SEARCH_RESULTS_BASE_PADDING_PX = 20;
@@ -83,79 +69,6 @@ export function syncShortsNativeFooterVisibility(shouldHide: boolean): void {
 
 export function restoreShortsNativeFooterVisibility(): void {
     syncShortsNativeFooterVisibility(false);
-}
-
-/**
- * Wait until Shorts panel mutations settle for a short quiet window.
- * Uses timeout fail-open to avoid blocking YCS mount indefinitely.
- */
-export function waitForShortsPanelStable(
-    options: ShortsPanelStabilityOptions = {}
-): Promise<ShortsPanelStabilityResult> {
-    const quietWindowMs = options.quietWindowMs ?? DEFAULT_QUIET_WINDOW_MS;
-    const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-    const anchoredPanel = document.querySelector(SHORTS_PANEL_SELECTOR);
-
-    if (!anchoredPanel) {
-        return Promise.resolve({ stable: false, reason: 'unavailable' });
-    }
-
-    if (typeof MutationObserver === 'undefined') {
-        return Promise.resolve({ stable: true, reason: 'quiet' });
-    }
-
-    return new Promise((resolve) => {
-        let settled = false;
-        let quietTimer: ReturnType<typeof setTimeout> | null = null;
-        let timeoutTimer: ReturnType<typeof setTimeout> | null = null;
-        let observer: MutationObserver | null = null;
-
-        const finish = (result: ShortsPanelStabilityResult): void => {
-            if (settled) return;
-            settled = true;
-
-            if (quietTimer !== null) {
-                clearTimeout(quietTimer);
-                quietTimer = null;
-            }
-            if (timeoutTimer !== null) {
-                clearTimeout(timeoutTimer);
-                timeoutTimer = null;
-            }
-            if (observer) {
-                observer.disconnect();
-                observer = null;
-            }
-
-            resolve(result);
-        };
-
-        const scheduleQuietWindow = (): void => {
-            if (quietTimer !== null) {
-                clearTimeout(quietTimer);
-            }
-            quietTimer = setTimeout(() => {
-                finish({ stable: true, reason: 'quiet' });
-            }, quietWindowMs);
-        };
-
-        observer = new MutationObserver(() => {
-            scheduleQuietWindow();
-        });
-
-        observer.observe(anchoredPanel, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: SHORTS_PANEL_ATTRIBUTE_FILTER
-        });
-
-        timeoutTimer = setTimeout(() => {
-            finish({ stable: false, reason: 'timeout' });
-        }, timeoutMs);
-
-        scheduleQuietWindow();
-    });
 }
 
 /**
