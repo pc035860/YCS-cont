@@ -44,8 +44,7 @@ import {
     adjustSearchResultHeightForShorts,
     adjustEngagementPanelHeightForShorts,
     restoreShortsNativeFooterVisibility,
-    syncShortsNativeFooterVisibility,
-    waitForShortsPanelStable
+    syncShortsNativeFooterVisibility
 } from './features/shortsSupport';
 import { createSearchIntentState } from './features/searchIntentState';
 import { createLiveChatRecorder, LiveChatRecorderDeps } from './features/liveChatRecorder';
@@ -1980,33 +1979,7 @@ export function initApp(): void {
             return;
         }
 
-        if (DEBUG) {
-            console.log('YCS: waiting for shorts panel stability before mount');
-        }
-
-        waitForShortsPanelStable()
-            .then((result) => {
-                if (requestSeq !== appRunRequestSeq) {
-                    onFinish?.(false);
-                    return;
-                }
-
-                if (DEBUG) {
-                    if (result.reason === 'quiet') {
-                        console.log('YCS: shorts panel stable by quiet window');
-                    } else if (result.reason === 'timeout') {
-                        console.log('YCS: shorts panel mount timeout, fail-open');
-                    } else {
-                        console.log('YCS: shorts panel unavailable, fail-open');
-                    }
-                }
-
-                executeApp();
-            })
-            .catch((error) => {
-                console.warn('YCS: Shorts panel stability check failed, fail-open', error);
-                executeApp();
-            });
+        executeApp();
     };
 
     // Store app() reference for retry mechanism in polling
