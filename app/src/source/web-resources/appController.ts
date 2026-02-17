@@ -40,7 +40,11 @@ import {
     clearButtonLabelDataset,
     resetLoadButtonLabels
 } from './helpers/cacheHelpers';
-import { adjustSearchResultHeightForShorts, adjustEngagementPanelHeightForShorts } from './features/shortsSupport';
+import {
+    adjustSearchResultHeightForShorts,
+    adjustEngagementPanelHeightForShorts,
+    waitForShortsPanelStable
+} from './features/shortsSupport';
 import { createLiveChatRecorder, LiveChatRecorderDeps } from './features/liveChatRecorder';
 import {
     createTranscriptLoader,
@@ -125,6 +129,10 @@ const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'verified',
     'quickChat',
     'timestampViz'
+] as const;
+const SHORTS_COMMENTS_INSERTION_SELECTORS = [
+    'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"] #content.ytd-engagement-panel-section-list-renderer',
+    'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"] #content'
 ] as const;
 
 type SortAttribute = 'sort' | 'sortChat' | 'sortTrp';
@@ -249,6 +257,7 @@ export function retryApp(): boolean {
 export function initApp(): void {
     let handleMessageEvent: ((ev: MessageEvent<ExtensionMessagePayload>) => void) | null = null;
     let resizeObserver: ResizeObserver | null = null;
+    let appRunRequestSeq = 0;
 
     let state = createState();
 
@@ -355,10 +364,14 @@ export function initApp(): void {
         // Handle Shorts pages differently
         // Note: enableShortsSupport check will be done in YCS_OPTIONS handler
         if (isShortsPage()) {
-            if (document.querySelector('#anchored-panel')) {
-                renderLoadComments('#anchored-panel', 'prepend');
+            const shortsCommentsInsertionSelector = SHORTS_COMMENTS_INSERTION_SELECTORS.find(
+                (selector) => document.querySelector(selector) !== null
+            );
+
+            if (shortsCommentsInsertionSelector) {
+                renderLoadComments(shortsCommentsInsertionSelector, 'prepend');
             } else {
-                console.warn('YCS: Shorts page detected but #anchored-panel not found');
+                console.warn('YCS: Shorts page detected but comments panel content not found');
                 return;
             }
         } else if (isPostsPage()) {
@@ -1894,9 +1907,65 @@ export function initApp(): void {
         }
     }
 
+    const runAppWithShortsStability = (onFinish?: (rendered: boolean) => void): void => {
+        const requestSeq = ++appRunRequestSeq;
+
+        const executeApp = (): void => {
+            if (requestSeq !== appRunRequestSeq) {
+                onFinish?.(false);
+                return;
+            }
+
+            try {
+                app();
+            } catch (error) {
+                console.error('YCS: app() execution failed', error);
+                onFinish?.(false);
+                return;
+            }
+
+            onFinish?.(Boolean(document.querySelector('.ycs-app')));
+        };
+
+        if (!isShortsPage()) {
+            executeApp();
+            return;
+        }
+
+        if (DEBUG) {
+            console.log('YCS: waiting for shorts panel stability before mount');
+        }
+
+        waitForShortsPanelStable()
+            .then((result) => {
+                if (requestSeq !== appRunRequestSeq) {
+                    onFinish?.(false);
+                    return;
+                }
+
+                if (DEBUG) {
+                    if (result.reason === 'quiet') {
+                        console.log('YCS: shorts panel stable by quiet window');
+                    } else if (result.reason === 'timeout') {
+                        console.log('YCS: shorts panel mount timeout, fail-open');
+                    } else {
+                        console.log('YCS: shorts panel unavailable, fail-open');
+                    }
+                }
+
+                executeApp();
+            })
+            .catch((error) => {
+                console.warn('YCS: Shorts panel stability check failed, fail-open', error);
+                executeApp();
+            });
+    };
+
     // Store app() reference for retry mechanism in polling
     // This allows retrying rendering without re-initializing listeners/intervals
-    appFunction = app;
+    appFunction = () => {
+        runAppWithShortsStability();
+    };
 
     function startObserve(): void {
         // Clean up old interval if it exists (prevents memory leaks on re-initialization)
@@ -1909,6 +1978,7 @@ export function initApp(): void {
         }
 
         let prevUrl = getCleanUrlVideo(window.location.href) ?? window.location.href;
+        let pendingUrl: string | null = null;
         // console.log('prevUrl First init: ', prevUrl);
 
         // Store interval ID for cleanup on next initApp() call
@@ -1929,6 +1999,11 @@ export function initApp(): void {
                 prevUrl !== (getCleanUrlVideo(window.location.href) ?? window.location.href)
             ) {
                 const currentUrl = getCleanUrlVideo(window.location.href) ?? window.location.href;
+                if (pendingUrl === currentUrl) {
+                    return;
+                }
+                pendingUrl = currentUrl;
+                const scheduledUrl = currentUrl;
 
                 // Stop live recording if active (video switch detected)
                 const liveRecording = getLiveRecording(state);
@@ -1971,18 +2046,22 @@ export function initApp(): void {
                 if (!liveRecording.isRecording) {
                     getController(state).abort();
                 }
-                app();
-
-                // Only update prevUrl after confirming .ycs-app was successfully created
-                // If DOM insertion failed, next interval tick will retry
-                if (document.querySelector('.ycs-app')) {
-                    prevUrl = currentUrl;
-                    if (DEBUG) {
-                        console.log('YCS: Video switch successful, prevUrl updated to:', prevUrl);
+                runAppWithShortsStability((didRender) => {
+                    if (pendingUrl === scheduledUrl) {
+                        pendingUrl = null;
                     }
-                } else if (DEBUG) {
-                    console.log('YCS: .ycs-app not found after app(), will retry on next interval');
-                }
+
+                    // Only update prevUrl after confirming .ycs-app was successfully created
+                    // If DOM insertion failed, next interval tick will retry
+                    if (didRender) {
+                        prevUrl = scheduledUrl;
+                        if (DEBUG) {
+                            console.log('YCS: Video switch successful, prevUrl updated to:', prevUrl);
+                        }
+                    } else if (DEBUG) {
+                        console.log('YCS: .ycs-app not found after app(), will retry on next interval');
+                    }
+                });
             }
         }, 1000);
 
@@ -1993,14 +2072,7 @@ export function initApp(): void {
 
     startObserve();
 
-    try {
-        if (isVideoPage()) {
-            app();
-        }
-    } catch (e) {
-        console.error(e);
-        if (isVideoPage()) {
-            app();
-        }
+    if (isVideoPage()) {
+        runAppWithShortsStability();
     }
 }
