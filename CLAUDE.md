@@ -23,6 +23,7 @@ Default development branch: `v2-source`
 - Repo root: release scripts, docs, packaging
 - `app/`: extension source, tests, build outputs
 - `app/src/source/web-resources/`: main UI + search behavior
+- `app/src/source/web-resources/features/`: reusable UI behavior modules (Shorts, transcript, recorder, intent state)
 - `app/src/source/utils/innertube/`: data loading from YouTube internals
 - `app/docs/`: technical docs and behavior specs
 
@@ -121,6 +122,12 @@ Search engines:
 6. Write docs/comments in English  
    Keep technical docs concise and state-focused.
 
+7. Shorts integration should be state-driven, not result-driven  
+   On Shorts pages, UI visibility decisions should follow user intent state and explicit actions.
+
+8. Keep Shorts layout changes local to YCS  
+   Avoid modifying non-YCS YouTube panel sizing unless explicitly required.
+
 ---
 
 ## High-Value Gotchas (Frequent Regression Sources)
@@ -161,6 +168,18 @@ Do not merge these semantics.
 - In `all` mode, unsupported sources are skipped by design.
 - Validate compatibility before changing filter behavior.
 
+### 6) Shorts panel DOM is volatile during navigation and panel switches
+
+- Shorts panel children/order/visibility can be re-rendered after user actions.
+- Prefer stability gates and post-action re-sync for UI state that must persist.
+- Mount target for Shorts should be comments panel content, not generic top-level panel insertion.
+
+### 7) Shorts native comments visibility follows search intent
+
+- Search button/Enter/filter actions represent search intent, even when result count is `0`.
+- Native comments should remain hidden while intent is active.
+- Only restore when search text is cleared and no filter remains active (or YCS is collapsed/cleaned up).
+
 Canonical behavior baseline doc:
 - `app/docs/filter-search-behavior-regression-spec.md`
 
@@ -184,30 +203,42 @@ Canonical behavior baseline doc:
 
 ## Recent Significant Changes (Keep in Mind)
 
-1. Search/filter UX hardening (`#139`)
+1. Shorts panel stability and mounting refactor
+- Added Shorts panel mutation-settling before YCS mount
+- Shorts insertion target moved to comments panel content scope
+
+2. Shorts native comments visibility is now intent-driven
+- Visibility is based on search intent lifecycle rather than rendered result count
+- Added dedicated intent-state utility and focused tests
+
+3. Shorts layout cleanup
+- Removed legacy engagement/description panel-wide height manipulation
+- Shorts height adjustment now stays scoped to YCS container
+
+4. Search/filter UX hardening (`#139`)
 - Button visibility behavior refined
 - Clear/autoload timing stabilized in app controller flow
 
-2. Shorts UX update
+5. Shorts UX update
 - Comment sort order selector is hidden on Shorts pages
 
-3. Transcript loading improvements (`#137`)
+6. Transcript loading improvements (`#137`)
 - Innertube Player API path improved with safer loading flow
 
-4. Options capability expansion (`#132`)
+7. Options capability expansion (`#132`)
 - Added `maxComments` option to cap autoload comment count
 
-5. Innertube reliability for logged-out users (`#130`)
+8. Innertube reliability for logged-out users (`#130`)
 - Chat replay loading improved with HTML fallback path
 
-6. Comment loading mode selection (`#129`)
+9. Comment loading mode selection (`#129`)
 - Added selectable loading behavior for comments pipeline
 
-7. Access restriction refactor (`#126`) + age-restricted support (`#125`)
+10. Access restriction refactor (`#126`) + age-restricted support (`#125`)
 - Consolidated status update strategy
 - Stabilized authorization decisions for restricted content
 
-8. Search behavior fix
+11. Search behavior fix
 - Empty query now returns all results in comments search
 
 ---
@@ -220,6 +251,9 @@ Run automated checks from `app/`:
 npm run typecheck
 npm test
 npm run lint
+
+# Focused regression checks
+npm test -- tests/shortsSupport.test.ts tests/searchIntentState.test.ts
 ```
 
 Manual smoke checklist:
