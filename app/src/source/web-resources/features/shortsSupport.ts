@@ -24,8 +24,6 @@ const SHORTS_COMMENTS_NATIVE_FOOTER_SELECTOR =
 const DEFAULT_QUIET_WINDOW_MS = 350;
 const DEFAULT_TIMEOUT_MS = 3000;
 const SHORTS_PANEL_ATTRIBUTE_FILTER = ['style', 'class', 'hidden', 'visibility'];
-const YCS_PANEL_HEIGHT_SIGNATURE = 'var(--ytd-engagement-panel-content-height) - 56px -';
-const YCS_PANEL_MIN_HEIGHT_SIGNATURE = 'var(--ytd-engagement-panel-content-min-height) - 56px -';
 const YCS_SHORTS_FOOTER_HIDDEN_ATTR = 'data-ycs-shorts-footer-hidden';
 const YCS_SHORTS_FOOTER_ORIGINAL_DISPLAY_ATTR = 'data-ycs-shorts-footer-original-display';
 const SHORTS_SEARCH_RESULTS_BASE_PADDING_PX = 20;
@@ -206,9 +204,8 @@ export function adjustSearchResultHeightForShorts(): void {
 }
 
 /**
- * Adjust engagement panel content height and min-height for Shorts pages
- * Dynamically calculates height by subtracting .ycs-app height from the base calculation
- * Always subtracts .ycs-app height regardless of collapsed/expanded state
+ * Adjust YCS app container height for Shorts pages.
+ * Keeps sizing isolated to YCS UI and does not modify other YouTube panels.
  */
 export function adjustEngagementPanelHeightForShorts(): void {
     if (!isShortsPage()) return;
@@ -220,19 +217,6 @@ export function adjustEngagementPanelHeightForShorts(): void {
     const appMain = app.querySelector('.ycs-app-main') as HTMLElement | null;
 
     try {
-        // Cleanup only legacy YCS inline values previously written to panel content styles.
-        const legacyTargets = Array.from(
-            document.querySelectorAll('#content.ytd-engagement-panel-section-list-renderer')
-        ) as HTMLElement[];
-        legacyTargets.forEach((target) => {
-            if (target.style.height.includes(YCS_PANEL_HEIGHT_SIGNATURE)) {
-                target.style.removeProperty('height');
-            }
-            if (target.style.minHeight.includes(YCS_PANEL_MIN_HEIGHT_SIGNATURE)) {
-                target.style.removeProperty('min-height');
-            }
-        });
-
         if (!commentsContent) return;
 
         const containerHeight = commentsContent.clientHeight;
