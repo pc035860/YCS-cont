@@ -6,17 +6,36 @@
 
 import { isShortsPage } from '../../utils/common';
 
-const SHORTS_COMMENTS_CONTENT_SELECTOR =
-    'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"] #content.ytd-engagement-panel-section-list-renderer';
+const SHORTS_COMMENTS_CONTENT_SELECTORS = [
+    'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"] #content.ytd-engagement-panel-section-list-renderer',
+    'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"] #content'
+] as const;
 const SHORTS_COMMENTS_NATIVE_FOOTER_SELECTOR =
     'ytd-section-list-renderer[panel-target-id="engagement-panel-comments-section"]';
 const YCS_SHORTS_FOOTER_HIDDEN_ATTR = 'data-ycs-shorts-footer-hidden';
 const YCS_SHORTS_FOOTER_ORIGINAL_DISPLAY_ATTR = 'data-ycs-shorts-footer-original-display';
-const SHORTS_SEARCH_RESULTS_BASE_PADDING_PX = 20;
-const SHORTS_SEARCH_RESULTS_EXTRA_BOTTOM_PADDING_PX = 20;
+const SHORTS_SEARCH_RESULTS_TOTAL_PADDING_PX = 40;
+
+/**
+ * Find the matching Shorts comments content selector using fallback list.
+ */
+export const findShortsCommentsContentSelector = (): string | null => {
+    for (const selector of SHORTS_COMMENTS_CONTENT_SELECTORS) {
+        if (document.querySelector(selector)) return selector;
+    }
+    return null;
+};
+
+/**
+ * Find the Shorts comments content container element using fallback selectors.
+ */
+const findShortsCommentsContent = (): HTMLElement | null => {
+    const selector = findShortsCommentsContentSelector();
+    return selector ? (document.querySelector(selector) as HTMLElement | null) : null;
+};
 
 const getShortsNativeFooterElements = (): HTMLElement[] => {
-    const commentsContent = document.querySelector(SHORTS_COMMENTS_CONTENT_SELECTOR) as HTMLElement | null;
+    const commentsContent = findShortsCommentsContent();
     if (!commentsContent) return [];
 
     return Array.from(commentsContent.querySelectorAll(SHORTS_COMMENTS_NATIVE_FOOTER_SELECTOR)).filter((child) => {
@@ -43,18 +62,17 @@ const getVisibleShortsNativeFooterHeight = (): number => {
 export function syncShortsNativeFooterVisibility(shouldHide: boolean): void {
     if (!isShortsPage()) return;
 
-    const footerEls = getShortsNativeFooterElements();
-    footerEls.forEach((footer) => {
+    for (const footer of getShortsNativeFooterElements()) {
         if (shouldHide) {
             if (!footer.hasAttribute(YCS_SHORTS_FOOTER_ORIGINAL_DISPLAY_ATTR)) {
                 footer.setAttribute(YCS_SHORTS_FOOTER_ORIGINAL_DISPLAY_ATTR, footer.style.display || '');
             }
             footer.style.display = 'none';
             footer.setAttribute(YCS_SHORTS_FOOTER_HIDDEN_ATTR, '1');
-            return;
+            continue;
         }
 
-        if (footer.getAttribute(YCS_SHORTS_FOOTER_HIDDEN_ATTR) !== '1') return;
+        if (footer.getAttribute(YCS_SHORTS_FOOTER_HIDDEN_ATTR) !== '1') continue;
 
         const originalDisplay = footer.getAttribute(YCS_SHORTS_FOOTER_ORIGINAL_DISPLAY_ATTR) ?? '';
         if (originalDisplay) {
@@ -64,7 +82,7 @@ export function syncShortsNativeFooterVisibility(shouldHide: boolean): void {
         }
         footer.removeAttribute(YCS_SHORTS_FOOTER_ORIGINAL_DISPLAY_ATTR);
         footer.removeAttribute(YCS_SHORTS_FOOTER_HIDDEN_ATTR);
-    });
+    }
 }
 
 export function restoreShortsNativeFooterVisibility(): void {
@@ -88,7 +106,7 @@ export function adjustSearchResultHeightForShorts(): void {
     const anchoredPanel = document.querySelector('#anchored-panel') as HTMLElement;
     const ycsSearch = document.querySelector('#ycs-search') as HTMLElement;
     const searchResult = document.querySelector('#ycs-search-result') as HTMLElement;
-    const commentsContent = document.querySelector(SHORTS_COMMENTS_CONTENT_SELECTOR) as HTMLElement | null;
+    const commentsContent = findShortsCommentsContent();
 
     if (!anchoredPanel || !ycsSearch || !searchResult) return;
 
@@ -105,11 +123,8 @@ export function adjustSearchResultHeightForShorts(): void {
         // Calculate available height
         const availableHeight = panelHeight - ycsSearchBottom - footerHeight;
 
-        // Set max-height with padding plus a Shorts-specific extra safety gap.
         if (availableHeight > 100) {
-            const totalPaddingPx =
-                SHORTS_SEARCH_RESULTS_BASE_PADDING_PX + SHORTS_SEARCH_RESULTS_EXTRA_BOTTOM_PADDING_PX;
-            searchResult.style.maxHeight = `${Math.max(80, availableHeight - totalPaddingPx)}px`;
+            searchResult.style.maxHeight = `${Math.max(80, availableHeight - SHORTS_SEARCH_RESULTS_TOTAL_PADDING_PX)}px`;
         }
     } catch (error) {
         console.error('YCS: Failed to adjust search result height for Shorts', error);
@@ -126,7 +141,7 @@ export function adjustEngagementPanelHeightForShorts(): void {
     const app = document.querySelector('.ycs-app') as HTMLElement;
     if (!app) return;
 
-    const commentsContent = app.closest('#content.ytd-engagement-panel-section-list-renderer') as HTMLElement | null;
+    const commentsContent = findShortsCommentsContent();
     const appMain = app.querySelector('.ycs-app-main') as HTMLElement | null;
 
     try {

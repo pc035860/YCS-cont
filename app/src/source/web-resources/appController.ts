@@ -44,7 +44,8 @@ import {
     adjustSearchResultHeightForShorts,
     adjustEngagementPanelHeightForShorts,
     restoreShortsNativeFooterVisibility,
-    syncShortsNativeFooterVisibility
+    syncShortsNativeFooterVisibility,
+    findShortsCommentsContentSelector
 } from './features/shortsSupport';
 import { createSearchIntentState } from './features/searchIntentState';
 import { createLiveChatRecorder, LiveChatRecorderDeps } from './features/liveChatRecorder';
@@ -132,11 +133,6 @@ const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'quickChat',
     'timestampViz'
 ] as const;
-const SHORTS_COMMENTS_INSERTION_SELECTORS = [
-    'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"] #content.ytd-engagement-panel-section-list-renderer',
-    'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"] #content'
-] as const;
-
 type SortAttribute = 'sort' | 'sortChat' | 'sortTrp';
 
 const dropdownMenus = new Set<HTMLElement>();
@@ -369,12 +365,10 @@ export function initApp(): void {
         // Handle Shorts pages differently
         // Note: enableShortsSupport check will be done in YCS_OPTIONS handler
         if (isShortsPage()) {
-            const shortsCommentsInsertionSelector = SHORTS_COMMENTS_INSERTION_SELECTORS.find(
-                (selector) => document.querySelector(selector) !== null
-            );
+            const shortsCommentsSelector = findShortsCommentsContentSelector();
 
-            if (shortsCommentsInsertionSelector) {
-                renderLoadComments(shortsCommentsInsertionSelector, 'prepend');
+            if (shortsCommentsSelector) {
+                renderLoadComments(shortsCommentsSelector, 'prepend');
             } else {
                 console.warn('YCS: Shorts page detected but comments panel content not found');
                 return;
@@ -481,33 +475,30 @@ export function initApp(): void {
 
         const hasActiveSearchFilter = (): boolean => document.querySelector('.ycs_btn_active') !== null;
 
-        const syncShortsFooterBySearchState = (): void => {
+        let shortsFooterResyncTimer: ReturnType<typeof setTimeout> | null = null;
+        const syncShortsFooterBySearchState = (options?: { debounceResync?: boolean }): void => {
             if (!isShortsPage()) return;
 
             const app = document.querySelector('.ycs-app') as HTMLElement | null;
             const isCollapsed = app?.classList.contains('ycs-collapsed') ?? false;
-            const query = getSearchQuery();
-            const hasActiveFilter = hasActiveSearchFilter();
             const shouldHideFooter = searchIntentState.isIntentActive({
-                query,
-                hasActiveFilter,
+                query: getSearchQuery(),
+                hasActiveFilter: hasActiveSearchFilter(),
                 isCollapsed
             });
 
             syncShortsNativeFooterVisibility(shouldHideFooter);
             adjustSearchResultHeightForShorts();
-        };
-        let shortsFooterResyncTimer: ReturnType<typeof setTimeout> | null = null;
-        const scheduleShortsFooterResync = (): void => {
-            if (!isShortsPage()) return;
-            if (shortsFooterResyncTimer !== null) {
-                clearTimeout(shortsFooterResyncTimer);
-            }
 
-            shortsFooterResyncTimer = setTimeout(() => {
-                syncShortsFooterBySearchState();
-                shortsFooterResyncTimer = null;
-            }, 120);
+            if (options?.debounceResync) {
+                if (shortsFooterResyncTimer !== null) {
+                    clearTimeout(shortsFooterResyncTimer);
+                }
+                shortsFooterResyncTimer = setTimeout(() => {
+                    shortsFooterResyncTimer = null;
+                    syncShortsFooterBySearchState();
+                }, 120);
+            }
         };
 
         // Helper function to manage #ycs-search-total-result element visibility and content
@@ -530,8 +521,7 @@ export function initApp(): void {
             if (btnClear)
                 btnClear.style.visibility = (!hasQuery && resTotalSearch > 0) || hasActiveFilter ? 'visible' : 'hidden';
 
-            syncShortsFooterBySearchState();
-            scheduleShortsFooterResync();
+            syncShortsFooterBySearchState({ debounceResync: true });
         };
 
         const getSearchQuery = (): string => {
@@ -600,8 +590,7 @@ export function initApp(): void {
             const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement | null;
             const query = getSearchQuery();
             searchIntentState.markSearchExecuted();
-            syncShortsFooterBySearchState();
-            scheduleShortsFooterResync();
+            syncShortsFooterBySearchState({ debounceResync: true });
 
             // Special handling for timestampViz
             if (param?.timestampViz) {
@@ -1953,21 +1942,19 @@ export function initApp(): void {
         }
     }
 
-    const runAppAndReportRender = (onFinish?: (rendered: boolean) => void): void => {
+    const runAppAndCheckRender = (): boolean => {
         try {
             app();
-            onFinish?.(Boolean(document.querySelector('.ycs-app')));
+            return Boolean(document.querySelector('.ycs-app'));
         } catch (error) {
             console.error('YCS: app() execution failed', error);
-            onFinish?.(false);
+            return false;
         }
     };
 
     // Store app() reference for retry mechanism in polling
     // This allows retrying rendering without re-initializing listeners/intervals
-    appFunction = () => {
-        runAppAndReportRender();
-    };
+    appFunction = runAppAndCheckRender;
 
     function startObserve(): void {
         // Clean up old interval if it exists (prevents memory leaks on re-initialization)
@@ -2005,7 +1992,6 @@ export function initApp(): void {
                     return;
                 }
                 pendingUrl = currentUrl;
-                const scheduledUrl = currentUrl;
 
                 // Stop live recording if active (video switch detected)
                 const liveRecording = getLiveRecording(state);
@@ -2048,22 +2034,19 @@ export function initApp(): void {
                 if (!liveRecording.isRecording) {
                     getController(state).abort();
                 }
-                runAppAndReportRender((didRender) => {
-                    if (pendingUrl === scheduledUrl) {
-                        pendingUrl = null;
-                    }
+                const didRender = runAppAndCheckRender();
+                pendingUrl = null;
 
-                    // Only update prevUrl after confirming .ycs-app was successfully created
-                    // If DOM insertion failed, next interval tick will retry
-                    if (didRender) {
-                        prevUrl = scheduledUrl;
-                        if (DEBUG) {
-                            console.log('YCS: Video switch successful, prevUrl updated to:', prevUrl);
-                        }
-                    } else if (DEBUG) {
-                        console.log('YCS: .ycs-app not found after app(), will retry on next interval');
+                // Only update prevUrl after confirming .ycs-app was successfully created
+                // If DOM insertion failed, next interval tick will retry
+                if (didRender) {
+                    prevUrl = currentUrl;
+                    if (DEBUG) {
+                        console.log('YCS: Video switch successful, prevUrl updated to:', prevUrl);
                     }
-                });
+                } else if (DEBUG) {
+                    console.log('YCS: .ycs-app not found after app(), will retry on next interval');
+                }
             }
         }, 1000);
 
@@ -2075,6 +2058,6 @@ export function initApp(): void {
     startObserve();
 
     if (isVideoPage()) {
-        runAppAndReportRender();
+        runAppAndCheckRender();
     }
 }

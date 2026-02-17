@@ -13,8 +13,6 @@ export interface SearchIntentState {
 export function createSearchIntentState(): SearchIntentState {
     let hasExecutedSearch = false;
 
-    const hasQuery = (query: string): boolean => query.trim().length > 0;
-
     return {
         markSearchExecuted(): void {
             hasExecutedSearch = true;
@@ -26,7 +24,7 @@ export function createSearchIntentState(): SearchIntentState {
             if (snapshot.isCollapsed) return false;
             if (snapshot.hasActiveFilter) return true;
 
-            if (!hasQuery(snapshot.query)) {
+            if (snapshot.query.trim().length === 0) {
                 hasExecutedSearch = false;
                 return false;
             }

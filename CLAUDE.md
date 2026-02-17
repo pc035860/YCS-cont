@@ -173,6 +173,7 @@ Do not merge these semantics.
 - Shorts panel children/order/visibility can be re-rendered after user actions.
 - Keep Shorts UI state sync idempotent and re-apply after user actions when needed.
 - Mount target for Shorts should be comments panel content, not generic top-level panel insertion.
+- Shorts DOM selectors are centralized in `shortsSupport.ts` with fallback list. Do not duplicate selectors in other modules.
 
 ### 7) Shorts native comments visibility follows search intent
 
@@ -205,6 +206,7 @@ Canonical behavior baseline doc:
 
 1. Shorts mounting behavior was refactored around comments panel scope
 - YCS mount target is the Shorts comments panel content area
+- Shorts DOM selectors are centralized in `shortsSupport.ts` with fallback; `appController.ts` imports from there
 - Current strategy is synchronous mount/retry without pre-mount mutation waiting
 
 2. Shorts native comments visibility now follows search intent state
