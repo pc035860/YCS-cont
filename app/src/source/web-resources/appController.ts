@@ -230,11 +230,12 @@ let observeIntervalId: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Gets the appropriate meta element for the current page type.
- * For Shorts pages, checks #anchored-panel, otherwise checks #meta.style-scope.ytd-watch-flexy
+ * For Shorts pages, checks the comments content panel; otherwise checks #meta.style-scope.ytd-watch-flexy.
  */
 export function getPageMetaElement(): Element | null {
     if (isShortsPage()) {
-        return document.querySelector('#anchored-panel');
+        const selector = findShortsCommentsContentSelector();
+        return selector ? document.querySelector(selector) : null;
     }
     return document.querySelector('#meta.style-scope.ytd-watch-flexy');
 }
