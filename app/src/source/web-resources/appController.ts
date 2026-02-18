@@ -225,7 +225,7 @@ const buildSearchContext = (): SearchContext => {
     };
 };
 
-let appFunction: (() => void) | null = null;
+let appFunction: (() => boolean) | null = null;
 let observeIntervalId: ReturnType<typeof setInterval> | null = null;
 
 /**
@@ -246,8 +246,7 @@ export function retryApp(): boolean {
     }
 
     try {
-        appFunction();
-        return true;
+        return appFunction();
     } catch (error) {
         console.error('YCS: app() retry failed', error);
         return false;
