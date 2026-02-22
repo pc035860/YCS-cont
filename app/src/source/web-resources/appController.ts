@@ -40,7 +40,14 @@ import {
     clearButtonLabelDataset,
     resetLoadButtonLabels
 } from './helpers/cacheHelpers';
-import { adjustSearchResultHeightForShorts, adjustEngagementPanelHeightForShorts } from './features/shortsSupport';
+import {
+    adjustSearchResultHeightForShorts,
+    adjustEngagementPanelHeightForShorts,
+    restoreShortsNativeFooterVisibility,
+    syncShortsNativeFooterVisibility,
+    findShortsCommentsContentSelector
+} from './features/shortsSupport';
+import { createSearchIntentState } from './features/searchIntentState';
 import { createLiveChatRecorder, LiveChatRecorderDeps } from './features/liveChatRecorder';
 import {
     createTranscriptLoader,
@@ -126,7 +133,6 @@ const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'quickChat',
     'timestampViz'
 ] as const;
-
 type SortAttribute = 'sort' | 'sortChat' | 'sortTrp';
 
 const dropdownMenus = new Set<HTMLElement>();
@@ -145,6 +151,7 @@ const isExportFormat = (value: string | undefined): value is ExportFormat => {
 const cleanupShortsUI = (): void => {
     // Update bootstrap state first to prevent MutationObserver from triggering retries
     setShortsSupport(false);
+    restoreShortsNativeFooterVisibility();
     removeNodeList('.ycs-app');
     dropdownMenus.clear();
     if (handleDocumentClick) {
@@ -218,16 +225,17 @@ const buildSearchContext = (): SearchContext => {
     };
 };
 
-let appFunction: (() => void) | null = null;
+let appFunction: (() => boolean) | null = null;
 let observeIntervalId: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Gets the appropriate meta element for the current page type.
- * For Shorts pages, checks #anchored-panel, otherwise checks #meta.style-scope.ytd-watch-flexy
+ * For Shorts pages, checks the comments content panel; otherwise checks #meta.style-scope.ytd-watch-flexy.
  */
 export function getPageMetaElement(): Element | null {
     if (isShortsPage()) {
-        return document.querySelector('#anchored-panel');
+        const selector = findShortsCommentsContentSelector();
+        return selector ? document.querySelector(selector) : null;
     }
     return document.querySelector('#meta.style-scope.ytd-watch-flexy');
 }
@@ -238,8 +246,7 @@ export function retryApp(): boolean {
     }
 
     try {
-        appFunction();
-        return true;
+        return appFunction();
     } catch (error) {
         console.error('YCS: app() retry failed', error);
         return false;
@@ -251,6 +258,7 @@ export function initApp(): void {
     let resizeObserver: ResizeObserver | null = null;
 
     let state = createState();
+    const searchIntentState = createSearchIntentState();
 
     function app(): void {
         if (!isVideoPage()) return;
@@ -345,6 +353,8 @@ export function initApp(): void {
 
         updateBadge('NUMBER_COMMENTS', '');
 
+        searchIntentState.resetExecution();
+        restoreShortsNativeFooterVisibility();
         removeNodeList('.ycs-app');
         dropdownMenus.clear();
         if (handleDocumentClick) {
@@ -355,10 +365,12 @@ export function initApp(): void {
         // Handle Shorts pages differently
         // Note: enableShortsSupport check will be done in YCS_OPTIONS handler
         if (isShortsPage()) {
-            if (document.querySelector('#anchored-panel')) {
-                renderLoadComments('#anchored-panel', 'prepend');
+            const shortsCommentsSelector = findShortsCommentsContentSelector();
+
+            if (shortsCommentsSelector) {
+                renderLoadComments(shortsCommentsSelector, 'prepend');
             } else {
-                console.warn('YCS: Shorts page detected but #anchored-panel not found');
+                console.warn('YCS: Shorts page detected but comments panel content not found');
                 return;
             }
         } else if (isPostsPage()) {
@@ -444,7 +456,7 @@ export function initApp(): void {
                                 // Recalculate height when app is toggled on Shorts pages
                                 if (isShortsPage()) {
                                     setTimeout(() => {
-                                        adjustSearchResultHeightForShorts();
+                                        syncShortsFooterBySearchState();
                                         adjustEngagementPanelHeightForShorts();
                                     }, 100);
                                 }
@@ -461,6 +473,34 @@ export function initApp(): void {
         // Element references - declared early to be accessible by all search functions
         const elExtSearch = document.getElementById('ycs_extended_search') as HTMLInputElement;
 
+        const hasActiveSearchFilter = (): boolean => document.querySelector('.ycs_btn_active') !== null;
+
+        let shortsFooterResyncTimer: ReturnType<typeof setTimeout> | null = null;
+        const syncShortsFooterBySearchState = (options?: { debounceResync?: boolean }): void => {
+            if (!isShortsPage()) return;
+
+            const app = document.querySelector('.ycs-app') as HTMLElement | null;
+            const isCollapsed = app?.classList.contains('ycs-collapsed') ?? false;
+            const shouldHideFooter = searchIntentState.isIntentActive({
+                query: getSearchQuery(),
+                hasActiveFilter: hasActiveSearchFilter(),
+                isCollapsed
+            });
+
+            syncShortsNativeFooterVisibility(shouldHideFooter);
+            adjustSearchResultHeightForShorts();
+
+            if (options?.debounceResync) {
+                if (shortsFooterResyncTimer !== null) {
+                    clearTimeout(shortsFooterResyncTimer);
+                }
+                shortsFooterResyncTimer = setTimeout(() => {
+                    shortsFooterResyncTimer = null;
+                    syncShortsFooterBySearchState();
+                }, 120);
+            }
+        };
+
         // Helper function to manage #ycs-search-total-result element visibility and content
         // This ensures consistent behavior across all search functions
         const updateTotalResultDisplay = (text: string, forceShow = true): void => {
@@ -476,10 +516,12 @@ export function initApp(): void {
             const searchCounts = getSearchCounts(state);
             const resTotalSearch = searchCounts.comments + searchCounts.commentsChat + searchCounts.commentsTrVideo;
             const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
-            const hasActiveFilter = document.querySelector('.ycs_btn_active') !== null;
+            const hasActiveFilter = hasActiveSearchFilter();
             const hasQuery = getSearchQuery().trim().length > 0;
             if (btnClear)
                 btnClear.style.visibility = (!hasQuery && resTotalSearch > 0) || hasActiveFilter ? 'visible' : 'hidden';
+
+            syncShortsFooterBySearchState({ debounceResync: true });
         };
 
         const getSearchQuery = (): string => {
@@ -547,6 +589,8 @@ export function initApp(): void {
         const executeSearchBasedOnType = (param?: IParamSearch, forceType?: ISelectedSearch): void => {
             const elSelectOptSearch = document.getElementById('ycs_search_select') as HTMLSelectElement | null;
             const query = getSearchQuery();
+            searchIntentState.markSearchExecuted();
+            syncShortsFooterBySearchState({ debounceResync: true });
 
             // Special handling for timestampViz
             if (param?.timestampViz) {
@@ -637,6 +681,7 @@ export function initApp(): void {
                                 searchBtn?.click();
                             });
                         } else {
+                            searchIntentState.resetExecution();
                             const elSearchRes = document.getElementById('ycs-search-result');
                             const elSearchTotalRes = document.getElementById(
                                 'ycs-search-total-result'
@@ -646,6 +691,7 @@ export function initApp(): void {
                                 elSearchRes.innerText = '';
                                 elSearchTotalRes.innerText = 'Search cleared';
                             }
+                            syncShortsFooterBySearchState();
                         }
 
                         const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
@@ -1110,8 +1156,10 @@ export function initApp(): void {
                             btnSearch?.click();
                         });
                     } else if (elSearchRes) {
+                        searchIntentState.resetExecution();
                         elSearchRes.innerText = '';
                         if (elSearchTotalRes) elSearchTotalRes.innerText = 'Search cleared';
+                        syncShortsFooterBySearchState();
                     }
 
                     // hide clear button after clearing
@@ -1894,9 +1942,19 @@ export function initApp(): void {
         }
     }
 
+    const runAppAndCheckRender = (): boolean => {
+        try {
+            app();
+            return Boolean(document.querySelector('.ycs-app'));
+        } catch (error) {
+            console.error('YCS: app() execution failed', error);
+            return false;
+        }
+    };
+
     // Store app() reference for retry mechanism in polling
     // This allows retrying rendering without re-initializing listeners/intervals
-    appFunction = app;
+    appFunction = runAppAndCheckRender;
 
     function startObserve(): void {
         // Clean up old interval if it exists (prevents memory leaks on re-initialization)
@@ -1909,6 +1967,7 @@ export function initApp(): void {
         }
 
         let prevUrl = getCleanUrlVideo(window.location.href) ?? window.location.href;
+        let pendingUrl: string | null = null;
         // console.log('prevUrl First init: ', prevUrl);
 
         // Store interval ID for cleanup on next initApp() call
@@ -1929,6 +1988,10 @@ export function initApp(): void {
                 prevUrl !== (getCleanUrlVideo(window.location.href) ?? window.location.href)
             ) {
                 const currentUrl = getCleanUrlVideo(window.location.href) ?? window.location.href;
+                if (pendingUrl === currentUrl) {
+                    return;
+                }
+                pendingUrl = currentUrl;
 
                 // Stop live recording if active (video switch detected)
                 const liveRecording = getLiveRecording(state);
@@ -1971,11 +2034,12 @@ export function initApp(): void {
                 if (!liveRecording.isRecording) {
                     getController(state).abort();
                 }
-                app();
+                const didRender = runAppAndCheckRender();
+                pendingUrl = null;
 
                 // Only update prevUrl after confirming .ycs-app was successfully created
                 // If DOM insertion failed, next interval tick will retry
-                if (document.querySelector('.ycs-app')) {
+                if (didRender) {
                     prevUrl = currentUrl;
                     if (DEBUG) {
                         console.log('YCS: Video switch successful, prevUrl updated to:', prevUrl);
@@ -1993,14 +2057,7 @@ export function initApp(): void {
 
     startObserve();
 
-    try {
-        if (isVideoPage()) {
-            app();
-        }
-    } catch (e) {
-        console.error(e);
-        if (isVideoPage()) {
-            app();
-        }
+    if (isVideoPage()) {
+        runAppAndCheckRender();
     }
 }

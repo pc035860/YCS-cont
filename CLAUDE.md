@@ -23,6 +23,7 @@ Default development branch: `v2-source`
 - Repo root: release scripts, docs, packaging
 - `app/`: extension source, tests, build outputs
 - `app/src/source/web-resources/`: main UI + search behavior
+- `app/src/source/web-resources/features/`: reusable UI behavior modules (Shorts, transcript, recorder, intent state)
 - `app/src/source/utils/innertube/`: data loading from YouTube internals
 - `app/docs/`: technical docs and behavior specs
 
@@ -121,6 +122,12 @@ Search engines:
 6. Write docs/comments in English  
    Keep technical docs concise and state-focused.
 
+7. Shorts integration should be state-driven, not result-driven  
+   On Shorts pages, UI visibility decisions should follow user intent state and explicit actions.
+
+8. Keep Shorts layout changes local to YCS  
+   Avoid modifying non-YCS YouTube panel sizing unless explicitly required.
+
 ---
 
 ## High-Value Gotchas (Frequent Regression Sources)
@@ -161,6 +168,19 @@ Do not merge these semantics.
 - In `all` mode, unsupported sources are skipped by design.
 - Validate compatibility before changing filter behavior.
 
+### 6) Shorts panel DOM is volatile during navigation and panel switches
+
+- Shorts panel children/order/visibility can be re-rendered after user actions.
+- Keep Shorts UI state sync idempotent and re-apply after user actions when needed.
+- Mount target for Shorts should be comments panel content, not generic top-level panel insertion.
+- Shorts DOM selectors are centralized in `shortsSupport.ts` with fallback list. Do not duplicate selectors in other modules.
+
+### 7) Shorts native comments visibility follows search intent
+
+- Search button/Enter/filter actions represent search intent, even when result count is `0`.
+- Native comments should remain hidden while intent is active.
+- Only restore when search text is cleared and no filter remains active (or YCS is collapsed/cleaned up).
+
 Canonical behavior baseline doc:
 - `app/docs/filter-search-behavior-regression-spec.md`
 
@@ -182,33 +202,21 @@ Canonical behavior baseline doc:
 
 ---
 
-## Recent Significant Changes (Keep in Mind)
+## Recent Significant Changes
 
-1. Search/filter UX hardening (`#139`)
-- Button visibility behavior refined
-- Clear/autoload timing stabilized in app controller flow
+1. Shorts mounting behavior was refactored around comments panel scope
+- YCS mount target is the Shorts comments panel content area
+- Shorts DOM selectors are centralized in `shortsSupport.ts` with fallback; `appController.ts` imports from there
+- Current strategy is synchronous mount/retry without pre-mount mutation waiting
 
-2. Shorts UX update
-- Comment sort order selector is hidden on Shorts pages
+2. Shorts native comments visibility now follows search intent state
+- Any executed search/filter intent hides native comments even with `0` results
+- Native comments restore only after clearing search text and removing active filter (or when YCS is collapsed/cleaned up)
+- Shorts UI state re-sync is applied after actions to handle panel re-render timing
 
-3. Transcript loading improvements (`#137`)
-- Innertube Player API path improved with safer loading flow
-
-4. Options capability expansion (`#132`)
-- Added `maxComments` option to cap autoload comment count
-
-5. Innertube reliability for logged-out users (`#130`)
-- Chat replay loading improved with HTML fallback path
-
-6. Comment loading mode selection (`#129`)
-- Added selectable loading behavior for comments pipeline
-
-7. Access restriction refactor (`#126`) + age-restricted support (`#125`)
-- Consolidated status update strategy
-- Stabilized authorization decisions for restricted content
-
-8. Search behavior fix
-- Empty query now returns all results in comments search
+3. Shorts layout logic is now isolated to YCS-owned elements
+- Removed legacy engagement/description panel-wide height manipulation
+- Height adjustments now stay scoped to YCS container/search area and respect native footer overlap
 
 ---
 
@@ -220,6 +228,9 @@ Run automated checks from `app/`:
 npm run typecheck
 npm test
 npm run lint
+
+# Focused regression checks
+npm test -- tests/searchIntentState.test.ts
 ```
 
 Manual smoke checklist:
