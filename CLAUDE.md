@@ -188,17 +188,20 @@ Canonical behavior baseline doc:
 
 ## Innertube/Data Gotchas
 
-1. Access restriction status is unified  
+1. Access restriction status is unified
    Use consolidated status update flow (member-only + age-restricted), not split ad-hoc calls.
 
-2. Logged-out chat replay has fallback handling  
+2. Logged-out chat replay has fallback handling
    Do not remove fallback paths without verifying logged-out scenarios.
 
-3. Transcript loading has multiple paths  
-   Recent changes improved Player API handling; preserve fallback behavior.
+3. Transcript loading has multiple paths
+   Player API call uses ANDROID → WEB client fallback; preserve both paths.
 
-4. Empty query search should still return full dataset  
+4. Empty query search should still return full dataset
    This is expected behavior, not a bug.
+
+5. Innertube client type and auth header must be consistent
+   ANDROID client + browser SAPISIDHASH authorization = HTTP 400. Only send auth headers with WEB client requests.
 
 ---
 
@@ -217,6 +220,11 @@ Canonical behavior baseline doc:
 3. Shorts layout logic is now isolated to YCS-owned elements
 - Removed legacy engagement/description panel-wide height manipulation
 - Height adjustments now stay scoped to YCS container/search area and respect native footer overlap
+
+4. Transcript Player API now uses two-stage client fallback for age-restricted videos
+- Primary: ANDROID client (no auth, works for most videos)
+- Fallback: WEB client with SAPISIDHASH auth + racyCheckOk/contentCheckOk (for age-restricted)
+- AbortError is rethrown in both stages to respect cancellation
 
 ---
 

@@ -172,22 +172,73 @@ async function getTranscriptTrackInfo(
     const hl = (ytcfgClient?.hl as string) || navigatorLang || 'en';
     const gl = (ytcfgClient?.gl as string) || navigatorRegion || 'US';
 
-    const res = await fetch(baseUrl, {
-        method: 'POST',
-        mode: 'no-cors' as RequestMode,
-        credentials: 'include',
-        signal,
-        cache: 'no-store',
-        body: JSON.stringify(
-            buildInnertubeBody({
-                ytcfgData: undefined,
-                videoId,
-                clientOverride: { clientName: 'ANDROID', clientVersion: '21.03.36', hl, gl }
-            })
-        )
-    } as RequestInit);
-    const json = await res.json();
-    const captions = json?.captions.playerCaptionsTracklistRenderer;
+    // Primary: ANDROID client (works for most videos without auth)
+    let captions: any;
+    try {
+        const res = await fetch(baseUrl, {
+            method: 'POST',
+            mode: 'no-cors' as RequestMode,
+            credentials: 'include',
+            signal,
+            cache: 'no-store',
+            body: JSON.stringify(
+                buildInnertubeBody({
+                    ytcfgData: undefined,
+                    videoId,
+                    clientOverride: { clientName: 'ANDROID', clientVersion: '21.03.36', hl, gl },
+                    extra: { racyCheckOk: true, contentCheckOk: true }
+                })
+            )
+        } as RequestInit);
+        const json = await res.json();
+        captions = json?.captions?.playerCaptionsTracklistRenderer;
+    } catch (e: unknown) {
+        // Rethrow abort errors to respect cancellation
+        if (e instanceof DOMException && e.name === 'AbortError') throw e;
+        // ANDROID client failed, will try WEB fallback below
+    }
+
+    // Fallback: WEB client with auth (for age-restricted videos)
+    if (!captions) {
+        try {
+            const authHeader = buildSapSidAuthorizationHeader({ context: globalContext });
+            const headers: Record<string, string> = {
+                'content-type': 'application/json'
+            };
+            if (authHeader) {
+                headers.authorization = authHeader;
+            }
+
+            const webRes = await fetch(baseUrl, {
+                method: 'POST',
+                mode: 'cors' as RequestMode,
+                credentials: 'include',
+                headers,
+                signal,
+                cache: 'no-store',
+                body: JSON.stringify(
+                    buildInnertubeBody({
+                        ytcfgData: undefined,
+                        videoId,
+                        clientOverride: {
+                            clientName: 'WEB',
+                            clientVersion: pageCfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION || '2.20240101.00.00',
+                            hl,
+                            gl
+                        },
+                        extra: { racyCheckOk: true, contentCheckOk: true }
+                    })
+                )
+            } as RequestInit);
+            if (webRes.ok) {
+                const webJson = await webRes.json();
+                captions = webJson?.captions?.playerCaptionsTracklistRenderer;
+            }
+        } catch (e: unknown) {
+            if (e instanceof DOMException && e.name === 'AbortError') throw e;
+            // WEB fallback also failed, captions remains undefined
+        }
+    }
 
     const tracks = parseCaptionTracks(captions);
 
