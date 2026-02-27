@@ -69,6 +69,7 @@ import {
     downloadChatFileJSON,
     downloadChatFileXLSX,
     downloadTranscriptFileJSON,
+    downloadTranscriptFileSRT,
     downloadTranscriptFileXLSX,
     EXPORT_FORMAT
 } from './services/exportService';
@@ -141,7 +142,12 @@ let filterRegistry: FilterButtonRegistry | null = null;
 let handleDocumentClick: ((ev: MouseEvent) => void) | null = null;
 
 const isExportFormat = (value: string | undefined): value is ExportFormat => {
-    return value === EXPORT_FORMAT.TXT || value === EXPORT_FORMAT.JSON || value === EXPORT_FORMAT.XLSX;
+    return (
+        value === EXPORT_FORMAT.TXT ||
+        value === EXPORT_FORMAT.JSON ||
+        value === EXPORT_FORMAT.XLSX ||
+        value === EXPORT_FORMAT.SRT
+    );
 };
 
 /**
@@ -1392,6 +1398,8 @@ export function initApp(): void {
                 downloadTranscriptFileJSON(cueGroups, getExportMeta());
             } else if (format === EXPORT_FORMAT.XLSX) {
                 downloadTranscriptFileXLSX(cueGroups, getExportMeta());
+            } else if (format === EXPORT_FORMAT.SRT) {
+                downloadTranscriptFileSRT(cueGroups, getExportMeta());
             }
         });
 

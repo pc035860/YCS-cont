@@ -4,6 +4,7 @@ import {
     buildCommentsExportPayload,
     buildTranscriptExportPayload
 } from '../../utils/export-core';
+import { buildSrtContent } from '../../utils/formatting';
 import {
     getSheetDetails,
     getSheetComments,
@@ -152,6 +153,24 @@ export function exportTranscriptAsJSON(
     try {
         const payload = buildTranscriptExportPayload(cueGroups, meta);
         return createJsonResponse(`Transcript video, ${payload.titleVideo} (${payload.total}).json`, payload);
+    } catch (e) {
+        console.error(e);
+        return;
+    }
+}
+
+export function exportTranscriptAsSRT(
+    cueGroups: TranscriptCueGroup[],
+    meta: { titleVideo?: string; url?: string; videoId?: string; cachedDate?: number; titleTrVideo?: string }
+): { content: string; fileName: string; mime: string } | void {
+    try {
+        const payload = buildTranscriptExportPayload(cueGroups, meta);
+        const srtContent = buildSrtContent(payload.trVideo);
+        return {
+            content: srtContent,
+            fileName: `Transcript video, ${payload.titleVideo} (${payload.total}).srt`,
+            mime: 'text/plain'
+        };
     } catch (e) {
         console.error(e);
         return;

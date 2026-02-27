@@ -1,7 +1,7 @@
 import type { ChatItem, TranscriptCueGroup, CommentItem } from './interfaces/i_types';
 import type { ISheetChatCommentsParam, ISheetCommentsParam, ISheetRepliesParam } from './interfaces/i_assist';
 import { msToRoundSec, parseFormattedNumberToInt, formatRelativeTimestamp, formatDurationHMS } from './formatting';
-import { getPostId, getVideoId, wrapTryCatch } from './common';
+import { getPostId, getVideoId, wrapTryCatch, decodeHtml } from './common';
 
 export type CommentExportItem = ISheetCommentsParam;
 export type CommentExportReply = ISheetRepliesParam;
@@ -292,7 +292,7 @@ function createChatExportRow(
 function createTranscriptExportItem(group: TranscriptCueGroup, videoId: string): TranscriptExportItem {
     const groupRenderer = group?.transcriptCueGroupRenderer || {};
     const renderer = groupRenderer?.cues?.[0]?.transcriptCueRenderer || {};
-    const message = renderer?.cue?.simpleText || renderer?.cue?.runs?.[0]?.text || '';
+    const message = decodeHtml(renderer?.cue?.simpleText || renderer?.cue?.runs?.[0]?.text || '');
     const startOffsetMs = Number(renderer?.startOffsetMs || 0);
     const durationMs = Number(renderer?.durationMs || 0);
     const startSeconds = wrapTryCatch(() => renderer?.navigationEndpoint?.watchEndpoint?.startTimeSeconds) || 0;
@@ -526,7 +526,9 @@ export function buildTranscriptExportPayloadFromCache(body: any): TranscriptExpo
         const message = wrapTryCatch(() => cues[0]?.transcriptCueRenderer?.cue?.simpleText) as string;
 
         payload.trVideo.push({
-            message: message || wrapTryCatch(() => cues[0]?.transcriptCueRenderer?.cue?.runs?.[0]?.text) || '',
+            message: decodeHtml(
+                message || wrapTryCatch(() => cues[0]?.transcriptCueRenderer?.cue?.runs?.[0]?.text) || ''
+            ),
             formattedStartOffset: wrapTryCatch(() => renderer.formattedStartOffset?.simpleText) || '',
             startOffsetMs: startOffsetMs || 0,
             durationMs: durationMs || 0,

@@ -78,6 +78,7 @@ import {
     exportChatAsJSON,
     exportChatAsXLSX,
     exportTranscriptAsJSON,
+    exportTranscriptAsSRT,
     exportTranscriptAsXLSX
 } from './exportFormats';
 
@@ -141,6 +142,18 @@ export function downloadTranscriptFileJSON(cueGroups: TranscriptCueGroup[], meta
     try {
         const body = { titleVideo: meta?.title || '', url: meta?.url || '' } as any;
         const payload = exportTranscriptAsJSON(cueGroups, body);
+        if (!payload) return;
+
+        downloadFile(payload.content, payload.fileName, payload.mime);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+export function downloadTranscriptFileSRT(cueGroups: TranscriptCueGroup[], meta?: ExportMeta): void {
+    try {
+        const body = { titleVideo: meta?.title || '', url: meta?.url || '' } as any;
+        const payload = exportTranscriptAsSRT(cueGroups, body);
         if (!payload) return;
 
         downloadFile(payload.content, payload.fileName, payload.mime);

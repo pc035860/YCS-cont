@@ -484,6 +484,52 @@ start offset: ${wrapTryCatch(() => c.transcriptCueGroupRenderer.cues[0].transcri
     }
 }
 
+/**
+ * Format milliseconds to SRT timestamp: HH:MM:SS,mmm
+ * Guards against negative (clamps to 0) and NaN (returns 00:00:00,000).
+ */
+function formatSrtTimestamp(ms: number): string {
+    if (!Number.isFinite(ms) || ms < 0) {
+        return '00:00:00,000';
+    }
+
+    // Floor first to avoid Math.round producing millis=1000 on fractional input
+    const totalMs = Math.floor(ms);
+    const totalSeconds = Math.floor(totalMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const millis = totalMs % 1000;
+
+    const hh = hours.toString().padStart(2, '0');
+    const mm = minutes.toString().padStart(2, '0');
+    const ss = seconds.toString().padStart(2, '0');
+    const fff = millis.toString().padStart(3, '0');
+
+    return `${hh}:${mm}:${ss},${fff}`;
+}
+
+interface SrtItem {
+    startOffsetMs: number;
+    durationMs: number;
+    message: string;
+}
+
+/**
+ * Build SRT subtitle file content from transcript export items.
+ * Expects message text to already be decoded (HTML entities resolved at source).
+ */
+function buildSrtContent(items: SrtItem[]): string {
+    const blocks: string[] = [];
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const start = formatSrtTimestamp(item.startOffsetMs);
+        const end = formatSrtTimestamp(item.startOffsetMs + item.durationMs);
+        blocks.push(`${i + 1}\n${start} --> ${end}\n${item.message}`);
+    }
+    return blocks.join('\n\n') + (blocks.length > 0 ? '\n' : '');
+}
+
 export {
     resolveMeta,
     safeUrl,
@@ -496,6 +542,8 @@ export {
     formatRelativeTimestamp,
     formatRecordingDuration,
     formatBytes,
+    formatSrtTimestamp,
+    buildSrtContent,
     getCommentsHtmlText,
     getCommentsChatHtmlText,
     getCommentsTrVideoHtmlText

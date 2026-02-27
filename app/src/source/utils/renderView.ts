@@ -935,6 +935,7 @@ function renderLoadComments(
                                         <div class="ycs_dropdown_item" data-format="${EXPORT_FORMAT.TXT}">.TXT</div>
                                         <div class="ycs_dropdown_item" data-format="${EXPORT_FORMAT.JSON}">.JSON</div>
                                         <div class="ycs_dropdown_item" data-format="${EXPORT_FORMAT.XLSX}">.XLSX</div>
+                                        <div class="ycs_dropdown_item" data-format="${EXPORT_FORMAT.SRT}">.SRT</div>
                                     </div>
                                 </div>
                                 <div class="ycs_language_wrap ycs_dropdown_wrap">
