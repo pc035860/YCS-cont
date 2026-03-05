@@ -71,7 +71,8 @@ import {
     downloadTranscriptFileJSON,
     downloadTranscriptFileSRT,
     downloadTranscriptFileXLSX,
-    EXPORT_FORMAT
+    EXPORT_FORMAT,
+    isExportFormat
 } from './services/exportService';
 import type { ExportFormat } from './services/exportService';
 import {
@@ -140,15 +141,6 @@ const dropdownMenus = new Set<HTMLElement>();
 
 let filterRegistry: FilterButtonRegistry | null = null;
 let handleDocumentClick: ((ev: MouseEvent) => void) | null = null;
-
-const isExportFormat = (value: string | undefined): value is ExportFormat => {
-    return (
-        value === EXPORT_FORMAT.TXT ||
-        value === EXPORT_FORMAT.JSON ||
-        value === EXPORT_FORMAT.XLSX ||
-        value === EXPORT_FORMAT.SRT
-    );
-};
 
 /**
  * Cleanup YCS UI on Shorts pages when support is disabled

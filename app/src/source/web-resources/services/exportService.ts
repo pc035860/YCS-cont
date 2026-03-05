@@ -7,7 +7,7 @@ import {
 } from '../../utils/formatting';
 import type { ChatItem, CommentItem, TranscriptCueGroup } from '../../utils/interfaces/i_types';
 import type { ExportMeta, ResolvedExportMeta } from '../../utils/formatting';
-export { EXPORT_FORMAT } from '../../utils/constants';
+export { EXPORT_FORMAT, isExportFormat } from '../../utils/constants';
 export type { ExportFormat } from '../../utils/constants';
 
 function buildDocument(sectionTitle: string, meta: ResolvedExportMeta, count: number, body: string): string {
