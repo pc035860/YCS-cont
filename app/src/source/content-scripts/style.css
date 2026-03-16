@@ -814,6 +814,40 @@ html[dark='true'] .ycs-reply-error,
 html[dark] .ycs-reply-error {
   color: #ef5350;
 }
+.ycs-reply-sending {
+  animation: ycs-pulse 1.5s infinite ease-in-out;
+}
+.ycs-reply-countdown {
+  color: #e65100;
+  font-weight: 500;
+}
+html[dark='true'] .ycs-reply-countdown,
+html[dark] .ycs-reply-countdown {
+  color: #ff9800;
+}
+.ycs-synthetic-reply {
+  opacity: 0.8;
+  animation: ycs-reply-fade-in 0.3s ease-out;
+}
+.ycs-synthetic-replies-wrap {
+  margin-left: 15px;
+  border-left: 2px solid #e0e0e0;
+  padding-left: 8px;
+}
+html[dark='true'] .ycs-synthetic-replies-wrap,
+html[dark] .ycs-synthetic-replies-wrap {
+  border-left-color: #404040;
+}
+@keyframes ycs-reply-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 0.8;
+    transform: translateY(0);
+  }
+}
 
 .ycs-head__title-main {
   height: 20px;

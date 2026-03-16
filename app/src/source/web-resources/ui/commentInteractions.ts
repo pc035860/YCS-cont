@@ -500,6 +500,9 @@ function handleOpenReply(target: HTMLElement, stateAccessor: CommentStateAccesso
         return;
     }
 
+    const syntheticWrap = commentContainer.querySelector('.ycs-synthetic-replies-wrap');
+    if (syntheticWrap) syntheticWrap.remove();
+
     const comments = safeGetComments(stateAccessor);
     const replies = collectRepliesForComment(comments, commentId, 0);
     if (replies.length === 0) {
@@ -524,6 +527,61 @@ function handleOpenReply(target: HTMLElement, stateAccessor: CommentStateAccesso
 
     target.innerHTML = String.fromCharCode(8722);
     target.title = 'Close replies to the comment';
+}
+
+function getLoggedInUserAvatar(): string {
+    const img = document.querySelector('#avatar-btn img') as HTMLImageElement | null;
+    return img?.src || '';
+}
+
+function createSyntheticReplyElement(text: string): HTMLElement {
+    const container = document.createElement('div');
+    container.className = 'ycs-render-comment ycs-synthetic-reply ycs-reply-fade-in';
+    container.style.marginLeft = '56px';
+
+    const left = document.createElement('div');
+    left.className = 'ycs-left';
+
+    const avatarWrapper = document.createElement('div');
+    avatarWrapper.className = 'ycs-render-img ycs-render-img--nested';
+
+    const avatar = document.createElement('img');
+    avatar.className = 'avatar';
+    avatar.alt = 'You';
+    avatar.height = 32;
+    avatar.width = 32;
+    avatar.src = getLoggedInUserAvatar();
+
+    avatarWrapper.appendChild(avatar);
+    left.appendChild(avatarWrapper);
+
+    const block = document.createElement('div');
+    block.className = 'ycs-comment-block ycs-comment-block--nested';
+
+    const header = document.createElement('div');
+    header.className = 'ycs-head-block__dib ycs-head-block ycs-head__title-main';
+
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'ycs-head__title';
+    titleSpan.textContent = 'You';
+    header.appendChild(titleSpan);
+
+    const meta = document.createElement('div');
+    meta.className = 'ycs-head-block__dib ycs-head-block__lh ycs-time-size';
+
+    const time = document.createElement('span');
+    time.textContent = 'Just now';
+    meta.appendChild(time);
+    header.appendChild(meta);
+
+    const content = document.createElement('div');
+    content.className = 'ycs-comment__main-text';
+    content.textContent = text;
+
+    block.append(header, content);
+    container.append(left, block);
+
+    return container;
 }
 
 function handleReplyClick(target: HTMLElement): void {
@@ -568,8 +626,12 @@ function handleReplyClick(target: HTMLElement): void {
     const status = document.createElement('div');
     status.className = 'ycs-reply-status';
 
+    let countdownActive = false;
+
     textarea.addEventListener('input', () => {
-        sendBtn.disabled = textarea.value.trim().length === 0;
+        if (!countdownActive) {
+            sendBtn.disabled = textarea.value.trim().length === 0;
+        }
     });
 
     cancelBtn.addEventListener('click', () => {
@@ -585,18 +647,45 @@ function handleReplyClick(target: HTMLElement): void {
         cancelBtn.disabled = true;
         form.dataset.sending = 'true';
         status.textContent = 'Sending...';
-        status.className = 'ycs-reply-status';
+        status.className = 'ycs-reply-status ycs-reply-sending';
 
         try {
             const { sendCommentReply, canSendReply } = await import('../../utils/innertube/reply');
 
             const rateCheck = canSendReply();
             if (!rateCheck.allowed) {
-                status.textContent = `Please wait ${Math.ceil(rateCheck.waitMs / 1000)}s`;
-                status.className = 'ycs-reply-status ycs-reply-error';
-                sendBtn.disabled = false;
+                let remaining = Math.ceil(rateCheck.waitMs / 1000);
+                status.textContent = `Please wait ${remaining}s`;
+                status.className = 'ycs-reply-status ycs-reply-countdown';
+                countdownActive = true;
+                sendBtn.disabled = true;
                 textarea.disabled = false;
                 cancelBtn.disabled = false;
+                form.dataset.sending = '';
+
+                const observer = new MutationObserver(() => {
+                    if (!form.isConnected) {
+                        clearInterval(countdownId);
+                        observer.disconnect();
+                    }
+                });
+
+                const countdownId = setInterval(() => {
+                    remaining -= 1;
+                    if (remaining <= 0) {
+                        clearInterval(countdownId);
+                        observer.disconnect();
+                        countdownActive = false;
+                        status.textContent = '';
+                        status.className = 'ycs-reply-status';
+                        sendBtn.disabled = textarea.value.trim().length === 0;
+                    } else {
+                        status.textContent = `Please wait ${remaining}s`;
+                    }
+                }, 1000);
+
+                observer.observe(form.parentElement || document.body, { childList: true });
+
                 return;
             }
 
@@ -607,13 +696,32 @@ function handleReplyClick(target: HTMLElement): void {
             });
 
             if (result.success) {
+                const parentId = target.dataset.commentId;
+                const safeId = parentId ? safeDomKey(parentId) : undefined;
+                const syntheticEl = createSyntheticReplyElement(text);
+
+                let repliesContainer = safeId ? commentContainer.querySelector(`.ycs-com-replies-${safeId}`) : null;
+                if (!repliesContainer) {
+                    repliesContainer = commentContainer.querySelector('.ycs-synthetic-replies-wrap');
+                }
+                if (!repliesContainer) {
+                    repliesContainer = document.createElement('div');
+                    repliesContainer.className = 'ycs-synthetic-replies-wrap';
+                    commentContainer.appendChild(repliesContainer);
+                }
+                repliesContainer.appendChild(syntheticEl);
+
                 status.textContent = 'Reply sent!';
                 status.className = 'ycs-reply-status ycs-reply-success';
                 textarea.value = '';
                 sendBtn.disabled = true;
-                setTimeout(() => form.remove(), 2000);
+                setTimeout(() => form.remove(), 1500);
             } else {
-                status.textContent = result.error || 'Failed to send reply';
+                if (result.error?.includes('expired')) {
+                    status.textContent = 'Token expired \u2014 please reload comments and retry';
+                } else {
+                    status.textContent = result.error || 'Failed to send reply';
+                }
                 status.className = 'ycs-reply-status ycs-reply-error';
                 textarea.disabled = false;
                 cancelBtn.disabled = false;

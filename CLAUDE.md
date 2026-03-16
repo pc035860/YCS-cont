@@ -247,6 +247,8 @@ Canonical behavior baseline doc:
 - Reply UI is inline per-comment at all nesting levels, handled in `commentInteractions.ts`
 - 30-second global cooldown enforced at attempt time (not success time)
 - Opt-in via `enableInlineReply` setting (forces authenticated comment loading; not compatible with Data API mode)
+- Successful replies insert a synthetic DOM element (not state) as visual feedback; cleaned up when real replies are toggled or comments reloaded
+- Rate limit displays a live countdown timer; uses MutationObserver for cleanup on form removal
 
 ---
 
