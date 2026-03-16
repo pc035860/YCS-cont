@@ -525,6 +525,15 @@ export function generateCommentObjectFromFW(params: {
             if (engagementToolbar) {
                 comment.commentRenderer.engagementToolbar = engagementToolbar;
             }
+
+            const fwCreateReplyParams = wrapTryCatch(
+                () =>
+                    engagementToolbar?.replyButton?.buttonRenderer?.serviceEndpoint?.createCommentReplyCommand
+                        ?.createReplyParams
+            );
+            if (fwCreateReplyParams) {
+                comment.commentRenderer.createReplyParams = fwCreateReplyParams;
+            }
         }
 
         if (toolbarStateUpdate && wrapTryCatch(() => toolbarStateUpdate.heartState) === 'TOOLBAR_HEART_STATE_HEARTED') {
@@ -948,6 +957,13 @@ export function prepareFieldsComment(cmnt: any): object {
             }
         }
 
+        const preservedCreateReplyParams = wrapTryCatch(
+            () =>
+                cmnt.commentRenderer.actionButtons.commentActionButtonsRenderer.replyButton.buttonRenderer
+                    .navigationEndpoint.createCommentReplyDialogEndpoint.dialog.commentReplyDialogRenderer.replyButton
+                    .buttonRenderer.serviceEndpoint.createCommentReplyCommand.createReplyParams
+        );
+
         // Extract verified status from authorCommentBadge before deletion (legacy format fallback)
         if (
             wrapTryCatch(() => {
@@ -983,6 +999,10 @@ export function prepareFieldsComment(cmnt: any): object {
         wrapTryCatch(() => delete cmnt.commentRenderer.isLiked);
 
         wrapTryCatch(() => delete cmnt.commentRenderer.analyticsTrackingParams);
+
+        if (preservedCreateReplyParams) {
+            cmnt.commentRenderer.createReplyParams = preservedCreateReplyParams;
+        }
 
         wrapTryCatch(() => delete cmnt.commentRenderer.authorText.accessibility);
 

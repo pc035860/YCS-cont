@@ -82,6 +82,7 @@ export interface CommentRenderer extends Record<string, unknown> {
         };
     };
     verifiedAuthor?: boolean;
+    createReplyParams?: string;
     voteCount?: {
         simpleText?: string;
     };

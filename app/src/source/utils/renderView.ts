@@ -355,6 +355,18 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
     content.innerHTML = model.contentHtml;
 
     block.append(header, content);
+
+    if (model.createReplyParams && !model.isReplyType) {
+        const replyBtn = document.createElement('button');
+        replyBtn.className = 'ycs-reply-btn';
+        replyBtn.textContent = 'Reply';
+        replyBtn.dataset.createReplyParams = model.createReplyParams;
+        if (model.commentId) {
+            replyBtn.dataset.commentId = model.commentId;
+        }
+        block.appendChild(replyBtn);
+    }
+
     container.append(left, block);
 
     return container;

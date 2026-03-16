@@ -203,6 +203,12 @@ Canonical behavior baseline doc:
 5. Innertube client type and auth header must be consistent
    ANDROID client + browser SAPISIDHASH authorization = HTTP 400. Only send auth headers with WEB client requests.
 
+6. Write operations (reply) always require auth enabled
+   `reply.ts` uses `disableAuth: false` — unlike read operations which conditionally disable auth based on access restriction status. Never apply `shouldDisableAuth()` to write endpoints.
+
+7. `createReplyParams` is extracted before field cleanup deletes raw API data
+   In `pipeline.ts`, `prepareFieldsComment()` deletes `actionButtons` and `replyButton`. The `createReplyParams` token must be extracted before those deletions. Same pattern as `creatorHeart` extraction.
+
 ---
 
 ## Recent Significant Changes
@@ -226,6 +232,13 @@ Canonical behavior baseline doc:
 - Fallback: WEB client with SAPISIDHASH auth + racyCheckOk/contentCheckOk (for age-restricted)
 - AbortError is rethrown in both stages to respect cancellation
 
+5. Sidebar comment reply via Innertube write API
+- `reply.ts` sends POST to `create_comment_reply` endpoint, reusing existing auth/request infrastructure
+- `createReplyParams` opaque token extracted from comment pipeline (both legacy and FW paths)
+- Reply UI is inline per-comment (button → textarea → send), handled in `commentInteractions.ts`
+- 30-second global cooldown enforced at attempt time (not success time)
+- Only parent comments show reply button; replies-to-replies are out of scope
+
 ---
 
 ## Testing Guidance
@@ -247,6 +260,7 @@ Manual smoke checklist:
 3. Verify search + filter + clear-button interactions
 4. Verify export still works
 5. Verify Shorts page behavior
+6. Verify comment reply (click Reply → type → send → check success/error/rate-limit)
 
 ---
 

@@ -37,6 +37,7 @@ export interface CommentViewModel {
     replyLevel?: number;
     hideExpandUp?: boolean;
     forceSmallAvatar?: boolean;
+    createReplyParams?: string;
 }
 
 export interface ChatMessageViewModel {
@@ -359,7 +360,8 @@ export function buildCommentViewModels(
             contentHtml: renderFullText ? renderFullText : encode(fallbackText),
             replyLevel,
             hideExpandUp,
-            forceSmallAvatar
+            forceSmallAvatar,
+            createReplyParams: coerceString(wrapTryCatch(() => renderer.createReplyParams)) || undefined
         });
     }
 

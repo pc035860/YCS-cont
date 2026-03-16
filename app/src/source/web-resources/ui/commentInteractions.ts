@@ -75,6 +75,12 @@ export function registerCommentInteractions(
         const openReplyBtn = target.closest('.ycs-open-reply') as HTMLElement | null;
         if (openReplyBtn) {
             handleOpenReply(openReplyBtn, stateAccessor, queryGetter);
+            return;
+        }
+
+        const replyBtn = target.closest('.ycs-reply-btn') as HTMLElement | null;
+        if (replyBtn) {
+            handleReplyClick(replyBtn);
         }
     });
 }
@@ -518,4 +524,115 @@ function handleOpenReply(target: HTMLElement, stateAccessor: CommentStateAccesso
 
     target.innerHTML = String.fromCharCode(8722);
     target.title = 'Close replies to the comment';
+}
+
+function handleReplyClick(target: HTMLElement): void {
+    const commentContainer = target.closest('.ycs-render-comment') as HTMLElement | null;
+    if (!commentContainer) return;
+
+    const createReplyParams = target.dataset.createReplyParams;
+    if (!createReplyParams) return;
+
+    const block = commentContainer.querySelector('.ycs-comment-block') as HTMLElement | null;
+    if (!block) return;
+
+    const existing = block.querySelector('.ycs-reply-form') as HTMLElement | null;
+    if (existing) {
+        if (existing.dataset.sending === 'true') return;
+        existing.remove();
+        return;
+    }
+
+    const form = document.createElement('div');
+    form.className = 'ycs-reply-form';
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'ycs-reply-textarea';
+    textarea.placeholder = 'Add a reply...';
+    textarea.rows = 3;
+
+    const actions = document.createElement('div');
+    actions.className = 'ycs-reply-actions';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'ycs-reply-cancel';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.type = 'button';
+
+    const sendBtn = document.createElement('button');
+    sendBtn.className = 'ycs-reply-send';
+    sendBtn.textContent = 'Reply';
+    sendBtn.type = 'button';
+    sendBtn.disabled = true;
+
+    const status = document.createElement('div');
+    status.className = 'ycs-reply-status';
+
+    textarea.addEventListener('input', () => {
+        sendBtn.disabled = textarea.value.trim().length === 0;
+    });
+
+    cancelBtn.addEventListener('click', () => {
+        form.remove();
+    });
+
+    sendBtn.addEventListener('click', async () => {
+        const text = textarea.value.trim();
+        if (!text) return;
+
+        sendBtn.disabled = true;
+        textarea.disabled = true;
+        cancelBtn.disabled = true;
+        form.dataset.sending = 'true';
+        status.textContent = 'Sending...';
+        status.className = 'ycs-reply-status';
+
+        try {
+            const { sendCommentReply, canSendReply } = await import('../../utils/innertube/reply');
+
+            const rateCheck = canSendReply();
+            if (!rateCheck.allowed) {
+                status.textContent = `Please wait ${Math.ceil(rateCheck.waitMs / 1000)}s`;
+                status.className = 'ycs-reply-status ycs-reply-error';
+                sendBtn.disabled = false;
+                textarea.disabled = false;
+                cancelBtn.disabled = false;
+                return;
+            }
+
+            const result = await sendCommentReply({
+                createReplyParams,
+                commentText: text,
+                globalContext: window
+            });
+
+            if (result.success) {
+                status.textContent = 'Reply sent!';
+                status.className = 'ycs-reply-status ycs-reply-success';
+                textarea.value = '';
+                sendBtn.disabled = true;
+                setTimeout(() => form.remove(), 2000);
+            } else {
+                status.textContent = result.error || 'Failed to send reply';
+                status.className = 'ycs-reply-status ycs-reply-error';
+                textarea.disabled = false;
+                cancelBtn.disabled = false;
+                sendBtn.disabled = textarea.value.trim().length === 0;
+            }
+        } catch (e) {
+            console.error('[YCS] Reply form error:', e);
+            status.textContent = 'Unexpected error';
+            status.className = 'ycs-reply-status ycs-reply-error';
+            textarea.disabled = false;
+            cancelBtn.disabled = false;
+            sendBtn.disabled = textarea.value.trim().length === 0;
+        } finally {
+            form.dataset.sending = '';
+        }
+    });
+
+    actions.append(cancelBtn, sendBtn);
+    form.append(textarea, actions, status);
+    block.appendChild(form);
+    textarea.focus();
 }
