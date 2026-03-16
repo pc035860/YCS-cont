@@ -241,7 +241,7 @@ Canonical behavior baseline doc:
 - Fallback: WEB client with SAPISIDHASH auth + racyCheckOk/contentCheckOk (for age-restricted)
 - AbortError is rethrown in both stages to respect cancellation
 
-5. Sidebar comment reply via Innertube write API
+5. Inline comment reply via Innertube write API
 - `reply.ts` sends POST to `create_comment_reply` endpoint, reusing existing auth/request infrastructure
 - `createReplyParams` token extracted from `engagementToolbarSurfaceEntityPayload` in FW pipeline
 - Reply UI is inline per-comment at all nesting levels, handled in `commentInteractions.ts`
@@ -284,6 +284,7 @@ Manual smoke checklist:
 - `app/docs/sap-sid-authorization.md`
 - `app/docs/adaptive-authorization-headers.md`
 - `app/docs/youtube-data-api-messaging.md`
-- `app/docs/filter-search-behavior-regression-spec.md`
+- `app/docs/filter-search-behavior-regression-spec.md` — regression baseline for search/filter/clear-button behavior
+- `app/docs/inline-reply-behavior-regression-spec.md` — regression baseline for inline reply form, rate limiting, and synthetic preview lifecycle
 
 When behavior rules change, update the relevant doc in the same PR.
