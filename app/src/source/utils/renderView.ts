@@ -356,7 +356,7 @@ function createCommentElement(model: CommentViewModel, index: number): HTMLEleme
 
     block.append(header, content);
 
-    if (model.createReplyParams && !model.isReplyType) {
+    if (model.createReplyParams) {
         const replyBtn = document.createElement('button');
         replyBtn.className = 'ycs-reply-btn';
         replyBtn.textContent = 'Reply';

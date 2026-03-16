@@ -225,6 +225,10 @@ export function getFrameworkUpdatesById(response: any): Record<string, any> {
                 if (toolbar && toolbar.key) {
                     map[toolbar.key] = toolbar;
                 }
+                const toolbarSurface = wrapTryCatch(() => payload.engagementToolbarSurfaceEntityPayload);
+                if (toolbarSurface && toolbarSurface.key) {
+                    map[toolbarSurface.key] = toolbarSurface;
+                }
             } catch (e) {
                 console.error(e);
                 continue;
@@ -328,9 +332,10 @@ export function generateCommentObjectFromFW(params: {
     update: any;
     surfaceUpdate?: any;
     toolbarStateUpdate?: any;
+    toolbarSurfaceUpdate?: any;
 }): any {
     try {
-        const { commentId, update, surfaceUpdate, toolbarStateUpdate } = params;
+        const { commentId, update, surfaceUpdate, toolbarStateUpdate, toolbarSurfaceUpdate } = params;
         if (!update) return undefined;
 
         const propContent = wrapTryCatch(() => update.properties.content) || {};
@@ -525,11 +530,14 @@ export function generateCommentObjectFromFW(params: {
             if (engagementToolbar) {
                 comment.commentRenderer.engagementToolbar = engagementToolbar;
             }
+        }
 
+        if (toolbarSurfaceUpdate) {
             const fwCreateReplyParams = wrapTryCatch(
                 () =>
-                    engagementToolbar?.replyButton?.buttonRenderer?.serviceEndpoint?.createCommentReplyCommand
-                        ?.createReplyParams
+                    toolbarSurfaceUpdate.replyCommand?.innertubeCommand?.createCommentReplyDialogEndpoint?.dialog
+                        ?.commentReplyDialogRenderer?.replyButton?.buttonRenderer?.serviceEndpoint
+                        ?.createCommentReplyEndpoint?.createReplyParams
             );
             if (fwCreateReplyParams) {
                 comment.commentRenderer.createReplyParams = fwCreateReplyParams;
@@ -587,11 +595,13 @@ export function migrateContinuationItemsWithFW(
                         const update = frameworkUpdatesById[commentId];
                         const surfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.commentSurfaceKey)];
                         const toolbarStateUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.toolbarStateKey)];
+                        const toolbarSurfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.toolbarSurfaceKey)];
                         const comment = generateCommentObjectFromFW({
                             commentId,
                             update,
                             surfaceUpdate,
-                            toolbarStateUpdate
+                            toolbarStateUpdate,
+                            toolbarSurfaceUpdate
                         });
                         if (comment) {
                             const newItem = { ...item };
@@ -624,7 +634,13 @@ export function migrateContinuationItemsWithFW(
                         const commentId = wrapTryCatch(() => vm.commentId);
                         const update = frameworkUpdatesById[commentId];
                         const surfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.commentSurfaceKey)];
-                        const comment = generateCommentObjectFromFW({ commentId, update, surfaceUpdate });
+                        const toolbarSurfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.toolbarSurfaceKey)];
+                        const comment = generateCommentObjectFromFW({
+                            commentId,
+                            update,
+                            surfaceUpdate,
+                            toolbarSurfaceUpdate
+                        });
                         if (comment) {
                             const newItem = { ...item };
                             newItem.commentRenderer = comment.commentRenderer;
@@ -766,11 +782,14 @@ export function extractSubThreads(
                     const surfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.commentSurfaceKey)];
                     const toolbarStateUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.toolbarStateKey)];
 
+                    const toolbarSurfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.toolbarSurfaceKey)];
+
                     const comment = generateCommentObjectFromFW({
                         commentId,
                         update,
                         surfaceUpdate,
-                        toolbarStateUpdate
+                        toolbarStateUpdate,
+                        toolbarSurfaceUpdate
                     });
 
                     if (comment) {
@@ -961,7 +980,7 @@ export function prepareFieldsComment(cmnt: any): object {
             () =>
                 cmnt.commentRenderer.actionButtons.commentActionButtonsRenderer.replyButton.buttonRenderer
                     .navigationEndpoint.createCommentReplyDialogEndpoint.dialog.commentReplyDialogRenderer.replyButton
-                    .buttonRenderer.serviceEndpoint.createCommentReplyCommand.createReplyParams
+                    .buttonRenderer.serviceEndpoint.createCommentReplyEndpoint.createReplyParams
         );
 
         // Extract verified status from authorCommentBadge before deletion (legacy format fallback)

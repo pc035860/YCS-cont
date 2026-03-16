@@ -206,8 +206,17 @@ Canonical behavior baseline doc:
 6. Write operations (reply) always require auth enabled
    `reply.ts` uses `disableAuth: false` — unlike read operations which conditionally disable auth based on access restriction status. Never apply `shouldDisableAuth()` to write endpoints.
 
-7. `createReplyParams` is extracted before field cleanup deletes raw API data
-   In `pipeline.ts`, `prepareFieldsComment()` deletes `actionButtons` and `replyButton`. The `createReplyParams` token must be extracted before those deletions. Same pattern as `creatorHeart` extraction.
+7. `createReplyParams` lives in `engagementToolbarSurfaceEntityPayload`, not in `commentEntityPayload`
+   Extracted via `vm.toolbarSurfaceKey` → `replyCommand.innertubeCommand.createCommentReplyDialogEndpoint...createReplyParams`. Only present in **authenticated** responses — logged-out mode returns a sign-in modal instead.
+
+8. FW pipeline has 4 mutation payload types — all must be indexed
+   `getFrameworkUpdatesById()` must handle: `commentEntityPayload`, `commentSurfaceEntityPayload`, `engagementToolbarStateEntityPayload`, and `engagementToolbarSurfaceEntityPayload`. Missing any of these silently drops data.
+
+9. `generateCommentObjectFromFW` has multiple call sites — keep in sync
+   Currently 3 call sites in `pipeline.ts` (parent comments, reply ViewModels, sub-threads). All must pass the same set of FW updates including `toolbarSurfaceUpdate`. Adding a new parameter to the function signature requires updating all call sites.
+
+10. Dynamic import chunks must be registered in `manifest.json` `web_accessible_resources`
+    Parcel code-splits dynamic `import()` into separate `.js` files (e.g., `reply.*.js`). These chunks must match a pattern in `web_accessible_resources.resources` or Chrome will block loading them.
 
 ---
 
@@ -234,10 +243,10 @@ Canonical behavior baseline doc:
 
 5. Sidebar comment reply via Innertube write API
 - `reply.ts` sends POST to `create_comment_reply` endpoint, reusing existing auth/request infrastructure
-- `createReplyParams` opaque token extracted from comment pipeline (both legacy and FW paths)
-- Reply UI is inline per-comment (button → textarea → send), handled in `commentInteractions.ts`
+- `createReplyParams` token extracted from `engagementToolbarSurfaceEntityPayload` in FW pipeline
+- Reply UI is inline per-comment at all nesting levels, handled in `commentInteractions.ts`
 - 30-second global cooldown enforced at attempt time (not success time)
-- Only parent comments show reply button; replies-to-replies are out of scope
+- Requires authenticated comment loading (`__YCS_FORCE_AUTH = true` or member-only/age-restricted)
 
 ---
 
