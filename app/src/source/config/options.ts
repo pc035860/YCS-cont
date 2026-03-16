@@ -12,6 +12,7 @@ const options = {
     maxComments: 500000,
     youtubeApiKey: '', // Empty = use Innertube (default); Filled = use YouTube Data API
     youtubeApiEnabled: true, // Enable YouTube Data API (requires API key to take effect)
+    enableInlineReply: false, // Show reply buttons; forces authenticated comment loading (not compatible with Data API)
     filterButtons: [
         { id: 'ycs_btn_timestamps', enabled: true },
         { id: 'ycs_btn_timestamp_viz', enabled: true },

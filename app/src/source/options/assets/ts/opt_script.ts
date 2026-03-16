@@ -109,6 +109,11 @@ window.onload = async (): Promise<void> => {
             (document.getElementById('y_opts_hidden_by_default_shorts') as HTMLInputElement).checked = param;
         };
 
+        const setRenderEnableInlineReply = (param: boolean): void => {
+            if (typeof param !== 'boolean') return;
+            (document.getElementById('y_opts_enable_inline_reply') as HTMLInputElement).checked = param;
+        };
+
         const setRenderEnableShortsSupport = (param: boolean): void => {
             if (typeof param !== 'boolean') return;
 
@@ -592,6 +597,14 @@ window.onload = async (): Promise<void> => {
             }
         };
 
+        const optSetEnableInlineReply = async (opt: HTMLInputElement): Promise<void> => {
+            try {
+                await chrome.storage.local.set({ enableInlineReply: opt.checked });
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
         const optSetEnableShortsSupport = async (opt: HTMLInputElement): Promise<void> => {
             try {
                 await chrome.storage.local.set({
@@ -721,6 +734,10 @@ window.onload = async (): Promise<void> => {
                         setRenderEnableShortsSupport(storageOpts[key]);
                         break;
 
+                    case 'enableInlineReply':
+                        setRenderEnableInlineReply(storageOpts[key]);
+                        break;
+
                     case 'transcriptLanguage':
                         setRenderTranscriptLanguage(storageOpts[key]);
                         break;
@@ -797,6 +814,10 @@ window.onload = async (): Promise<void> => {
 
                 case 'y_opts_enable_shorts_support':
                     optSetEnableShortsSupport(e.target as HTMLInputElement);
+                    break;
+
+                case 'y_opts_enable_inline_reply':
+                    optSetEnableInlineReply(e.target as HTMLInputElement);
                     break;
 
                 case 'ycs_opts_btn_reset_filters':

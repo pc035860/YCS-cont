@@ -391,6 +391,8 @@ export function updateAccessRestrictionStatus(ytData: any): AccessRestrictionSta
  * @returns true if auth should be disabled, false if auth should be sent
  */
 export function shouldDisableAuth(): boolean {
+    if ((GlobalStore as any).enableInlineReply === true) return false;
+
     const memberOnly = (GlobalStore as any).isMemberOnly;
     const ageRestricted = (GlobalStore as any).isAgeRestricted;
 

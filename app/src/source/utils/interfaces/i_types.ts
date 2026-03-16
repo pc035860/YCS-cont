@@ -338,6 +338,7 @@ export interface IYCSOptions {
     youtubeApiKey?: string; // Empty = use Innertube; Filled = use YouTube Data API (storage only)
     hasYoutubeApiKey?: boolean; // Flag exposed to web page (API key never exposed)
     youtubeApiEnabled?: boolean; // Enable YouTube Data API (default: true, requires API key)
+    enableInlineReply?: boolean;
 }
 
 // =============================================================================

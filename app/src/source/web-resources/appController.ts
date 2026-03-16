@@ -1718,6 +1718,9 @@ export function initApp(): void {
                     if (typeof opts.youtubeApiEnabled !== 'undefined') {
                         GlobalStore.youtubeApiEnabled = Boolean(opts.youtubeApiEnabled);
                     }
+                    if (typeof opts.enableInlineReply !== 'undefined') {
+                        GlobalStore.enableInlineReply = Boolean(opts.enableInlineReply);
+                    }
                     if (typeof opts.transcriptLanguage !== 'undefined') {
                         state = setSelectedTranscriptLanguage(
                             state,

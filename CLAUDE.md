@@ -246,7 +246,7 @@ Canonical behavior baseline doc:
 - `createReplyParams` token extracted from `engagementToolbarSurfaceEntityPayload` in FW pipeline
 - Reply UI is inline per-comment at all nesting levels, handled in `commentInteractions.ts`
 - 30-second global cooldown enforced at attempt time (not success time)
-- Requires authenticated comment loading (`__YCS_FORCE_AUTH = true` or member-only/age-restricted)
+- Opt-in via `enableInlineReply` setting (forces authenticated comment loading; not compatible with Data API mode)
 
 ---
 
