@@ -137,4 +137,10 @@ async function getAllCommentsModeV2(
     return comments;
 }
 
-export { getAllCommentsModeV2, extractNextContinuation, applyFrameworkUpdatesToComment, generateCommentObjectFromFW, buildReplyCommentFromResponse };
+export {
+    getAllCommentsModeV2,
+    extractNextContinuation,
+    applyFrameworkUpdatesToComment,
+    generateCommentObjectFromFW,
+    buildReplyCommentFromResponse
+};
