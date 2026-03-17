@@ -79,6 +79,10 @@ test('stripReplyTokens passes through comments without tokens unchanged', () => 
     assert.deepEqual(result[0], plain);
 });
 
+test('stripReplyTokens handles empty array', () => {
+    assert.deepEqual(stripReplyTokens([]), []);
+});
+
 test('stripReplyTokens preserves all non-token fields', () => {
     const comment = makeComment({
         createReplyParams: 'token-xyz',

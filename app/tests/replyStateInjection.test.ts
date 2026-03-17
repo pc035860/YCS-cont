@@ -84,11 +84,10 @@ test('buildReplyCommentFromResponse extracts createReplyParams for chain replyin
     });
 
     assert.ok(result);
-    assert.ok(
+    assert.equal(
         result.commentRenderer.createReplyParams,
-        'should have createReplyParams for chain replying'
+        'Egtzc25BRUhHblFhdyIaVWd4eHZVeDhRUlVlenRULVhSMTRBYUFCQWcqAggAUAdyMVVneHh2VXg4UVJVZXp0VC1YUjE0QWFBQkFnLkFVUTV3emVUZ2lMQVVSdW12NlVtVWToAQDaAgDiAgQQABgA6AIB'
     );
-    assert.equal(typeof result.commentRenderer.createReplyParams, 'string');
 });
 
 test('buildReplyCommentFromResponse extracts content text', () => {
