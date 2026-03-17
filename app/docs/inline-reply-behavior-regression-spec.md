@@ -117,9 +117,10 @@ If implementation deviates from this spec without an explicit requirement change
 ### 8.2 Success
 
 1. Synthetic reply element is inserted (see Section 9).
-2. `StatusArea` shows "Reply sent!" with class `ycs-reply-success`.
-3. `ReplyTextarea` is cleared, `SendButton` disabled.
-4. Form auto-removes after 1500ms.
+2. `ycs-reply-success` CustomEvent is dispatched on `document` with raw `responseData` (see Section 14).
+3. `StatusArea` shows "Reply sent!" with class `ycs-reply-success`.
+4. `ReplyTextarea` is cleared, `SendButton` disabled.
+5. Form auto-removes after 1500ms.
 
 ### 8.3 Error (non-rate-limit)
 
@@ -164,7 +165,7 @@ If implementation deviates from this spec without an explicit requirement change
 1. Reply endpoint: `POST /youtubei/v1/comment/create_comment_reply`.
 2. Auth is always enabled (`disableAuth: false`). Never apply `shouldDisableAuth()` to write endpoints.
 3. `credentials: 'include'` and `mode: 'cors'` are required.
-4. Success is determined by `actionResult.status === 'STATUS_SUCCEEDED'` in response body.
+4. Success is determined by `actionResult.status === 'STATUS_SUCCEEDED'` in response body. On success, full response JSON is returned as `responseData` in `ReplyResult` for state injection (Section 14).
 
 ### 10.1 Error Status Handling
 
@@ -210,6 +211,10 @@ If any of the following occurs, mark it as a regression:
 10. `lastReplyTimestamp` is set on success instead of attempt time.
 11. Rate limit interval deviates from 30 seconds without explicit requirement change.
 12. Any `generateCommentObjectFromFW` call site does not pass `toolbarSurfaceUpdate`.
+13. Reply success does not dispatch `ycs-reply-success` event when `responseData` is present.
+14. State injection silently drops the new reply without updating `state.comments`.
+15. Thread root `replyCount` is not incremented when replying to a nested comment (`replyToCommentId !== parentCommentId`).
+16. Duplicate reply is injected into state (same `commentId` already exists in `state.comments`).
 
 ---
 
@@ -220,6 +225,44 @@ The following behaviors are explicitly confirmed as fixed rules and must not cha
 1. Inline reply is opt-in only. Default is `false`.
 2. Enabling inline reply forces authenticated comment loading for all videos, overriding the normal member-only/age-restricted conditional auth logic.
 3. Rate limit cooldown starts at attempt time, not success time. Failed attempts still consume the cooldown window.
-4. Synthetic replies are DOM-only visual feedback. They are not persisted to state and are not searchable.
+4. Synthetic replies are DOM-only visual feedback for immediate display. Real reply data is injected into state and cache via event pipeline (Section 14) and is searchable after the next search execution.
 5. The reply form is a toggle: clicking `ReplyButton` again closes the form (unless sending is in progress).
 6. The feature is not compatible with YouTube Data API mode. This is by design — Data API responses lack `createReplyParams` tokens.
+
+---
+
+## 14. Reply State Injection (MUST)
+
+### 14.1 Event Flow
+
+1. On successful reply, `commentInteractions.ts` dispatches `CustomEvent('ycs-reply-success')` on `document` with `detail.responseData` containing the full API response JSON.
+2. Event is dispatched **after** synthetic DOM insertion (Section 9.1), not before.
+3. `appController.ts` listens for `ycs-reply-success` and processes the response.
+
+### 14.2 Response Processing
+
+1. `createCommentReplyAction` is extracted from `responseData.actions` to obtain `parentCommentId` (thread root) and `replyToCommentId` (direct parent).
+2. `originComment` is found in `state.comments` by scanning for `commentRenderer.commentId` matching `replyToCommentId` first, then `parentCommentId` as fallback.
+3. `buildReplyCommentFromResponse()` in `pipeline.ts` converts the response via existing FW pipeline: `getFrameworkUpdatesById` → `generateCommentObjectFromFW` → `enrichCommentRenderer`.
+4. The `commentViewModel` entity keys from the response's `createCommentReplyAction.contents` are used to look up the correct FW mutations.
+5. `replyLevel` is extracted from FW data; fallback is `(originComment.replyLevel ?? 0) + 1`.
+
+### 14.3 State Update Rules
+
+1. Dedup guard: if a comment with the same `commentId` already exists in `state.comments`, injection is skipped.
+2. New reply is appended to `state.comments` with `_index = comments.length`.
+3. `originComment.commentRenderer.replyCount` is incremented by 1 (direct parent).
+4. If `replyToCommentId !== parentCommentId`, the thread root's `commentRenderer.replyCount` is also incremented by 1.
+5. `replyCount` coercion uses `Number()` to handle both `number` and `string` types.
+6. `state.count.comments` is updated via `setCount`.
+7. Badge is updated via `updateBadge`.
+
+### 14.4 Cache Persistence
+
+1. After state update, `saveToCache()` is called with the updated `state.comments`.
+2. `saveToCache` internally calls `stripReplyTokens` which recursively strips `createReplyParams` from the entire `originComment` chain via `stripOriginChain`. The in-memory state retains tokens for chain replying.
+
+### 14.5 Failure Handling
+
+1. If `responseData` is absent, `createCommentReplyAction` is not found, `originComment` is not in state, or `buildReplyCommentFromResponse` returns `undefined` — injection is silently skipped. The synthetic DOM preview remains as visual feedback.
+2. All processing is wrapped in try-catch; errors are logged to console.
