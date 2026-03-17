@@ -2294,3 +2294,11 @@ export async function fetchRepliesBatch(params: FetchRepliesParams): Promise<Com
         return undefined;
     }
 }
+
+export function buildReplyCommentFromResponse(_params: {
+    response: any;
+    originComment: any;
+    currentVideoId: string;
+}): any | undefined {
+    return undefined;
+}
