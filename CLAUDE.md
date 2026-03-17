@@ -249,6 +249,8 @@ Canonical behavior baseline doc:
 - Opt-in via `enableInlineReply` setting (forces authenticated comment loading; not compatible with Data API mode)
 - Successful replies insert a synthetic DOM element (not state) as visual feedback; cleaned up when real replies are toggled or comments reloaded
 - Rate limit displays a live countdown timer; uses MutationObserver for cleanup on form removal
+- Reply response data is injected into state + cache via event-based pipeline (`ycs-reply-success` CustomEvent); no reload needed to persist the new reply
+- `buildReplyCommentFromResponse()` in pipeline.ts converts reply API response to CommentItem using existing FW pipeline functions
 
 ---
 
