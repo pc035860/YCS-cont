@@ -1958,9 +1958,15 @@ export function initApp(): void {
 
                 if (originComment?.commentRenderer) {
                     originComment.commentRenderer.replyCount =
-                        (typeof originComment.commentRenderer.replyCount === 'number'
-                            ? originComment.commentRenderer.replyCount
-                            : 0) + 1;
+                        (Number(originComment.commentRenderer.replyCount) || 0) + 1;
+                }
+
+                if (replyToId !== parentId) {
+                    const threadRoot = comments.find((c) => c.commentRenderer?.commentId === parentId);
+                    if (threadRoot?.commentRenderer && threadRoot !== originComment) {
+                        threadRoot.commentRenderer.replyCount =
+                            (Number(threadRoot.commentRenderer.replyCount) || 0) + 1;
+                    }
                 }
 
                 newReply._index = comments.length;
