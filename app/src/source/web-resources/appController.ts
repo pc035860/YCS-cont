@@ -22,7 +22,8 @@ import {
     getAllCommentsModeV2,
     getChatComments,
     clearCurrentVideoMemberOnly,
-    clearCurrentVideoAgeRestricted
+    clearCurrentVideoAgeRestricted,
+    buildReplyCommentFromResponse
 } from '../utils/innertube';
 
 import { IParamSearch, ISelectedSearch, IYCSOptions } from '../utils/interfaces/i_types';
@@ -1916,6 +1917,69 @@ export function initApp(): void {
         };
 
         window.addEventListener('message', handleMessageEvent);
+
+        document.addEventListener('ycs-reply-success', ((event: CustomEvent) => {
+            try {
+                const { responseData } = event.detail;
+                if (!responseData) return;
+
+                const comments = getComments(state);
+                if (comments.length === 0) return;
+
+                const replyAction = responseData.actions?.find(
+                    (a: any) => a.createCommentReplyAction
+                )?.createCommentReplyAction;
+                if (!replyAction) return;
+
+                const replyToId = replyAction.replyToCommentId;
+                const parentId = replyAction.parentCommentId;
+
+                let originComment: CommentItem | undefined;
+                for (const c of comments) {
+                    const cId = c.commentRenderer?.commentId;
+                    if (cId === replyToId) {
+                        originComment = c;
+                        break;
+                    }
+                    if (cId === parentId && !originComment) originComment = c;
+                }
+                if (!originComment) return;
+
+                const currentVideoId = getVideoId(window.location.href) || '';
+                const newReply = buildReplyCommentFromResponse({
+                    response: responseData,
+                    originComment,
+                    currentVideoId
+                });
+                if (!newReply) return;
+
+                const newCommentId = newReply?.commentRenderer?.commentId;
+                if (newCommentId && comments.some((c) => c.commentRenderer?.commentId === newCommentId)) return;
+
+                newReply._index = comments.length;
+                state = setComments(state, [...comments, newReply]);
+
+                if (originComment?.commentRenderer) {
+                    originComment.commentRenderer.replyCount =
+                        (typeof originComment.commentRenderer.replyCount === 'number'
+                            ? originComment.commentRenderer.replyCount
+                            : 0) + 1;
+                }
+
+                saveToCache(
+                    {
+                        videoId: getVideoId(window.location.href) ?? getPostId(window.location.href),
+                        comments: getComments(state),
+                        commentsChat: JSON.stringify(Array.from(getCommentsChat(state).entries())),
+                        commentsTrVideo: getCommentsTrVideo(state),
+                        channelId: extractChannelId()
+                    },
+                    buildCacheMeta()
+                );
+            } catch (err) {
+                console.error('[YCS] Reply state injection error:', err);
+            }
+        }) as EventListener);
 
         initShowBarFAQ();
         initShowViewMode();

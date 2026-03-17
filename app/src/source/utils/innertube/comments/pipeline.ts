@@ -2295,10 +2295,44 @@ export async function fetchRepliesBatch(params: FetchRepliesParams): Promise<Com
     }
 }
 
-export function buildReplyCommentFromResponse(_params: {
+export function buildReplyCommentFromResponse(params: {
     response: any;
     originComment: any;
     currentVideoId: string;
 }): any | undefined {
-    return undefined;
+    try {
+        const { response, originComment, currentVideoId } = params;
+
+        const replyAction = response?.actions?.find((a: any) => a.createCommentReplyAction)?.createCommentReplyAction;
+        if (!replyAction) return undefined;
+
+        const vm = replyAction.contents?.commentThreadRenderer?.commentViewModel?.commentViewModel;
+        if (!vm?.commentId) return undefined;
+
+        const fwById = getFrameworkUpdatesById(response);
+        const commentId = vm.commentId;
+        const update = fwById[commentId] || fwById[vm.commentKey];
+        if (!update) return undefined;
+
+        const comment = generateCommentObjectFromFW({
+            commentId,
+            update,
+            surfaceUpdate: vm.commentSurfaceKey ? fwById[vm.commentSurfaceKey] : undefined,
+            toolbarStateUpdate: vm.toolbarStateKey ? fwById[vm.toolbarStateKey] : undefined,
+            toolbarSurfaceUpdate: vm.toolbarSurfaceKey ? fwById[vm.toolbarSurfaceKey] : undefined
+        });
+        if (!comment) return undefined;
+
+        const enriched = enrichCommentRenderer(comment, currentVideoId, originComment, 'R');
+        if (!enriched) return undefined;
+
+        if (typeof enriched.replyLevel !== 'number') {
+            enriched.replyLevel = (originComment?.replyLevel ?? 0) + 1;
+        }
+
+        return enriched;
+    } catch (e) {
+        console.error('[YCS] buildReplyCommentFromResponse error:', e);
+        return undefined;
+    }
 }

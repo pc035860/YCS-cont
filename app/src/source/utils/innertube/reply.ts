@@ -8,6 +8,7 @@ export interface ReplyResult {
     success: boolean;
     error?: string;
     rateLimited?: boolean;
+    responseData?: any;
 }
 
 export function canSendReply(): { allowed: boolean; waitMs: number } {
@@ -76,7 +77,7 @@ export async function sendCommentReply(params: {
         const status = data?.actionResult?.status;
 
         if (status === 'STATUS_SUCCEEDED') {
-            return { success: true };
+            return { success: true, responseData: data };
         }
 
         return { success: false, error: `Unexpected status: ${status || 'unknown'}` };

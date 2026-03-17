@@ -696,6 +696,14 @@ function handleReplyClick(target: HTMLElement): void {
             });
 
             if (result.success) {
+                if (result.responseData) {
+                    document.dispatchEvent(
+                        new CustomEvent('ycs-reply-success', {
+                            detail: { responseData: result.responseData }
+                        })
+                    );
+                }
+
                 const parentId = target.dataset.commentId;
                 const safeId = parentId ? safeDomKey(parentId) : undefined;
                 const syntheticEl = createSyntheticReplyElement(text);
