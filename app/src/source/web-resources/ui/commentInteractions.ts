@@ -696,14 +696,6 @@ function handleReplyClick(target: HTMLElement): void {
             });
 
             if (result.success) {
-                if (result.responseData) {
-                    document.dispatchEvent(
-                        new CustomEvent('ycs-reply-success', {
-                            detail: { responseData: result.responseData }
-                        })
-                    );
-                }
-
                 const parentId = target.dataset.commentId;
                 const safeId = parentId ? safeDomKey(parentId) : undefined;
                 const syntheticEl = createSyntheticReplyElement(text);
@@ -718,6 +710,14 @@ function handleReplyClick(target: HTMLElement): void {
                     commentContainer.appendChild(repliesContainer);
                 }
                 repliesContainer.appendChild(syntheticEl);
+
+                if (result.responseData) {
+                    document.dispatchEvent(
+                        new CustomEvent('ycs-reply-success', {
+                            detail: { responseData: result.responseData }
+                        })
+                    );
+                }
 
                 status.textContent = 'Reply sent!';
                 status.className = 'ycs-reply-status ycs-reply-success';

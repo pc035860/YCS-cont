@@ -1945,7 +1945,7 @@ export function initApp(): void {
                 }
                 if (!originComment) return;
 
-                const currentVideoId = getVideoId(window.location.href) || '';
+                const currentVideoId = getVideoId(window.location.href) ?? getPostId(window.location.href) ?? '';
                 const newReply = buildReplyCommentFromResponse({
                     response: responseData,
                     originComment,
@@ -1956,9 +1956,6 @@ export function initApp(): void {
                 const newCommentId = newReply?.commentRenderer?.commentId;
                 if (newCommentId && comments.some((c) => c.commentRenderer?.commentId === newCommentId)) return;
 
-                newReply._index = comments.length;
-                state = setComments(state, [...comments, newReply]);
-
                 if (originComment?.commentRenderer) {
                     originComment.commentRenderer.replyCount =
                         (typeof originComment.commentRenderer.replyCount === 'number'
@@ -1966,9 +1963,14 @@ export function initApp(): void {
                             : 0) + 1;
                 }
 
+                newReply._index = comments.length;
+                state = setComments(state, [...comments, newReply]);
+                state = setCount(state, 'comments', getComments(state).length);
+                updateBadge('NUMBER_COMMENTS', getComments(state).length);
+
                 saveToCache(
                     {
-                        videoId: getVideoId(window.location.href) ?? getPostId(window.location.href),
+                        videoId: currentVideoId || undefined,
                         comments: getComments(state),
                         commentsChat: JSON.stringify(Array.from(getCommentsChat(state).entries())),
                         commentsTrVideo: getCommentsTrVideo(state),
