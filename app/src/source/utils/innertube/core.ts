@@ -121,6 +121,17 @@ export async function getParams(globalContext: Window & typeof globalThis, signa
     const authHeader = buildSapSidAuthorizationHeader({ context: globalContext });
     if (authHeader) {
         headers.authorization = authHeader;
+
+        // Multi-account support: tag the active Google session.
+        const sessionIndex = (ytcfgData as PageCfgData | undefined)?.SESSION_INDEX;
+        if (sessionIndex !== undefined && sessionIndex !== null) {
+            headers['x-goog-authuser'] = String(sessionIndex);
+        }
+
+        const delegatedSessionId = (ytcfgData as PageCfgData | undefined)?.DELEGATED_SESSION_ID;
+        if (delegatedSessionId) {
+            headers['x-goog-pageid'] = delegatedSessionId;
+        }
     }
 
     const params: InnertubeRequestParams = {
