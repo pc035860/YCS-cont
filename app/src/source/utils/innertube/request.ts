@@ -17,6 +17,8 @@ export interface YtcfgData {
     INNERTUBE_CONTEXT?: {
         client?: Record<string, unknown>;
     };
+    SESSION_INDEX?: string | number;
+    DELEGATED_SESSION_ID?: string;
 }
 
 export interface BuildInnertubeBodyOptions {
@@ -63,6 +65,20 @@ export function buildInnertubeHeaders(
         const authHeader = buildSapSidAuthorizationHeader({ context: globalContext });
         if (authHeader) {
             headers.authorization = authHeader;
+
+            // Multi-account support: signal which Google account the request targets.
+            // SESSION_INDEX maps to X-Goog-AuthUser (0 = primary, 1 = secondary, etc.)
+            // DELEGATED_SESSION_ID maps to X-Goog-PageId (for brand/channel accounts).
+            // Without these headers, requests on secondary accounts get auth-mismatch errors.
+            const sessionIndex = ytcfgData?.SESSION_INDEX;
+            if (sessionIndex !== undefined && sessionIndex !== null) {
+                headers['x-goog-authuser'] = String(sessionIndex);
+            }
+
+            const delegatedSessionId = ytcfgData?.DELEGATED_SESSION_ID;
+            if (delegatedSessionId) {
+                headers['x-goog-pageid'] = delegatedSessionId;
+            }
         }
     }
 
