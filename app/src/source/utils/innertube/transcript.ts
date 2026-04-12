@@ -3,6 +3,7 @@ import type { TranscriptData, TranscriptTrackInfo } from '../interfaces/i_types'
 import { buildInnertubeBody, buildInnertubeHeaders } from './request';
 import { getInitYtData, getInnertubeApiKey, getPageCfgData, type InnertubeRequestParams } from './core';
 import { buildSapSidAuthorizationHeader } from './authHeaders';
+import { ANDROID_CLIENT_FALLBACK, WEB_CLIENT_FALLBACK } from './fallbacks';
 
 async function findInitYParams(initData: object | [object]): Promise<string | undefined> {
     try {
@@ -185,7 +186,7 @@ async function getTranscriptTrackInfo(
                 buildInnertubeBody({
                     ytcfgData: undefined,
                     videoId,
-                    clientOverride: { clientName: 'ANDROID', clientVersion: '21.03.36', hl, gl },
+                    clientOverride: { ...ANDROID_CLIENT_FALLBACK, hl, gl },
                     extra: { racyCheckOk: true, contentCheckOk: true }
                 })
             )
@@ -221,8 +222,9 @@ async function getTranscriptTrackInfo(
                         ytcfgData: undefined,
                         videoId,
                         clientOverride: {
-                            clientName: 'WEB',
-                            clientVersion: pageCfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION || '2.20240101.00.00',
+                            clientName: WEB_CLIENT_FALLBACK.clientName,
+                            clientVersion:
+                                pageCfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION || WEB_CLIENT_FALLBACK.clientVersion,
                             hl,
                             gl
                         },
