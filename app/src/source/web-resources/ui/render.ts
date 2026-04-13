@@ -80,14 +80,20 @@ export function renderCommentsResult(
     if (!target) return;
 
     if (result.results.length > 0) {
-        renderComment(selector, result.results, { querySearch: result.query });
+        const stateAccessor = deps?.stateAccessor;
+        const postBatchHook = stateAccessor
+            ? (batchRoot: HTMLElement) => {
+                  autoExpandAllRepliesIn(batchRoot, {
+                      stateAccessor,
+                      queryGetter: () => result.query
+                  });
+              }
+            : undefined;
 
-        if (deps?.stateAccessor) {
-            autoExpandAllRepliesIn(target, {
-                stateAccessor: deps.stateAccessor,
-                queryGetter: () => result.query
-            });
-        }
+        renderComment(selector, result.results, {
+            querySearch: result.query,
+            postBatchHook
+        });
     }
 
     applyButtonStates(result.buttonStates);

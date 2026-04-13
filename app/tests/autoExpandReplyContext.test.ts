@@ -16,6 +16,7 @@ import {
     type CommentStateAccessor,
     type OriginChainDeps
 } from '../src/source/web-resources/ui/originChain';
+import { renderComment } from '../src/source/utils/renderView';
 import { GlobalStore } from '../src/source/utils/common';
 
 function buildParentComment(id: string, text: string): Record<string, any> {
@@ -222,6 +223,68 @@ test('Case E: multiple replies all expand independently', () => {
                 'each button should switch title after auto-expand'
             );
         }
+    } finally {
+        teardownRoot(root);
+    }
+});
+
+test('Case G: renderComment invokes postBatchHook with batch wrapper after initial render', () => {
+    resetGlobalStore();
+    const root = setupRoot();
+    try {
+        const parent = buildParentComment('c1', 'parent text');
+        const reply = buildReplyComment('c1r1', 'reply text', parent, 1);
+
+        const hookCalls: HTMLElement[] = [];
+        const spy = (batchRoot: HTMLElement): void => {
+            hookCalls.push(batchRoot);
+        };
+
+        renderComment(root, [{ item: reply, refIndex: 1 }], {
+            querySearch: '',
+            postBatchHook: spy
+        });
+
+        assert.equal(hookCalls.length, 1, 'expected postBatchHook to be called once for initial batch');
+        assert.equal(hookCalls[0].id, 'ycs_wrap_comments', 'expected hook to receive ycs_wrap_comments wrapper');
+    } finally {
+        teardownRoot(root);
+    }
+});
+
+test('Case H: renderComment invokes postBatchHook again on show-more click', () => {
+    resetGlobalStore();
+    const root = setupRoot();
+    try {
+        const replies: Array<{ item: Record<string, any>; refIndex: number }> = [];
+        for (let i = 1; i <= 250; i += 1) {
+            const parent = buildParentComment(`c${i}`, `parent${i}`);
+            replies.push({ item: buildReplyComment(`c${i}r1`, `reply${i}`, parent, i), refIndex: i });
+        }
+
+        const hookCalls: HTMLElement[] = [];
+        const spy = (batchRoot: HTMLElement): void => {
+            hookCalls.push(batchRoot);
+        };
+
+        renderComment(root, replies, {
+            querySearch: '',
+            postBatchHook: spy
+        });
+
+        assert.equal(hookCalls.length, 1, 'expected one hook call after initial batch (200 items)');
+
+        const showMore = root.querySelector('#ycs_search_show_more') as HTMLElement;
+        assert.equal(showMore !== null, true, 'expected show-more button to exist when results exceed batch size');
+
+        showMore.click();
+
+        assert.equal(hookCalls.length, 2, 'expected second hook call after show-more click');
+        assert.equal(
+            hookCalls[1].id !== 'ycs_wrap_comments',
+            true,
+            'expected second hook to receive a fresh batch wrapper, not the main wrapper'
+        );
     } finally {
         teardownRoot(root);
     }

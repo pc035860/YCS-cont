@@ -29,6 +29,8 @@ interface RenderCommentOptions {
     hideExpandUp?: boolean;
     /** Force 24px avatars for nested display. Default: false */
     forceSmallAvatar?: boolean;
+    /** Post-batch hook invoked after each batch (initial + show-more) is appended */
+    postBatchHook?: (batchRoot: HTMLElement) => void;
 }
 
 // Debug mode configuration
@@ -503,7 +505,8 @@ function renderComment(el: string | HTMLElement, data: any, options: RenderComme
         querySearch,
         resetReplyLevel = true,
         hideExpandUp = false,
-        forceSmallAvatar = false
+        forceSmallAvatar = false,
+        postBatchHook
     } = options;
 
     if (!el) return;
@@ -563,6 +566,8 @@ function renderComment(el: string | HTMLElement, data: any, options: RenderComme
                 markTextComment(`.${batchClass}`, querySearch);
             }
 
+            postBatchHook?.(batchWrapper);
+
             currentPos = nextEnd;
 
             if (currentPos >= models.length) {
@@ -576,6 +581,8 @@ function renderComment(el: string | HTMLElement, data: any, options: RenderComme
     if (querySearch) {
         markTextComment(el, querySearch);
     }
+
+    postBatchHook?.(wrapper);
 }
 
 function renderCommentChat(selector: string, data: any, querySearch?: string): void {
