@@ -41,7 +41,7 @@
   "web_accessible_resources": [
     {
       "matches": ["*://*.youtube.com/*"],
-      "resources": ["web-resources/*.js", "web-resources/*.js.map", "xlsx.*.js"]
+      "resources": ["web-resources/*.js", "web-resources/*.js.map", "xlsx.*.js", "reply.*.js"]
     }
   ]
 }

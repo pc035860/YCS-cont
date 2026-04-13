@@ -693,6 +693,162 @@ html[dark] .ycs-comment__main-text {
   color: #fff;
 }
 
+.ycs-reply-btn {
+  font-size: 12px;
+  font-weight: 500;
+  color: #065fd4;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 4px;
+  display: block;
+}
+.ycs-reply-btn:hover {
+  text-decoration: underline;
+}
+html[dark='true'] .ycs-reply-btn,
+html[dark] .ycs-reply-btn {
+  color: #3ea6ff;
+}
+
+.ycs-reply-form {
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+.ycs-reply-textarea {
+  width: 100%;
+  min-height: 60px;
+  max-height: 150px;
+  padding: 8px;
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 13px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+html[dark='true'] .ycs-reply-textarea,
+html[dark] .ycs-reply-textarea {
+  background-color: #313131;
+  border-color: #303030;
+  color: #fff;
+}
+.ycs-reply-textarea:focus {
+  outline: none;
+  border-color: #065fd4;
+}
+html[dark='true'] .ycs-reply-textarea:focus,
+html[dark] .ycs-reply-textarea:focus {
+  border-color: #3ea6ff;
+}
+.ycs-reply-textarea:disabled {
+  opacity: 0.6;
+}
+
+.ycs-reply-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+.ycs-reply-cancel,
+.ycs-reply-send {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 16px;
+  border-radius: 18px;
+  border: none;
+  cursor: pointer;
+}
+.ycs-reply-cancel {
+  background: transparent;
+  color: #606060;
+}
+.ycs-reply-cancel:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+html[dark='true'] .ycs-reply-cancel,
+html[dark] .ycs-reply-cancel {
+  color: #aaa;
+}
+html[dark='true'] .ycs-reply-cancel:hover,
+html[dark] .ycs-reply-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.ycs-reply-send {
+  background-color: #065fd4;
+  color: #fff;
+}
+.ycs-reply-send:hover:not(:disabled) {
+  background-color: #0550b3;
+}
+html[dark='true'] .ycs-reply-send,
+html[dark] .ycs-reply-send {
+  background-color: #3ea6ff;
+  color: #0d0d0d;
+}
+.ycs-reply-cancel:disabled,
+.ycs-reply-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+  pointer-events: none;
+}
+
+.ycs-reply-status {
+  font-size: 12px;
+  margin-top: 4px;
+  min-height: 16px;
+}
+.ycs-reply-success {
+  color: #2e7d32;
+}
+html[dark='true'] .ycs-reply-success,
+html[dark] .ycs-reply-success {
+  color: #4caf50;
+}
+.ycs-reply-error {
+  color: #c62828;
+}
+html[dark='true'] .ycs-reply-error,
+html[dark] .ycs-reply-error {
+  color: #ef5350;
+}
+.ycs-reply-sending {
+  animation: ycs-pulse 1.5s infinite ease-in-out;
+}
+.ycs-reply-countdown {
+  color: #e65100;
+  font-weight: 500;
+}
+html[dark='true'] .ycs-reply-countdown,
+html[dark] .ycs-reply-countdown {
+  color: #ff9800;
+}
+.ycs-synthetic-reply {
+  opacity: 0.8;
+  animation: ycs-reply-fade-in 0.3s ease-out;
+}
+.ycs-synthetic-replies-wrap {
+  margin-left: 15px;
+  border-left: 2px solid #e0e0e0;
+  padding-left: 8px;
+}
+html[dark='true'] .ycs-synthetic-replies-wrap,
+html[dark] .ycs-synthetic-replies-wrap {
+  border-left-color: #404040;
+}
+@keyframes ycs-reply-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 0.8;
+    transform: translateY(0);
+  }
+}
+
 .ycs-head__title-main {
   height: 20px;
 }

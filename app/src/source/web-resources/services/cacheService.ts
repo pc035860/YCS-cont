@@ -22,10 +22,29 @@ export function loadFromCache(url: string): void {
     sendGetCacheInIDB(url);
 }
 
+function stripCommentToken(item: any): any {
+    if (!item?.commentRenderer?.createReplyParams) return item;
+    const { createReplyParams: _, ...rest } = item.commentRenderer;
+    return { ...item, commentRenderer: rest };
+}
+
+function stripOriginChain(item: any): any {
+    let result = stripCommentToken(item);
+    if (result.originComment) {
+        result = { ...result, originComment: stripOriginChain(result.originComment) };
+    }
+    return result;
+}
+
+export function stripReplyTokens(comments: CommentItem[]): CommentItem[] {
+    return comments.map((c) => stripOriginChain(c) as CommentItem);
+}
+
 export function saveToCache(data: CacheData, meta: CacheMeta): void {
     if (!meta?.url || !meta?.title) return;
 
-    setCacheToIDB(data, meta.url, meta.title);
+    const sanitized = { ...data, comments: stripReplyTokens(data.comments) };
+    setCacheToIDB(sanitized, meta.url, meta.title);
 }
 
 export function updateBadge(type: string, value: string | number): void {

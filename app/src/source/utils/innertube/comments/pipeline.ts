@@ -225,6 +225,10 @@ export function getFrameworkUpdatesById(response: any): Record<string, any> {
                 if (toolbar && toolbar.key) {
                     map[toolbar.key] = toolbar;
                 }
+                const toolbarSurface = wrapTryCatch(() => payload.engagementToolbarSurfaceEntityPayload);
+                if (toolbarSurface && toolbarSurface.key) {
+                    map[toolbarSurface.key] = toolbarSurface;
+                }
             } catch (e) {
                 console.error(e);
                 continue;
@@ -328,9 +332,10 @@ export function generateCommentObjectFromFW(params: {
     update: any;
     surfaceUpdate?: any;
     toolbarStateUpdate?: any;
+    toolbarSurfaceUpdate?: any;
 }): any {
     try {
-        const { commentId, update, surfaceUpdate, toolbarStateUpdate } = params;
+        const { commentId, update, surfaceUpdate, toolbarStateUpdate, toolbarSurfaceUpdate } = params;
         if (!update) return undefined;
 
         const propContent = wrapTryCatch(() => update.properties.content) || {};
@@ -527,6 +532,18 @@ export function generateCommentObjectFromFW(params: {
             }
         }
 
+        if (toolbarSurfaceUpdate) {
+            const fwCreateReplyParams = wrapTryCatch(
+                () =>
+                    toolbarSurfaceUpdate.replyCommand?.innertubeCommand?.createCommentReplyDialogEndpoint?.dialog
+                        ?.commentReplyDialogRenderer?.replyButton?.buttonRenderer?.serviceEndpoint
+                        ?.createCommentReplyEndpoint?.createReplyParams
+            );
+            if (fwCreateReplyParams) {
+                comment.commentRenderer.createReplyParams = fwCreateReplyParams;
+            }
+        }
+
         if (toolbarStateUpdate && wrapTryCatch(() => toolbarStateUpdate.heartState) === 'TOOLBAR_HEART_STATE_HEARTED') {
             comment.commentRenderer.creatorHeart = {
                 tooltip:
@@ -578,11 +595,13 @@ export function migrateContinuationItemsWithFW(
                         const update = frameworkUpdatesById[commentId];
                         const surfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.commentSurfaceKey)];
                         const toolbarStateUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.toolbarStateKey)];
+                        const toolbarSurfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.toolbarSurfaceKey)];
                         const comment = generateCommentObjectFromFW({
                             commentId,
                             update,
                             surfaceUpdate,
-                            toolbarStateUpdate
+                            toolbarStateUpdate,
+                            toolbarSurfaceUpdate
                         });
                         if (comment) {
                             const newItem = { ...item };
@@ -615,7 +634,13 @@ export function migrateContinuationItemsWithFW(
                         const commentId = wrapTryCatch(() => vm.commentId);
                         const update = frameworkUpdatesById[commentId];
                         const surfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.commentSurfaceKey)];
-                        const comment = generateCommentObjectFromFW({ commentId, update, surfaceUpdate });
+                        const toolbarSurfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.toolbarSurfaceKey)];
+                        const comment = generateCommentObjectFromFW({
+                            commentId,
+                            update,
+                            surfaceUpdate,
+                            toolbarSurfaceUpdate
+                        });
                         if (comment) {
                             const newItem = { ...item };
                             newItem.commentRenderer = comment.commentRenderer;
@@ -757,11 +782,14 @@ export function extractSubThreads(
                     const surfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.commentSurfaceKey)];
                     const toolbarStateUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.toolbarStateKey)];
 
+                    const toolbarSurfaceUpdate = frameworkUpdatesById[wrapTryCatch(() => vm.toolbarSurfaceKey)];
+
                     const comment = generateCommentObjectFromFW({
                         commentId,
                         update,
                         surfaceUpdate,
-                        toolbarStateUpdate
+                        toolbarStateUpdate,
+                        toolbarSurfaceUpdate
                     });
 
                     if (comment) {
@@ -948,6 +976,13 @@ export function prepareFieldsComment(cmnt: any): object {
             }
         }
 
+        const preservedCreateReplyParams = wrapTryCatch(
+            () =>
+                cmnt.commentRenderer.actionButtons.commentActionButtonsRenderer.replyButton.buttonRenderer
+                    .navigationEndpoint.createCommentReplyDialogEndpoint.dialog.commentReplyDialogRenderer.replyButton
+                    .buttonRenderer.serviceEndpoint.createCommentReplyEndpoint.createReplyParams
+        );
+
         // Extract verified status from authorCommentBadge before deletion (legacy format fallback)
         if (
             wrapTryCatch(() => {
@@ -983,6 +1018,10 @@ export function prepareFieldsComment(cmnt: any): object {
         wrapTryCatch(() => delete cmnt.commentRenderer.isLiked);
 
         wrapTryCatch(() => delete cmnt.commentRenderer.analyticsTrackingParams);
+
+        if (preservedCreateReplyParams) {
+            cmnt.commentRenderer.createReplyParams = preservedCreateReplyParams;
+        }
 
         wrapTryCatch(() => delete cmnt.commentRenderer.authorText.accessibility);
 
@@ -2252,6 +2291,48 @@ export async function fetchRepliesBatch(params: FetchRepliesParams): Promise<Com
         return { comments, continuations, frameworkUpdates };
     } catch (e) {
         console.error(e);
+        return undefined;
+    }
+}
+
+export function buildReplyCommentFromResponse(params: {
+    response: any;
+    originComment: any;
+    currentVideoId: string;
+}): any | undefined {
+    try {
+        const { response, originComment, currentVideoId } = params;
+
+        const replyAction = response?.actions?.find((a: any) => a.createCommentReplyAction)?.createCommentReplyAction;
+        if (!replyAction) return undefined;
+
+        const vm = replyAction.contents?.commentThreadRenderer?.commentViewModel?.commentViewModel;
+        if (!vm?.commentId) return undefined;
+
+        const fwById = getFrameworkUpdatesById(response);
+        const commentId = vm.commentId;
+        const update = fwById[commentId] || fwById[vm.commentKey];
+        if (!update) return undefined;
+
+        const comment = generateCommentObjectFromFW({
+            commentId,
+            update,
+            surfaceUpdate: vm.commentSurfaceKey ? fwById[vm.commentSurfaceKey] : undefined,
+            toolbarStateUpdate: vm.toolbarStateKey ? fwById[vm.toolbarStateKey] : undefined,
+            toolbarSurfaceUpdate: vm.toolbarSurfaceKey ? fwById[vm.toolbarSurfaceKey] : undefined
+        });
+        if (!comment) return undefined;
+
+        const enriched = enrichCommentRenderer(comment, currentVideoId, originComment, 'R');
+        if (!enriched) return undefined;
+
+        if (typeof enriched.replyLevel !== 'number') {
+            enriched.replyLevel = (originComment?.replyLevel ?? 0) + 1;
+        }
+
+        return enriched;
+    } catch (e) {
+        console.error('[YCS] buildReplyCommentFromResponse error:', e);
         return undefined;
     }
 }

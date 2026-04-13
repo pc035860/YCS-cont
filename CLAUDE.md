@@ -203,6 +203,21 @@ Canonical behavior baseline doc:
 5. Innertube client type and auth header must be consistent
    ANDROID client + browser SAPISIDHASH authorization = HTTP 400. Only send auth headers with WEB client requests.
 
+6. Write operations (reply) always require auth enabled
+   `reply.ts` uses `disableAuth: false` — unlike read operations which conditionally disable auth based on access restriction status. Never apply `shouldDisableAuth()` to write endpoints.
+
+7. `createReplyParams` lives in `engagementToolbarSurfaceEntityPayload`, not in `commentEntityPayload`
+   Extracted via `vm.toolbarSurfaceKey` → `replyCommand.innertubeCommand.createCommentReplyDialogEndpoint...createReplyParams`. Only present in **authenticated** responses — logged-out mode returns a sign-in modal instead.
+
+8. FW pipeline has 4 mutation payload types — all must be indexed
+   `getFrameworkUpdatesById()` must handle: `commentEntityPayload`, `commentSurfaceEntityPayload`, `engagementToolbarStateEntityPayload`, and `engagementToolbarSurfaceEntityPayload`. Missing any of these silently drops data.
+
+9. `generateCommentObjectFromFW` has multiple call sites — keep in sync
+   Currently 3 call sites in `pipeline.ts` (parent comments, reply ViewModels, sub-threads). All must pass the same set of FW updates including `toolbarSurfaceUpdate`. Adding a new parameter to the function signature requires updating all call sites.
+
+10. Dynamic import chunks must be registered in `manifest.json` `web_accessible_resources`
+    Parcel code-splits dynamic `import()` into separate `.js` files (e.g., `reply.*.js`). These chunks must match a pattern in `web_accessible_resources.resources` or Chrome will block loading them.
+
 ---
 
 ## Recent Significant Changes
@@ -226,6 +241,17 @@ Canonical behavior baseline doc:
 - Fallback: WEB client with SAPISIDHASH auth + racyCheckOk/contentCheckOk (for age-restricted)
 - AbortError is rethrown in both stages to respect cancellation
 
+5. Inline comment reply via Innertube write API
+- `reply.ts` sends POST to `create_comment_reply` endpoint, reusing existing auth/request infrastructure
+- `createReplyParams` token extracted from `engagementToolbarSurfaceEntityPayload` in FW pipeline
+- Reply UI is inline per-comment at all nesting levels, handled in `commentInteractions.ts`
+- 30-second global cooldown enforced at attempt time (not success time)
+- Opt-in via `enableInlineReply` setting (forces authenticated comment loading; not compatible with Data API mode)
+- Successful replies insert a synthetic DOM element (not state) as visual feedback; cleaned up when real replies are toggled or comments reloaded
+- Rate limit displays a live countdown timer; uses MutationObserver for cleanup on form removal
+- Reply response data is injected into state + cache via event-based pipeline (`ycs-reply-success` CustomEvent); no reload needed to persist the new reply
+- `buildReplyCommentFromResponse()` in pipeline.ts converts reply API response to CommentItem using existing FW pipeline functions
+
 ---
 
 ## Testing Guidance
@@ -247,6 +273,7 @@ Manual smoke checklist:
 3. Verify search + filter + clear-button interactions
 4. Verify export still works
 5. Verify Shorts page behavior
+6. Verify comment reply (click Reply → type → send → check success/error/rate-limit)
 
 ---
 
@@ -259,6 +286,7 @@ Manual smoke checklist:
 - `app/docs/sap-sid-authorization.md`
 - `app/docs/adaptive-authorization-headers.md`
 - `app/docs/youtube-data-api-messaging.md`
-- `app/docs/filter-search-behavior-regression-spec.md`
+- `app/docs/filter-search-behavior-regression-spec.md` — regression baseline for search/filter/clear-button behavior
+- `app/docs/inline-reply-behavior-regression-spec.md` — regression baseline for inline reply form, rate limiting, and synthetic preview lifecycle
 
 When behavior rules change, update the relevant doc in the same PR.

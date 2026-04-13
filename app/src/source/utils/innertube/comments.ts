@@ -13,6 +13,7 @@ import {
     generateCommentObjectFromFW,
     processParentComment,
     scheduleReplyFetches,
+    buildReplyCommentFromResponse,
     type CommentBatchResult,
     type ReplyContinuation
 } from './comments/pipeline';
@@ -136,4 +137,10 @@ async function getAllCommentsModeV2(
     return comments;
 }
 
-export { getAllCommentsModeV2, extractNextContinuation, applyFrameworkUpdatesToComment, generateCommentObjectFromFW };
+export {
+    getAllCommentsModeV2,
+    extractNextContinuation,
+    applyFrameworkUpdatesToComment,
+    generateCommentObjectFromFW,
+    buildReplyCommentFromResponse
+};
