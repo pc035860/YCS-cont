@@ -13,8 +13,6 @@ import {
 } from './originChain';
 import type { CommentStateAccessor, QueryGetter } from './originChain';
 
-export type { CommentStateAccessor, QueryGetter };
-
 type CommentCollection = Array<Record<string, any>>;
 
 // === Scroll Position Lock Helpers ===
@@ -339,7 +337,7 @@ function collectRepliesForComment(
 
 function createRepliesContainer(commentContainer: HTMLElement, commentId: string): HTMLDivElement {
     const wrapper = document.createElement('div');
-    const safeId = commentId.replace(/[^\w-]/g, '_');
+    const safeId = safeDomKey(commentId);
     wrapper.id = `ycs-com-replies-${safeId}`;
 
     // Check parent avatar size to align vertical line (border-left)
@@ -360,7 +358,7 @@ function handleOpenReply(target: HTMLElement, stateAccessor: CommentStateAccesso
     const commentContainer = target.closest('.ycs-render-comment') as HTMLElement | null;
     if (!commentContainer) return;
 
-    const safeId = commentId.replace(/[^\w-]/g, '_');
+    const safeId = safeDomKey(commentId);
     const existingReplies = commentContainer.querySelector(`.ycs-com-replies-${safeId}`);
     if (existingReplies) {
         existingReplies.remove();

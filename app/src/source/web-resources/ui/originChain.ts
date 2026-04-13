@@ -47,11 +47,11 @@ export function parseRefId(target: HTMLElement): number | null {
     return Number.isFinite(refId) ? refId : null;
 }
 
-export function findCommentByIndex(comments: CommentCollection, refId: number): Record<string, any> | undefined {
+function findCommentByIndex(comments: CommentCollection, refId: number): Record<string, any> | undefined {
     return comments.find((item) => Number.parseInt(String((item as any)?._index ?? ''), 10) === refId);
 }
 
-export function resolveCommentId(entry: Record<string, any> | undefined): string | undefined {
+function resolveCommentId(entry: Record<string, any> | undefined): string | undefined {
     if (!entry) return undefined;
     return (
         (entry as any)?.commentRenderer?.commentId ||
@@ -61,7 +61,7 @@ export function resolveCommentId(entry: Record<string, any> | undefined): string
     );
 }
 
-export function buildCommentIdMap(comments: CommentCollection): Map<string, Record<string, any>> {
+function buildCommentIdMap(comments: CommentCollection): Map<string, Record<string, any>> {
     const map = new Map<string, Record<string, any>>();
     for (const entry of comments) {
         const id = resolveCommentId(entry);
@@ -90,7 +90,7 @@ export function resolveCurrentComment(
     return refId !== null ? findCommentByIndex(comments, refId) : undefined;
 }
 
-export function collectAncestorChain(current: Record<string, any> | undefined): Record<string, any>[] {
+function collectAncestorChain(current: Record<string, any> | undefined): Record<string, any>[] {
     const chain: Record<string, any>[] = [];
     const seen = new Set<string>();
     let node = current;
@@ -107,7 +107,7 @@ export function collectAncestorChain(current: Record<string, any> | undefined): 
     return chain.reverse();
 }
 
-export function createOriginChainWrapper(key: string): HTMLDivElement {
+function createOriginChainWrapper(key: string): HTMLDivElement {
     const wrap = document.createElement('div');
     wrap.id = `ycs-com-all-${key}`;
     wrap.className = `ycs-com-all-${key} ycs-origin-chain`;
