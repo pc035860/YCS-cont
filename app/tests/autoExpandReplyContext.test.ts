@@ -1,0 +1,254 @@
+import { strict as assert } from 'node:assert';
+import test from 'node:test';
+import { JSDOM } from 'jsdom';
+
+const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+(globalThis as any).document = dom.window.document;
+(globalThis as any).window = dom.window;
+(globalThis as any).HTMLElement = dom.window.HTMLElement;
+(globalThis as any).Element = dom.window.Element;
+(globalThis as any).Node = dom.window.Node;
+(globalThis as any).DocumentFragment = dom.window.DocumentFragment;
+
+import {
+    expandOriginChainFor,
+    autoExpandAllRepliesIn,
+    type CommentStateAccessor,
+    type OriginChainDeps
+} from '../src/source/web-resources/ui/originChain';
+import { GlobalStore } from '../src/source/utils/common';
+
+function buildParentComment(id: string, text: string): Record<string, any> {
+    return {
+        _index: 0,
+        typeComment: 'C',
+        commentId: id,
+        commentRenderer: {
+            commentId: id,
+            contentText: { simpleText: text },
+            authorText: { simpleText: 'parent_author' },
+            publishedTimeText: { runs: [{ text: '2d ago' }] }
+        }
+    };
+}
+
+function buildReplyComment(
+    id: string,
+    text: string,
+    parent: Record<string, any>,
+    index: number
+): Record<string, any> {
+    return {
+        _index: index,
+        typeComment: 'R',
+        commentId: id,
+        commentRenderer: {
+            commentId: id,
+            contentText: { simpleText: text },
+            authorText: { simpleText: 'replier' },
+            publishedTimeText: { runs: [{ text: '1d ago' }] }
+        },
+        originComment: parent
+    };
+}
+
+function buildReplyContainer(commentId: string, refIndex: number): HTMLElement {
+    const container = document.createElement('div');
+    container.id = `ycs-number-comment-${refIndex}`;
+    container.className = 'ycs-render-comment';
+
+    const button = document.createElement('button');
+    button.id = String(refIndex);
+    button.className = 'ycs-open-comment-all';
+    button.innerHTML = '\u25B2';
+    button.dataset.commentId = commentId;
+    container.appendChild(button);
+
+    return container;
+}
+
+function buildDeps(comments: Array<Record<string, any>>, query = ''): OriginChainDeps {
+    const stateAccessor: CommentStateAccessor = {
+        getComments: () => comments
+    };
+    return {
+        stateAccessor,
+        queryGetter: () => query
+    };
+}
+
+function resetGlobalStore(): void {
+    (GlobalStore as any).autoExpandReplyContext = false;
+}
+
+function setupRoot(): HTMLElement {
+    const root = document.createElement('div');
+    root.id = 'ycs_search_results';
+    document.body.appendChild(root);
+    return root;
+}
+
+function teardownRoot(root: HTMLElement): void {
+    root.remove();
+    resetGlobalStore();
+}
+
+test('Case A: GlobalStore.autoExpandReplyContext = false → hook short-circuits', () => {
+    resetGlobalStore();
+    const root = setupRoot();
+    try {
+        const parent = buildParentComment('c1', 'parent text');
+        const reply = buildReplyComment('c1r1', 'reply text', parent, 1);
+        const container = buildReplyContainer('c1r1', 1);
+        root.appendChild(container);
+
+        (GlobalStore as any).autoExpandReplyContext = false;
+        autoExpandAllRepliesIn(root, buildDeps([reply]));
+
+        const wrapper = root.querySelector('[id^="ycs-com-all-"]');
+        assert.equal(wrapper, null, 'expected no origin chain wrapper when option is false');
+        const button = container.querySelector('.ycs-open-comment-all') as HTMLElement;
+        assert.equal(button.innerHTML, '\u25B2', 'expected button icon unchanged');
+    } finally {
+        teardownRoot(root);
+    }
+});
+
+test('Case B: option=true with originComment → auto expand wrapper inserted', () => {
+    resetGlobalStore();
+    const root = setupRoot();
+    try {
+        const parent = buildParentComment('c1', 'parent text');
+        const reply = buildReplyComment('c1r1', 'reply text', parent, 1);
+        const container = buildReplyContainer('c1r1', 1);
+        root.appendChild(container);
+
+        (GlobalStore as any).autoExpandReplyContext = true;
+        autoExpandAllRepliesIn(root, buildDeps([reply]));
+
+        const wrapper = root.querySelector('#ycs-com-all-c1r1');
+        assert.equal(wrapper !== null, true, 'expected origin chain wrapper to exist');
+
+        const wrapperContent = wrapper?.querySelector('.ycs-render-comment');
+        assert.equal(
+            wrapperContent !== null && wrapperContent !== undefined,
+            true,
+            'expected wrapper to contain rendered parent comment node, not be empty shell'
+        );
+
+        const triggerHasClass = container.classList.contains('ycs-origin-trigger');
+        assert.equal(triggerHasClass, true, 'expected reply container to have ycs-origin-trigger class');
+
+        const button = container.querySelector('.ycs-open-comment-all') as HTMLElement;
+        assert.equal(
+            button.title,
+            'Close all parent comments.',
+            'expected button title to switch to close hint'
+        );
+    } finally {
+        teardownRoot(root);
+    }
+});
+
+test('Case C: idempotent — calling autoExpandAllRepliesIn twice inserts wrapper only once', () => {
+    resetGlobalStore();
+    const root = setupRoot();
+    try {
+        const parent = buildParentComment('c1', 'parent text');
+        const reply = buildReplyComment('c1r1', 'reply text', parent, 1);
+        const container = buildReplyContainer('c1r1', 1);
+        root.appendChild(container);
+
+        (GlobalStore as any).autoExpandReplyContext = true;
+        const deps = buildDeps([reply]);
+        autoExpandAllRepliesIn(root, deps);
+        autoExpandAllRepliesIn(root, deps);
+
+        const wrappers = root.querySelectorAll('#ycs-com-all-c1r1');
+        assert.equal(wrappers.length, 1, 'expected exactly one origin chain wrapper after double call');
+    } finally {
+        teardownRoot(root);
+    }
+});
+
+test('Case D: expandOriginChainFor returns false when ancestors are empty', () => {
+    resetGlobalStore();
+    const root = setupRoot();
+    try {
+        const orphan = buildReplyComment('c1r1', 'reply text', null as any, 1);
+        delete orphan.originComment;
+        const container = buildReplyContainer('c1r1', 1);
+        root.appendChild(container);
+
+        const result = expandOriginChainFor(container, buildDeps([orphan]));
+        assert.equal(result, false, 'expected expandOriginChainFor to return false for empty ancestors');
+
+        const wrapper = root.querySelector('#ycs-com-all-c1r1');
+        assert.equal(wrapper, null, 'expected no wrapper inserted when ancestors empty');
+    } finally {
+        teardownRoot(root);
+    }
+});
+
+test('Case E: multiple replies all expand independently', () => {
+    resetGlobalStore();
+    const root = setupRoot();
+    try {
+        const parent1 = buildParentComment('c1', 'parent1');
+        const parent2 = buildParentComment('c2', 'parent2');
+        const reply1 = buildReplyComment('c1r1', 'reply1', parent1, 1);
+        const reply2 = buildReplyComment('c1r2', 'reply2', parent1, 2);
+        const reply3 = buildReplyComment('c2r1', 'reply3', parent2, 3);
+
+        const container1 = buildReplyContainer('c1r1', 1);
+        const container2 = buildReplyContainer('c1r2', 2);
+        const container3 = buildReplyContainer('c2r1', 3);
+        root.appendChild(container1);
+        root.appendChild(container2);
+        root.appendChild(container3);
+
+        (GlobalStore as any).autoExpandReplyContext = true;
+        autoExpandAllRepliesIn(root, buildDeps([reply1, reply2, reply3]));
+
+        assert.equal(root.querySelector('#ycs-com-all-c1r1') !== null, true, 'reply1 wrapper exists');
+        assert.equal(root.querySelector('#ycs-com-all-c1r2') !== null, true, 'reply2 wrapper exists');
+        assert.equal(root.querySelector('#ycs-com-all-c2r1') !== null, true, 'reply3 wrapper exists');
+
+        for (const c of [container1, container2, container3]) {
+            const btn = c.querySelector('.ycs-open-comment-all') as HTMLElement;
+            assert.equal(
+                btn.title,
+                'Close all parent comments.',
+                'each button should switch title after auto-expand'
+            );
+        }
+    } finally {
+        teardownRoot(root);
+    }
+});
+
+test('Case F: expandOriginChainFor sets ycs-origin-trigger class on success', () => {
+    resetGlobalStore();
+    const root = setupRoot();
+    try {
+        const parent = buildParentComment('c1', 'parent text');
+        const reply = buildReplyComment('c1r1', 'reply text', parent, 1);
+        const container = buildReplyContainer('c1r1', 1);
+        root.appendChild(container);
+
+        const result = expandOriginChainFor(container, buildDeps([reply]));
+        assert.equal(result, true, 'expected expandOriginChainFor to return true on success');
+        assert.equal(
+            container.classList.contains('ycs-origin-trigger'),
+            true,
+            'expected ycs-origin-trigger class on container'
+        );
+        assert.equal(
+            root.querySelector('#ycs-com-all-c1r1') !== null,
+            true,
+            'expected wrapper to be inserted'
+        );
+    } finally {
+        teardownRoot(root);
+    }
+});
