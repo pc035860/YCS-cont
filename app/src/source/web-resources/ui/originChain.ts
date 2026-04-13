@@ -170,21 +170,53 @@ export function expandOriginChainFor(container: HTMLElement, deps: OriginChainDe
     return true;
 }
 
+const AUTO_EXPAND_CHUNK_SIZE = 20;
+
+type IdleScheduler = (callback: () => void) => void;
+
+const scheduleIdleChunk: IdleScheduler = (callback) => {
+    const win = typeof window !== 'undefined' ? (window as any) : undefined;
+    if (win && typeof win.requestIdleCallback === 'function') {
+        win.requestIdleCallback(callback, { timeout: 200 });
+        return;
+    }
+    setTimeout(callback, 0);
+};
+
 export function autoExpandAllRepliesIn(root: HTMLElement, deps: OriginChainDeps): void {
     if (!(GlobalStore as any).autoExpandReplyContext) return;
 
     const buttons = Array.from(root.querySelectorAll<HTMLElement>('.ycs-open-comment-all'));
+    if (buttons.length === 0) return;
+
     const seen = new Set<HTMLElement>();
+    let cursor = 0;
 
-    for (const btn of buttons) {
-        const container = btn.closest<HTMLElement>('.ycs-render-comment');
-        if (!container || seen.has(container)) continue;
-        seen.add(container);
+    const processNextChunk = (): void => {
+        const end = Math.min(cursor + AUTO_EXPAND_CHUNK_SIZE, buttons.length);
+        for (let i = cursor; i < end; i += 1) {
+            const btn = buttons[i];
+            // Stale guard: button from a previous search that has been cleared
+            if (!btn.isConnected) continue;
 
-        const expanded = expandOriginChainFor(container, deps);
-        if (expanded) {
-            btn.innerHTML = iconExpand();
-            btn.title = 'Close all parent comments.';
+            const container = btn.closest<HTMLElement>('.ycs-render-comment');
+            if (!container || !container.isConnected || seen.has(container)) continue;
+            seen.add(container);
+
+            const expanded = expandOriginChainFor(container, deps);
+            if (expanded) {
+                btn.innerHTML = iconExpand();
+                btn.title = 'Close all parent comments.';
+            }
         }
-    }
+        cursor = end;
+
+        if (cursor < buttons.length) {
+            scheduleIdleChunk(processNextChunk);
+        }
+    };
+
+    // First chunk runs synchronously so initial viewport expands without flicker.
+    // Remaining chunks yield to the main thread to prevent freezes on large result sets.
+    processNextChunk();
 }

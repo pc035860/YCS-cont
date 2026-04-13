@@ -100,6 +100,10 @@ Search engines:
 - `app/src/source/web-resources/search/chatSearch.ts`
 - `app/src/source/web-resources/search/transcriptSearch.ts`
 
+Origin chain (parent-comment context for replies):
+- `app/src/source/web-resources/ui/originChain.ts` — single source of truth for `expandOriginChainFor` and `autoExpandAllRepliesIn`
+- `commentInteractions.ts:handleOpenCommentAll` and `render.ts:renderCommentsResult` are the only callers
+
 ---
 
 ## Philosophy and Conventions
@@ -181,6 +185,20 @@ Do not merge these semantics.
 - Native comments should remain hidden while intent is active.
 - Only restore when search text is cleared and no filter remains active (or YCS is collapsed/cleaned up).
 
+### 8) `renderComment` post-batch work goes through `postBatchHook`
+
+- `renderComment` paginates results into batches (200 per batch) with a `Show more` button.
+- Any per-batch post-processing (highlights, auto-expand, decorations) MUST be wired through the `postBatchHook?: (batchRoot: HTMLElement) => void` option, NOT called once on the static target.
+- A hook called on the parent target only covers the initial 200 items; later show-more clicks silently skip post-processing.
+- Post-batch work that touches many DOM nodes (creating children per item) MUST chunk itself via `requestIdleCallback` / `setTimeout` to avoid freezing the main thread — 200 items doing synchronous `renderComment` per item = long task ≈ 1–2s. Run first chunk synchronously for first-paint, yield the rest. Always stale-guard with `element.isConnected` because users can re-filter while chunks are queued.
+- `originChain.ts:autoExpandAllRepliesIn` is the reference example (chunk size 20, idle scheduler with `setTimeout` fallback).
+
+### 9) `--experimental-strip-types` rejects mixed value + type imports
+
+- The test loader (`tests/ts-loader.mjs` + Node `--experimental-strip-types`) cannot strip type-only names from a regular `import { foo, FooType }` statement.
+- New TS files MUST split: `import { foo } from './x'; import type { FooType } from './x';`
+- Symptom: `SyntaxError: The requested module './x' does not provide an export named 'FooType'` when running `npm test`.
+
 Canonical behavior baseline doc:
 - `app/docs/filter-search-behavior-regression-spec.md`
 
@@ -225,6 +243,12 @@ Canonical behavior baseline doc:
 - Primary: ANDROID client (no auth, works for most videos)
 - Fallback: WEB client with SAPISIDHASH auth + racyCheckOk/contentCheckOk (for age-restricted)
 - AbortError is rethrown in both stages to respect cancellation
+
+5. Reply origin chain auto-expand is opt-in via `autoExpandReplyContext` option
+- New file `app/src/source/web-resources/ui/originChain.ts` owns expand logic
+- `renderComment` gained a `postBatchHook` option for per-batch post-processing
+- Default off — when enabled, parent comment chain is auto-rendered above each reply on initial render and after every Show more click
+- jsdom is now a devDep for DOM-based tests; first such test is `tests/autoExpandReplyContext.test.ts`
 
 ---
 

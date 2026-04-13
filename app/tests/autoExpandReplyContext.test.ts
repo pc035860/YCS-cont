@@ -290,6 +290,41 @@ test('Case H: renderComment invokes postBatchHook again on show-more click', () 
     }
 });
 
+test('Case J: autoExpandAllRepliesIn chunks work — first AUTO_EXPAND_CHUNK_SIZE items expand synchronously, rest defer', async () => {
+    resetGlobalStore();
+    const root = setupRoot();
+    try {
+        // 30 replies > AUTO_EXPAND_CHUNK_SIZE (20) so chunking path is exercised
+        const replies: Array<Record<string, any>> = [];
+        for (let i = 1; i <= 30; i += 1) {
+            const parent = buildParentComment(`c${i}`, `p${i}`);
+            replies.push(buildReplyComment(`c${i}r1`, `r${i}`, parent, i));
+            root.appendChild(buildReplyContainer(`c${i}r1`, i));
+        }
+
+        (GlobalStore as any).autoExpandReplyContext = true;
+        autoExpandAllRepliesIn(root, buildDeps(replies));
+
+        const syncWrappers = root.querySelectorAll('[id^="ycs-com-all-"]').length;
+        assert.equal(
+            syncWrappers,
+            20,
+            `expected first chunk (20) to expand synchronously so main thread yields, got ${syncWrappers}`
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 30));
+
+        const asyncWrappers = root.querySelectorAll('[id^="ycs-com-all-"]').length;
+        assert.equal(
+            asyncWrappers,
+            30,
+            `expected remaining chunk to expand after yielding, got ${asyncWrappers}`
+        );
+    } finally {
+        teardownRoot(root);
+    }
+});
+
 test('Case I: renderComment + postBatchHook wiring auto-expands replies end-to-end', () => {
     resetGlobalStore();
     const root = setupRoot();
