@@ -82,6 +82,10 @@ function resetGlobalStore(): void {
     (GlobalStore as any).autoExpandReplyContext = false;
 }
 
+function flushFrames(ms = 100): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function setupRoot(): HTMLElement {
     const root = document.createElement('div');
     root.id = 'ycs_search_results';
@@ -115,7 +119,7 @@ test('Case A: GlobalStore.autoExpandReplyContext = false → hook short-circuits
     }
 });
 
-test('Case B: option=true with originComment → auto expand wrapper inserted', () => {
+test('Case B: option=true with originComment → auto expand wrapper inserted', async () => {
     resetGlobalStore();
     const root = setupRoot();
     try {
@@ -126,6 +130,7 @@ test('Case B: option=true with originComment → auto expand wrapper inserted', 
 
         (GlobalStore as any).autoExpandReplyContext = true;
         autoExpandAllRepliesIn(root, buildDeps([reply]));
+        await flushFrames();
 
         const wrapper = root.querySelector('#ycs-com-all-c1r1');
         assert.equal(wrapper !== null, true, 'expected origin chain wrapper to exist');
@@ -151,7 +156,7 @@ test('Case B: option=true with originComment → auto expand wrapper inserted', 
     }
 });
 
-test('Case C: idempotent — calling autoExpandAllRepliesIn twice inserts wrapper only once', () => {
+test('Case C: idempotent — calling autoExpandAllRepliesIn twice inserts wrapper only once', async () => {
     resetGlobalStore();
     const root = setupRoot();
     try {
@@ -164,6 +169,7 @@ test('Case C: idempotent — calling autoExpandAllRepliesIn twice inserts wrappe
         const deps = buildDeps([reply]);
         autoExpandAllRepliesIn(root, deps);
         autoExpandAllRepliesIn(root, deps);
+        await flushFrames();
 
         const wrappers = root.querySelectorAll('#ycs-com-all-c1r1');
         assert.equal(wrappers.length, 1, 'expected exactly one origin chain wrapper after double call');
@@ -191,7 +197,7 @@ test('Case D: expandOriginChainFor returns false when ancestors are empty', () =
     }
 });
 
-test('Case E: multiple replies all expand independently', () => {
+test('Case E: multiple replies all expand independently', async () => {
     resetGlobalStore();
     const root = setupRoot();
     try {
@@ -210,6 +216,7 @@ test('Case E: multiple replies all expand independently', () => {
 
         (GlobalStore as any).autoExpandReplyContext = true;
         autoExpandAllRepliesIn(root, buildDeps([reply1, reply2, reply3]));
+        await flushFrames();
 
         assert.equal(root.querySelector('#ycs-com-all-c1r1') !== null, true, 'reply1 wrapper exists');
         assert.equal(root.querySelector('#ycs-com-all-c1r2') !== null, true, 'reply2 wrapper exists');
@@ -290,13 +297,12 @@ test('Case H: renderComment invokes postBatchHook again on show-more click', () 
     }
 });
 
-test('Case J: autoExpandAllRepliesIn chunks work — first AUTO_EXPAND_CHUNK_SIZE items expand synchronously, rest defer', async () => {
+test('Case J: autoExpandAllRepliesIn defers all work to next frames and completes across chunks', async () => {
     resetGlobalStore();
     const root = setupRoot();
     try {
-        // 30 replies > AUTO_EXPAND_CHUNK_SIZE (20) so chunking path is exercised
         const replies: Array<Record<string, any>> = [];
-        for (let i = 1; i <= 30; i += 1) {
+        for (let i = 1; i <= 12; i += 1) {
             const parent = buildParentComment(`c${i}`, `p${i}`);
             replies.push(buildReplyComment(`c${i}r1`, `r${i}`, parent, i));
             root.appendChild(buildReplyContainer(`c${i}r1`, i));
@@ -305,27 +311,27 @@ test('Case J: autoExpandAllRepliesIn chunks work — first AUTO_EXPAND_CHUNK_SIZ
         (GlobalStore as any).autoExpandReplyContext = true;
         autoExpandAllRepliesIn(root, buildDeps(replies));
 
-        const syncWrappers = root.querySelectorAll('[id^="ycs-com-all-"]').length;
+        const immediateWrappers = root.querySelectorAll('[id^="ycs-com-all-"]').length;
         assert.equal(
-            syncWrappers,
-            20,
-            `expected first chunk (20) to expand synchronously so main thread yields, got ${syncWrappers}`
+            immediateWrappers,
+            0,
+            `expected 0 wrappers synchronously so filter click paints before expand work starts, got ${immediateWrappers}`
         );
 
-        await new Promise((resolve) => setTimeout(resolve, 30));
+        await flushFrames(200);
 
-        const asyncWrappers = root.querySelectorAll('[id^="ycs-com-all-"]').length;
+        const finalWrappers = root.querySelectorAll('[id^="ycs-com-all-"]').length;
         assert.equal(
-            asyncWrappers,
-            30,
-            `expected remaining chunk to expand after yielding, got ${asyncWrappers}`
+            finalWrappers,
+            12,
+            `expected all 12 wrappers after frames flush, got ${finalWrappers}`
         );
     } finally {
         teardownRoot(root);
     }
 });
 
-test('Case I: renderComment + postBatchHook wiring auto-expands replies end-to-end', () => {
+test('Case I: renderComment + postBatchHook wiring auto-expands replies end-to-end', async () => {
     resetGlobalStore();
     const root = setupRoot();
     try {
@@ -344,6 +350,7 @@ test('Case I: renderComment + postBatchHook wiring auto-expands replies end-to-e
                 });
             }
         });
+        await flushFrames();
 
         const wrapper = root.querySelector('#ycs-com-all-c1r1');
         assert.equal(

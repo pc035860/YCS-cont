@@ -190,8 +190,8 @@ Do not merge these semantics.
 - `renderComment` paginates results into batches (200 per batch) with a `Show more` button.
 - Any per-batch post-processing (highlights, auto-expand, decorations) MUST be wired through the `postBatchHook?: (batchRoot: HTMLElement) => void` option, NOT called once on the static target.
 - A hook called on the parent target only covers the initial 200 items; later show-more clicks silently skip post-processing.
-- Post-batch work that touches many DOM nodes (creating children per item) MUST chunk itself via `requestIdleCallback` / `setTimeout` to avoid freezing the main thread — 200 items doing synchronous `renderComment` per item = long task ≈ 1–2s. Run first chunk synchronously for first-paint, yield the rest. Always stale-guard with `element.isConnected` because users can re-filter while chunks are queued.
-- `originChain.ts:autoExpandAllRepliesIn` is the reference example (chunk size 20, idle scheduler with `setTimeout` fallback).
+- Post-batch work that touches many DOM nodes (creating children per item) MUST chunk itself AND defer the entire loop — even a synchronous "first chunk for first paint" blocks the filter click's paint. Use `requestAnimationFrame` for every chunk, keep chunk size small (≈5). Always stale-guard with `element.isConnected` because users can re-filter while chunks are queued.
+- `originChain.ts:autoExpandAllRepliesIn` is the reference example (chunk size 5, rAF scheduler with `setTimeout` fallback, fully deferred).
 
 ### 9) `--experimental-strip-types` rejects mixed value + type imports
 

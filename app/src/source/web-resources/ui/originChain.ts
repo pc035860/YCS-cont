@@ -170,17 +170,17 @@ export function expandOriginChainFor(container: HTMLElement, deps: OriginChainDe
     return true;
 }
 
-const AUTO_EXPAND_CHUNK_SIZE = 20;
+const AUTO_EXPAND_CHUNK_SIZE = 5;
 
-type IdleScheduler = (callback: () => void) => void;
+type FrameScheduler = (callback: () => void) => void;
 
-const scheduleIdleChunk: IdleScheduler = (callback) => {
+const scheduleNextFrame: FrameScheduler = (callback) => {
     const win = typeof window !== 'undefined' ? (window as any) : undefined;
-    if (win && typeof win.requestIdleCallback === 'function') {
-        win.requestIdleCallback(callback, { timeout: 200 });
+    if (win && typeof win.requestAnimationFrame === 'function') {
+        win.requestAnimationFrame(callback);
         return;
     }
-    setTimeout(callback, 0);
+    setTimeout(callback, 16);
 };
 
 export function autoExpandAllRepliesIn(root: HTMLElement, deps: OriginChainDeps): void {
@@ -212,11 +212,13 @@ export function autoExpandAllRepliesIn(root: HTMLElement, deps: OriginChainDeps)
         cursor = end;
 
         if (cursor < buttons.length) {
-            scheduleIdleChunk(processNextChunk);
+            scheduleNextFrame(processNextChunk);
         }
     };
 
-    // First chunk runs synchronously so initial viewport expands without flicker.
-    // Remaining chunks yield to the main thread to prevent freezes on large result sets.
-    processNextChunk();
+    // Fully deferred: the current frame paints the search results first, then
+    // origin chains fill in progressively on subsequent animation frames. This
+    // keeps the UI responsive on large result sets — filter clicks no longer
+    // block while hundreds of ancestor renders run inline.
+    scheduleNextFrame(processNextChunk);
 }
