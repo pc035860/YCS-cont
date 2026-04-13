@@ -4,10 +4,8 @@ import { safeUrl } from '../utils/formatting';
 import { randomString, isShortsPage } from '../utils/common';
 import { markTextComment, getPiP } from '../utils/dom';
 import { options } from '../config/options';
-import {
-    buildCommentViewModels,
-    buildChatMessageViewModels,
-    buildTranscriptViewModels,
+import { buildCommentViewModels, buildChatMessageViewModels, buildTranscriptViewModels } from './viewModels';
+import type {
     CommentViewModel,
     ChatMessageViewModel,
     TranscriptViewModel,

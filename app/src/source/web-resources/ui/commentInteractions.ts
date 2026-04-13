@@ -1,15 +1,21 @@
 import { removeNodeList, navigateVideoToTimestamp } from '../../utils/dom';
 import { iconCollapse, iconExpand, iconCurve } from '../../utils/icons';
-import { ICommentsFuseResult } from '../../utils/interfaces/i_types';
+import type { ICommentsFuseResult } from '../../utils/interfaces/i_types';
 import { renderComment } from '../../utils/renderView';
+import {
+    expandOriginChainFor,
+    safeGetComments,
+    resolveQuery,
+    safeDomKey,
+    parseRefId,
+    resolveRefIndex,
+    resolveCurrentComment
+} from './originChain';
+import type { CommentStateAccessor, QueryGetter } from './originChain';
+
+export type { CommentStateAccessor, QueryGetter };
 
 type CommentCollection = Array<Record<string, any>>;
-
-export interface CommentStateAccessor {
-    getComments(): CommentCollection;
-}
-
-export type QueryGetter = () => string;
 
 // === Scroll Position Lock Helpers ===
 
@@ -79,67 +85,6 @@ export function registerCommentInteractions(
     });
 }
 
-function safeGetComments(stateAccessor: CommentStateAccessor): CommentCollection {
-    try {
-        const comments = stateAccessor.getComments();
-        return Array.isArray(comments) ? comments : [];
-    } catch (error) {
-        console.error(error);
-        return [];
-    }
-}
-
-function resolveQuery(queryGetter: QueryGetter): string {
-    try {
-        const value = queryGetter?.();
-        return typeof value === 'string' ? value : '';
-    } catch (error) {
-        console.error(error);
-        return '';
-    }
-}
-
-function safeDomKey(value: string): string {
-    return value.replace(/[^\w-]/g, '_');
-}
-
-function parseRefId(target: HTMLElement): number | null {
-    const raw = target.getAttribute('id');
-    if (!raw) return null;
-    const refId = Number.parseInt(raw, 10);
-    return Number.isFinite(refId) ? refId : null;
-}
-
-function findCommentByIndex(comments: CommentCollection, refId: number): Record<string, any> | undefined {
-    return comments.find((item) => Number.parseInt(String((item as any)?._index ?? ''), 10) === refId);
-}
-
-function resolveCommentId(entry: Record<string, any> | undefined): string | undefined {
-    if (!entry) return undefined;
-    return (
-        (entry as any)?.commentRenderer?.commentId ||
-        (entry as any)?.commentId ||
-        (entry as any)?.id ||
-        (entry as any)?.commentKey
-    );
-}
-
-function buildCommentIdMap(comments: CommentCollection): Map<string, Record<string, any>> {
-    const map = new Map<string, Record<string, any>>();
-    for (const entry of comments) {
-        const id = resolveCommentId(entry);
-        if (id) {
-            map.set(id, entry);
-        }
-    }
-    return map;
-}
-
-function resolveRefIndex(entry: Record<string, any> | undefined, fallback = 0): number {
-    const originIndex = Number.parseInt(String((entry as any)?._index ?? ''), 10);
-    return Number.isFinite(originIndex) ? originIndex : fallback;
-}
-
 function buildOriginResult(
     originComment: Record<string, any> | undefined,
     refId: number | null
@@ -157,14 +102,6 @@ function createOriginWrapper(key: string): HTMLDivElement {
     wrap.id = `ycs-com-${key}`;
     wrap.className = `ycs-com-${key} ycs-origin-wrap`;
     wrap.dataset.ycsOrigin = 'parent';
-    return wrap;
-}
-
-function createOriginChainWrapper(key: string): HTMLDivElement {
-    const wrap = document.createElement('div');
-    wrap.id = `ycs-com-all-${key}`;
-    wrap.className = `ycs-com-all-${key} ycs-origin-chain`;
-    wrap.dataset.ycsOrigin = 'chain';
     return wrap;
 }
 
@@ -260,36 +197,6 @@ function collapseOriginChain(
     toggle.title = 'Open all parent comments to root.';
 }
 
-function resolveCurrentComment(
-    comments: CommentCollection,
-    commentId: string | undefined,
-    refId: number | null
-): Record<string, any> | undefined {
-    if (commentId) {
-        const map = buildCommentIdMap(comments);
-        const found = map.get(commentId);
-        if (found) return found;
-    }
-    return refId !== null ? findCommentByIndex(comments, refId) : undefined;
-}
-
-function collectAncestorChain(current: Record<string, any> | undefined): Record<string, any>[] {
-    const chain: Record<string, any>[] = [];
-    const seen = new Set<string>();
-    let node = current;
-    while (node?.originComment) {
-        const parent = node.originComment as Record<string, any>;
-        const id = resolveCommentId(parent);
-        if (id) {
-            if (seen.has(id)) break;
-            seen.add(id);
-        }
-        chain.push(parent);
-        node = parent;
-    }
-    return chain.reverse();
-}
-
 function handleOpenComment(target: HTMLElement, stateAccessor: CommentStateAccessor, queryGetter: QueryGetter): void {
     const refId = parseRefId(target);
     const commentId = target.dataset.commentId;
@@ -369,47 +276,15 @@ function handleOpenCommentAll(
         return;
     }
 
-    const comments = safeGetComments(stateAccessor);
-    const current = resolveCurrentComment(comments, commentId, refId);
-    const ancestors = collectAncestorChain(current);
-    if (ancestors.length === 0) return;
-
-    const query = resolveQuery(queryGetter);
-    const wrap = createOriginChainWrapper(key);
-
-    // Get source's current marginLeft to position origin chain relative to it
-    const computedStyle = window.getComputedStyle(commentContainer);
-    const sourceMarginLeft = parseFloat(computedStyle.marginLeft) || 0;
-    const EXTRA_OFFSET = 16;
-    wrap.style.marginLeft = `${sourceMarginLeft + EXTRA_OFFSET}px`;
-    wrap.style.paddingLeft = '12px'; // Space for border-left
-
-    commentContainer.insertAdjacentElement('beforebegin', wrap);
-
-    const results: ICommentsFuseResult[] = ancestors.map((ancestor, index) => ({
-        item: { ...ancestor, replyLevel: index } as any,
-        refIndex: resolveRefIndex(ancestor, refId ?? 0)
-    }));
-    renderComment(wrap, results, {
-        querySearch: query,
-        resetReplyLevel: false,
-        hideExpandUp: true,
-        forceSmallAvatar: true
-    });
-
-    // Add arrow element at chain bottom pointing to source
-    const arrow = document.createElement('div');
-    arrow.className = 'ycs-origin-chain-arrow';
-    wrap.appendChild(arrow);
-
-    // Mark source as origin trigger (for styling only, no margin change)
-    commentContainer.classList.add('ycs-origin-trigger');
+    const expanded = expandOriginChainFor(commentContainer, { stateAccessor, queryGetter });
 
     // === Scroll Position Lock ===
     restoreScrollPosition(commentContainer, scrollContainer, yBefore);
 
-    target.innerHTML = iconExpand();
-    target.title = 'Close all parent comments.';
+    if (expanded) {
+        target.innerHTML = iconExpand();
+        target.title = 'Close all parent comments.';
+    }
 }
 
 function handleGotoChatVideo(event: Event): void {

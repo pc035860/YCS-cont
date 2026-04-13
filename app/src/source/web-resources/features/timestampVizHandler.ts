@@ -163,8 +163,12 @@ export function createTimestampVizHandler(deps: TimestampVizDeps): () => void {
                             buttonStates: {}
                         };
 
+                        const stateAccessor = {
+                            getComments: () => state.getComments()
+                        };
+
                         // Render results
-                        renderCommentsResult('#ycs-timestamp-interval-results', searchResult);
+                        renderCommentsResult('#ycs-timestamp-interval-results', searchResult, { stateAccessor });
 
                         // Update statistics display with the interval summary
                         callbacks.updateTotalResultDisplay(searchResult.summary);
@@ -172,13 +176,7 @@ export function createTimestampVizHandler(deps: TimestampVizDeps): () => void {
                         // Register comment interactions for the new results
                         const resultsContainer = document.getElementById('ycs-timestamp-interval-results');
                         if (resultsContainer) {
-                            registerCommentInteractions(
-                                resultsContainer,
-                                {
-                                    getComments: () => state.getComments()
-                                },
-                                () => query.trim()
-                            );
+                            registerCommentInteractions(resultsContainer, stateAccessor, () => query.trim());
                         }
 
                         // Scroll to results and show floating button

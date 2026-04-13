@@ -103,6 +103,20 @@ window.onload = async (): Promise<void> => {
             (document.getElementById('y_opts_sort_timestamp') as HTMLInputElement).checked = param;
         };
 
+        const setRenderAutoExpandReplyContext = (param: unknown): void => {
+            (document.getElementById('y_opts_auto_expand_reply_context') as HTMLInputElement).checked = !!param;
+        };
+
+        const optSetAutoExpandReplyContext = async (opt: HTMLInputElement): Promise<void> => {
+            try {
+                await chrome.storage.local.set({
+                    autoExpandReplyContext: opt.checked
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
         const setRenderHiddenByDefaultShorts = (param: boolean): void => {
             if (typeof param !== 'boolean') return;
 
@@ -713,6 +727,10 @@ window.onload = async (): Promise<void> => {
                         setRenderSortTimestampOpt(storageOpts[key]);
                         break;
 
+                    case 'autoExpandReplyContext':
+                        setRenderAutoExpandReplyContext(storageOpts[key]);
+                        break;
+
                     case 'hiddenByDefaultShorts':
                         setRenderHiddenByDefaultShorts(storageOpts[key]);
                         break;
@@ -789,6 +807,10 @@ window.onload = async (): Promise<void> => {
 
                 case 'y_opts_sort_timestamp':
                     optSetSortTimestamp(e.target as HTMLInputElement);
+                    break;
+
+                case 'y_opts_auto_expand_reply_context':
+                    optSetAutoExpandReplyContext(e.target as HTMLInputElement);
                     break;
 
                 case 'y_opts_hidden_by_default_shorts':

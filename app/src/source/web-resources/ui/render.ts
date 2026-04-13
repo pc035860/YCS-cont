@@ -1,8 +1,10 @@
 import { iconSortDown, iconSortUp } from '../../utils/icons';
 import { renderComment, renderCommentChat, renderCommentTrVideo } from '../../utils/renderView';
-import { CommentsSearchResult } from '../search/commentsSearch';
-import { ChatSearchResult } from '../search/chatSearch';
-import { TranscriptSearchResult } from '../search/transcriptSearch';
+import type { CommentsSearchResult } from '../search/commentsSearch';
+import type { ChatSearchResult } from '../search/chatSearch';
+import type { TranscriptSearchResult } from '../search/transcriptSearch';
+import { autoExpandAllRepliesIn } from './originChain';
+import type { CommentStateAccessor } from './originChain';
 
 const BUTTON_LABELS: Record<string, string> = {
     ycs_btn_links: 'Links',
@@ -69,12 +71,23 @@ function clearTarget(selector: string): HTMLElement | null {
     return target;
 }
 
-export function renderCommentsResult(selector: string, result: CommentsSearchResult): void {
+export function renderCommentsResult(
+    selector: string,
+    result: CommentsSearchResult,
+    deps?: { stateAccessor: CommentStateAccessor }
+): void {
     const target = clearTarget(selector);
     if (!target) return;
 
     if (result.results.length > 0) {
         renderComment(selector, result.results, { querySearch: result.query });
+
+        if (deps?.stateAccessor) {
+            autoExpandAllRepliesIn(target, {
+                stateAccessor: deps.stateAccessor,
+                queryGetter: () => result.query
+            });
+        }
     }
 
     applyButtonStates(result.buttonStates);
