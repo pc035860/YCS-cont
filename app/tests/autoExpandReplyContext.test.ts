@@ -290,6 +290,37 @@ test('Case H: renderComment invokes postBatchHook again on show-more click', () 
     }
 });
 
+test('Case I: renderComment + postBatchHook wiring auto-expands replies end-to-end', () => {
+    resetGlobalStore();
+    const root = setupRoot();
+    try {
+        const parent = buildParentComment('c1', 'parent text');
+        const reply = buildReplyComment('c1r1', 'reply text', parent, 1);
+        const stateAccessor: CommentStateAccessor = { getComments: () => [reply] };
+
+        (GlobalStore as any).autoExpandReplyContext = true;
+
+        renderComment(root, [{ item: reply, refIndex: 1 }], {
+            querySearch: '',
+            postBatchHook: (batchRoot: HTMLElement) => {
+                autoExpandAllRepliesIn(batchRoot, {
+                    stateAccessor,
+                    queryGetter: () => ''
+                });
+            }
+        });
+
+        const wrapper = root.querySelector('#ycs-com-all-c1r1');
+        assert.equal(
+            wrapper !== null,
+            true,
+            'expected origin chain wrapper after end-to-end renderComment + postBatchHook + autoExpandAllRepliesIn'
+        );
+    } finally {
+        teardownRoot(root);
+    }
+});
+
 test('Case F: expandOriginChainFor sets ycs-origin-trigger class on success', () => {
     resetGlobalStore();
     const root = setupRoot();
