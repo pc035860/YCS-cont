@@ -103,6 +103,8 @@ Search engines:
 Origin chain (parent-comment context for replies):
 - `app/src/source/web-resources/ui/originChain.ts` — single source of truth for `expandOriginChainFor` and `autoExpandAllRepliesIn`
 - `commentInteractions.ts:handleOpenCommentAll` and `render.ts:renderCommentsResult` are the only callers
+- **DOM scope / review note:** Chain wrappers use document-wide checks and removal (`ycs-com-all-*` via `getElementById` / `querySelectorAll` in `originChain.ts` and `commentInteractions.ts`). That matches the current navigation model: only one YCS search result subtree is active at a time (e.g. `executeSearchBasedOnType` runs `timestampViz` by clearing `#ycs-search-result` in `timestampVizHandler.ts` before chart + `#ycs-timestamp-interval-results`, so “main comment results” and “interval results” are not simultaneously present as sibling panels in normal use).
+- If a future change introduces **two** persistent comment result roots in the same document with the same reply key, scope origin-chain existence/removal to each result container (or disambiguate ids); treat that as an explicit product/architecture change, not an assumed regression from the current branch.
 
 ---
 
