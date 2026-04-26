@@ -1414,20 +1414,18 @@ export function initApp(): void {
             const context = buildSearchContext();
             const result = runCommentsSearch(query, param, state, context);
 
-            renderCommentsResult(selector, result);
+            const stateAccessor = {
+                getComments: () => getComments(state)
+            };
+
+            renderCommentsResult(selector, result, { stateAccessor });
 
             state = setSearchCount(state, 'comments', result.total);
 
             const commentsContainer = document.getElementById('ycs_wrap_comments');
 
             if (commentsContainer instanceof HTMLElement) {
-                registerCommentInteractions(
-                    commentsContainer,
-                    {
-                        getComments: () => getComments(state)
-                    },
-                    () => query
-                );
+                registerCommentInteractions(commentsContainer, stateAccessor, () => query);
             }
 
             return result;
@@ -1675,6 +1673,14 @@ export function initApp(): void {
                     }
                 };
 
+                const optAutoExpandReplyContext = (value: boolean): void => {
+                    try {
+                        GlobalStore.autoExpandReplyContext = value;
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
                 const optHiddenByDefault = (opts: IYCSOptions): void => {
                     try {
                         const app = document.querySelector('.ycs-app') as HTMLElement;
@@ -1746,6 +1752,10 @@ export function initApp(): void {
 
                             case 'sortTimestamp':
                                 optSortTimestamp(Boolean(opts.sortTimestamp));
+                                break;
+
+                            case 'autoExpandReplyContext':
+                                optAutoExpandReplyContext(Boolean(opts.autoExpandReplyContext));
                                 break;
 
                             case 'hiddenByDefault':

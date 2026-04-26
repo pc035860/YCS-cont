@@ -6,6 +6,7 @@ const options = {
     autoClear: 200,
     hiddenByDefault: false,
     sortTimestamp: false,
+    autoExpandReplyContext: false,
     hiddenByDefaultShorts: false,
     enableShortsSupport: true,
     transcriptLanguage: '',
