@@ -117,6 +117,21 @@ window.onload = async (): Promise<void> => {
             }
         };
 
+        const setRenderSidebarByDefault = (param: boolean): void => {
+            if (typeof param !== 'boolean') return;
+            (document.getElementById('y_opts_sidebar_by_default') as HTMLInputElement).checked = param;
+        };
+
+        const optSetSidebarByDefault = async (opt: HTMLInputElement): Promise<void> => {
+            try {
+                await chrome.storage.local.set({
+                    sidebarByDefault: opt.checked
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
         const setRenderHiddenByDefaultShorts = (param: boolean): void => {
             if (typeof param !== 'boolean') return;
 
@@ -735,6 +750,10 @@ window.onload = async (): Promise<void> => {
                         setRenderHiddenByDefaultShorts(storageOpts[key]);
                         break;
 
+                    case 'sidebarByDefault':
+                        setRenderSidebarByDefault(storageOpts[key]);
+                        break;
+
                     case 'enableShortsSupport':
                         setRenderEnableShortsSupport(storageOpts[key]);
                         break;
@@ -819,6 +838,10 @@ window.onload = async (): Promise<void> => {
 
                 case 'y_opts_enable_shorts_support':
                     optSetEnableShortsSupport(e.target as HTMLInputElement);
+                    break;
+
+                case 'y_opts_sidebar_by_default':
+                    optSetSidebarByDefault(e.target as HTMLInputElement);
                     break;
 
                 case 'ycs_opts_btn_reset_filters':
