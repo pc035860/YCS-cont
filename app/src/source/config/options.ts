@@ -5,6 +5,7 @@ const options = {
     cache: true,
     autoClear: 200,
     hiddenByDefault: false,
+    sidebarByDefault: false,
     sortTimestamp: false,
     autoExpandReplyContext: false,
     hiddenByDefaultShorts: false,

@@ -84,14 +84,85 @@ ytd-comments .ycs-app {
   margin-top: 5px;
 }
 
+.ycs-head-search {
+  position: relative;
+  overflow: visible;
+  margin-bottom: 4px;
+}
+
+.ycs_load_all {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  gap: 2px;
+  width: auto;
+  clear: none;
+  margin-left: 0;
+  margin-top: 4px;
+}
+
+.ycs-compact .ycs-head-search {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  overflow: hidden;
+}
+
+.ycs-compact #ycs_title_information {
+  white-space: nowrap;
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.ycs-compact .ycs_load_all {
+  position: static;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.ycs-compact .ycs_load_all > button {
+  width: auto;
+  min-width: auto;
+  padding: 4px 8px;
+  font-size: 12px;
+  display: block;
+}
+
+#ycs_title_information {
+  display: block;
+  float: none;
+  clear: both;
+}
+
+.ycs_load_all > button {
+  float: none;
+  display: block;
+  box-sizing: border-box;
+  width: 64px;
+  padding: 2px 4px;
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
+}
+
 #ycs-search-total-result {
   font-size: 13px;
-  width: 280px;
   margin: 0;
   padding: 0;
   display: inline-block;
-  margin-left: 15px;
   word-break: break-word;
+}
+
+.ycs-infobar {
+  clear: none;
 }
 
 #ycs_btn_timestamp_viz > svg {
@@ -163,7 +234,7 @@ html[dark] .ycs_btn_load-stop:hover {
   vertical-align: top;
   height: 32px;
   line-height: 1;
-  visibility: hidden; /* toggled by script */
+  display: none; /* toggled by script */
 }
 
 .ycs-search__input:focus {
@@ -245,9 +316,6 @@ html[dark] .ycs-open-reply {
 
 .ycs-open-reply,
 .ycs-comment-link,
-.ycs-open-comment,
-.ycs-open-comment-all,
-.ycs-gotochat-video,
 .ycs-goto-comment-time,
 .ycs-goto-video {
   cursor: pointer;
@@ -449,7 +517,21 @@ html[dark] .ycs-origin-trigger {
   width: 130px;
   display: inline-block;
 }
-
+.ycs-compact #ycs_cmnts,
+.ycs-compact #ycs_cmnts_chat,
+.ycs-compact #ycs_cmnts_video {
+  width: auto;
+}
+/* Sidebar button label toggle */
+.ycs-app:not(.ycs-in-sidebar) .ycs-btn-toggle-sidebar.ycs-label-main {
+  display: none;
+}
+.ycs-app.ycs-in-sidebar .ycs-btn-toggle-sidebar.ycs-label-sidebar {
+  display: none;
+}
+.ycs-app.ycs-in-sidebar {
+  margin-bottom: 8px;
+}
 .ycs-search-select {
   float: left;
   width: 107px;
@@ -519,7 +601,7 @@ html[dark] .ycs-origin-trigger {
 }
 
 .ycs-btn-toggle-app {
-  margin-bottom: 1px;
+  margin-bottom: 0;
 }
 .ycs-app.ycs-collapsed .ycs-btn-toggle-app {
   margin-bottom: 0;
@@ -597,20 +679,29 @@ a.ycs-goto-video:visited {
 }
 
 #ycs-desc__search,
-.ycs-infobar__search,
 .ycs-infobar-field {
   display: inline-block;
 }
 
-.ycs-infobar__search button {
-  padding: 1px 4px;
-  margin: 1px 0;
-  font-size: 14px;
-  border: 1px solid #ececec;
+.ycs_infobar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  line-height: 19px;
 }
 
-#ycs-desc__search {
-  margin-right: 20px;
+.ycs-infobar__search {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ycs-infobar__search button {
+  padding: 1px 4px;
+  font-size: 14px;
+  height: 19px;
+  line-height: 1;
+  border: 1px solid #ececec;
 }
 
 .ycs-search__input {
@@ -765,7 +856,7 @@ html[dark] .ycs-show_more_block:hover {
   justify-content: space-between;
   align-items: baseline;
   max-width: 990px;
-  margin: 8px 0px 8px 8px;
+  margin: 8px 0px 8px 0px;
 }
 
 .ycs-btn-panel > button {
@@ -898,7 +989,7 @@ html[dark] #ycs-search-result::-webkit-scrollbar-thumb:hover {
 
 .ycs_load_wrap,
 .ycs_open_wrap,
-.ycs_save_wrap {
+.ycs_dropdown_wrap {
   display: inline-block;
   margin-right: 2px;
 }
@@ -970,9 +1061,51 @@ html[dark] .ycs-infobar__search button {
   clear: both;
 }
 
+.ycs-compact #ycs-desc__search {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  line-height: 19px;
+}
+
+.ycs-compact .ycs_infobar {
+  display: contents;
+}
+
+.ycs-compact .ycs-infobar__search {
+  display: contents;
+}
+
+.ycs-compact:not(.ycs-in-sidebar) #ycs_anchor_vmode,
+.ycs-compact:not(.ycs-in-sidebar) #ycs_view_mode,
+.ycs-compact:not(.ycs-in-sidebar) .ycs_extra_panel {
+  display: none;
+}
+
+.ycs-compact .ycs-infobar-field {
+  grid-column: 1;
+}
+
+.ycs-compact #ycs_cmnts,
+.ycs-compact #ycs_cmnts_chat,
+.ycs-compact #ycs_cmnts_video {
+  grid-column: 2;
+}
+
+.ycs-compact .ycs_infobar_btns {
+  grid-column: 3;
+}
+
+.ycs-compact:not(.ycs-in-sidebar) .ycs_language_wrap {
+  display: none;
+}
+
 .ycs_load_wrap,
-.ycs_open_wrap {
+.ycs_open_wrap,
+.ycs_save_wrap,
+.ycs_sort_wrap {
   float: left;
+  line-height: 19px;
 }
 
 .ycs_load_wrap {
@@ -1007,6 +1140,7 @@ html[dark] .ycs-infobar__search button {
   float: right;
   font-weight: bolder;
   cursor: pointer;
+  margin-top: 8px;
 }
 
 html[dark='true'] #ycs_btn_open_modal,
@@ -1177,7 +1311,9 @@ html[dark] .ycs_btn_primary {
 }
 
 #ycs_anchor_vmode {
-  height: 1px;
+  height: 0;
+  width: 0;
+  overflow: hidden;
   display: block;
 }
 
@@ -1187,25 +1323,18 @@ html[dark] .ycs_btn_primary {
 }
 
 #ycs-load-all {
-  display: block;
+  display: inline-block;
   min-width: 64px;
 }
 
 .ycs_btn_load-stop {
   border: 1px solid #ececec;
-  position: absolute;
   min-width: 64px;
   border-top: 0;
   background-color: #f9f9f9;
-  font-size: 12px;
   cursor: pointer;
-  padding: 0px;
+  padding: 6px;
   margin: 0;
-}
-
-html[dark='true'] .ycs_btn_load-stop,
-html[dark] .ycs_btn_load-stop {
-  border-top: 1px solid #181818;
 }
 
 .ycs-com-rp {
@@ -1273,16 +1402,42 @@ html[dark] .ycs-export-all-comments {
   margin-top: 32px;
 }
 
+.ycs-search-wrap {
+  display: flex;
+  flex-direction: column;
+  width: 65%;
+}
+
+@media (max-width: 1000px) {
+  .ycs-search-wrap {
+    width: 100%;
+  }
+}
+
+.ycs-compact .ycs-search-wrap {
+  width: 100%;
+}
+
+.ycs-search-controls {
+  display: flex;
+  width: 100%;
+}
+
+.ycs-search-controls .ycs-searchbox {
+  flex: 1;
+  width: auto;
+  float: none;
+}
+
 .ycs-ext-search_block {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
   align-items: baseline;
   margin-top: 5px;
 }
 
 .ycs-ext-search_option {
   display: inline-block;
-  margin-left: 15%;
 }
 
 .ycs-ext-search-opts {
@@ -1290,7 +1445,7 @@ html[dark] .ycs-export-all-comments {
 }
 
 .ycs-ext-search_link {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: bold;
   text-decoration: none;
   color: black;
@@ -1305,7 +1460,8 @@ html[dark] .ycs-ext-search_link {
 
 #ycs_title_information {
   position: relative;
-  top: 5px;
+  top: 0;
+  margin-bottom: 8px;
 }
 
 .ycs-chip.ytd-comment-view-model {
@@ -1567,59 +1723,37 @@ html[dark] .ycs-floating-back-button:hover {
    Shorts Mode Customizations
    ======================================== */
 
-.ycs-app.ycs-app--shorts {
+.ycs-compact {
   margin-bottom: 0;
 }
 
-/* Load all and stop buttons on same line */
-.ycs-app--shorts #ycs-load-all {
-  display: inline-block;
-  margin-left: 8px;
-  margin-right: 0;
-}
-
-.ycs-app--shorts .ycs-head-search {
-  overflow: hidden;
-}
-
-.ycs-app--shorts .ycs_btn_load-stop {
-  position: static;
-  display: inline-block;
-  /* Match load-all button styles for alignment */
-  padding: 6px;
+.ycs-compact .ycs_btn_load-stop {
+  padding: 4px 8px;
   margin: 0;
   border: 1px solid #ececec;
   background-color: #f8f8f8;
+  border-top: 1px solid #ececec;
 }
 
-html[dark='true'] .ycs-app--shorts .ycs_btn_load-stop,
-html[dark] .ycs-app--shorts .ycs_btn_load-stop {
+html[dark='true'] .ycs-compact .ycs_btn_load-stop,
+html[dark] .ycs-compact .ycs_btn_load-stop {
   border: 1px solid #303030;
+  border-top: 1px solid #303030;
   background-color: #313131;
   color: #fff;
 }
 
 /* Add spacing between buttons and infobar */
-.ycs-app--shorts .ycs-infobar {
+.ycs-compact .ycs-infobar {
   margin-top: 10px;
 }
 
-.ycs-app--shorts #ycs-search {
+.ycs-compact #ycs-search {
   margin-top: 15px;
 }
 
-/* Hide transcript language selector */
-.ycs-app--shorts .ycs_language_wrap {
-  display: none;
-}
-
-/* Hide extra panel (View Mode button) */
-.ycs-app--shorts .ycs_extra_panel {
-  display: none;
-}
-
 /* Search result container adjustments */
-.ycs-app--shorts #ycs-search-result {
+.ycs-compact #ycs-search-result {
   overflow-y: auto;
   overflow-x: hidden;
   /* max-height will be set dynamically via JS */

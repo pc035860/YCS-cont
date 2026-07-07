@@ -401,6 +401,61 @@ export function initApp(): void {
             }
         }
 
+        let sidebarMountParent: HTMLElement | null = null;
+        let sidebarMountNextSibling: ChildNode | null = null;
+
+        const getSidebarMountTarget = (): HTMLElement | null => {
+            return (
+                (document.querySelector('#secondary-inner') as HTMLElement | null) ||
+                (document.querySelector('#secondary') as HTMLElement | null)
+            );
+        };
+
+        const getAppElement = (): HTMLElement | null => document.querySelector('.ycs-app') as HTMLElement | null;
+
+        const moveYcsToSidebar = (): void => {
+            const app = getAppElement();
+            const sidebarTarget = getSidebarMountTarget();
+
+            if (!app || !sidebarTarget) {
+                return;
+            }
+
+            if (!sidebarMountParent) {
+                sidebarMountParent = app.parentElement;
+                sidebarMountNextSibling = app.nextSibling;
+            }
+
+            if (app.parentElement !== sidebarTarget) {
+                sidebarTarget.prepend(app);
+            }
+
+            app.classList.add('ycs-in-sidebar', 'ycs-compact');
+        };
+
+        const restoreYcsFromSidebar = (): void => {
+            const app = getAppElement();
+
+            if (!app || !sidebarMountParent) {
+                return;
+            }
+
+            if (!sidebarMountParent.isConnected) {
+                sidebarMountParent = null;
+                sidebarMountNextSibling = null;
+                app.classList.remove('ycs-in-sidebar', 'ycs-compact');
+                return;
+            }
+
+            if (sidebarMountNextSibling && sidebarMountNextSibling.parentNode === sidebarMountParent) {
+                sidebarMountParent.insertBefore(app, sidebarMountNextSibling);
+            } else {
+                sidebarMountParent.appendChild(app);
+            }
+
+            app.classList.remove('ycs-in-sidebar', 'ycs-compact');
+        };
+
         const elSearch = document.getElementById('ycs-search');
         if (elSearch) {
             renderSearch(elSearch);
@@ -458,6 +513,26 @@ export function initApp(): void {
                                         adjustEngagementPanelHeightForShorts();
                                     }, 100);
                                 }
+                            }
+                        },
+                        false
+                    );
+                }
+
+                const sidebarToggles = document.getElementsByClassName('ycs-btn-toggle-sidebar');
+                for (const toggle of Array.from(sidebarToggles)) {
+                    (toggle as HTMLElement).addEventListener(
+                        'click',
+                        () => {
+                            const app = getAppElement();
+                            if (!app) {
+                                return;
+                            }
+
+                            if (app.classList.contains('ycs-in-sidebar')) {
+                                restoreYcsFromSidebar();
+                            } else {
+                                moveYcsToSidebar();
                             }
                         },
                         false
@@ -1129,15 +1204,15 @@ export function initApp(): void {
             eInputSearch.addEventListener('input', () => {
                 const hasText = (eInputSearch as HTMLInputElement).value.trim().length > 0;
                 if (btnSearchClearText) {
-                    (btnSearchClearText as HTMLButtonElement).style.visibility = hasText ? 'visible' : 'hidden';
+                    (btnSearchClearText as HTMLButtonElement).style.display = hasText ? 'inline-block' : 'none';
                 }
             });
         }
 
         // initialize clear-text button visibility
         if (btnSearchClearText) {
-            (btnSearchClearText as HTMLButtonElement).style.visibility =
-                (eInputSearch as HTMLInputElement)?.value?.trim()?.length > 0 ? 'visible' : 'hidden';
+            (btnSearchClearText as HTMLButtonElement).style.display =
+                (eInputSearch as HTMLInputElement)?.value?.trim()?.length > 0 ? 'inline-block' : 'none';
             btnSearchClearText.addEventListener('click', () => {
                 try {
                     if (eInputSearch) {
@@ -1161,7 +1236,7 @@ export function initApp(): void {
                     }
 
                     // hide clear button after clearing
-                    (btnSearchClearText as HTMLButtonElement).style.visibility = 'hidden';
+                    (btnSearchClearText as HTMLButtonElement).style.display = 'none';
                     const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
                     if (btnClear) {
                         (btnClear as HTMLButtonElement).style.visibility = 'hidden';
@@ -1705,6 +1780,19 @@ export function initApp(): void {
                     }
                 };
 
+                const optSidebarByDefault = (opts: IYCSOptions): void => {
+                    try {
+                        if (!opts.sidebarByDefault || isShortsPage() || isPostsPage()) return;
+
+                        const app = document.querySelector('.ycs-app') as HTMLElement;
+                        if (app && !app.classList.contains('ycs-in-sidebar')) {
+                            moveYcsToSidebar();
+                        }
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
                 try {
                     const opts = (e.data.text ?? {}) as IYCSOptions;
 
@@ -1760,6 +1848,10 @@ export function initApp(): void {
 
                             case 'hiddenByDefault':
                                 optHiddenByDefault(opts);
+                                break;
+
+                            case 'sidebarByDefault':
+                                optSidebarByDefault(opts);
                                 break;
 
                             case 'hiddenByDefaultShorts':

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { safeUrl } from '../utils/formatting';
-import { randomString, isShortsPage } from '../utils/common';
+import { randomString, isShortsPage, isPostsPage } from '../utils/common';
 import { markTextComment, getPiP } from '../utils/dom';
 import { options } from '../config/options';
 import { buildCommentViewModels, buildChatMessageViewModels, buildTranscriptViewModels } from './viewModels';
@@ -762,6 +762,16 @@ function renderLoadComments(
         }
     };
 
+    const sidebarToggleButtons = (): string => {
+        if (isShortsPage() || isPostsPage()) return '';
+        return (
+            '<button class="ycs-btn-toggle-sidebar ycs-btn-search ycs_noselect ycs-label-sidebar" ' +
+            'type="button" title="Move YCS to the sidebar">Sidebar</button>' +
+            '<button class="ycs-btn-toggle-sidebar ycs-btn-search ycs_noselect ycs-label-main" ' +
+            'type="button" title="Move YCS back to the main column">Main</button>'
+        );
+    };
+
     const node = document.querySelector(selector);
 
     // Visibility check and fallback mechanism
@@ -806,9 +816,9 @@ function renderLoadComments(
     }
 
     const nodeTag = document.createElement('div');
-    nodeTag.className = isShortsPage() ? 'ycs-app ycs-app--shorts' : 'ycs-app';
+    nodeTag.className = isShortsPage() ? 'ycs-app ycs-compact' : 'ycs-app';
     nodeTag.innerHTML = `
-        <div class="ycs-app-toggle"><p class="ycs-title ycs-left">YouTube Comment Search <span id="ycs-count-load-collapsed"></span></p><div class="ycs-right"><button class="ycs-btn-toggle-app ycs-btn-search ycs_noselect" type="button">Show YCS</button></div></div>
+        <div class="ycs-app-toggle"><p class="ycs-title ycs-left">YouTube Comment Search <span id="ycs-count-load-collapsed"></span></p><div class="ycs-right"><button class="ycs-btn-toggle-app ycs-btn-search ycs_noselect" type="button">Show YCS</button>${sidebarToggleButtons()}</div></div>
         <div class="ycs-app-main">
             <div class="ycs-head-search">
                 <p class="ycs-title ycs-left" id="ycs_title_information">
@@ -816,6 +826,7 @@ function renderLoadComments(
                 </p>
                 <div class="ycs_load_all ycs-right">
                     <button class="ycs-btn-toggle-app ycs-btn-search ycs_noselect" type="button">hide YCS</button>
+                    ${sidebarToggleButtons()}
                     <button id="ycs-load-all" class="ycs-btn-search ycs-title ycs_noselect" name="Load all comments" type="button"
                         title="Load all available comments">
                         Load all
@@ -829,7 +840,7 @@ function renderLoadComments(
             <div class="ycs-title ycs-clear ycs-infobar">
                 <div id="ycs-desc__search">
 
-                    <div>
+                    <div class="ycs_infobar">
                         <p class="ycs-infobar-field"><span id="ycs_status_cmnt">${iconReload()}</span> Comments: </p>
                         <div class="ycs-infobar__search">
                             <span id="ycs_cmnts">0</span>
@@ -869,7 +880,7 @@ function renderLoadComments(
                         </div>
                     </div>
                     <span id="ycs_anchor_vmode" class="ycs-hidden"></span>
-                    <div>
+                    <div class="ycs_infobar">
                         <p class="ycs-infobar-field"><span id="ycs_status_chat">${iconReload()}</span> Chat replay: </p>
                         <div class="ycs-infobar__search">
                             <span id="ycs_cmnts_chat">0</span>
@@ -912,7 +923,7 @@ function renderLoadComments(
                             </div>
                         </div>
                     </div>
-                    <div>
+                    <div class="ycs_infobar">
                         <p class="ycs-infobar-field"><span id="ycs_status_trvideo">${iconReload()}</span> Transcript video: </p>
                         <div class="ycs-infobar__search">
                             <span id="ycs_cmnts_video">0</span>
@@ -1210,21 +1221,23 @@ function renderSearch(node: HTMLElement): void {
 
     node.innerHTML = `
         <div>
-            <div>
-                <div class="ycs-searchbox">
-                    <input title="Write the search query, press Enter or click the button Search."
-                        class="ycs-search__input ycs_noselect" type="text" id="ycs-input-search" placeholder="Search">
-                </div>
-                <select title="Select a search category." name="ycs_search_select"
-                    id="ycs_search_select" class="ycs-btn-search ycs-title ycs-search-select ycs_noselect">
-                    <option value="comments">Comments</option>
-                    <option value="chat">Chat replay</option>
-                    <option value="video">Trpt. video</option>
-                    <option selected value="all">All</option>
-                </select>
-                <button id="ycs_btn_search" class="ycs-btn-search ycs-title ycs_noselect" type="button">
-                    Search
-                </button><button id="ycs_btn_search_clear_text" class="ycs-btn-search ycs-title ycs-search-clear" type="button" title="Clear text">✕</button>
+            <div class="ycs-search-wrap">
+                <span class="ycs-search-controls">
+                    <div class="ycs-searchbox">
+                        <input title="Write the search query, press Enter or click the button Search."
+                            class="ycs-search__input ycs_noselect" type="text" id="ycs-input-search" placeholder="Search">
+                    </div>
+                    <select title="Select a search category." name="ycs_search_select"
+                        id="ycs_search_select" class="ycs-btn-search ycs-title ycs-search-select ycs_noselect">
+                        <option value="comments">Comments</option>
+                        <option value="chat">Chat replay</option>
+                        <option value="video">Trpt. video</option>
+                        <option selected value="all">All</option>
+                    </select>
+                    <button id="ycs_btn_search" class="ycs-btn-search ycs-title ycs_noselect" type="button">
+                        Search
+                    </button><button id="ycs_btn_search_clear_text" class="ycs-btn-search ycs-title ycs-search-clear" type="button" title="Clear text">✕</button>
+                </span>
 
                 <div class="ycs-ext-search_block">
                     <p id="ycs-search-total-result" class="ycs-title"></p>
@@ -1251,9 +1264,8 @@ function renderSearch(node: HTMLElement): void {
                         <a href="https://github.com/sonigy/YCS#extended-search" class="ycs-title ycs-ext-search_link" target="_blank" rel="noopener noreferrer" title="How to use">?</a>
                     </div>
                 </div>
-
-                <button id="ycs_btn_open_modal" class="ycs_noselect" title="FAQ">?</button>
             </div>
+            <button id="ycs_btn_open_modal" class="ycs_noselect" title="FAQ">?</button>
             <div class="ycs-search-result-infobar">
 
                 <div class="ycs-btn-panel ycs_noselect" id="ycs-btn-panel">
