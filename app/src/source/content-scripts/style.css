@@ -529,6 +529,9 @@ html[dark] .ycs-origin-trigger {
 .ycs-app.ycs-in-sidebar .ycs-btn-toggle-sidebar.ycs-label-sidebar {
   display: none;
 }
+.ycs-app.ycs-in-sidebar {
+  margin-bottom: 8px;
+}
 .ycs-search-select {
   float: left;
   width: 107px;
@@ -1074,7 +1077,8 @@ html[dark] .ycs-infobar__search button {
 }
 
 .ycs-compact:not(.ycs-in-sidebar) #ycs_anchor_vmode,
-.ycs-compact:not(.ycs-in-sidebar) #ycs_view_mode {
+.ycs-compact:not(.ycs-in-sidebar) #ycs_view_mode,
+.ycs-compact:not(.ycs-in-sidebar) .ycs_extra_panel {
   display: none;
 }
 
@@ -1402,6 +1406,12 @@ html[dark] .ycs-export-all-comments {
   display: flex;
   flex-direction: column;
   width: 65%;
+}
+
+@media (max-width: 1000px) {
+  .ycs-search-wrap {
+    width: 100%;
+  }
 }
 
 .ycs-compact .ycs-search-wrap {

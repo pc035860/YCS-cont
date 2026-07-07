@@ -440,6 +440,13 @@ export function initApp(): void {
                 return;
             }
 
+            if (!sidebarMountParent.isConnected) {
+                sidebarMountParent = null;
+                sidebarMountNextSibling = null;
+                app.classList.remove('ycs-in-sidebar', 'ycs-compact');
+                return;
+            }
+
             if (sidebarMountNextSibling && sidebarMountNextSibling.parentNode === sidebarMountParent) {
                 sidebarMountParent.insertBefore(app, sidebarMountNextSibling);
             } else {

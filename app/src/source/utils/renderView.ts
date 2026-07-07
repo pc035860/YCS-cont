@@ -762,6 +762,16 @@ function renderLoadComments(
         }
     };
 
+    const sidebarToggleButtons = (): string => {
+        if (isShortsPage() || isPostsPage()) return '';
+        return (
+            '<button class="ycs-btn-toggle-sidebar ycs-btn-search ycs_noselect ycs-label-sidebar" ' +
+            'type="button" title="Move YCS to the sidebar">Sidebar</button>' +
+            '<button class="ycs-btn-toggle-sidebar ycs-btn-search ycs_noselect ycs-label-main" ' +
+            'type="button" title="Move YCS back to the main column">Main</button>'
+        );
+    };
+
     const node = document.querySelector(selector);
 
     // Visibility check and fallback mechanism
@@ -808,7 +818,7 @@ function renderLoadComments(
     const nodeTag = document.createElement('div');
     nodeTag.className = isShortsPage() ? 'ycs-app ycs-compact' : 'ycs-app';
     nodeTag.innerHTML = `
-        <div class="ycs-app-toggle"><p class="ycs-title ycs-left">YouTube Comment Search <span id="ycs-count-load-collapsed"></span></p><div class="ycs-right"><button class="ycs-btn-toggle-app ycs-btn-search ycs_noselect" type="button">Show YCS</button>${isShortsPage() || isPostsPage() ? '' : '<button class="ycs-btn-toggle-sidebar ycs-btn-search ycs_noselect ycs-label-sidebar" type="button" title="Move YCS to the sidebar">Sidebar</button><button class="ycs-btn-toggle-sidebar ycs-btn-search ycs_noselect ycs-label-main" type="button" title="Move YCS back to the main column">Main</button>'}</div></div>
+        <div class="ycs-app-toggle"><p class="ycs-title ycs-left">YouTube Comment Search <span id="ycs-count-load-collapsed"></span></p><div class="ycs-right"><button class="ycs-btn-toggle-app ycs-btn-search ycs_noselect" type="button">Show YCS</button>${sidebarToggleButtons()}</div></div>
         <div class="ycs-app-main">
             <div class="ycs-head-search">
                 <p class="ycs-title ycs-left" id="ycs_title_information">
@@ -816,7 +826,7 @@ function renderLoadComments(
                 </p>
                 <div class="ycs_load_all ycs-right">
                     <button class="ycs-btn-toggle-app ycs-btn-search ycs_noselect" type="button">hide YCS</button>
-                    ${isShortsPage() || isPostsPage() ? '' : '<button class="ycs-btn-toggle-sidebar ycs-btn-search ycs_noselect ycs-label-sidebar" type="button" title="Move YCS to the sidebar">Sidebar</button><button class="ycs-btn-toggle-sidebar ycs-btn-search ycs_noselect ycs-label-main" type="button" title="Move YCS back to the main column">Main</button>'}
+                    ${sidebarToggleButtons()}
                     <button id="ycs-load-all" class="ycs-btn-search ycs-title ycs_noselect" name="Load all comments" type="button"
                         title="Load all available comments">
                         Load all
