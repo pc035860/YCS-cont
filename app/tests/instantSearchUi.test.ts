@@ -6,6 +6,7 @@ import { mergeInstantPageResults } from '../src/source/web-resources/search/inst
 import {
     bindInstantDegradedCapture,
     buildInstantResultsStatusHtml,
+    buildUpgradeCompleteNotifyMessage,
     buildUpgradedStatusText,
     buildUpgradingStatusText,
     createPendingUpgradeStore,
@@ -76,6 +77,13 @@ test('buildUpgradingStatusText shows loaded count without percent', () => {
 
 test('buildUpgradedStatusText uses local found copy', () => {
     assert.equal(buildUpgradedStatusText(12), '(Comments) Found: 12');
+});
+
+test('buildUpgradeCompleteNotifyMessage reflects intent', () => {
+    assert.match(buildUpgradeCompleteNotifyMessage({ filterLabel: 'Heart' }), /applied Heart filter/);
+    assert.match(buildUpgradeCompleteNotifyMessage({ query: 'uk' }), /"uk"/);
+    assert.match(buildUpgradeCompleteNotifyMessage({ exportUnlocked: true }), /Export unlocked/);
+    assert.doesNotMatch(buildUpgradeCompleteNotifyMessage({ query: 'uk' }), /re-run locally/);
 });
 
 test('mergeInstantPageResults appends with sequential indexes', () => {

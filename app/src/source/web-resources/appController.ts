@@ -123,6 +123,7 @@ import {
     buildInstantZeroResultsStatusText,
     buildUpgradedStatusText,
     buildUpgradingStatusText,
+    buildUpgradeCompleteNotifyMessage,
     bindInstantDegradedCapture,
     createPendingUpgradeStore,
     INSTANT_SHOW_MORE_TOOLTIP,
@@ -740,18 +741,26 @@ export function initApp(): void {
                     setActiveFilterByElement(paramKey, filterEl ?? undefined);
                 }
                 executeSearchBasedOnType(intent.filterParam);
+
+                const filterLabel = (filterEl?.textContent || '').replace(/\s+/g, ' ').trim() || paramKey || 'selected';
+                showInstantNotifyMessage(
+                    buildUpgradeCompleteNotifyMessage({
+                        filterLabel,
+                        exportUnlocked: Boolean(intent.exportIntent)
+                    })
+                );
             } else {
                 executeSearchBasedOnType();
+                showInstantNotifyMessage(
+                    buildUpgradeCompleteNotifyMessage({
+                        query: savedQuery,
+                        exportUnlocked: Boolean(intent?.exportIntent)
+                    })
+                );
             }
 
             const localCount = getSearchCounts(state).comments;
             updateTotalResultDisplay(buildUpgradedStatusText(localCount));
-
-            let notifyMessage = 'All comments loaded — search re-run locally.';
-            if (intent?.exportIntent) {
-                notifyMessage += ' Export unlocked — use save ▾ to export the full archive.';
-            }
-            showInstantNotifyMessage(notifyMessage);
 
             if (intent?.openCommentsWindow) {
                 const comments = getComments(state);
@@ -798,10 +807,25 @@ export function initApp(): void {
             }
         };
 
-        const showInstantNotifyMessage = (message: string): void => {
+        let instantNotifyClearTimer: ReturnType<typeof setTimeout> | undefined;
+
+        const showInstantNotifyMessage = (message: string, options?: { autoClearMs?: number }): void => {
             const notify = document.querySelector('.ycs_notify_box') as HTMLElement | null;
             if (!notify) return;
+            if (instantNotifyClearTimer !== undefined) {
+                clearTimeout(instantNotifyClearTimer);
+                instantNotifyClearTimer = undefined;
+            }
             notify.textContent = message;
+            const autoClearMs = options?.autoClearMs ?? 8000;
+            if (autoClearMs > 0) {
+                instantNotifyClearTimer = setTimeout(() => {
+                    if (notify.textContent === message) {
+                        notify.textContent = '';
+                    }
+                    instantNotifyClearTimer = undefined;
+                }, autoClearMs);
+            }
         };
 
         const removeInstantShowMore = (): void => {

@@ -131,6 +131,26 @@ export function buildUpgradedStatusText(count: number): string {
     return `(Comments) Found: ${count}`;
 }
 
+export function buildUpgradeCompleteNotifyMessage(options?: {
+    filterLabel?: string;
+    query?: string;
+    exportUnlocked?: boolean;
+}): string {
+    const query = options?.query?.trim();
+    let message: string;
+    if (options?.filterLabel) {
+        message = `All comments loaded — applied ${options.filterLabel} filter locally.`;
+    } else if (query) {
+        message = `All comments loaded — showing local results for "${query}".`;
+    } else {
+        message = 'All comments loaded — showing local results.';
+    }
+    if (options?.exportUnlocked) {
+        message += ' Export unlocked — use save ▾ to export the full archive.';
+    }
+    return message;
+}
+
 export const UPGRADE_MODAL_TITLE = 'Load all comments?';
 
 export const UPGRADE_MODAL_MESSAGE =
