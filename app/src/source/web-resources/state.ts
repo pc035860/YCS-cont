@@ -29,6 +29,17 @@ export interface LiveRecordingState {
     recoveryAttempts: number; // Number of recovery attempts since last success
 }
 
+export type CommentsDataSource = 'none' | 'cache' | 'innertube' | 'ytapi_full' | 'ytapi_instant';
+
+export interface RemoteSearchSession {
+    active: boolean;
+    query: string;
+    results: CommentItem[];
+    pageToken?: string;
+    hasMore: boolean;
+    quotaUsed: number;
+}
+
 export interface WebResourcesState {
     comments: CommentItem[];
     commentsChat: Map<number, ChatItem>;
@@ -41,6 +52,8 @@ export interface WebResourcesState {
     countSearch: CountBuckets;
     controller: AbortController;
     liveRecording: LiveRecordingState;
+    remoteSearch: RemoteSearchSession;
+    commentsDataSource: CommentsDataSource;
 }
 
 function createCounts(): CountBuckets {
@@ -71,6 +84,16 @@ function createLiveRecordingState(): LiveRecordingState {
     };
 }
 
+export function createInitialRemoteSearch(): RemoteSearchSession {
+    return {
+        active: false,
+        query: '',
+        results: [],
+        hasMore: false,
+        quotaUsed: 0
+    };
+}
+
 export function createState(): WebResourcesState {
     return {
         comments: [],
@@ -83,7 +106,9 @@ export function createState(): WebResourcesState {
         count: createCounts(),
         countSearch: createCounts(),
         controller: new AbortController(),
-        liveRecording: createLiveRecordingState()
+        liveRecording: createLiveRecordingState(),
+        remoteSearch: createInitialRemoteSearch(),
+        commentsDataSource: 'none'
     };
 }
 
@@ -271,5 +296,34 @@ export function setChatSource(state: WebResourcesState, chatSource?: ChatSource)
     return {
         ...state,
         chatSource
+    };
+}
+
+export function getRemoteSearch(state: WebResourcesState): RemoteSearchSession {
+    return state.remoteSearch;
+}
+
+export function setRemoteSearch(state: WebResourcesState, remoteSearch: RemoteSearchSession): WebResourcesState {
+    return {
+        ...state,
+        remoteSearch
+    };
+}
+
+export function resetRemoteSearch(state: WebResourcesState): WebResourcesState {
+    return setRemoteSearch(state, createInitialRemoteSearch());
+}
+
+export function getCommentsDataSource(state: WebResourcesState): CommentsDataSource {
+    return state.commentsDataSource;
+}
+
+export function setCommentsDataSource(
+    state: WebResourcesState,
+    commentsDataSource: CommentsDataSource
+): WebResourcesState {
+    return {
+        ...state,
+        commentsDataSource
     };
 }

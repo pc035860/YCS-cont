@@ -104,8 +104,18 @@ import {
     setLiveRecording,
     resetLiveRecording,
     getChatSource,
-    setChatSource
+    setChatSource,
+    resetRemoteSearch,
+    setCommentsDataSource
 } from './state';
+import { isInstantBrowseMode, shouldSkipAutoload, shouldUseInstantSearch } from './search/instantSearchGate';
+import {
+    abortInFlightCommentLoad,
+    buildInstantStatusText,
+    getInstantResultAccessor,
+    InstantSearchQuotaError,
+    runInstantCommentSearch
+} from './search/instantCommentsSearch';
 import {
     FILTER_BUTTONS,
     FilterButtonRegistry,
@@ -602,6 +612,89 @@ export function initApp(): void {
             return inputSearch?.value ?? '';
         };
 
+        const DEFAULT_SEARCH_PLACEHOLDER = 'Search';
+
+        const syncInstantSearchPlaceholder = (): void => {
+            const inputSearch = document.getElementById('ycs-input-search') as HTMLInputElement | null;
+            if (!inputSearch) return;
+            if (isInstantBrowseMode(state)) {
+                inputSearch.placeholder = 'Search (instant via YouTube API)';
+            } else {
+                inputSearch.placeholder = DEFAULT_SEARCH_PLACEHOLDER;
+            }
+        };
+
+        const showInstantNotifyMessage = (message: string): void => {
+            const notify = document.querySelector('.ycs_notify_box') as HTMLElement | null;
+            if (!notify) return;
+            notify.textContent = message;
+        };
+
+        const runInstantCommentsFlow = async (
+            selector: string,
+            query: string,
+            param?: IParamSearch
+        ): Promise<boolean> => {
+            const trimmed = query.trim();
+            if (!trimmed) {
+                if (isInstantBrowseMode(state)) {
+                    updateTotalResultDisplay(buildInstantStatusText('', 0));
+                    return true;
+                }
+                const result = runCommentsPipeline(selector, query, param);
+                updateTotalResultDisplay(result.summary);
+                return false;
+            }
+
+            if (!shouldUseInstantSearch(query, state)) {
+                const result = runCommentsPipeline(selector, query, param);
+                updateTotalResultDisplay(result.summary);
+                return false;
+            }
+
+            const videoId = getVideoId(window.location.href);
+            if (!videoId) {
+                updateTotalResultDisplay('(Comments) Found: 0');
+                return true;
+            }
+
+            state = abortInFlightCommentLoad(state);
+            state = clearComments(state);
+
+            const searchBtn = document.getElementById('ycs_btn_search') as HTMLButtonElement | null;
+            if (searchBtn) searchBtn.disabled = true;
+            updateTotalResultDisplay('Searching YouTube…');
+
+            try {
+                const outcome = await runInstantCommentSearch(query, state, { videoId });
+                state = outcome.state;
+                const stateAccessor = getInstantResultAccessor(state);
+                renderCommentsResult(selector, outcome.result, { stateAccessor });
+                state = setSearchCount(state, 'comments', outcome.result.total);
+
+                const commentsContainer = document.getElementById('ycs_wrap_comments');
+                if (commentsContainer instanceof HTMLElement) {
+                    registerCommentInteractions(commentsContainer, stateAccessor, () => query);
+                }
+
+                updateTotalResultDisplay(outcome.statusText);
+                return true;
+            } catch (error) {
+                if (error instanceof InstantSearchQuotaError) {
+                    showInstantNotifyMessage(error.message);
+                    updateTotalResultDisplay(error.message);
+                } else if (error instanceof DOMException && error.name === 'AbortError') {
+                    updateTotalResultDisplay('');
+                } else {
+                    console.error('[YCS] Instant search failed:', error);
+                    updateTotalResultDisplay('Instant search failed. Try Load all or search again.');
+                }
+                return true;
+            } finally {
+                if (searchBtn) searchBtn.disabled = false;
+            }
+        };
+
         const setActiveFilterByElement = (param: FilterParamKey | null, el?: HTMLElement): void => {
             try {
                 FILTER_BUTTONS.forEach(({ elementId }) => {
@@ -679,8 +772,7 @@ export function initApp(): void {
 
             switch (selected) {
                 case 'comments': {
-                    const result = runCommentsPipeline('#ycs-search-result', query, param);
-                    updateTotalResultDisplay(result.summary);
+                    void runInstantCommentsFlow('#ycs-search-result', query, param);
                     break;
                 }
                 case 'chat': {
@@ -695,7 +787,7 @@ export function initApp(): void {
                 }
                 case 'all':
                 default: {
-                    searchCommentsAll('#ycs-search-result', param);
+                    void searchCommentsAll('#ycs-search-result', param);
                     break;
                 }
             }
@@ -831,6 +923,7 @@ export function initApp(): void {
                 const startPostId = getPostId(startUrl);
 
                 state = clearComments(state);
+                state = resetRemoteSearch(state);
                 const comments = getComments(state);
 
                 const currentTarget = e.currentTarget as HTMLButtonElement;
@@ -997,6 +1090,14 @@ export function initApp(): void {
 
                     if (comments.length > 0) {
                         state = setCount(state, 'comments', comments.length);
+                        state = setCommentsDataSource(
+                            state,
+                            GlobalStore.hasYoutubeApiKey && GlobalStore.youtubeApiEnabled !== false
+                                ? 'ytapi_full'
+                                : 'innertube'
+                        );
+                        state = resetRemoteSearch(state);
+                        syncInstantSearchPlaceholder();
                     }
 
                     const counts = getCounts(state);
@@ -1580,7 +1681,7 @@ export function initApp(): void {
 
             return result;
         };
-        const searchCommentsAll = (selector: string, param?: IParamSearch): void => {
+        const searchCommentsAll = async (selector: string, param?: IParamSearch): Promise<void> => {
             const elSearchAll = document.querySelector(selector);
             const comments = getComments(state);
             const commentsChat = getCommentsChat(state);
@@ -1618,10 +1719,17 @@ export function initApp(): void {
 
             state = resetSearchCounts(state);
 
+            let usedInstantComments = false;
+
             try {
                 if (comments.length > 0) {
                     elSearchAll?.appendChild(elWrapComments);
                     runCommentsPipeline('#ycs_allsearch__wrap_comments', query, param);
+                } else if (shouldUseInstantSearch(query, state)) {
+                    elSearchAll?.appendChild(elWrapComments);
+                    usedInstantComments = await runInstantCommentsFlow('#ycs_allsearch__wrap_comments', query, param);
+                } else if (!query.trim() && isInstantBrowseMode(state)) {
+                    usedInstantComments = await runInstantCommentsFlow('#ycs_allsearch__wrap_comments', query, param);
                 }
 
                 if (shouldRenderChat && commentsChat.size > 0) {
@@ -1663,7 +1771,14 @@ export function initApp(): void {
                 } else {
                     resultText = `(All) Found: ${resTotalSearch}`;
                 }
-                updateTotalResultDisplay(resultText);
+
+                const hasOtherSources =
+                    (shouldRenderChat && commentsChat.size > 0) ||
+                    (shouldRenderTranscript && getCueGroupCount(commentsTrVideo) > 0);
+
+                if (!usedInstantComments || hasOtherSources) {
+                    updateTotalResultDisplay(resultText);
+                }
             } catch (err) {
                 console.error(err);
             }
@@ -1703,6 +1818,7 @@ export function initApp(): void {
 
                 const optAutoload = (value: boolean): void => {
                     if (value === true) {
+                        if (shouldSkipAutoload()) return;
                         GlobalStore.autoload = true;
                         elLoadAll?.click();
                     }
@@ -1710,6 +1826,7 @@ export function initApp(): void {
 
                 const wrapOptAutoload = (value: boolean, opts: IYCSOptions): void => {
                     if (!opts.cache) {
+                        if (value && shouldSkipAutoload(opts)) return;
                         optAutoload(value);
                     }
                 };
@@ -1812,6 +1929,12 @@ export function initApp(): void {
                     if (typeof opts.youtubeApiEnabled !== 'undefined') {
                         GlobalStore.youtubeApiEnabled = Boolean(opts.youtubeApiEnabled);
                     }
+                    if (typeof opts.youtubeApiInstantSearch !== 'undefined') {
+                        GlobalStore.youtubeApiInstantSearch = opts.youtubeApiInstantSearch !== false;
+                    } else {
+                        GlobalStore.youtubeApiInstantSearch = true;
+                    }
+                    syncInstantSearchPlaceholder();
                     if (typeof opts.transcriptLanguage !== 'undefined') {
                         state = setSelectedTranscriptLanguage(
                             state,
@@ -1926,6 +2049,9 @@ export function initApp(): void {
                         console.error(err);
                     }
                     state = setComments(state, cachedComments);
+                    state = setCommentsDataSource(state, 'cache');
+                    state = resetRemoteSearch(state);
+                    syncInstantSearchPlaceholder();
 
                     const chatEntries = JSON.parse(body.commentsChat || '[]') as Array<[number, ChatItem]>;
                     state = setCommentsChat(state, new Map<number, ChatItem>(chatEntries));
@@ -2004,11 +2130,16 @@ export function initApp(): void {
                     updateTitleCount(totalCount);
                     appendCachedInfoToCounters(crdate);
                 } else {
-                    window.postMessage({ type: 'YCS_AUTOLOAD' }, window.location.origin);
+                    if (!shouldSkipAutoload()) {
+                        window.postMessage({ type: 'YCS_AUTOLOAD' }, window.location.origin);
+                    } else {
+                        syncInstantSearchPlaceholder();
+                    }
                 }
             }
 
             if (e.data?.type === 'YCS_AUTOLOAD') {
+                if (shouldSkipAutoload()) return;
                 GlobalStore.autoload = true;
                 elLoadAll?.click();
             }

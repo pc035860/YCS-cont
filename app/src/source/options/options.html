@@ -17,7 +17,7 @@
       <div class="ycs_inner_wrap">
         <h1>Options</h1>
 
-        <div>
+        <div id="y_opts_autoload_wrap">
           <label for="y_opts_autoload">Autoloading comments:</label>
           <input type="checkbox" name="Autoloading comments" id="y_opts_autoload" class="ycs_opts_checkbox" />
 
@@ -274,6 +274,16 @@
                 type="checkbox"
                 name="Enable YouTube Data API"
                 id="y_opts_youtube_api_enabled"
+                class="ycs_opts_checkbox"
+                checked
+              />
+            </div>
+            <div class="ycs_api_enable_control">
+              <label for="y_opts_youtube_api_instant_search">Instant search:</label>
+              <input
+                type="checkbox"
+                name="Instant search before full load"
+                id="y_opts_youtube_api_instant_search"
                 class="ycs_opts_checkbox"
                 checked
               />

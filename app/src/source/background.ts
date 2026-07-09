@@ -10,6 +10,7 @@ import {
 } from './utils/youtubeDataApi/client';
 import { transformThreadToCommentItems, transformReplyToCommentItem } from './utils/youtubeDataApi/transform';
 import { fetchCommentSearchPage } from './utils/youtubeDataApi/search';
+import { shouldSkipAutoloadFromStorage } from './web-resources/search/instantSearchGate';
 
 // Track active YouTube API requests for abort handling
 interface ActiveRequest {
@@ -365,11 +366,17 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
                         body: cache.body
                     });
                 } else {
-                    const opts = await chrome.storage.local.get('autoload');
+                    const opts = await chrome.storage.local.get([
+                        'autoload',
+                        'youtubeApiKey',
+                        'youtubeApiEnabled',
+                        'youtubeApiInstantSearch'
+                    ]);
 
                     if (opts.autoload) {
-                        // console.log('sender TAB NO CACHE! sendMessage AUTOLOAD');
-                        chrome.tabs.sendMessage(sender.tab?.id as number, { type: 'YCS_AUTOLOAD' });
+                        if (!shouldSkipAutoloadFromStorage(opts)) {
+                            chrome.tabs.sendMessage(sender.tab?.id as number, { type: 'YCS_AUTOLOAD' });
+                        }
                     }
                 }
             }

@@ -117,7 +117,8 @@ const DEBUG = false;
                             const { youtubeApiKey, ...safeOpts } = opts;
                             const sanitizedOpts = {
                                 ...safeOpts,
-                                hasYoutubeApiKey: !!(youtubeApiKey as string)?.trim()
+                                hasYoutubeApiKey: !!(youtubeApiKey as string)?.trim(),
+                                youtubeApiInstantSearch: safeOpts.youtubeApiInstantSearch !== false
                             };
 
                             window.postMessage({ type: 'YCS_OPTIONS', text: sanitizedOpts }, window.location.origin);
