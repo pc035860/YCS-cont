@@ -11,6 +11,12 @@ const eligibleFlags = {
     youtubeApiInstantSearch: true
 };
 
+const eligibleEnableOff = {
+    hasYoutubeApiKey: true,
+    youtubeApiEnabled: false,
+    youtubeApiInstantSearch: true
+};
+
 function makeComment(id: string): CommentItem {
     return {
         typeComment: 'C',
@@ -39,10 +45,16 @@ test('shouldUseInstantSearch: not eligible when instant flags off', () => {
     );
 });
 
+test('shouldUseInstantSearch: Enable OFF still uses instant when key + Instant ON', () => {
+    const state = createState();
+    assert.equal(shouldUseInstantSearch('hello', state, eligibleEnableOff), true);
+});
+
 test('shouldUseInstantSearch: full archive present uses local Fuse', () => {
     let state = createState();
     state = setComments(state, [makeComment('c1')]);
     assert.equal(shouldUseInstantSearch('hello', state, eligibleFlags), false);
+    assert.equal(shouldUseInstantSearch('hello', state, eligibleEnableOff), false);
 });
 
 test('shouldUseInstantSearch: eligible with query and no comments', () => {
@@ -50,6 +62,7 @@ test('shouldUseInstantSearch: eligible with query and no comments', () => {
     assert.equal(shouldUseInstantSearch('hello', state, eligibleFlags), true);
 });
 
-test('instantEligible: missing youtubeApiInstantSearch treated as enabled', () => {
+test('instantEligible: missing youtubeApiInstantSearch treated as enabled; Enable ignored', () => {
     assert.equal(instantEligible({ hasYoutubeApiKey: true, youtubeApiEnabled: true }), true);
+    assert.equal(instantEligible({ hasYoutubeApiKey: true, youtubeApiEnabled: false }), true);
 });

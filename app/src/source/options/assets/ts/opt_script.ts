@@ -310,11 +310,18 @@ window.onload = async (): Promise<void> => {
             const modeValue = document.getElementById('ycs_api_mode_value') as HTMLElement | null;
             if (!modeValue) return;
 
-            const hasKey = currentApiKey && currentApiKey.trim();
-            const isEnabled = currentApiEnabled && hasKey;
+            const hasKey = Boolean(currentApiKey && currentApiKey.trim());
+            const fullLoadViaDataApi = hasKey && currentApiEnabled;
+            const instantOn = currentInstantSearch !== false;
 
-            if (isEnabled) {
-                modeValue.textContent = 'YouTube Data API';
+            if (fullLoadViaDataApi) {
+                modeValue.textContent = instantOn
+                    ? 'YouTube Data API (full load + Instant)'
+                    : 'YouTube Data API (full load)';
+                modeValue.classList.add('youtube-api');
+                modeValue.classList.remove('disabled');
+            } else if (hasKey && instantOn) {
+                modeValue.textContent = 'Innertube load + Instant search';
                 modeValue.classList.add('youtube-api');
                 modeValue.classList.remove('disabled');
             } else if (hasKey && !currentApiEnabled) {

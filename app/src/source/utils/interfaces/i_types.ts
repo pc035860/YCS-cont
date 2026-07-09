@@ -337,8 +337,8 @@ export interface IYCSOptions {
     transcriptLanguage?: string;
     youtubeApiKey?: string; // Empty = use Innertube; Filled = use YouTube Data API (storage only)
     hasYoutubeApiKey?: boolean; // Flag exposed to web page (API key never exposed)
-    youtubeApiEnabled?: boolean; // Enable YouTube Data API (default: true, requires API key)
-    youtubeApiInstantSearch?: boolean; // Instant search before full load (default: true when API key present)
+    youtubeApiEnabled?: boolean; // Enable Data API for full comment load (default: true; Instant search does not require this)
+    youtubeApiInstantSearch?: boolean; // Instant search before full load (default: true when API key present; independent of youtubeApiEnabled)
     autoExpandReplyContext?: boolean; // Auto-expand parent comment chain for reply results
 }
 

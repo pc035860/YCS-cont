@@ -238,13 +238,14 @@ When YouTube Data API instant search is enabled, search behavior before a full c
 Instant search runs only when **all** of the following are true:
 
 1. `hasYoutubeApiKey === true`
-2. `youtubeApiEnabled === true`
-3. `youtubeApiInstantSearch === true` (default `true`)
-4. No loaded or cached comments exist for the current video
-5. `Q` is non-empty after trim
-6. Search category is `comments`, or the comments segment of `all`
+2. `youtubeApiInstantSearch === true` (default `true`)
+3. No loaded or cached comments exist for the current video
+4. `Q` is non-empty after trim
+5. Search category is `comments`, or the comments segment of `all`
 
-When any condition fails, search follows existing full-cache / local rules.
+`youtubeApiEnabled` does **not** gate Instant Search. It only chooses Data API vs Innertube for **full comment load** (Load all / autoload full fetch). Instant can run with Enable OFF (Innertube full load + Data API `searchTerms`).
+
+When any Instant eligibility condition fails, search follows existing full-cache / local rules.
 
 Cache hit always uses local search. The instant path is never used when full comment data already exists for the current video.
 
@@ -265,12 +266,12 @@ Typing and Backspace-to-empty must not trigger API calls. Search refresh require
 
 ### 12.3 Autoload Suppression (MUST)
 
-When instant mode is eligible and the comment cache misses, autoload must not fire even when `autoload: true` is set in options.
+When instant mode is eligible (`hasYoutubeApiKey` + Instant ON; Enable irrelevant) and the comment cache misses, autoload must not fire even when `autoload: true` is set in options.
 
 | Autoload option | Instant search option | Cache | Behavior |
 | --- | --- | --- | --- |
-| ON | OFF | miss | Auto full load (current behavior) |
-| ON | ON | miss | No auto load; search-ready state |
+| ON | OFF | miss | Auto full load (current behavior; Data API or Innertube per Enable) |
+| ON | ON | miss | No auto load; search-ready state (Enable does not matter) |
 | OFF | any | miss | Manual load only |
 | any | any | hit | Restore from IndexedDB unchanged |
 

@@ -13,7 +13,8 @@ export function resolveInstantSearchEnabled(flags: InstantSearchFlags): boolean 
 }
 
 export function instantEligible(flags: InstantSearchFlags = GlobalStore): boolean {
-    return Boolean(flags.hasYoutubeApiKey) && flags.youtubeApiEnabled !== false && resolveInstantSearchEnabled(flags);
+    // Instant search needs an API key only. youtubeApiEnabled gates full Data API load, not SEARCH.
+    return Boolean(flags.hasYoutubeApiKey) && resolveInstantSearchEnabled(flags);
 }
 
 export function shouldSkipAutoload(flags: InstantSearchFlags = GlobalStore): boolean {

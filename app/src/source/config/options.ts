@@ -12,9 +12,9 @@ const options = {
     enableShortsSupport: true,
     transcriptLanguage: '',
     maxComments: 500000,
-    youtubeApiKey: '', // Empty = use Innertube (default); Filled = use YouTube Data API
-    youtubeApiEnabled: true, // Enable YouTube Data API (requires API key to take effect)
-    youtubeApiInstantSearch: true,
+    youtubeApiKey: '', // Empty = no Data API; Filled = key available for Instant and/or full load
+    youtubeApiEnabled: true, // Enable Data API for full comment load (requires API key; independent of Instant)
+    youtubeApiInstantSearch: true, // Instant searchTerms before load (requires API key; independent of Enable)
     filterButtons: [
         { id: 'ycs_btn_timestamps', enabled: true },
         { id: 'ycs_btn_timestamp_viz', enabled: true },

@@ -210,6 +210,8 @@ Example (last chunk with metadata):
 
 Fetches one page of `commentThreads.list` with `searchTerms` (`part=snippet,replies`, `maxResults=100`, `textFormat=html`). Cost: ~1 quota unit per page.
 
+**Auth:** background requires a non-empty `youtubeApiKey` only. `youtubeApiEnabled` does **not** apply to SEARCH — that flag gates full `YCS_YT_API_COMMENTS_START` load only. Instant search can run while full load still uses Innertube.
+
 Example:
 
 ```json
@@ -301,6 +303,7 @@ Background-level safety:
 - Content script strips `youtubeApiKey` before sending options to web page.
 - Web page receives only `hasYoutubeApiKey` flag and uses messaging APIs.
 - Instant search preserves the same boundary: the API key is read from `chrome.storage.local` in background only; the page side never receives the key and only sees the derived `hasYoutubeApiKey` boolean.
+- Instant SEARCH preflight requires a non-empty API key only. Full COMMENTS load still requires key + `youtubeApiEnabled`.
 
 ---
 

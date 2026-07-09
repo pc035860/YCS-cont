@@ -202,8 +202,9 @@ Do not merge these semantics.
 
 ### 10) Instant Search gates Autoload; does not replace it
 
-- Do NOT remove Autoload globally. When instant-eligible, suppress autoload on cache miss via `shouldSkipAutoload` at all four triggers.
+- Do NOT remove Autoload globally. When instant-eligible (API key + Instant ON; **Enable irrelevant**), suppress autoload on cache miss via `shouldSkipAutoload` at all four triggers.
 - Autoload ON + instant OFF still auto-loads full comments.
+- Instant ≠ Enable: Instant uses Data API `searchTerms`; Enable only chooses Data API vs Innertube for **full** Load all.
 
 ### 11) Instant empty query makes no API call
 
@@ -247,7 +248,7 @@ Canonical behavior baseline doc:
 
 3. Reply origin chain auto-expand via `autoExpandReplyContext` + `postBatchHook` (`ui/originChain.ts`); default off; jsdom for DOM tests
 
-4. Instant Search (Option B): YouTube Data API `commentThreads.list?searchTerms=` when API key + `youtubeApiInstantSearch` and no full comments loaded
+4. Instant Search (Option B): YouTube Data API `commentThreads.list?searchTerms=` when API key + `youtubeApiInstantSearch` and no full comments loaded (Enable/`youtubeApiEnabled` is independent — gates full Data API load only)
 - Results live in `remoteSearch`; never overwrite `state.comments`
 - Details: `filter-search-behavior-regression-spec.md` §12; SEARCH types in `youtube-data-api-messaging.md`
 

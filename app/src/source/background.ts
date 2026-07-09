@@ -489,16 +489,16 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
             return;
         }
 
-        const opts = await chrome.storage.local.get(['youtubeApiKey', 'youtubeApiEnabled']);
+        // Instant SEARCH uses the API key only; youtubeApiEnabled gates full COMMENTS load.
+        const opts = await chrome.storage.local.get(['youtubeApiKey']);
         const apiKey = (opts.youtubeApiKey as string)?.trim();
-        const apiEnabled = opts.youtubeApiEnabled !== false;
 
-        if (!apiKey || !apiEnabled) {
+        if (!apiKey) {
             chrome.tabs.sendMessage(tabId, {
                 type: 'YCS_YT_API_SEARCH_ERROR',
                 body: {
                     requestId,
-                    error: 'API key not configured or disabled',
+                    error: 'API key not configured',
                     isQuotaExceeded: false
                 }
             });

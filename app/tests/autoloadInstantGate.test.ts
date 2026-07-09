@@ -6,8 +6,7 @@ import {
     isInstantBrowseMode,
     resolveInstantSearchEnabled,
     shouldSkipAutoload,
-    shouldSkipAutoloadFromStorage,
-    shouldUseInstantSearch
+    shouldSkipAutoloadFromStorage
 } from '../src/source/web-resources/search/instantSearchGate';
 import { createState, setComments } from '../src/source/web-resources/state';
 import type { CommentItem } from '../src/source/utils/interfaces/i_types';
@@ -18,9 +17,13 @@ test('resolveInstantSearchEnabled: missing key defaults to true', () => {
     assert.equal(resolveInstantSearchEnabled({ youtubeApiInstantSearch: false }), false);
 });
 
-test('instantEligible: requires API key, enabled API, and instant flag', () => {
+test('instantEligible: requires API key and instant flag; Enable is irrelevant', () => {
     assert.equal(
         instantEligible({ hasYoutubeApiKey: true, youtubeApiEnabled: true, youtubeApiInstantSearch: true }),
+        true
+    );
+    assert.equal(
+        instantEligible({ hasYoutubeApiKey: true, youtubeApiEnabled: false, youtubeApiInstantSearch: true }),
         true
     );
     assert.equal(
@@ -28,22 +31,26 @@ test('instantEligible: requires API key, enabled API, and instant flag', () => {
         false
     );
     assert.equal(instantEligible({ hasYoutubeApiKey: false, youtubeApiEnabled: true }), false);
-    assert.equal(instantEligible({ hasYoutubeApiKey: true, youtubeApiEnabled: false }), false);
+    assert.equal(instantEligible({ hasYoutubeApiKey: true, youtubeApiEnabled: false }), true);
 });
 
-test('shouldSkipAutoload mirrors instantEligible', () => {
-    const eligible = { hasYoutubeApiKey: true, youtubeApiEnabled: true, youtubeApiInstantSearch: true };
+test('shouldSkipAutoload mirrors instantEligible (Enable OFF + Instant ON still skips)', () => {
+    const eligibleWithEnableOff = {
+        hasYoutubeApiKey: true,
+        youtubeApiEnabled: false,
+        youtubeApiInstantSearch: true
+    };
     const ineligible = { hasYoutubeApiKey: true, youtubeApiEnabled: true, youtubeApiInstantSearch: false };
 
-    assert.equal(shouldSkipAutoload(eligible), true);
+    assert.equal(shouldSkipAutoload(eligibleWithEnableOff), true);
     assert.equal(shouldSkipAutoload(ineligible), false);
 });
 
-test('shouldSkipAutoloadFromStorage: requires non-empty API key in storage', () => {
+test('shouldSkipAutoloadFromStorage: requires non-empty API key; Enable not required', () => {
     assert.equal(
         shouldSkipAutoloadFromStorage({
             youtubeApiKey: 'abc',
-            youtubeApiEnabled: true,
+            youtubeApiEnabled: false,
             youtubeApiInstantSearch: true
         }),
         true
@@ -77,7 +84,7 @@ function makeComment(id: string): CommentItem {
 }
 
 test('isInstantBrowseMode: eligible only when no comments loaded', () => {
-    const eligible = { hasYoutubeApiKey: true, youtubeApiEnabled: true, youtubeApiInstantSearch: true };
+    const eligible = { hasYoutubeApiKey: true, youtubeApiEnabled: false, youtubeApiInstantSearch: true };
     assert.equal(isInstantBrowseMode(createState(), eligible), true);
 
     let state = createState();
