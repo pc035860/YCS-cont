@@ -1,6 +1,7 @@
 import { iconSortDown, iconSortUp } from '../../utils/icons';
-import { IParamSearch, ISelectedSearch } from '../../utils/interfaces/i_types';
-import { resetSearchCounts, WebResourcesState } from '../state';
+import type { IParamSearch, ISelectedSearch } from '../../utils/interfaces/i_types';
+import { resetSearchCounts } from '../state';
+import type { WebResourcesState } from '../state';
 import { options } from '../../config/options';
 
 export type FilterParamKey = Exclude<keyof IParamSearch, 'sortOrder'>;

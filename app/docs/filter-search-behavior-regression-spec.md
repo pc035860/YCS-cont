@@ -278,7 +278,9 @@ When instant mode is eligible and the comment cache misses, autoload must not fi
 
 In instant mode, only plain text search is fully supported.
 
-Incompatible filters: `heart`, `verified`, `members`, `donated`, `random`, `timestampViz`, extended search, export/save.
+Incompatible filters: `heart`, `verified`, `members`, `donated`, `random`, `timestampViz`, `links`, `likes`, `replied`, `author`, `timestamp`, `sortFirst`, extended search, export/save.
+
+These controls are degraded in both active instant-result sessions and instant browse mode (eligible, no loaded comments yet), so the first click opens the upgrade modal.
 
 For each incompatible control:
 

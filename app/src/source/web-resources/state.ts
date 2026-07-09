@@ -29,15 +29,11 @@ export interface LiveRecordingState {
     recoveryAttempts: number; // Number of recovery attempts since last success
 }
 
-export type CommentsDataSource = 'none' | 'cache' | 'innertube' | 'ytapi_full' | 'ytapi_instant';
-
 export interface RemoteSearchSession {
     active: boolean;
     query: string;
     results: CommentItem[];
     pageToken?: string;
-    hasMore: boolean;
-    quotaUsed: number;
 }
 
 export interface WebResourcesState {
@@ -53,7 +49,6 @@ export interface WebResourcesState {
     controller: AbortController;
     liveRecording: LiveRecordingState;
     remoteSearch: RemoteSearchSession;
-    commentsDataSource: CommentsDataSource;
 }
 
 function createCounts(): CountBuckets {
@@ -88,9 +83,7 @@ export function createInitialRemoteSearch(): RemoteSearchSession {
     return {
         active: false,
         query: '',
-        results: [],
-        hasMore: false,
-        quotaUsed: 0
+        results: []
     };
 }
 
@@ -107,8 +100,7 @@ export function createState(): WebResourcesState {
         countSearch: createCounts(),
         controller: new AbortController(),
         liveRecording: createLiveRecordingState(),
-        remoteSearch: createInitialRemoteSearch(),
-        commentsDataSource: 'none'
+        remoteSearch: createInitialRemoteSearch()
     };
 }
 
@@ -312,18 +304,4 @@ export function setRemoteSearch(state: WebResourcesState, remoteSearch: RemoteSe
 
 export function resetRemoteSearch(state: WebResourcesState): WebResourcesState {
     return setRemoteSearch(state, createInitialRemoteSearch());
-}
-
-export function getCommentsDataSource(state: WebResourcesState): CommentsDataSource {
-    return state.commentsDataSource;
-}
-
-export function setCommentsDataSource(
-    state: WebResourcesState,
-    commentsDataSource: CommentsDataSource
-): WebResourcesState {
-    return {
-        ...state,
-        commentsDataSource
-    };
 }

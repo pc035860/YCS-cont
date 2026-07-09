@@ -1,7 +1,7 @@
 import type { CommentItem, ICommentsFuseResult } from '../../utils/interfaces/i_types';
 import { requestYouTubeApiCommentSearch } from '../handlers/youtubeDataApiHandler';
 import type { CommentsSearchResult } from './commentsSearch';
-import { buildInstantResultsStatusHtml } from './instantSearchUi';
+import { buildInstantResultsStatusHtml, buildInstantStatusText } from './instantSearchUi';
 import {
     createInitialRemoteSearch,
     getController,
@@ -9,7 +9,6 @@ import {
     resetController,
     resetRemoteSearch,
     setRemoteSearch,
-    setCommentsDataSource,
     type WebResourcesState
 } from '../state';
 
@@ -39,22 +38,11 @@ function toFuseResults(items: CommentItem[]): ICommentsFuseResult[] {
     }));
 }
 
-export function buildInstantStatusText(query: string, count: number): string {
-    const trimmed = query.trim();
-    if (!trimmed) {
-        return 'Type something to search instantly, or click Load all to browse every comment.';
-    }
-    if (count === 0) {
-        return `No instant matches for "${trimmed}". Try different words, or Load all for fuzzy search.`;
-    }
-    return `${count} matches for "${trimmed}" · Load all comments for filters & export`;
-}
-
 export async function runInstantCommentSearch(
     query: string,
     state: WebResourcesState,
     deps: InstantCommentSearchDeps
-): Promise<{ state: WebResourcesState; result: CommentsSearchResult; statusText: string }> {
+): Promise<{ state: WebResourcesState; result: CommentsSearchResult }> {
     const trimmed = query.trim();
     const controller = getController(state);
 
@@ -80,26 +68,26 @@ export async function runInstantCommentSearch(
         active: true,
         query: trimmed,
         results: indexedItems,
-        pageToken: response.nextPageToken,
-        hasMore: Boolean(response.nextPageToken),
-        quotaUsed: 1
+        pageToken: response.nextPageToken
     };
 
-    let nextState = setRemoteSearch(state, session);
-    nextState = setCommentsDataSource(nextState, 'ytapi_instant');
-
+    const nextState = setRemoteSearch(state, session);
     const result = buildInstantSearchResult(trimmed, indexedItems);
 
     return {
         state: nextState,
-        result,
-        statusText: result.summary
+        result
     };
 }
 
 export function abortInFlightCommentLoad(state: WebResourcesState): WebResourcesState {
     getController(state).abort();
     return resetRemoteSearch(resetController(state));
+}
+
+export function abortInFlightInstantSearch(state: WebResourcesState): WebResourcesState {
+    getController(state).abort();
+    return resetController(state);
 }
 
 export function mergeInstantPageResults(existing: CommentItem[], incoming: CommentItem[]): CommentItem[] {
@@ -118,7 +106,7 @@ export async function fetchNextInstantSearchPage(
     videoId: string
 ): Promise<{ state: WebResourcesState; appendedCount: number; statusHtml: string }> {
     const session = getRemoteSearch(state);
-    if (!session.active || !session.hasMore || !session.pageToken) {
+    if (!session.active || !session.pageToken) {
         return {
             state,
             appendedCount: 0,
@@ -148,9 +136,7 @@ export async function fetchNextInstantSearchPage(
     const nextSession = {
         ...session,
         results: merged,
-        pageToken: response.nextPageToken,
-        hasMore: Boolean(response.nextPageToken),
-        quotaUsed: session.quotaUsed + 1
+        pageToken: response.nextPageToken
     };
 
     const nextState = setRemoteSearch(state, nextSession);
@@ -170,11 +156,5 @@ export function buildInstantSearchResult(query: string, items: CommentItem[]): C
         summary: buildInstantStatusText(trimmed, fuseResults.length),
         query: trimmed,
         buttonStates: {}
-    };
-}
-
-export function getInstantResultAccessor(state: WebResourcesState): { getComments: () => CommentItem[] } {
-    return {
-        getComments: () => getRemoteSearch(state).results
     };
 }

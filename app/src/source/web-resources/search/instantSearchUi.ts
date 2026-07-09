@@ -1,28 +1,40 @@
+import { escapeHtml } from '../../utils/common';
 import type { IParamSearch } from '../../utils/interfaces/i_types';
 import type { ExportFormat } from '../services/exportService';
+import { FILTER_BUTTONS } from '../ui/filters';
 import type { FilterParamKey } from '../ui/filters';
 
 export const INSTANT_DEGRADED_TOOLTIP = 'Needs all comments loaded — click to load';
 
 export const INSTANT_SHOW_MORE_TOOLTIP = 'Fetch next page from YouTube (~1 quota unit)';
 
+/** Filters that need the full local archive — not supported by YouTube searchTerms alone. */
 export const DEGRADED_FILTER_PARAMS: FilterParamKey[] = [
     'heart',
     'verified',
     'members',
     'donated',
     'random',
-    'timestampViz'
+    'timestampViz',
+    'links',
+    'likes',
+    'replied',
+    'author',
+    'timestamp',
+    'sortFirst'
 ];
 
-export const DEGRADED_FILTER_ELEMENT_IDS: string[] = [
-    'ycs_btn_heart',
-    'ycs_btn_verified',
-    'ycs_btn_members',
-    'ycs_btn_donated',
-    'ycs_btn_random',
-    'ycs_btn_timestamp_viz'
-];
+export const DEGRADED_FILTERS: Array<{ elementId: string; param: FilterParamKey }> = DEGRADED_FILTER_PARAMS.map(
+    (param) => {
+        const config = FILTER_BUTTONS.find((entry) => entry.param === param);
+        if (!config) {
+            throw new Error(`Missing FILTER_BUTTONS entry for degraded filter: ${param}`);
+        }
+        return { elementId: config.elementId, param };
+    }
+);
+
+export const DEGRADED_FILTER_ELEMENT_IDS: string[] = DEGRADED_FILTERS.map((entry) => entry.elementId);
 
 export const DEGRADED_EXPORT_ELEMENT_IDS: string[] = ['ycs_save_all_comments'];
 
@@ -37,6 +49,8 @@ const DEGRADED_ELEMENT_IDS = [
 export interface PendingUpgradeIntent {
     filterParam?: IParamSearch;
     exportIntent?: { format: ExportFormat };
+    /** Enable `#ycs_extended_search` after upgrade (native toggle was blocked by capture). */
+    enableExtendedSearch?: boolean;
 }
 
 export interface PendingUpgradeStore {
@@ -80,9 +94,25 @@ export function buildInstantZeroResultsStatusText(query: string): string {
     return `No instant matches for "${trimmed}". Try different words, or Load all for fuzzy search.`;
 }
 
+export function buildInstantResultsStatusText(query: string, count: number): string {
+    const trimmed = query.trim();
+    return `${count} matches for "${trimmed}" · Load all comments for filters & export`;
+}
+
 export function buildInstantResultsStatusHtml(query: string, count: number): string {
     const trimmed = query.trim();
     return `<span class="ycs-instant-chip">⚡ Instant</span> ${count} matches for &quot;${escapeHtml(trimmed)}&quot; · <button type="button" class="ycs-instant-load-all-cta">Load all comments for filters &amp; export</button>`;
+}
+
+export function buildInstantStatusText(query: string, count: number): string {
+    const trimmed = query.trim();
+    if (!trimmed) {
+        return buildInstantEmptyQueryStatusText();
+    }
+    if (count === 0) {
+        return buildInstantZeroResultsStatusText(trimmed);
+    }
+    return buildInstantResultsStatusText(trimmed, count);
 }
 
 export function buildUpgradingStatusText(instantCount: number, progressPercent?: number): string {
@@ -121,6 +151,60 @@ export function syncInstantDegradedControls(active: boolean): void {
     }
 }
 
-function escapeHtml(value: string): string {
-    return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+export type InstantDegradedAction =
+    | { kind: 'filter'; elementId: string; param: FilterParamKey }
+    | { kind: 'export' }
+    | { kind: 'extended' };
+
+function asClosestElement(target: EventTarget | null): { closest(selectors: string): Element | null } | null {
+    if (!target || typeof (target as Element).closest !== 'function') return null;
+    return target as Element;
+}
+
+export function resolveInstantDegradedAction(target: EventTarget | null): InstantDegradedAction | null {
+    const element = asClosestElement(target);
+    if (!element) return null;
+
+    for (const { elementId, param } of DEGRADED_FILTERS) {
+        if (element.closest(`#${elementId}`)) {
+            return { kind: 'filter', elementId, param };
+        }
+    }
+
+    for (const elementId of DEGRADED_EXPORT_ELEMENT_IDS) {
+        if (element.closest(`#${elementId}`)) {
+            return { kind: 'export' };
+        }
+    }
+
+    if (element.closest(`#${DEGRADED_EXTENDED_SEARCH_ID}`)) {
+        return { kind: 'extended' };
+    }
+
+    return null;
+}
+
+export function bindInstantDegradedCapture(
+    root: HTMLElement,
+    options: {
+        isActive: () => boolean;
+        onAction: (action: InstantDegradedAction) => void;
+    }
+): void {
+    const flagged = root as HTMLElement & { __ycsInstantDegradedBound?: boolean };
+    if (flagged.__ycsInstantDegradedBound) return;
+    flagged.__ycsInstantDegradedBound = true;
+
+    root.addEventListener(
+        'click',
+        (event: Event) => {
+            if (!options.isActive()) return;
+            const action = resolveInstantDegradedAction(event.target);
+            if (!action) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            options.onAction(action);
+        },
+        true
+    );
 }

@@ -106,15 +106,14 @@ import {
     getChatSource,
     setChatSource,
     resetRemoteSearch,
-    setCommentsDataSource,
     getRemoteSearch
 } from './state';
 import { isInstantBrowseMode, shouldSkipAutoload, shouldUseInstantSearch } from './search/instantSearchGate';
 import {
     abortInFlightCommentLoad,
+    abortInFlightInstantSearch,
     buildInstantSearchResult,
     fetchNextInstantSearchPage,
-    getInstantResultAccessor,
     InstantSearchQuotaError,
     runInstantCommentSearch
 } from './search/instantCommentsSearch';
@@ -124,11 +123,10 @@ import {
     buildInstantZeroResultsStatusText,
     buildUpgradedStatusText,
     buildUpgradingStatusText,
+    bindInstantDegradedCapture,
     createPendingUpgradeStore,
-    DEGRADED_EXPORT_ELEMENT_IDS,
-    DEGRADED_EXTENDED_SEARCH_ID,
-    DEGRADED_FILTER_ELEMENT_IDS,
     INSTANT_SHOW_MORE_TOOLTIP,
+    isDegradedFilterParam,
     syncInstantDegradedControls,
     UPGRADE_EXPORT_MODAL_MESSAGE,
     UPGRADE_MODAL_MESSAGE,
@@ -605,8 +603,12 @@ export function initApp(): void {
         const pendingUpgrade = createPendingUpgradeStore();
         let instantUpgradeSnapshot: { query: string; matchCount: number } | null = null;
         let isUpgradingFromInstant = false;
+        let instantSearchGeneration = 0;
+        /** Bumped when a full comment load starts or is discarded for instant search. */
+        let commentLoadGeneration = 0;
 
         const isInstantSessionActive = (): boolean => getRemoteSearch(state).active;
+        const isInstantDegradedMode = (): boolean => isInstantSessionActive() || isInstantBrowseMode(state);
 
         const updateTotalResultDisplay = (text: string, forceShow = true): void => {
             const nodeTotalSearchResult = document.getElementById('ycs-search-total-result');
@@ -665,8 +667,9 @@ export function initApp(): void {
         };
 
         const clearInstantSessionUi = (options?: { clearResultsDom?: boolean }): void => {
+            instantSearchGeneration += 1;
             state = resetRemoteSearch(state);
-            syncInstantDegradedControls(false);
+            syncInstantDegradedControls(isInstantBrowseMode(state));
             removeInstantShowMore();
             if (options?.clearResultsDom) {
                 const elSearchRes = document.getElementById('ycs-search-result');
@@ -688,10 +691,18 @@ export function initApp(): void {
             if (intent) {
                 pendingUpgrade.set(intent);
             }
-            if (isInstantSessionActive()) {
+            // Active instant results OR browse-mode upgrade (degraded filter/export before first search).
+            if (isInstantSessionActive() || isInstantBrowseMode(state) || pendingUpgrade.peek()) {
                 const session = getRemoteSearch(state);
-                instantUpgradeSnapshot = { query: session.query, matchCount: session.results.length };
+                instantUpgradeSnapshot = {
+                    query: session.active ? session.query : getSearchQuery().trim(),
+                    matchCount: session.active ? session.results.length : 0
+                };
                 isUpgradingFromInstant = true;
+                instantSearchGeneration += 1;
+                if (session.active) {
+                    state = abortInFlightInstantSearch(state);
+                }
             }
             document.getElementById('ycs-load-all')?.click();
         };
@@ -712,6 +723,13 @@ export function initApp(): void {
             const inputSearch = document.getElementById('ycs-input-search') as HTMLInputElement | null;
             if (inputSearch && savedQuery) {
                 inputSearch.value = savedQuery;
+            }
+
+            if (intent?.enableExtendedSearch) {
+                const extendedToggle = document.getElementById('ycs_extended_search') as HTMLInputElement | null;
+                if (extendedToggle) {
+                    extendedToggle.checked = true;
+                }
             }
 
             if (intent?.filterParam) {
@@ -764,8 +782,12 @@ export function initApp(): void {
                 if (!isInstantSessionActive() && getSearchQuery().trim().length === 0) {
                     updateTotalResultDisplay('', false);
                 }
+                syncInstantDegradedControls(true);
             } else {
                 inputSearch.placeholder = DEFAULT_SEARCH_PLACEHOLDER;
+                if (!isInstantSessionActive()) {
+                    syncInstantDegradedControls(false);
+                }
             }
         };
 
@@ -779,10 +801,14 @@ export function initApp(): void {
             document.getElementById('ycs_instant_show_more')?.remove();
         };
 
+        const getInstantResultAccessor = (): { getComments: () => CommentItem[] } => ({
+            getComments: () => getRemoteSearch(state).results
+        });
+
         const renderInstantShowMore = (selector: string, query: string): void => {
             removeInstantShowMore();
             const session = getRemoteSearch(state);
-            if (!session.active || !session.hasMore) return;
+            if (!session.active || !session.pageToken) return;
 
             const target = document.querySelector(selector);
             const wrapper = target?.querySelector('#ycs_wrap_comments') ?? target;
@@ -805,11 +831,15 @@ export function initApp(): void {
                 const videoId = getVideoId(window.location.href);
                 if (!videoId) return;
 
+                const requestGeneration = instantSearchGeneration;
                 showMore.classList.add('ycs-instant-fetching');
                 button.textContent = 'Fetching…';
 
                 try {
                     const pageOutcome = await fetchNextInstantSearchPage(state, videoId);
+                    if (requestGeneration !== instantSearchGeneration) {
+                        return;
+                    }
                     state = pageOutcome.state;
                     if (pageOutcome.appendedCount === 0) {
                         removeInstantShowMore();
@@ -817,7 +847,7 @@ export function initApp(): void {
                     }
 
                     const refreshed = buildInstantSearchResult(query, getRemoteSearch(state).results);
-                    const stateAccessor = getInstantResultAccessor(state);
+                    const stateAccessor = getInstantResultAccessor();
                     renderCommentsResult(selector, refreshed, { stateAccessor });
                     state = setSearchCount(state, 'comments', refreshed.total);
 
@@ -836,7 +866,7 @@ export function initApp(): void {
                     }
                 } finally {
                     showMore.classList.remove('ycs-instant-fetching');
-                    if (getRemoteSearch(state).hasMore) {
+                    if (getRemoteSearch(state).pageToken) {
                         button.textContent = 'Show more instant results';
                     }
                 }
@@ -874,6 +904,9 @@ export function initApp(): void {
 
             state = abortInFlightCommentLoad(state);
             state = clearComments(state);
+            instantSearchGeneration += 1;
+            // Invalidate any in-flight full-load completion so partial archive cannot overwrite instant results.
+            commentLoadGeneration += 1;
 
             const searchBtn = document.getElementById('ycs_btn_search') as HTMLButtonElement | null;
             if (searchBtn) searchBtn.disabled = true;
@@ -882,7 +915,7 @@ export function initApp(): void {
             try {
                 const outcome = await runInstantCommentSearch(query, state, { videoId });
                 state = outcome.state;
-                const stateAccessor = getInstantResultAccessor(state);
+                const stateAccessor = getInstantResultAccessor();
                 renderCommentsResult(selector, outcome.result, { stateAccessor });
                 state = setSearchCount(state, 'comments', outcome.result.total);
 
@@ -899,7 +932,7 @@ export function initApp(): void {
                     updateTotalResultDisplay(buildInstantZeroResultsStatusText(trimmed));
                 }
 
-                syncInstantDegradedControls(true);
+                syncInstantDegradedControls(isInstantDegradedMode());
                 return true;
             } catch (error) {
                 if (error instanceof InstantSearchQuotaError) {
@@ -911,7 +944,7 @@ export function initApp(): void {
                     console.error('[YCS] Instant search failed:', error);
                     updateTotalResultDisplay('Instant search failed. Try Load all or search again.');
                 }
-                syncInstantDegradedControls(false);
+                syncInstantDegradedControls(isInstantDegradedMode());
                 removeInstantShowMore();
                 return true;
             } finally {
@@ -982,9 +1015,19 @@ export function initApp(): void {
             searchIntentState.markSearchExecuted();
             syncShortsFooterBySearchState({ debounceResync: true });
 
-            if (param?.timestampViz && isInstantSessionActive()) {
-                void promptInstantUpgrade(UPGRADE_MODAL_MESSAGE, { filterParam: { timestampViz: true } });
-                return;
+            if (param && isInstantDegradedMode()) {
+                const filterKey = (Object.keys(param) as Array<keyof IParamSearch>).find(
+                    (key) => key !== 'sortOrder' && param[key]
+                );
+                if (
+                    filterKey &&
+                    filterKey !== 'quickChat' &&
+                    filterKey !== 'quickTranscript' &&
+                    isDegradedFilterParam(filterKey as FilterParamKey)
+                ) {
+                    void promptInstantUpgrade(UPGRADE_MODAL_MESSAGE, { filterParam: param });
+                    return;
+                }
             }
 
             // Special handling for timestampViz
@@ -1100,56 +1143,33 @@ export function initApp(): void {
                 (clearButton as any).__ycsClearHandler = clearHandler;
                 clearButton.addEventListener('click', clearHandler);
             }
+
+            syncInstantDegradedControls(isInstantDegradedMode());
         };
 
         initFilterButtons();
 
-        const registerInstantDegradedHandlers = (): void => {
-            const attachCapture = (elementId: string, handler: (event: Event) => void): void => {
-                const element = document.getElementById(elementId);
-                if (!element) return;
-
-                const prior = (element as HTMLElement & { __ycsInstantCapture?: (event: Event) => void })
-                    .__ycsInstantCapture;
-                if (prior) {
-                    element.removeEventListener('click', prior, true);
+        const elLiveApp = document.getElementsByClassName('ycs-app')[0];
+        if (elLiveApp instanceof HTMLElement) {
+            bindInstantDegradedCapture(elLiveApp, {
+                isActive: isInstantDegradedMode,
+                onAction: (action) => {
+                    if (action.kind === 'filter') {
+                        const filterParam = { [action.param]: true } as IParamSearch;
+                        void promptInstantUpgrade(UPGRADE_MODAL_MESSAGE, { filterParam });
+                        return;
+                    }
+                    if (action.kind === 'export') {
+                        void promptInstantUpgrade(UPGRADE_EXPORT_MODAL_MESSAGE, {
+                            exportIntent: { format: EXPORT_FORMAT.TXT }
+                        });
+                        return;
+                    }
+                    void promptInstantUpgrade(UPGRADE_MODAL_MESSAGE, { enableExtendedSearch: true });
                 }
-
-                const captureHandler = (event: Event) => {
-                    if (!isInstantSessionActive()) return;
-                    event.preventDefault();
-                    event.stopImmediatePropagation();
-                    handler(event);
-                };
-
-                (element as HTMLElement & { __ycsInstantCapture?: (event: Event) => void }).__ycsInstantCapture =
-                    captureHandler;
-                element.addEventListener('click', captureHandler, true);
-            };
-
-            for (const elementId of DEGRADED_FILTER_ELEMENT_IDS) {
-                attachCapture(elementId, () => {
-                    const param = FILTER_BUTTONS.find((config) => config.elementId === elementId)?.param;
-                    if (!param) return;
-                    const filterParam = { [param]: true } as IParamSearch;
-                    void promptInstantUpgrade(UPGRADE_MODAL_MESSAGE, { filterParam });
-                });
-            }
-
-            for (const elementId of DEGRADED_EXPORT_ELEMENT_IDS) {
-                attachCapture(elementId, () => {
-                    void promptInstantUpgrade(UPGRADE_EXPORT_MODAL_MESSAGE, {
-                        exportIntent: { format: EXPORT_FORMAT.TXT }
-                    });
-                });
-            }
-
-            attachCapture(DEGRADED_EXTENDED_SEARCH_ID, () => {
-                void promptInstantUpgrade(UPGRADE_MODAL_MESSAGE, {});
             });
-        };
+        }
 
-        registerInstantDegradedHandlers();
         // No restore from storage; ensure clear button hidden initially
         try {
             const btnClearInit = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
@@ -1157,8 +1177,6 @@ export function initApp(): void {
         } catch {
             // Silently ignore DOM initialization errors
         }
-
-        const elLiveApp = document.getElementsByClassName('ycs-app')[0];
 
         const elCountComments = document.getElementById('ycs-count-load') as HTMLElement | null;
         const elCountCommentsCollapsed = document.getElementById('ycs-count-load-collapsed') as HTMLElement | null;
@@ -1207,11 +1225,15 @@ export function initApp(): void {
                         matchCount: remoteSession.results.length
                     };
                     isUpgradingFromInstant = true;
+                    instantSearchGeneration += 1;
+                    state = abortInFlightInstantSearch(state);
                     updateInstantUpgradeProgress(0);
                 } else if (!isUpgradingFromInstant) {
                     state = resetRemoteSearch(state);
                 }
                 const comments = getComments(state);
+                commentLoadGeneration += 1;
+                const loadGeneration = commentLoadGeneration;
 
                 const currentTarget = e.currentTarget as HTMLButtonElement;
                 const defaultLabel = currentTarget.innerText;
@@ -1348,6 +1370,12 @@ export function initApp(): void {
                             }
                         }
 
+                        // Stale load: instant search (or a newer Load) discarded this fetch — do not mix partials.
+                        if (loadGeneration !== commentLoadGeneration) {
+                            console.log('[YCS] Discarding stale comment load after abort/supersede');
+                            return;
+                        }
+
                         // Verify video or post hasn't changed before saving cache
                         const currentId = getVideoId(window.location.href) ?? getPostId(window.location.href);
                         if (
@@ -1381,21 +1409,19 @@ export function initApp(): void {
                         }
                     }
 
+                    if (loadGeneration !== commentLoadGeneration) {
+                        return;
+                    }
+
                     if (comments.length > 0) {
                         state = setCount(state, 'comments', comments.length);
                         state = setComments(state, comments);
-                        state = setCommentsDataSource(
-                            state,
-                            GlobalStore.hasYoutubeApiKey && GlobalStore.youtubeApiEnabled !== false
-                                ? 'ytapi_full'
-                                : 'innertube'
-                        );
 
                         if (isUpgradingFromInstant) {
                             completeInstantUpgrade();
                         } else {
                             state = resetRemoteSearch(state);
-                            syncInstantDegradedControls(false);
+                            syncInstantDegradedControls(isInstantDegradedMode());
                             syncInstantSearchPlaceholder();
                         }
                     }
@@ -2361,7 +2387,6 @@ export function initApp(): void {
                         console.error(err);
                     }
                     state = setComments(state, cachedComments);
-                    state = setCommentsDataSource(state, 'cache');
                     state = resetRemoteSearch(state);
                     syncInstantDegradedControls(false);
                     syncInstantSearchPlaceholder();

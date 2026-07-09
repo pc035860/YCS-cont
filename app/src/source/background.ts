@@ -274,6 +274,18 @@ async function fetchAllCommentsBackground(
         await Promise.all(replyPromises);
         await replyQueue.onIdle();
 
+        // Abort after the page loop must not be reported as a successful completion.
+        // Callers (STOP vs instant-search discard) decide whether to keep partials.
+        if (signal.aborted) {
+            for (let idx = 0; idx < comments.length; idx++) {
+                comments[idx]._index = idx;
+            }
+            await sendCommentsInChunks(tabId, requestId, comments, {
+                error: { type: 'aborted', message: 'Request was aborted' }
+            });
+            return;
+        }
+
         // Assign indices sequentially
         for (let idx = 0; idx < comments.length; idx++) {
             comments[idx]._index = idx;
