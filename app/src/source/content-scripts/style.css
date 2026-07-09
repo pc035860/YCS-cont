@@ -161,6 +161,52 @@ ytd-comments .ycs-app {
   word-break: break-word;
 }
 
+.ycs-instant-chip {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-right: 4px;
+  border-radius: 3px;
+  background-color: #fff3cd;
+  color: #856404;
+  font-size: 12px;
+  font-weight: 600;
+  vertical-align: baseline;
+}
+
+html[dark='true'] .ycs-instant-chip,
+html[dark] .ycs-instant-chip {
+  background-color: #3d3419;
+  color: #ffd866;
+}
+
+.ycs-instant-load-all-cta {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  color: #065fd4;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+}
+
+html[dark='true'] .ycs-instant-load-all-cta,
+html[dark] .ycs-instant-load-all-cta {
+  color: #3ea6ff;
+}
+
+.ycs-instant-load-all-cta:hover {
+  opacity: 0.85;
+}
+
+.ycs-btn-degraded {
+  opacity: 0.38;
+}
+
+.ycs-btn-degraded:hover {
+  opacity: 0.5;
+}
+
 .ycs-infobar {
   clear: none;
 }

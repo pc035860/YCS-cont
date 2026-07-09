@@ -1,6 +1,7 @@
 import type { CommentItem, ICommentsFuseResult } from '../../utils/interfaces/i_types';
 import { requestYouTubeApiCommentSearch } from '../handlers/youtubeDataApiHandler';
 import type { CommentsSearchResult } from './commentsSearch';
+import { buildInstantResultsStatusHtml } from './instantSearchUi';
 import {
     createInitialRemoteSearch,
     getController,
@@ -46,7 +47,7 @@ export function buildInstantStatusText(query: string, count: number): string {
     if (count === 0) {
         return `No instant matches for "${trimmed}". Try different words, or Load all for fuzzy search.`;
     }
-    return `⚡ Instant: ${count} matches for "${trimmed}" · Load all comments for filters & export`;
+    return `${count} matches for "${trimmed}" · Load all comments for filters & export`;
 }
 
 export async function runInstantCommentSearch(
@@ -87,14 +88,7 @@ export async function runInstantCommentSearch(
     let nextState = setRemoteSearch(state, session);
     nextState = setCommentsDataSource(nextState, 'ytapi_instant');
 
-    const fuseResults = toFuseResults(indexedItems);
-    const result: CommentsSearchResult = {
-        results: fuseResults,
-        total: fuseResults.length,
-        summary: buildInstantStatusText(trimmed, fuseResults.length),
-        query: trimmed,
-        buttonStates: {}
-    };
+    const result = buildInstantSearchResult(trimmed, indexedItems);
 
     return {
         state: nextState,
@@ -106,6 +100,77 @@ export async function runInstantCommentSearch(
 export function abortInFlightCommentLoad(state: WebResourcesState): WebResourcesState {
     getController(state).abort();
     return resetRemoteSearch(resetController(state));
+}
+
+export function mergeInstantPageResults(existing: CommentItem[], incoming: CommentItem[]): CommentItem[] {
+    const startIndex = existing.length;
+    return [
+        ...existing,
+        ...incoming.map((item, offset) => {
+            item._index = startIndex + offset;
+            return item;
+        })
+    ];
+}
+
+export async function fetchNextInstantSearchPage(
+    state: WebResourcesState,
+    videoId: string
+): Promise<{ state: WebResourcesState; appendedCount: number; statusHtml: string }> {
+    const session = getRemoteSearch(state);
+    if (!session.active || !session.hasMore || !session.pageToken) {
+        return {
+            state,
+            appendedCount: 0,
+            statusHtml: buildInstantResultsStatusHtml(session.query, session.results.length)
+        };
+    }
+
+    const controller = getController(state);
+    let response;
+    try {
+        response = await requestYouTubeApiCommentSearch({
+            videoId,
+            searchTerms: session.query,
+            pageToken: session.pageToken,
+            signal: controller.signal
+        });
+    } catch (error) {
+        if ((error as Error & { isQuotaExceeded?: boolean }).isQuotaExceeded) {
+            throw new InstantSearchQuotaError(
+                'YouTube API quota exceeded. Instant search unavailable — you can still load comments normally.'
+            );
+        }
+        throw error;
+    }
+
+    const merged = mergeInstantPageResults(session.results, response.items);
+    const nextSession = {
+        ...session,
+        results: merged,
+        pageToken: response.nextPageToken,
+        hasMore: Boolean(response.nextPageToken),
+        quotaUsed: session.quotaUsed + 1
+    };
+
+    const nextState = setRemoteSearch(state, nextSession);
+    return {
+        state: nextState,
+        appendedCount: response.items.length,
+        statusHtml: buildInstantResultsStatusHtml(session.query, merged.length)
+    };
+}
+
+export function buildInstantSearchResult(query: string, items: CommentItem[]): CommentsSearchResult {
+    const fuseResults = toFuseResults(items);
+    const trimmed = query.trim();
+    return {
+        results: fuseResults,
+        total: fuseResults.length,
+        summary: buildInstantStatusText(trimmed, fuseResults.length),
+        query: trimmed,
+        buttonStates: {}
+    };
 }
 
 export function getInstantResultAccessor(state: WebResourcesState): { getComments: () => CommentItem[] } {

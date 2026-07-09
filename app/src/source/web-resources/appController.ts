@@ -106,16 +106,34 @@ import {
     getChatSource,
     setChatSource,
     resetRemoteSearch,
-    setCommentsDataSource
+    setCommentsDataSource,
+    getRemoteSearch
 } from './state';
 import { isInstantBrowseMode, shouldSkipAutoload, shouldUseInstantSearch } from './search/instantSearchGate';
 import {
     abortInFlightCommentLoad,
-    buildInstantStatusText,
+    buildInstantSearchResult,
+    fetchNextInstantSearchPage,
     getInstantResultAccessor,
     InstantSearchQuotaError,
     runInstantCommentSearch
 } from './search/instantCommentsSearch';
+import {
+    buildInstantEmptyQueryStatusText,
+    buildInstantResultsStatusHtml,
+    buildInstantZeroResultsStatusText,
+    buildUpgradedStatusText,
+    buildUpgradingStatusText,
+    createPendingUpgradeStore,
+    DEGRADED_EXPORT_ELEMENT_IDS,
+    DEGRADED_EXTENDED_SEARCH_ID,
+    DEGRADED_FILTER_ELEMENT_IDS,
+    INSTANT_SHOW_MORE_TOOLTIP,
+    syncInstantDegradedControls,
+    UPGRADE_EXPORT_MODAL_MESSAGE,
+    UPGRADE_MODAL_MESSAGE,
+    UPGRADE_MODAL_TITLE
+} from './search/instantSearchUi';
 import {
     FILTER_BUTTONS,
     FilterButtonRegistry,
@@ -584,8 +602,12 @@ export function initApp(): void {
             }
         };
 
-        // Helper function to manage #ycs-search-total-result element visibility and content
-        // This ensures consistent behavior across all search functions
+        const pendingUpgrade = createPendingUpgradeStore();
+        let instantUpgradeSnapshot: { query: string; matchCount: number } | null = null;
+        let isUpgradingFromInstant = false;
+
+        const isInstantSessionActive = (): boolean => getRemoteSearch(state).active;
+
         const updateTotalResultDisplay = (text: string, forceShow = true): void => {
             const nodeTotalSearchResult = document.getElementById('ycs-search-total-result');
             if (nodeTotalSearchResult) {
@@ -607,6 +629,126 @@ export function initApp(): void {
             syncShortsFooterBySearchState({ debounceResync: true });
         };
 
+        const bindInstantStatusActions = (container: HTMLElement): void => {
+            if ((container as HTMLElement & { __ycsInstantBound?: boolean }).__ycsInstantBound) return;
+            (container as HTMLElement & { __ycsInstantBound?: boolean }).__ycsInstantBound = true;
+            container.addEventListener('click', (event) => {
+                const target = event.target as HTMLElement | null;
+                if (target?.closest('.ycs-instant-load-all-cta')) {
+                    event.preventDefault();
+                    void beginInstantUpgrade();
+                }
+            });
+        };
+
+        const updateInstantStatusHtml = (html: string, forceShow = true): void => {
+            const nodeTotalSearchResult = document.getElementById('ycs-search-total-result');
+            if (!nodeTotalSearchResult) return;
+
+            nodeTotalSearchResult.innerHTML = html;
+            if (forceShow) {
+                nodeTotalSearchResult.classList.remove('ycs-hidden');
+            } else {
+                nodeTotalSearchResult.classList.add('ycs-hidden');
+            }
+            bindInstantStatusActions(nodeTotalSearchResult);
+
+            const searchCounts = getSearchCounts(state);
+            const resTotalSearch = searchCounts.comments + searchCounts.commentsChat + searchCounts.commentsTrVideo;
+            const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
+            const hasActiveFilter = hasActiveSearchFilter();
+            const hasQuery = getSearchQuery().trim().length > 0;
+            if (btnClear)
+                btnClear.style.visibility = (!hasQuery && resTotalSearch > 0) || hasActiveFilter ? 'visible' : 'hidden';
+
+            syncShortsFooterBySearchState({ debounceResync: true });
+        };
+
+        const clearInstantSessionUi = (options?: { clearResultsDom?: boolean }): void => {
+            state = resetRemoteSearch(state);
+            syncInstantDegradedControls(false);
+            removeInstantShowMore();
+            if (options?.clearResultsDom) {
+                const elSearchRes = document.getElementById('ycs-search-result');
+                if (elSearchRes) elSearchRes.textContent = '';
+            }
+        };
+
+        const updateInstantUpgradeProgress = (loadedCount: number): void => {
+            if (!isUpgradingFromInstant || !instantUpgradeSnapshot) return;
+
+            const maxComments = GlobalStore.maxComments;
+            const progressPercent =
+                maxComments && maxComments > 0 ? Math.min(100, (loadedCount / maxComments) * 100) : undefined;
+
+            updateTotalResultDisplay(buildUpgradingStatusText(instantUpgradeSnapshot.matchCount, progressPercent));
+        };
+
+        const beginInstantUpgrade = async (intent?: Parameters<typeof pendingUpgrade.set>[0]): Promise<void> => {
+            if (intent) {
+                pendingUpgrade.set(intent);
+            }
+            if (isInstantSessionActive()) {
+                const session = getRemoteSearch(state);
+                instantUpgradeSnapshot = { query: session.query, matchCount: session.results.length };
+                isUpgradingFromInstant = true;
+            }
+            document.getElementById('ycs-load-all')?.click();
+        };
+
+        const completeInstantUpgrade = (): void => {
+            if (!isUpgradingFromInstant || !instantUpgradeSnapshot) return;
+
+            const savedQuery = instantUpgradeSnapshot.query;
+            const intent = pendingUpgrade.consume();
+            isUpgradingFromInstant = false;
+            instantUpgradeSnapshot = null;
+
+            state = resetRemoteSearch(state);
+            syncInstantDegradedControls(false);
+            syncInstantSearchPlaceholder();
+            removeInstantShowMore();
+
+            const inputSearch = document.getElementById('ycs-input-search') as HTMLInputElement | null;
+            if (inputSearch && savedQuery) {
+                inputSearch.value = savedQuery;
+            }
+
+            if (intent?.filterParam) {
+                const paramKey = Object.keys(intent.filterParam).find(
+                    (key) => key !== 'sortOrder' && (intent.filterParam as Record<string, unknown>)[key]
+                ) as FilterParamKey | undefined;
+                const elementId = paramKey
+                    ? FILTER_BUTTONS.find((config) => config.param === paramKey)?.elementId
+                    : undefined;
+                const filterEl = elementId ? (document.getElementById(elementId) as HTMLElement | null) : null;
+                if (paramKey) {
+                    setActiveFilterByElement(paramKey, filterEl ?? undefined);
+                }
+                executeSearchBasedOnType(intent.filterParam);
+            } else {
+                executeSearchBasedOnType();
+            }
+
+            const localCount = getSearchCounts(state).comments;
+            updateTotalResultDisplay(buildUpgradedStatusText(localCount));
+
+            let notifyMessage = 'All comments loaded — search re-run locally.';
+            if (intent?.exportIntent) {
+                notifyMessage += ' Export unlocked — use save ▾ to export the full archive.';
+            }
+            showInstantNotifyMessage(notifyMessage);
+        };
+
+        const promptInstantUpgrade = async (
+            message: string,
+            intent: Parameters<typeof pendingUpgrade.set>[0]
+        ): Promise<void> => {
+            const confirmed = await showConfirmModal(UPGRADE_MODAL_TITLE, message);
+            if (!confirmed) return;
+            await beginInstantUpgrade(intent);
+        };
+
         const getSearchQuery = (): string => {
             const inputSearch = document.getElementById('ycs-input-search') as HTMLInputElement | null;
             return inputSearch?.value ?? '';
@@ -619,6 +761,9 @@ export function initApp(): void {
             if (!inputSearch) return;
             if (isInstantBrowseMode(state)) {
                 inputSearch.placeholder = 'Search (instant via YouTube API)';
+                if (!isInstantSessionActive() && getSearchQuery().trim().length === 0) {
+                    updateTotalResultDisplay('', false);
+                }
             } else {
                 inputSearch.placeholder = DEFAULT_SEARCH_PLACEHOLDER;
             }
@@ -630,6 +775,74 @@ export function initApp(): void {
             notify.textContent = message;
         };
 
+        const removeInstantShowMore = (): void => {
+            document.getElementById('ycs_instant_show_more')?.remove();
+        };
+
+        const renderInstantShowMore = (selector: string, query: string): void => {
+            removeInstantShowMore();
+            const session = getRemoteSearch(state);
+            if (!session.active || !session.hasMore) return;
+
+            const target = document.querySelector(selector);
+            const wrapper = target?.querySelector('#ycs_wrap_comments') ?? target;
+            if (!(wrapper instanceof HTMLElement)) return;
+
+            const showMore = document.createElement('div');
+            showMore.id = 'ycs_instant_show_more';
+            showMore.className = 'ycs-render-comment ycs-show_more_block';
+            showMore.title = INSTANT_SHOW_MORE_TOOLTIP;
+
+            const button = document.createElement('div');
+            button.className = 'ycs-title';
+            button.textContent = 'Show more instant results';
+            showMore.appendChild(button);
+            wrapper.appendChild(showMore);
+
+            showMore.addEventListener('click', async () => {
+                if (showMore.classList.contains('ycs-instant-fetching')) return;
+
+                const videoId = getVideoId(window.location.href);
+                if (!videoId) return;
+
+                showMore.classList.add('ycs-instant-fetching');
+                button.textContent = 'Fetching…';
+
+                try {
+                    const pageOutcome = await fetchNextInstantSearchPage(state, videoId);
+                    state = pageOutcome.state;
+                    if (pageOutcome.appendedCount === 0) {
+                        removeInstantShowMore();
+                        return;
+                    }
+
+                    const refreshed = buildInstantSearchResult(query, getRemoteSearch(state).results);
+                    const stateAccessor = getInstantResultAccessor(state);
+                    renderCommentsResult(selector, refreshed, { stateAccessor });
+                    state = setSearchCount(state, 'comments', refreshed.total);
+
+                    const commentsContainer = document.getElementById('ycs_wrap_comments');
+                    if (commentsContainer instanceof HTMLElement) {
+                        registerCommentInteractions(commentsContainer, stateAccessor, () => query);
+                    }
+
+                    updateInstantStatusHtml(pageOutcome.statusHtml);
+                    renderInstantShowMore(selector, query);
+                } catch (error) {
+                    if (error instanceof InstantSearchQuotaError) {
+                        showInstantNotifyMessage(error.message);
+                    } else if (!(error instanceof DOMException && error.name === 'AbortError')) {
+                        console.error('[YCS] Instant pagination failed:', error);
+                    }
+                } finally {
+                    showMore.classList.remove('ycs-instant-fetching');
+                    if (getRemoteSearch(state).hasMore) {
+                        button.textContent = 'Show more instant results';
+                    }
+                }
+            });
+        };
+
         const runInstantCommentsFlow = async (
             selector: string,
             query: string,
@@ -638,7 +851,8 @@ export function initApp(): void {
             const trimmed = query.trim();
             if (!trimmed) {
                 if (isInstantBrowseMode(state)) {
-                    updateTotalResultDisplay(buildInstantStatusText('', 0));
+                    clearInstantSessionUi({ clearResultsDom: true });
+                    updateTotalResultDisplay(buildInstantEmptyQueryStatusText());
                     return true;
                 }
                 const result = runCommentsPipeline(selector, query, param);
@@ -677,18 +891,28 @@ export function initApp(): void {
                     registerCommentInteractions(commentsContainer, stateAccessor, () => query);
                 }
 
-                updateTotalResultDisplay(outcome.statusText);
+                if (outcome.result.total > 0) {
+                    updateInstantStatusHtml(buildInstantResultsStatusHtml(trimmed, outcome.result.total));
+                    renderInstantShowMore(selector, trimmed);
+                } else {
+                    removeInstantShowMore();
+                    updateTotalResultDisplay(buildInstantZeroResultsStatusText(trimmed));
+                }
+
+                syncInstantDegradedControls(true);
                 return true;
             } catch (error) {
                 if (error instanceof InstantSearchQuotaError) {
                     showInstantNotifyMessage(error.message);
-                    updateTotalResultDisplay(error.message);
+                    updateTotalResultDisplay('');
                 } else if (error instanceof DOMException && error.name === 'AbortError') {
                     updateTotalResultDisplay('');
                 } else {
                     console.error('[YCS] Instant search failed:', error);
                     updateTotalResultDisplay('Instant search failed. Try Load all or search again.');
                 }
+                syncInstantDegradedControls(false);
+                removeInstantShowMore();
                 return true;
             } finally {
                 if (searchBtn) searchBtn.disabled = false;
@@ -757,6 +981,11 @@ export function initApp(): void {
             const query = getSearchQuery();
             searchIntentState.markSearchExecuted();
             syncShortsFooterBySearchState({ debounceResync: true });
+
+            if (param?.timestampViz && isInstantSessionActive()) {
+                void promptInstantUpgrade(UPGRADE_MODAL_MESSAGE, { filterParam: { timestampViz: true } });
+                return;
+            }
 
             // Special handling for timestampViz
             if (param?.timestampViz) {
@@ -837,6 +1066,7 @@ export function initApp(): void {
                         setActiveFilterByElement(null);
 
                         state = resetSearchCounts(state);
+                        clearInstantSessionUi({ clearResultsDom: true });
 
                         const eInputSearch = document.getElementById('ycs-input-search') as HTMLInputElement;
 
@@ -873,6 +1103,53 @@ export function initApp(): void {
         };
 
         initFilterButtons();
+
+        const registerInstantDegradedHandlers = (): void => {
+            const attachCapture = (elementId: string, handler: (event: Event) => void): void => {
+                const element = document.getElementById(elementId);
+                if (!element) return;
+
+                const prior = (element as HTMLElement & { __ycsInstantCapture?: (event: Event) => void })
+                    .__ycsInstantCapture;
+                if (prior) {
+                    element.removeEventListener('click', prior, true);
+                }
+
+                const captureHandler = (event: Event) => {
+                    if (!isInstantSessionActive()) return;
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    handler(event);
+                };
+
+                (element as HTMLElement & { __ycsInstantCapture?: (event: Event) => void }).__ycsInstantCapture =
+                    captureHandler;
+                element.addEventListener('click', captureHandler, true);
+            };
+
+            for (const elementId of DEGRADED_FILTER_ELEMENT_IDS) {
+                attachCapture(elementId, () => {
+                    const param = FILTER_BUTTONS.find((config) => config.elementId === elementId)?.param;
+                    if (!param) return;
+                    const filterParam = { [param]: true } as IParamSearch;
+                    void promptInstantUpgrade(UPGRADE_MODAL_MESSAGE, { filterParam });
+                });
+            }
+
+            for (const elementId of DEGRADED_EXPORT_ELEMENT_IDS) {
+                attachCapture(elementId, () => {
+                    void promptInstantUpgrade(UPGRADE_EXPORT_MODAL_MESSAGE, {
+                        exportIntent: { format: EXPORT_FORMAT.TXT }
+                    });
+                });
+            }
+
+            attachCapture(DEGRADED_EXTENDED_SEARCH_ID, () => {
+                void promptInstantUpgrade(UPGRADE_MODAL_MESSAGE, {});
+            });
+        };
+
+        registerInstantDegradedHandlers();
         // No restore from storage; ensure clear button hidden initially
         try {
             const btnClearInit = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
@@ -923,7 +1200,17 @@ export function initApp(): void {
                 const startPostId = getPostId(startUrl);
 
                 state = clearComments(state);
-                state = resetRemoteSearch(state);
+                const remoteSession = getRemoteSearch(state);
+                if (remoteSession.active) {
+                    instantUpgradeSnapshot = {
+                        query: remoteSession.query,
+                        matchCount: remoteSession.results.length
+                    };
+                    isUpgradingFromInstant = true;
+                    updateInstantUpgradeProgress(0);
+                } else if (!isUpgradingFromInstant) {
+                    state = resetRemoteSearch(state);
+                }
                 const comments = getComments(state);
 
                 const currentTarget = e.currentTarget as HTMLButtonElement;
@@ -959,7 +1246,10 @@ export function initApp(): void {
                                     startVideoId,
                                     controller.signal,
                                     GlobalStore.autoload ? GlobalStore.maxComments : undefined,
-                                    (count) => showLoadComments(count, elLoadCmnts)
+                                    (count) => {
+                                        showLoadComments(count, elLoadCmnts);
+                                        updateInstantUpgradeProgress(count);
+                                    }
                                 );
                                 comments.push(...result.comments);
                                 console.log(
@@ -1053,6 +1343,9 @@ export function initApp(): void {
                                 GlobalStore.autoload ? GlobalStore.maxComments : undefined,
                                 selectedSortOrder
                             );
+                            if (isUpgradingFromInstant) {
+                                updateInstantUpgradeProgress(comments.length);
+                            }
                         }
 
                         // Verify video or post hasn't changed before saving cache
@@ -1090,14 +1383,21 @@ export function initApp(): void {
 
                     if (comments.length > 0) {
                         state = setCount(state, 'comments', comments.length);
+                        state = setComments(state, comments);
                         state = setCommentsDataSource(
                             state,
                             GlobalStore.hasYoutubeApiKey && GlobalStore.youtubeApiEnabled !== false
                                 ? 'ytapi_full'
                                 : 'innertube'
                         );
-                        state = resetRemoteSearch(state);
-                        syncInstantSearchPlaceholder();
+
+                        if (isUpgradingFromInstant) {
+                            completeInstantUpgrade();
+                        } else {
+                            state = resetRemoteSearch(state);
+                            syncInstantDegradedControls(false);
+                            syncInstantSearchPlaceholder();
+                        }
                     }
 
                     const counts = getCounts(state);
@@ -1113,6 +1413,17 @@ export function initApp(): void {
                     GlobalStore.autoload = false;
                     currentTarget.disabled = false;
                     currentTarget.innerText = defaultLabel;
+                    if (isUpgradingFromInstant && getComments(state).length === 0) {
+                        isUpgradingFromInstant = false;
+                        instantUpgradeSnapshot = null;
+                        pendingUpgrade.clear();
+                        const session = getRemoteSearch(state);
+                        if (session.active && session.query) {
+                            updateInstantStatusHtml(
+                                buildInstantResultsStatusHtml(session.query, session.results.length)
+                            );
+                        }
+                    }
                 }
             });
         }
@@ -1331,6 +1642,7 @@ export function initApp(): void {
                         });
                     } else if (elSearchRes) {
                         searchIntentState.resetExecution();
+                        clearInstantSessionUi({ clearResultsDom: true });
                         elSearchRes.innerText = '';
                         if (elSearchTotalRes) elSearchTotalRes.innerText = 'Search cleared';
                         syncShortsFooterBySearchState();
@@ -2051,6 +2363,7 @@ export function initApp(): void {
                     state = setComments(state, cachedComments);
                     state = setCommentsDataSource(state, 'cache');
                     state = resetRemoteSearch(state);
+                    syncInstantDegradedControls(false);
                     syncInstantSearchPlaceholder();
 
                     const chatEntries = JSON.parse(body.commentsChat || '[]') as Array<[number, ChatItem]>;
