@@ -2,8 +2,14 @@ import { options } from './config/options';
 import { IStorageEstimate, CommentItem } from './utils/interfaces/i_types';
 import { idb } from './utils/libs';
 import PQueue from 'p-queue';
-import { fetchCommentThreads, fetchCommentReplies, YouTubeDataApiError } from './utils/youtubeDataApi/client';
+import {
+    fetchCommentThreads,
+    fetchCommentReplies,
+    YouTubeDataApiError,
+    isQuotaExceeded
+} from './utils/youtubeDataApi/client';
 import { transformThreadToCommentItems, transformReplyToCommentItem } from './utils/youtubeDataApi/transform';
+import { fetchCommentSearchPage } from './utils/youtubeDataApi/search';
 
 // Track active YouTube API requests for abort handling
 interface ActiveRequest {
@@ -433,8 +439,8 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
         );
     }
 
-    // YouTube Data API: Abort loading
-    if (message?.type === 'YCS_YT_API_COMMENTS_ABORT') {
+    // YouTube Data API: Abort loading or instant search
+    if (message?.type === 'YCS_YT_API_COMMENTS_ABORT' || message?.type === 'YCS_YT_API_SEARCH_ABORT') {
         const { requestId } = message.body ?? {};
         const request = activeYouTubeApiRequests.get(requestId);
         if (request) {
@@ -442,6 +448,95 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
             activeYouTubeApiRequests.delete(requestId);
             console.log('[YCS Background] Aborted request:', requestId);
         }
+    }
+
+    // YouTube Data API: Instant search (single page)
+    if (message?.type === 'YCS_YT_API_SEARCH_START') {
+        const { videoId, searchTerms, pageToken, requestId } = message.body ?? {};
+        const tabId = sender.tab?.id;
+
+        if (!tabId || !videoId || typeof searchTerms !== 'string' || !searchTerms.trim() || !requestId) {
+            console.warn('[YCS Background] Invalid YCS_YT_API_SEARCH_START message:', message);
+            if (tabId && requestId) {
+                chrome.tabs.sendMessage(tabId, {
+                    type: 'YCS_YT_API_SEARCH_ERROR',
+                    body: {
+                        requestId,
+                        error: 'Invalid search request',
+                        isQuotaExceeded: false
+                    }
+                });
+            }
+            return;
+        }
+
+        const opts = await chrome.storage.local.get(['youtubeApiKey', 'youtubeApiEnabled']);
+        const apiKey = (opts.youtubeApiKey as string)?.trim();
+        const apiEnabled = opts.youtubeApiEnabled !== false;
+
+        if (!apiKey || !apiEnabled) {
+            chrome.tabs.sendMessage(tabId, {
+                type: 'YCS_YT_API_SEARCH_ERROR',
+                body: {
+                    requestId,
+                    error: 'API key not configured or disabled',
+                    isQuotaExceeded: false
+                }
+            });
+            return;
+        }
+
+        const controller = new AbortController();
+        activeYouTubeApiRequests.set(requestId, { controller, tabId });
+
+        (async () => {
+            try {
+                const result = await fetchCommentSearchPage({
+                    videoId,
+                    searchTerms,
+                    apiKey,
+                    pageToken,
+                    signal: controller.signal
+                });
+
+                if (controller.signal.aborted) return;
+
+                await safeSendMessage(tabId, {
+                    type: 'YCS_YT_API_SEARCH_RESULT',
+                    body: {
+                        requestId,
+                        items: result.items,
+                        nextPageToken: result.nextPageToken,
+                        totalResults: result.totalResults
+                    }
+                });
+            } catch (error) {
+                if (error instanceof DOMException && error.name === 'AbortError') {
+                    await safeSendMessage(tabId, {
+                        type: 'YCS_YT_API_SEARCH_ERROR',
+                        body: {
+                            requestId,
+                            error: 'Request was aborted',
+                            isQuotaExceeded: false,
+                            aborted: true
+                        }
+                    });
+                    return;
+                }
+
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                await safeSendMessage(tabId, {
+                    type: 'YCS_YT_API_SEARCH_ERROR',
+                    body: {
+                        requestId,
+                        error: errorMessage,
+                        isQuotaExceeded: isQuotaExceeded(error)
+                    }
+                });
+            } finally {
+                activeYouTubeApiRequests.delete(requestId);
+            }
+        })();
     }
 });
 

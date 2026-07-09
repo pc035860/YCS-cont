@@ -50,6 +50,31 @@ export function isInvalidApiKey(error: unknown): boolean {
 }
 
 /**
+ * Perform a YouTube Data API request with shared pagination and error handling
+ */
+async function apiRequest<T>(
+    endpoint: string,
+    params: URLSearchParams,
+    pageToken?: string,
+    signal?: AbortSignal
+): Promise<T> {
+    if (pageToken) {
+        params.set('pageToken', pageToken);
+    }
+
+    const url = `${YOUTUBE_API_BASE_URL}/${endpoint}?${params.toString()}`;
+
+    const response = await fetch(url, { signal });
+
+    if (!response.ok) {
+        const errorData = (await response.json()) as YouTubeApiError;
+        throw new YouTubeDataApiError(errorData.error);
+    }
+
+    return response.json() as Promise<T>;
+}
+
+/**
  * Fetch comment threads for a video
  *
  * @param videoId - YouTube video ID
@@ -72,20 +97,26 @@ export async function fetchCommentThreads(
         key: apiKey
     });
 
-    if (pageToken) {
-        params.set('pageToken', pageToken);
-    }
+    return apiRequest<YouTubeApiCommentThreadListResponse>('commentThreads', params, pageToken, signal);
+}
 
-    const url = `${YOUTUBE_API_BASE_URL}/commentThreads?${params.toString()}`;
+export async function fetchCommentThreadsSearch(options: {
+    videoId: string;
+    searchTerms: string;
+    apiKey: string;
+    pageToken?: string;
+    signal?: AbortSignal;
+}): Promise<YouTubeApiCommentThreadListResponse> {
+    const params = new URLSearchParams({
+        part: 'snippet,replies',
+        videoId: options.videoId,
+        searchTerms: options.searchTerms,
+        maxResults: '100',
+        textFormat: 'html',
+        key: options.apiKey
+    });
 
-    const response = await fetch(url, { signal });
-
-    if (!response.ok) {
-        const errorData = (await response.json()) as YouTubeApiError;
-        throw new YouTubeDataApiError(errorData.error);
-    }
-
-    return response.json() as Promise<YouTubeApiCommentThreadListResponse>;
+    return apiRequest<YouTubeApiCommentThreadListResponse>('commentThreads', params, options.pageToken, options.signal);
 }
 
 /**
@@ -111,18 +142,5 @@ export async function fetchCommentReplies(
         key: apiKey
     });
 
-    if (pageToken) {
-        params.set('pageToken', pageToken);
-    }
-
-    const url = `${YOUTUBE_API_BASE_URL}/comments?${params.toString()}`;
-
-    const response = await fetch(url, { signal });
-
-    if (!response.ok) {
-        const errorData = (await response.json()) as YouTubeApiError;
-        throw new YouTubeDataApiError(errorData.error);
-    }
-
-    return response.json() as Promise<YouTubeApiCommentListResponse>;
+    return apiRequest<YouTubeApiCommentListResponse>('comments', params, pageToken, signal);
 }

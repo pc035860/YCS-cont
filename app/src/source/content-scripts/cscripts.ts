@@ -13,7 +13,9 @@ const DEBUG = false;
             'YCS_YT_API_COMMENTS_PROGRESS',
             'YCS_YT_API_COMMENTS_COMPLETE',
             'YCS_YT_API_COMMENTS_ERROR',
-            'YCS_YT_API_COMMENTS_CHUNK'
+            'YCS_YT_API_COMMENTS_CHUNK',
+            'YCS_YT_API_SEARCH_RESULT',
+            'YCS_YT_API_SEARCH_ERROR'
         ]);
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -46,7 +48,9 @@ const DEBUG = false;
                     type === 'YCS_YT_API_COMMENTS_PROGRESS' ||
                     type === 'YCS_YT_API_COMMENTS_COMPLETE' ||
                     type === 'YCS_YT_API_COMMENTS_ERROR' ||
-                    type === 'YCS_YT_API_COMMENTS_CHUNK'
+                    type === 'YCS_YT_API_COMMENTS_CHUNK' ||
+                    type === 'YCS_YT_API_SEARCH_RESULT' ||
+                    type === 'YCS_YT_API_SEARCH_ERROR'
                 ) {
                     if (DEBUG) console.log('[YCS] Forwarding YouTube API response:', type);
                     window.postMessage(message, window.location.origin);
@@ -63,7 +67,9 @@ const DEBUG = false;
             'YCS_CACHE_STORAGE_SET',
             'YCS_CACHE_STORAGE_GET',
             'YCS_YT_API_COMMENTS_START',
-            'YCS_YT_API_COMMENTS_ABORT'
+            'YCS_YT_API_COMMENTS_ABORT',
+            'YCS_YT_API_SEARCH_START',
+            'YCS_YT_API_SEARCH_ABORT'
         ]);
 
         const VIDEO_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
@@ -152,6 +158,20 @@ const DEBUG = false;
 
                     if (msg.type === 'YCS_YT_API_COMMENTS_ABORT' && msg?.body) {
                         if (DEBUG) console.log('[YCS] Forwarding YouTube API ABORT:', msg);
+                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg);
+                    }
+
+                    if (msg.type === 'YCS_YT_API_SEARCH_START' && msg?.body) {
+                        if (!isValidVideoId(msg.body?.videoId)) {
+                            if (DEBUG) console.warn('[YCS] Invalid video ID format for YouTube API search');
+                            return;
+                        }
+                        if (DEBUG) console.log('[YCS] Forwarding YouTube API SEARCH START:', msg);
+                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg);
+                    }
+
+                    if (msg.type === 'YCS_YT_API_SEARCH_ABORT' && msg?.body) {
+                        if (DEBUG) console.log('[YCS] Forwarding YouTube API SEARCH ABORT:', msg);
                         chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg);
                     }
                 } catch (err) {
