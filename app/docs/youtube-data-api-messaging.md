@@ -63,18 +63,27 @@ sequenceDiagram
 
 ### Requests (Web -> Background)
 
+Comments (full load):
 - `YCS_YT_API_COMMENTS_START`
 - `YCS_YT_API_COMMENTS_ABORT`
 
+Search (instant, one page):
+- `YCS_YT_API_SEARCH_START`
+- `YCS_YT_API_SEARCH_ABORT`
+
 ### Responses (Background -> Web)
 
-Primary active responses:
+Comments (full load), primary active responses:
 - `YCS_YT_API_COMMENTS_PROGRESS`
 - `YCS_YT_API_COMMENTS_CHUNK`
 - `YCS_YT_API_COMMENTS_ERROR`
 
-Compatibility path retained in handler/content script:
+Comments compatibility path retained in handler/content script:
 - `YCS_YT_API_COMMENTS_COMPLETE` (legacy small-payload handling)
+
+Search (instant):
+- `YCS_YT_API_SEARCH_RESULT`
+- `YCS_YT_API_SEARCH_ERROR`
 
 ---
 
@@ -185,6 +194,76 @@ Example (last chunk with metadata):
 }
 ```
 
+### SEARCH START
+
+```typescript
+{
+  type: 'YCS_YT_API_SEARCH_START',
+  body: {
+    videoId: string,
+    searchTerms: string,
+    pageToken?: string,
+    requestId: string
+  }
+}
+```
+
+Fetches one page of `commentThreads.list` with `searchTerms` (`part=snippet,replies`, `maxResults=100`, `textFormat=html`). Cost: ~1 quota unit per page.
+
+Example:
+
+```json
+{
+  "type": "YCS_YT_API_SEARCH_START",
+  "body": {
+    "videoId": "dQw4w9WgXcQ",
+    "searchTerms": "never gonna",
+    "requestId": "a91c3e10-4f2b-4c11-9d0e-1b7f8c2a5e6d"
+  }
+}
+```
+
+### SEARCH ABORT
+
+```typescript
+{
+  type: 'YCS_YT_API_SEARCH_ABORT',
+  body: {
+    requestId: string
+  }
+}
+```
+
+### SEARCH RESULT
+
+```typescript
+{
+  type: 'YCS_YT_API_SEARCH_RESULT',
+  body: {
+    requestId: string,
+    items: CommentItem[],
+    nextPageToken?: string,
+    totalResults?: number
+  }
+}
+```
+
+Single message, no chunking (one page is at most ~100 threads with replies, well below `CHUNK_SIZE`).
+
+### SEARCH ERROR
+
+```typescript
+{
+  type: 'YCS_YT_API_SEARCH_ERROR',
+  body: {
+    requestId: string,
+    error: string,
+    isQuotaExceeded?: boolean,
+    aborted?: boolean
+  }
+}
+```
+
 ---
 
 ## Chunking Strategy
@@ -196,6 +275,8 @@ Background uses:
 - Preflight validation errors (e.g., missing/disabled API key) use direct `YCS_YT_API_COMMENTS_ERROR`
 
 Handler (`youtubeDataApiHandler.ts`) reassembles chunks by `chunkIndex` and resolves/rejects when `isLastChunk` is received.
+
+Instant search (`YCS_YT_API_SEARCH_*`) does not use chunking. Each `SEARCH_START` resolves with one `SEARCH_RESULT` or `SEARCH_ERROR`.
 
 ---
 
@@ -219,6 +300,7 @@ Background-level safety:
 - API key stored only in background (`chrome.storage.local`).
 - Content script strips `youtubeApiKey` before sending options to web page.
 - Web page receives only `hasYoutubeApiKey` flag and uses messaging APIs.
+- Instant search preserves the same boundary: the API key is read from `chrome.storage.local` in background only; the page side never receives the key and only sees the derived `hasYoutubeApiKey` boolean.
 
 ---
 
@@ -239,9 +321,11 @@ Partial comments are preserved when available and returned in chunk/error respon
 
 ## Related Files
 
-- `app/src/source/web-resources/handlers/youtubeDataApiHandler.ts`
+- `app/src/source/web-resources/handlers/youtubeDataApiHandler.ts` (includes `requestYouTubeApiCommentSearch`)
 - `app/src/source/background.ts`
 - `app/src/source/content-scripts/cscripts.ts`
 - `app/src/source/web-resources/appController.ts`
+- `app/src/source/web-resources/search/instantCommentsSearch.ts`
 - `app/src/source/utils/youtubeDataApi/client.ts`
+- `app/src/source/utils/youtubeDataApi/search.ts`
 - `app/src/source/utils/youtubeDataApi/transform.ts`

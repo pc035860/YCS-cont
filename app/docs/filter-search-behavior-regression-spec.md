@@ -226,3 +226,97 @@ The following behaviors are explicitly confirmed as fixed rules and must not cha
 1. Clearing input via Backspace does not auto-search; result update requires explicit search action (`Enter` / `Search` / filter action).
 2. Re-clicking non-sortable filters (`likes/replied/random/timestampViz`) does not toggle-off; it only re-runs search.
 3. Quick-filter forced type applies only to the click action itself; subsequent `Search` follows dropdown type.
+
+---
+
+## 12. Instant Search Mode (YouTube Data API)
+
+When YouTube Data API instant search is enabled, search behavior before a full comment load differs from full-cache mode. These rules apply only while no loaded or cached comments exist for the current video.
+
+### 12.1 Instant Mode Eligibility (MUST)
+
+Instant search runs only when **all** of the following are true:
+
+1. `hasYoutubeApiKey === true`
+2. `youtubeApiEnabled === true`
+3. `youtubeApiInstantSearch === true` (default `true`)
+4. No loaded or cached comments exist for the current video
+5. `Q` is non-empty after trim
+6. Search category is `comments`, or the comments segment of `all`
+
+When any condition fails, search follows existing full-cache / local rules.
+
+Cache hit always uses local search. The instant path is never used when full comment data already exists for the current video.
+
+### 12.2 Empty-Query Behavior (MUST)
+
+Empty-query semantics differ by data availability:
+
+| Mode | Empty `Q` + Search / Enter |
+| --- | --- |
+| Full-cache (comments loaded) | Returns the full dataset (existing rule) |
+| Instant (no loaded comments) | Shows hint copy only; **no API call** |
+
+Instant-mode empty-query hint copy:
+
+`Type something to search instantly, or click Load all to browse every comment.`
+
+Typing and Backspace-to-empty must not trigger API calls. Search refresh requires explicit actions (`Enter` / `Search` / filter click), consistent with Section 3 rule 6.
+
+### 12.3 Autoload Suppression (MUST)
+
+When instant mode is eligible and the comment cache misses, autoload must not fire even when `autoload: true` is set in options.
+
+| Autoload option | Instant search option | Cache | Behavior |
+| --- | --- | --- | --- |
+| ON | OFF | miss | Auto full load (current behavior) |
+| ON | ON | miss | No auto load; search-ready state |
+| OFF | any | miss | Manual load only |
+| any | any | hit | Restore from IndexedDB unchanged |
+
+### 12.4 Filter Degradation in Instant Mode (MUST)
+
+In instant mode, only plain text search is fully supported.
+
+Incompatible filters: `heart`, `verified`, `members`, `donated`, `random`, `timestampViz`, extended search, export/save.
+
+For each incompatible control:
+
+1. Apply class `ycs-btn-degraded` (dimmed to ~0.38 opacity; **not** `disabled`)
+2. Tooltip: `Needs all comments loaded — click to load`
+3. Click opens the existing `#ycs_confirm_modal`
+4. Confirming triggers full comment load
+5. The clicked filter is remembered and auto-applied after load completes and the current query re-runs locally
+
+### 12.5 Abort In-Flight Full Load (MUST)
+
+If the user triggers instant Search while a full comment fetch is in progress:
+
+1. Abort the in-flight full load via `AbortController`
+2. Discard partial fetch data
+3. Do not mix remote instant results with partial local datasets in one result list
+
+### 12.6 Status Line States (MUST)
+
+All instant-mode status copy is rendered via `#ycs-search-total-result`. No sticky banners.
+
+| State | Condition | Copy / UI |
+| --- | --- | --- |
+| S1 Ready | Empty `Q`, instant eligible, no active search | Placeholder: `Search (instant via YouTube API)` |
+| S2 Searching | Instant API request in flight | `Searching YouTube…` |
+| S3 Results | Instant search returned matches | Instant chip + `N matches for … · Load all comments for filters & export` |
+| S4 Zero matches | Instant search returned zero items | Zero-match copy for current query |
+| S5 Empty-query hint | Empty `Q` + explicit Search in instant mode | Hint copy from Section 12.2 |
+| S6 Upgrading | Full load in progress after instant use | Progress copy for upgrade path |
+| S7 Upgraded | Full load complete; same query re-run locally | Normal `(Comments) Found: M`; all filters unlocked |
+
+Quota exceeded: show notify box `YouTube API quota exceeded. Instant search unavailable — you can still load comments normally.`
+
+`Load all` remains visible in instant mode at all times.
+
+### 12.7 Shorts (MUST)
+
+On Shorts pages, instant Search / Enter counts as search intent.
+
+1. Native comments stay hidden while search intent is active, including zero instant results
+2. Existing restore rules are unchanged: native comments restore only after clearing search text and removing active filter (or when YCS is collapsed/cleaned up)
