@@ -680,12 +680,7 @@ export function initApp(): void {
 
         const updateInstantUpgradeProgress = (loadedCount: number): void => {
             if (!isUpgradingFromInstant || !instantUpgradeSnapshot) return;
-
-            const maxComments = GlobalStore.maxComments;
-            const progressPercent =
-                maxComments && maxComments > 0 ? Math.min(100, (loadedCount / maxComments) * 100) : undefined;
-
-            updateTotalResultDisplay(buildUpgradingStatusText(instantUpgradeSnapshot.matchCount, progressPercent));
+            updateTotalResultDisplay(buildUpgradingStatusText(instantUpgradeSnapshot.matchCount, loadedCount));
         };
 
         const beginInstantUpgrade = async (intent?: Parameters<typeof pendingUpgrade.set>[0]): Promise<void> => {

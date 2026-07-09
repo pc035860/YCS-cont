@@ -67,9 +67,11 @@ test('buildInstantResultsStatusHtml includes chip and load-all CTA', () => {
     assert.match(html, /foo bar/);
 });
 
-test('buildUpgradingStatusText includes percent when provided', () => {
-    assert.match(buildUpgradingStatusText(5, 42), /42%/);
-    assert.doesNotMatch(buildUpgradingStatusText(5), /%/);
+test('buildUpgradingStatusText shows loaded count without percent', () => {
+    assert.match(buildUpgradingStatusText(5, 42), /42 loaded/);
+    assert.doesNotMatch(buildUpgradingStatusText(5, 42), /%/);
+    assert.doesNotMatch(buildUpgradingStatusText(5), /loaded/);
+    assert.doesNotMatch(buildUpgradingStatusText(5, 0), /loaded/);
 });
 
 test('buildUpgradedStatusText uses local found copy', () => {

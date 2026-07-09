@@ -120,9 +120,9 @@ export function buildInstantStatusText(query: string, count: number): string {
     return buildInstantResultsStatusText(trimmed, count);
 }
 
-export function buildUpgradingStatusText(instantCount: number, progressPercent?: number): string {
-    if (progressPercent !== undefined && Number.isFinite(progressPercent)) {
-        return `Instant: ${instantCount} matches · Loading full archive (${Math.round(progressPercent)}%)…`;
+export function buildUpgradingStatusText(instantCount: number, loadedCount?: number): string {
+    if (loadedCount !== undefined && Number.isFinite(loadedCount) && loadedCount > 0) {
+        return `Instant: ${instantCount} matches · Loading full archive… (${loadedCount} loaded)`;
     }
     return `Instant: ${instantCount} matches · Loading full archive…`;
 }
