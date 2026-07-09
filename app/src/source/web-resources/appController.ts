@@ -130,7 +130,8 @@ import {
     syncInstantDegradedControls,
     UPGRADE_EXPORT_MODAL_MESSAGE,
     UPGRADE_MODAL_MESSAGE,
-    UPGRADE_MODAL_TITLE
+    UPGRADE_MODAL_TITLE,
+    UPGRADE_OPEN_WINDOW_MODAL_MESSAGE
 } from './search/instantSearchUi';
 import {
     FILTER_BUTTONS,
@@ -756,6 +757,17 @@ export function initApp(): void {
                 notifyMessage += ' Export unlocked — use save ▾ to export the full archive.';
             }
             showInstantNotifyMessage(notifyMessage);
+
+            if (intent?.openCommentsWindow) {
+                const comments = getComments(state);
+                if (comments.length > 0) {
+                    try {
+                        openCommentsWindow(comments, getExportMeta());
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+            }
         };
 
         const promptInstantUpgrade = async (
@@ -1162,6 +1174,12 @@ export function initApp(): void {
                     if (action.kind === 'export') {
                         void promptInstantUpgrade(UPGRADE_EXPORT_MODAL_MESSAGE, {
                             exportIntent: { format: EXPORT_FORMAT.TXT }
+                        });
+                        return;
+                    }
+                    if (action.kind === 'openWindow') {
+                        void promptInstantUpgrade(UPGRADE_OPEN_WINDOW_MODAL_MESSAGE, {
+                            openCommentsWindow: true
                         });
                         return;
                     }

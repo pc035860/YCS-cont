@@ -278,7 +278,7 @@ When instant mode is eligible and the comment cache misses, autoload must not fi
 
 In instant mode, only plain text search is fully supported.
 
-Incompatible filters: `heart`, `verified`, `members`, `donated`, `random`, `timestampViz`, `links`, `likes`, `replied`, `author`, `timestamp`, `sortFirst`, extended search, export/save.
+Incompatible filters: `heart`, `verified`, `members`, `donated`, `random`, `timestampViz`, `links`, `likes`, `replied`, `author`, `timestamp`, `sortFirst`, extended search, export/save, open-all-comments window (`#ycs_open_all_comments_window`).
 
 These controls are degraded in both active instant-result sessions and instant browse mode (eligible, no loaded comments yet), so the first click opens the upgrade modal.
 
@@ -289,6 +289,7 @@ For each incompatible control:
 3. Click opens the existing `#ycs_confirm_modal`
 4. Confirming triggers full comment load
 5. The clicked filter is remembered and auto-applied after load completes and the current query re-runs locally
+6. Open-all-comments window: after load completes, open the full-archive window (do not open on the instant subset)
 
 ### 12.5 Abort In-Flight Full Load (MUST)
 

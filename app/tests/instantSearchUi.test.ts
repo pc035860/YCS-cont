@@ -112,6 +112,7 @@ test('resolveInstantDegradedAction maps degraded controls by id', () => {
             ${filterButtonsHtml}
             <button id="ycs_btn_quick_chat">Chat</button>
             <button id="ycs_save_all_comments">Save</button>
+            <button id="ycs_open_all_comments_window">Open</button>
             <input id="ycs_extended_search" type="checkbox" />
         </div>
     </body></html>`);
@@ -133,6 +134,15 @@ test('resolveInstantDegradedAction maps degraded controls by id', () => {
     assert.deepEqual(resolveInstantDegradedAction(document.getElementById('ycs_extended_search')), {
         kind: 'extended'
     });
+    assert.deepEqual(resolveInstantDegradedAction(document.getElementById('ycs_open_all_comments_window')), {
+        kind: 'openWindow'
+    });
+});
+
+test('createPendingUpgradeStore retains openCommentsWindow intent', () => {
+    const store = createPendingUpgradeStore();
+    store.set({ openCommentsWindow: true });
+    assert.deepEqual(store.consume(), { openCommentsWindow: true });
 });
 
 test('bindInstantDegradedCapture survives child rebind and stays idle when inactive', () => {

@@ -40,10 +40,13 @@ export const DEGRADED_EXPORT_ELEMENT_IDS: string[] = ['ycs_save_all_comments'];
 
 export const DEGRADED_EXTENDED_SEARCH_ID = 'ycs_extended_search';
 
+export const DEGRADED_OPEN_COMMENTS_WINDOW_ID = 'ycs_open_all_comments_window';
+
 const DEGRADED_ELEMENT_IDS = [
     ...DEGRADED_FILTER_ELEMENT_IDS,
     ...DEGRADED_EXPORT_ELEMENT_IDS,
-    DEGRADED_EXTENDED_SEARCH_ID
+    DEGRADED_EXTENDED_SEARCH_ID,
+    DEGRADED_OPEN_COMMENTS_WINDOW_ID
 ];
 
 export interface PendingUpgradeIntent {
@@ -51,6 +54,8 @@ export interface PendingUpgradeIntent {
     exportIntent?: { format: ExportFormat };
     /** Enable `#ycs_extended_search` after upgrade (native toggle was blocked by capture). */
     enableExtendedSearch?: boolean;
+    /** Open the full-archive comments window after upgrade completes. */
+    openCommentsWindow?: boolean;
 }
 
 export interface PendingUpgradeStore {
@@ -134,6 +139,9 @@ export const UPGRADE_MODAL_MESSAGE =
 export const UPGRADE_EXPORT_MODAL_MESSAGE =
     'Export needs the full comment archive. Load all comments now? Your instant results stay visible while loading.';
 
+export const UPGRADE_OPEN_WINDOW_MODAL_MESSAGE =
+    'Opening all comments needs the full comment archive. Load all comments now? Your instant results stay visible while loading.';
+
 export function syncInstantDegradedControls(active: boolean): void {
     for (const elementId of DEGRADED_ELEMENT_IDS) {
         const element = document.getElementById(elementId);
@@ -154,7 +162,8 @@ export function syncInstantDegradedControls(active: boolean): void {
 export type InstantDegradedAction =
     | { kind: 'filter'; elementId: string; param: FilterParamKey }
     | { kind: 'export' }
-    | { kind: 'extended' };
+    | { kind: 'extended' }
+    | { kind: 'openWindow' };
 
 function asClosestElement(target: EventTarget | null): { closest(selectors: string): Element | null } | null {
     if (!target || typeof (target as Element).closest !== 'function') return null;
@@ -179,6 +188,10 @@ export function resolveInstantDegradedAction(target: EventTarget | null): Instan
 
     if (element.closest(`#${DEGRADED_EXTENDED_SEARCH_ID}`)) {
         return { kind: 'extended' };
+    }
+
+    if (element.closest(`#${DEGRADED_OPEN_COMMENTS_WINDOW_ID}`)) {
+        return { kind: 'openWindow' };
     }
 
     return null;
