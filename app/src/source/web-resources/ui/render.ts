@@ -74,7 +74,7 @@ function clearTarget(selector: string): HTMLElement | null {
 export function renderCommentsResult(
     selector: string,
     result: CommentsSearchResult,
-    deps?: { stateAccessor: CommentStateAccessor }
+    deps?: { stateAccessor?: CommentStateAccessor; onLocalBatchExhausted?: () => void }
 ): void {
     const target = clearTarget(selector);
     if (!target) return;
@@ -92,8 +92,11 @@ export function renderCommentsResult(
 
         renderComment(selector, result.results, {
             querySearch: result.query,
-            postBatchHook
+            postBatchHook,
+            onLocalBatchExhausted: deps?.onLocalBatchExhausted
         });
+    } else {
+        deps?.onLocalBatchExhausted?.();
     }
 
     applyButtonStates(result.buttonStates);

@@ -821,6 +821,8 @@ export function initApp(): void {
             removeInstantShowMore();
             const session = getRemoteSearch(state);
             if (!session.active || !session.pageToken) return;
+            // Wait until local DOM batch ("Show more, found comments") is exhausted.
+            if (document.getElementById('ycs_search_show_more')) return;
 
             const target = document.querySelector(selector);
             const wrapper = target?.querySelector('#ycs_wrap_comments') ?? target;
@@ -860,7 +862,10 @@ export function initApp(): void {
 
                     const refreshed = buildInstantSearchResult(query, getRemoteSearch(state).results);
                     const stateAccessor = getInstantResultAccessor();
-                    renderCommentsResult(selector, refreshed, { stateAccessor });
+                    renderCommentsResult(selector, refreshed, {
+                        stateAccessor,
+                        onLocalBatchExhausted: () => renderInstantShowMore(selector, query)
+                    });
                     state = setSearchCount(state, 'comments', refreshed.total);
 
                     const commentsContainer = document.getElementById('ycs_wrap_comments');
@@ -869,7 +874,6 @@ export function initApp(): void {
                     }
 
                     updateInstantStatusHtml(pageOutcome.statusHtml);
-                    renderInstantShowMore(selector, query);
                 } catch (error) {
                     if (error instanceof InstantSearchQuotaError) {
                         showInstantNotifyMessage(error.message);
@@ -928,7 +932,10 @@ export function initApp(): void {
                 const outcome = await runInstantCommentSearch(query, state, { videoId });
                 state = outcome.state;
                 const stateAccessor = getInstantResultAccessor();
-                renderCommentsResult(selector, outcome.result, { stateAccessor });
+                renderCommentsResult(selector, outcome.result, {
+                    stateAccessor,
+                    onLocalBatchExhausted: () => renderInstantShowMore(selector, trimmed)
+                });
                 state = setSearchCount(state, 'comments', outcome.result.total);
 
                 const commentsContainer = document.getElementById('ycs_wrap_comments');
@@ -938,7 +945,6 @@ export function initApp(): void {
 
                 if (outcome.result.total > 0) {
                     updateInstantStatusHtml(buildInstantResultsStatusHtml(trimmed, outcome.result.total));
-                    renderInstantShowMore(selector, trimmed);
                 } else {
                     removeInstantShowMore();
                     updateTotalResultDisplay(buildInstantZeroResultsStatusText(trimmed));

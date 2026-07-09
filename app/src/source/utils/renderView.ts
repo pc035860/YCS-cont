@@ -31,6 +31,8 @@ interface RenderCommentOptions {
     forceSmallAvatar?: boolean;
     /** Post-batch hook invoked after each batch (initial + show-more) is appended */
     postBatchHook?: (batchRoot: HTMLElement) => void;
+    /** Called when local DOM batch pagination is fully exhausted (or never needed) */
+    onLocalBatchExhausted?: () => void;
 }
 
 // Debug mode configuration
@@ -506,7 +508,8 @@ function renderComment(el: string | HTMLElement, data: any, options: RenderComme
         resetReplyLevel = true,
         hideExpandUp = false,
         forceSmallAvatar = false,
-        postBatchHook
+        postBatchHook,
+        onLocalBatchExhausted
     } = options;
 
     if (!el) return;
@@ -572,10 +575,13 @@ function renderComment(el: string | HTMLElement, data: any, options: RenderComme
 
             if (currentPos >= models.length) {
                 showMore.remove();
+                onLocalBatchExhausted?.();
             } else {
                 button.innerHTML = `Show more, found comments (${models.length - currentPos}) ${iconExpandShowMore()}`;
             }
         });
+    } else {
+        onLocalBatchExhausted?.();
     }
 
     if (querySearch) {
