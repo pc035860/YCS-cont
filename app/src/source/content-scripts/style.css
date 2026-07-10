@@ -179,6 +179,10 @@ html[dark] .ycs-instant-chip {
   color: #ffd866;
 }
 
+.ycs-instant-bolt {
+  vertical-align: -0.125em;
+}
+
 .ycs-instant-load-all-cta {
   border: none;
   background: none;
