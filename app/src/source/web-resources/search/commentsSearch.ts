@@ -1,4 +1,4 @@
-import Fuse from '../../../../node_modules/fuse.js/dist/fuse';
+import Fuse from '../../../../node_modules/fuse.js/dist/fuse.js';
 
 import { buildKeysSignature, buildOptionsSignature, cloneFuseOptions } from './fuseCacheUtils';
 
@@ -16,9 +16,10 @@ import {
     createDonatedFilter,
     createChannelOwnerFilter
 } from '../../utils/filters/commentsAgg';
-import { ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
-import { getComments, WebResourcesState } from '../state';
-import { SearchContext } from './types';
+import type { CommentItem, ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
+import { getComments } from '../state';
+import type { WebResourcesState } from '../state';
+import type { SearchContext } from './types';
 import { GlobalStore } from '../../utils/common';
 
 export interface SearchButtonState {
@@ -109,7 +110,19 @@ export function runSearch(
     state: WebResourcesState,
     context: SearchContext
 ): CommentsSearchResult {
-    const comments = getComments(state);
+    return runSearchOnComments(query, filters, getComments(state), context);
+}
+
+/**
+ * Core search pipeline over an explicit comments array — extracted so the instant local
+ * filter pipeline (complete instant session) can reuse it without a full WebResourcesState.
+ */
+export function runSearchOnComments(
+    query: string,
+    filters: IParamSearch | undefined,
+    comments: CommentItem[],
+    context: SearchContext
+): CommentsSearchResult {
     const trimmedQuery = query?.trim?.() ?? '';
 
     if (!comments || comments.length === 0) {
@@ -398,6 +411,17 @@ export function runSearch(
         resultSearch = applyTextMatches(newest, matches);
 
         if (resultSearch.length > 0) {
+            // Instant (Data API) results carry publishedAtMs and are relevance-ordered, not
+            // load-ordered; sort by actual publish date when present. Innertube items never
+            // carry publishedAtMs, so full-archive ordering (by _index/load order) is unchanged.
+            // The dataset is homogeneous (all-instant or all-Innertube), so checking the first
+            // item suffices — no full-array scan needed.
+            const getPublishedAtMs = (entry: ICommentsFuseResult): number | undefined =>
+                (entry.item as CommentItem | undefined)?.commentRenderer?.publishedAtMs;
+            if (typeof getPublishedAtMs(resultSearch[0]) === 'number') {
+                resultSearch.sort((a, b) => (getPublishedAtMs(b) ?? 0) - (getPublishedAtMs(a) ?? 0));
+            }
+
             const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_sort_first']);
             if (resolvedOrder === 'oldest') {
                 resultSearch = Array.from(resultSearch).reverse();

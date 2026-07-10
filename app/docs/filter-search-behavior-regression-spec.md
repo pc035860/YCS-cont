@@ -277,13 +277,19 @@ When instant mode is eligible (`hasYoutubeApiKey` + Instant ON; Enable irrelevan
 
 ### 12.4 Filter Degradation in Instant Mode (MUST)
 
-In instant mode, only plain text search is fully supported.
+In instant mode, plain text search is fully supported. Filters fall into two tiers:
 
-Incompatible filters: `heart`, `verified`, `members`, `donated`, `random`, `timestampViz`, `links`, `likes`, `replied`, `author`, `timestamp`, `sortFirst`, extended search, export/save, open-all-comments window (`#ycs_open_all_comments_window`).
+**Always incompatible** (Data API responses lack the required fields — `creatorHeart`, `verifiedAuthor`, `sponsorCommentBadge`, `donatedChip`, `authorIsChannelOwner`): `heart`, `verified`, `members`, `donated`, `author`, `timestampViz`. Also always degraded: extended search, export/save, open-all-comments window (`#ycs_open_all_comments_window`).
 
-These controls are degraded in both active instant-result sessions and instant browse mode (eligible, no loaded comments yet), so the first click opens the upgrade modal.
+**Conditionally unlocked** (work locally on the instant subset once the session is complete): `random`, `links`, `likes`, `replied`, `timestamp`, `sortFirst`.
 
-For each incompatible control:
+A session is **complete** when all of: session active, ≥1 result, and no `nextPageToken` remaining (single-page result, or every API page fetched via show-more). Unlocked filters then run **locally** over the instant result set — no API call — and `sortFirst` orders by `publishedAt` date (Data API results are relevance-ordered; full-archive Innertube ordering is unchanged). Clearing an active filter on the same query also re-renders locally instead of re-hitting the API.
+
+Unlockable filters **re-degrade** (upgrade modal on click) when: the session is incomplete (unfetched pages remain), the query text no longer matches the session query, or the session is cleared/reset.
+
+While degraded, in both active instant-result sessions and instant browse mode (eligible, no loaded comments yet), the first click opens the upgrade modal.
+
+For each degraded control:
 
 1. Apply class `ycs-btn-degraded` (dimmed to ~0.38 opacity; **not** `disabled`)
 2. Tooltip: `Needs all comments loaded — click to load`

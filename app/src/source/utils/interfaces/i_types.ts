@@ -57,6 +57,8 @@ export interface CommentRenderer extends Record<string, unknown> {
     isTimeLine?: 'timeline' | string;
     likeCount?: number | string;
     likesForSort?: number;
+    /** Parsed Data API `snippet.publishedAt` in epoch ms; only set for instant (Data API) comments. */
+    publishedAtMs?: number;
     publishedTimeText?: {
         simpleText?: string;
         runs?: Array<{

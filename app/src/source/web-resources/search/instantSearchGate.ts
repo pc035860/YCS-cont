@@ -1,5 +1,5 @@
 import { GlobalStore } from '../../utils/common';
-import { getComments } from '../state';
+import { getComments, getRemoteSearch } from '../state';
 import type { WebResourcesState } from '../state';
 
 export interface InstantSearchFlags {
@@ -47,4 +47,14 @@ export function shouldUseInstantSearch(
     if (!instantEligible(flags)) return false;
     if (getComments(state).length > 0) return false;
     return true;
+}
+
+/**
+ * True once the instant result set covers the whole API-side match set for the active query:
+ * an active session, at least one result, and no further page to fetch.
+ * Unlocks locally-servable filters/sort — see instantSearchUi's two-tier filter classification.
+ */
+export function isInstantSessionComplete(state: WebResourcesState): boolean {
+    const session = getRemoteSearch(state);
+    return session.active && session.results.length > 0 && !session.pageToken;
 }

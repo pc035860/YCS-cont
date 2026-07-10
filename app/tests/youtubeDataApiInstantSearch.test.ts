@@ -150,3 +150,98 @@ test('fetchCommentSearchPage: transforms 2-thread response and passes through pa
         globalThis.fetch = originalFetch;
     }
 });
+
+test('fetchCommentSearchPage: transform sets publishedAtMs from a parseable snippet.publishedAt', async () => {
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = async () =>
+        ({
+            ok: true,
+            json: async () => ({
+                items: [createMockThread('thread1', 'first comment')]
+            })
+        }) as Response;
+
+    try {
+        const result = await fetchCommentSearchPage({
+            videoId: 'video123',
+            searchTerms: 'comment',
+            apiKey: 'test-key'
+        });
+
+        assert.equal(result.items.length, 1);
+        assert.equal(result.items[0].commentRenderer.publishedAtMs, Date.parse('2024-01-01T00:00:00Z'));
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('fetchCommentSearchPage: transform omits publishedAtMs when snippet.publishedAt is unparseable', async () => {
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = async () =>
+        ({
+            ok: true,
+            json: async () => ({
+                items: [
+                    {
+                        id: 'thread-bad-date',
+                        snippet: {
+                            topLevelComment: {
+                                id: 'comment-bad-date',
+                                snippet: {
+                                    textOriginal: 'no date',
+                                    textDisplay: 'no date',
+                                    authorDisplayName: 'Test User',
+                                    authorProfileImageUrl: 'https://example.com/avatar.jpg',
+                                    authorChannelUrl: 'https://www.youtube.com/channel/UC123',
+                                    likeCount: 0,
+                                    publishedAt: 'not-a-real-date',
+                                    updatedAt: 'not-a-real-date'
+                                }
+                            },
+                            totalReplyCount: 0
+                        }
+                    }
+                ]
+            })
+        }) as Response;
+
+    try {
+        const result = await fetchCommentSearchPage({
+            videoId: 'video123',
+            searchTerms: 'comment',
+            apiKey: 'test-key'
+        });
+
+        assert.equal(result.items.length, 1);
+        assert.equal(result.items[0].commentRenderer.publishedAtMs, undefined);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('fetchCommentSearchPage: final page (no nextPageToken) leaves pageToken undefined', async () => {
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = async () =>
+        ({
+            ok: true,
+            json: async () => ({
+                items: [createMockThread('thread1', 'only comment')]
+                // No nextPageToken: this is the final page.
+            })
+        }) as Response;
+
+    try {
+        const result = await fetchCommentSearchPage({
+            videoId: 'video123',
+            searchTerms: 'comment',
+            apiKey: 'test-key'
+        });
+
+        assert.equal(result.nextPageToken, undefined);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});

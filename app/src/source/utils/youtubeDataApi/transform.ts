@@ -331,6 +331,13 @@ function transformApiCommentToRenderer(
         renderer.replyCount = replyCount;
     }
 
+    // Persist publish date for local sortFirst ordering (relevance-ordered instant results
+    // otherwise lose date order — see commentsSearch.ts sortFirst branch).
+    const publishedAtMs = Date.parse(apiComment.snippet.publishedAt);
+    if (Number.isFinite(publishedAtMs)) {
+        renderer.publishedAtMs = publishedAtMs;
+    }
+
     // Mark as timeline comment if timestamps were found
     if (hasTimeline) {
         renderer.isTimeLine = 'timeline';

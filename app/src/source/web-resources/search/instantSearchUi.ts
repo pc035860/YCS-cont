@@ -8,33 +8,60 @@ export const INSTANT_DEGRADED_TOOLTIP = 'Needs all comments loaded — click to 
 
 export const INSTANT_SHOW_MORE_TOOLTIP = 'Fetch next page from YouTube (~1 quota unit)';
 
-/** Filters that need the full local archive — not supported by YouTube searchTerms alone. */
-export const DEGRADED_FILTER_PARAMS: FilterParamKey[] = [
+/**
+ * Filters that can never work on instant (Data API) data — the required fields
+ * (creatorHeart, verifiedAuthor, sponsorCommentBadge, donatedChip, authorIsChannelOwner)
+ * are absent from Data API responses regardless of session completeness.
+ */
+export const INSTANT_ALWAYS_DEGRADED_FILTER_PARAMS: FilterParamKey[] = [
     'heart',
     'verified',
     'members',
     'donated',
+    'author',
+    'timestampViz'
+];
+
+/** Filters that unlock once the instant session is complete (all API pages fetched). */
+export const INSTANT_UNLOCKABLE_FILTER_PARAMS: FilterParamKey[] = [
     'random',
-    'timestampViz',
     'links',
     'likes',
     'replied',
-    'author',
     'timestamp',
     'sortFirst'
 ];
 
-export const DEGRADED_FILTERS: Array<{ elementId: string; param: FilterParamKey }> = DEGRADED_FILTER_PARAMS.map(
-    (param) => {
+/** Filters that need the full local archive — not supported by YouTube searchTerms alone. */
+export const DEGRADED_FILTER_PARAMS: FilterParamKey[] = [
+    ...INSTANT_ALWAYS_DEGRADED_FILTER_PARAMS,
+    ...INSTANT_UNLOCKABLE_FILTER_PARAMS
+];
+
+function toFilterEntries(params: FilterParamKey[]): Array<{ elementId: string; param: FilterParamKey }> {
+    return params.map((param) => {
         const config = FILTER_BUTTONS.find((entry) => entry.param === param);
         if (!config) {
             throw new Error(`Missing FILTER_BUTTONS entry for degraded filter: ${param}`);
         }
         return { elementId: config.elementId, param };
-    }
+    });
+}
+
+export const DEGRADED_FILTERS: Array<{ elementId: string; param: FilterParamKey }> =
+    toFilterEntries(DEGRADED_FILTER_PARAMS);
+
+export const INSTANT_ALWAYS_DEGRADED_FILTERS: Array<{ elementId: string; param: FilterParamKey }> = toFilterEntries(
+    INSTANT_ALWAYS_DEGRADED_FILTER_PARAMS
+);
+
+export const INSTANT_UNLOCKABLE_FILTERS: Array<{ elementId: string; param: FilterParamKey }> = toFilterEntries(
+    INSTANT_UNLOCKABLE_FILTER_PARAMS
 );
 
 export const DEGRADED_FILTER_ELEMENT_IDS: string[] = DEGRADED_FILTERS.map((entry) => entry.elementId);
+
+export const UNLOCKABLE_FILTER_ELEMENT_IDS: string[] = INSTANT_UNLOCKABLE_FILTERS.map((entry) => entry.elementId);
 
 export const DEGRADED_EXPORT_ELEMENT_IDS: string[] = ['ycs_save_all_comments'];
 
@@ -90,6 +117,16 @@ export function isDegradedFilterParam(param: FilterParamKey): boolean {
     return DEGRADED_FILTER_PARAMS.includes(param);
 }
 
+/**
+ * Two-tier classification: always-degraded filters stay blocked regardless of session
+ * completeness; unlockable filters are only blocked while the instant session is incomplete.
+ */
+export function isInstantBlockedFilterParam(param: FilterParamKey, sessionComplete: boolean): boolean {
+    if (!isDegradedFilterParam(param)) return false;
+    if (!sessionComplete) return true;
+    return INSTANT_ALWAYS_DEGRADED_FILTER_PARAMS.includes(param);
+}
+
 export function buildInstantEmptyQueryStatusText(): string {
     return 'Type something to search instantly, or click Load all to browse every comment.';
 }
@@ -104,9 +141,13 @@ export function buildInstantResultsStatusText(query: string, count: number): str
     return `${count} matches for "${trimmed}" · Load all comments for filters & export`;
 }
 
+function wrapInstantChipHtml(bodyHtml: string): string {
+    return `<span class="ycs-instant-chip">⚡ Instant</span> ${bodyHtml} · <button type="button" class="ycs-instant-load-all-cta">Load all comments for filters &amp; export</button>`;
+}
+
 export function buildInstantResultsStatusHtml(query: string, count: number): string {
     const trimmed = query.trim();
-    return `<span class="ycs-instant-chip">⚡ Instant</span> ${count} matches for &quot;${escapeHtml(trimmed)}&quot; · <button type="button" class="ycs-instant-load-all-cta">Load all comments for filters &amp; export</button>`;
+    return wrapInstantChipHtml(`${count} matches for &quot;${escapeHtml(trimmed)}&quot;`);
 }
 
 export function buildInstantStatusText(query: string, count: number): string {
@@ -162,20 +203,40 @@ export const UPGRADE_EXPORT_MODAL_MESSAGE =
 export const UPGRADE_OPEN_WINDOW_MODAL_MESSAGE =
     'Opening all comments needs the full comment archive. Load all comments now? Your instant results stay visible while loading.';
 
-export function syncInstantDegradedControls(active: boolean): void {
+function setDegraded(element: HTMLElement, degraded: boolean): void {
+    if (degraded) {
+        element.classList.add('ycs-btn-degraded');
+        element.setAttribute('title', INSTANT_DEGRADED_TOOLTIP);
+    } else {
+        element.classList.remove('ycs-btn-degraded');
+        if (element.getAttribute('title') === INSTANT_DEGRADED_TOOLTIP) {
+            element.removeAttribute('title');
+        }
+    }
+}
+
+/**
+ * Sync degraded-control visuals for instant mode.
+ * When `sessionComplete` is true, only always-degraded filters (+ export/extended/open-window)
+ * stay marked degraded; unlockable filters have their degraded styling removed.
+ */
+export function syncInstantDegradedControls(active: boolean, options?: { sessionComplete?: boolean }): void {
+    const sessionComplete = Boolean(options?.sessionComplete);
+
+    if (active && sessionComplete) {
+        for (const elementId of DEGRADED_ELEMENT_IDS) {
+            const element = document.getElementById(elementId);
+            if (!element) continue;
+            const degraded = !UNLOCKABLE_FILTER_ELEMENT_IDS.includes(elementId);
+            setDegraded(element, degraded);
+        }
+        return;
+    }
+
     for (const elementId of DEGRADED_ELEMENT_IDS) {
         const element = document.getElementById(elementId);
         if (!element) continue;
-
-        if (active) {
-            element.classList.add('ycs-btn-degraded');
-            element.setAttribute('title', INSTANT_DEGRADED_TOOLTIP);
-        } else {
-            element.classList.remove('ycs-btn-degraded');
-            if (element.getAttribute('title') === INSTANT_DEGRADED_TOOLTIP) {
-                element.removeAttribute('title');
-            }
-        }
+        setDegraded(element, active);
     }
 }
 
@@ -222,6 +283,7 @@ export function bindInstantDegradedCapture(
     options: {
         isActive: () => boolean;
         onAction: (action: InstantDegradedAction) => void;
+        isFilterUnlocked?: (param: FilterParamKey) => boolean;
     }
 ): void {
     const flagged = root as HTMLElement & { __ycsInstantDegradedBound?: boolean };
@@ -234,6 +296,10 @@ export function bindInstantDegradedCapture(
             if (!options.isActive()) return;
             const action = resolveInstantDegradedAction(event.target);
             if (!action) return;
+            if (action.kind === 'filter' && options.isFilterUnlocked?.(action.param)) {
+                // Unlocked filter: let the native handler run (keeps sort-order toggling free).
+                return;
+            }
             event.preventDefault();
             event.stopImmediatePropagation();
             options.onAction(action);

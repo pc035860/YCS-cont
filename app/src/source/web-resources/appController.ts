@@ -108,7 +108,12 @@ import {
     resetRemoteSearch,
     getRemoteSearch
 } from './state';
-import { isInstantBrowseMode, shouldSkipAutoload, shouldUseInstantSearch } from './search/instantSearchGate';
+import {
+    isInstantBrowseMode,
+    isInstantSessionComplete,
+    shouldSkipAutoload,
+    shouldUseInstantSearch
+} from './search/instantSearchGate';
 import {
     abortInFlightCommentLoad,
     abortInFlightInstantSearch,
@@ -128,6 +133,7 @@ import {
     createPendingUpgradeStore,
     INSTANT_SHOW_MORE_TOOLTIP,
     isDegradedFilterParam,
+    isInstantBlockedFilterParam,
     syncInstantDegradedControls,
     UPGRADE_EXPORT_MODAL_MESSAGE,
     UPGRADE_MODAL_MESSAGE,
@@ -142,7 +148,8 @@ import {
     getDynamicFilterButtonConfigs
 } from './ui/filters';
 import { registerCommentInteractions } from './ui/commentInteractions';
-import { runSearch as runCommentsSearch, clearCommentsFuseCache } from './search/commentsSearch';
+import { runSearch as runCommentsSearch, runSearchOnComments, clearCommentsFuseCache } from './search/commentsSearch';
+import type { CommentsSearchResult } from './search/commentsSearch';
 import { runSearch as runChatSearch, clearChatFuseCache } from './search/chatSearch';
 import { runSearch as runTranscriptSearch, clearTranscriptFuseCache } from './search/transcriptSearch';
 import { SearchContext, SortOrder } from './search/types';
@@ -612,6 +619,22 @@ export function initApp(): void {
         const isInstantSessionActive = (): boolean => getRemoteSearch(state).active;
         const isInstantDegradedMode = (): boolean => isInstantSessionActive() || isInstantBrowseMode(state);
 
+        /** Keep degraded-control visuals in sync with the current instant session completeness. */
+        const syncInstantControlsFromState = (): void => {
+            syncInstantDegradedControls(isInstantDegradedMode(), { sessionComplete: isInstantSessionComplete(state) });
+        };
+
+        /**
+         * Click-time predicate for the two-tier filter unlock: session must be complete AND the
+         * active query must still match the session's query (edited-then-clicked → upgrade modal).
+         */
+        const isInstantFilterUnlocked = (param: FilterParamKey): boolean => {
+            const session = getRemoteSearch(state);
+            if (!session.active || !isInstantSessionComplete(state)) return false;
+            if (session.query !== getSearchQuery().trim()) return false;
+            return !isInstantBlockedFilterParam(param, true);
+        };
+
         const updateTotalResultDisplay = (text: string, forceShow = true): void => {
             const nodeTotalSearchResult = document.getElementById('ycs-search-total-result');
             if (nodeTotalSearchResult) {
@@ -671,7 +694,7 @@ export function initApp(): void {
         const clearInstantSessionUi = (options?: { clearResultsDom?: boolean }): void => {
             instantSearchGeneration += 1;
             state = resetRemoteSearch(state);
-            syncInstantDegradedControls(isInstantBrowseMode(state));
+            syncInstantControlsFromState();
             removeInstantShowMore();
             if (options?.clearResultsDom) {
                 const elSearchRes = document.getElementById('ycs-search-result');
@@ -713,7 +736,7 @@ export function initApp(): void {
             instantUpgradeSnapshot = null;
 
             state = resetRemoteSearch(state);
-            syncInstantDegradedControls(false);
+            syncInstantControlsFromState();
             syncInstantSearchPlaceholder();
             removeInstantShowMore();
 
@@ -836,6 +859,19 @@ export function initApp(): void {
             getComments: () => getRemoteSearch(state).results
         });
 
+        /** Shared post-render tail: record the comments search count and (re)bind comment interactions. */
+        const finalizeCommentsRender = (
+            result: { total: number },
+            stateAccessor: { getComments: () => CommentItem[] },
+            query: string
+        ): void => {
+            state = setSearchCount(state, 'comments', result.total);
+            const commentsContainer = document.getElementById('ycs_wrap_comments');
+            if (commentsContainer instanceof HTMLElement) {
+                registerCommentInteractions(commentsContainer, stateAccessor, () => query);
+            }
+        };
+
         const renderInstantShowMore = (selector: string, query: string): void => {
             removeInstantShowMore();
             const session = getRemoteSearch(state);
@@ -885,14 +921,10 @@ export function initApp(): void {
                         stateAccessor,
                         onLocalBatchExhausted: () => renderInstantShowMore(selector, query)
                     });
-                    state = setSearchCount(state, 'comments', refreshed.total);
-
-                    const commentsContainer = document.getElementById('ycs_wrap_comments');
-                    if (commentsContainer instanceof HTMLElement) {
-                        registerCommentInteractions(commentsContainer, stateAccessor, () => query);
-                    }
+                    finalizeCommentsRender(refreshed, stateAccessor, query);
 
                     updateInstantStatusHtml(pageOutcome.statusHtml);
+                    syncInstantControlsFromState();
                 } catch (error) {
                     if (error instanceof InstantSearchQuotaError) {
                         showInstantNotifyMessage(error.message);
@@ -931,6 +963,16 @@ export function initApp(): void {
                 return false;
             }
 
+            const activeSession = getRemoteSearch(state);
+            if (activeSession.active && isInstantSessionComplete(state) && activeSession.query === trimmed) {
+                // Complete session, same query: serve filters/sort locally instead of re-hitting
+                // the API (which would replace the accumulated multi-page session with page 1).
+                const result = runInstantLocalPipeline(selector, trimmed, param);
+                updateInstantStatusHtml(buildInstantResultsStatusHtml(trimmed, result.total));
+                syncInstantControlsFromState();
+                return true;
+            }
+
             const videoId = getVideoId(window.location.href);
             if (!videoId) {
                 updateTotalResultDisplay('(Comments) Found: 0');
@@ -955,12 +997,7 @@ export function initApp(): void {
                     stateAccessor,
                     onLocalBatchExhausted: () => renderInstantShowMore(selector, trimmed)
                 });
-                state = setSearchCount(state, 'comments', outcome.result.total);
-
-                const commentsContainer = document.getElementById('ycs_wrap_comments');
-                if (commentsContainer instanceof HTMLElement) {
-                    registerCommentInteractions(commentsContainer, stateAccessor, () => query);
-                }
+                finalizeCommentsRender(outcome.result, stateAccessor, query);
 
                 if (outcome.result.total > 0) {
                     updateInstantStatusHtml(buildInstantResultsStatusHtml(trimmed, outcome.result.total));
@@ -969,7 +1006,7 @@ export function initApp(): void {
                     updateTotalResultDisplay(buildInstantZeroResultsStatusText(trimmed));
                 }
 
-                syncInstantDegradedControls(isInstantDegradedMode());
+                syncInstantControlsFromState();
                 return true;
             } catch (error) {
                 if (error instanceof InstantSearchQuotaError) {
@@ -981,7 +1018,7 @@ export function initApp(): void {
                     console.error('[YCS] Instant search failed:', error);
                     updateTotalResultDisplay('Instant search failed. Try Load all or search again.');
                 }
-                syncInstantDegradedControls(isInstantDegradedMode());
+                syncInstantControlsFromState();
                 removeInstantShowMore();
                 return true;
             } finally {
@@ -1060,7 +1097,8 @@ export function initApp(): void {
                     filterKey &&
                     filterKey !== 'quickChat' &&
                     filterKey !== 'quickTranscript' &&
-                    isDegradedFilterParam(filterKey as FilterParamKey)
+                    isDegradedFilterParam(filterKey as FilterParamKey) &&
+                    !isInstantFilterUnlocked(filterKey as FilterParamKey)
                 ) {
                     void promptInstantUpgrade(UPGRADE_MODAL_MESSAGE, { filterParam: param });
                     return;
@@ -1181,7 +1219,7 @@ export function initApp(): void {
                 clearButton.addEventListener('click', clearHandler);
             }
 
-            syncInstantDegradedControls(isInstantDegradedMode());
+            syncInstantControlsFromState();
         };
 
         initFilterButtons();
@@ -1190,6 +1228,7 @@ export function initApp(): void {
         if (elLiveApp instanceof HTMLElement) {
             bindInstantDegradedCapture(elLiveApp, {
                 isActive: isInstantDegradedMode,
+                isFilterUnlocked: isInstantFilterUnlocked,
                 onAction: (action) => {
                     if (action.kind === 'filter') {
                         const filterParam = { [action.param]: true } as IParamSearch;
@@ -1464,7 +1503,7 @@ export function initApp(): void {
                             completeInstantUpgrade();
                         } else {
                             state = resetRemoteSearch(state);
-                            syncInstantDegradedControls(isInstantDegradedMode());
+                            syncInstantControlsFromState();
                             syncInstantSearchPlaceholder();
                         }
                     }
@@ -1976,14 +2015,32 @@ export function initApp(): void {
             };
 
             renderCommentsResult(selector, result, { stateAccessor });
+            finalizeCommentsRender(result, stateAccessor, query);
 
-            state = setSearchCount(state, 'comments', result.total);
+            return result;
+        };
 
-            const commentsContainer = document.getElementById('ycs_wrap_comments');
+        /**
+         * Instant local filter pipeline: runs filters/sort over an already-complete instant
+         * session's results without any API call. Passes an empty query to the search core —
+         * `session.results` already ARE the query matches; re-running Fuse would double-filter.
+         */
+        const runInstantLocalPipeline = (
+            selector: string,
+            query: string,
+            param?: IParamSearch
+        ): CommentsSearchResult => {
+            const context = buildSearchContext();
+            const result = runSearchOnComments('', param, getRemoteSearch(state).results, context);
+            // Preserve the user's query on the result so render-side highlighting still works.
+            result.query = query;
 
-            if (commentsContainer instanceof HTMLElement) {
-                registerCommentInteractions(commentsContainer, stateAccessor, () => query);
-            }
+            const stateAccessor = getInstantResultAccessor();
+            renderCommentsResult(selector, result, {
+                stateAccessor,
+                onLocalBatchExhausted: () => renderInstantShowMore(selector, query)
+            });
+            finalizeCommentsRender(result, stateAccessor, query);
 
             return result;
         };
