@@ -331,8 +331,11 @@ function transformApiCommentToRenderer(
         renderer.replyCount = replyCount;
     }
 
-    // Persist publish date for local sortFirst ordering (relevance-ordered instant results
-    // otherwise lose date order — see commentsSearch.ts sortFirst branch).
+    // Persist publish date for local instant-pipeline ordering (relevance-ordered instant
+    // results otherwise lose date order — see commentsSearch.ts sortByLoadOrderOrPublishedDate).
+    // Set for every Data API-sourced comment (Instant searchTerms AND a full "Enable" archive
+    // load share this transform) — the consuming sort only acts on it when explicitly opted in
+    // via `preferPublishedAtOrder`, so a full Data API archive load's ordering is unaffected.
     const publishedAtMs = Date.parse(apiComment.snippet.publishedAt);
     if (Number.isFinite(publishedAtMs)) {
         renderer.publishedAtMs = publishedAtMs;

@@ -55,32 +55,97 @@ test('runSearchOnComments: likes filter sorts by likeCount desc', () => {
     assert.deepEqual(commentIds(result.results), ['b', 'a', 'c']);
 });
 
-test('runSearchOnComments: sortFirst with publishedAtMs sorts by date desc (newest first)', () => {
+test('runSearchOnComments: sortFirst with publishedAtMs sorts by date desc (newest first) when preferPublishedAtOrder is set', () => {
     const items = [
         makeComment('a', { publishedAtMs: 1000, index: 0 }),
         makeComment('b', { publishedAtMs: 3000, index: 1 }),
         makeComment('c', { publishedAtMs: 2000, index: 2 })
     ];
 
-    const result = runSearchOnComments('', { sortFirst: true }, items, baseContext);
+    const result = runSearchOnComments('', { sortFirst: true }, items, baseContext, {
+        preferPublishedAtOrder: true
+    });
     assert.deepEqual(commentIds(result.results), ['b', 'c', 'a']);
 });
 
-test('runSearchOnComments: sortFirst with sortOrder oldest reverses date order', () => {
+test('runSearchOnComments: sortFirst with sortOrder oldest reverses date order when preferPublishedAtOrder is set', () => {
     const items = [
         makeComment('a', { publishedAtMs: 1000, index: 0 }),
         makeComment('b', { publishedAtMs: 3000, index: 1 }),
         makeComment('c', { publishedAtMs: 2000, index: 2 })
     ];
 
-    const result = runSearchOnComments('', { sortFirst: true, sortOrder: 'oldest' }, items, baseContext);
+    const result = runSearchOnComments('', { sortFirst: true, sortOrder: 'oldest' }, items, baseContext, {
+        preferPublishedAtOrder: true
+    });
     assert.deepEqual(commentIds(result.results), ['a', 'c', 'b']);
 });
 
 test('runSearchOnComments: sortFirst without publishedAtMs keeps _index/load order (full-archive regression guard)', () => {
     const items = [makeComment('a', { index: 0 }), makeComment('b', { index: 1 }), makeComment('c', { index: 2 })];
 
+    const result = runSearchOnComments('', { sortFirst: true }, items, baseContext, {
+        preferPublishedAtOrder: true
+    });
+    assert.deepEqual(commentIds(result.results), ['a', 'b', 'c']);
+});
+
+test('runSearchOnComments: sortFirst with publishedAtMs but WITHOUT preferPublishedAtOrder keeps _index order (scope guard: full Data API archive load must not get instant-only date ordering)', () => {
+    const items = [
+        makeComment('a', { publishedAtMs: 1000, index: 0 }),
+        makeComment('b', { publishedAtMs: 3000, index: 1 }),
+        makeComment('c', { publishedAtMs: 2000, index: 2 })
+    ];
+
     const result = runSearchOnComments('', { sortFirst: true }, items, baseContext);
+    assert.deepEqual(commentIds(result.results), ['a', 'b', 'c']);
+});
+
+test('runSearchOnComments: links filter sorts by publishedAtMs when preferPublishedAtOrder is set (instant unlock fix)', () => {
+    const items = [
+        makeComment('a', { content: 'https://a.example', publishedAtMs: 1000, index: 0 }),
+        makeComment('b', { content: 'https://b.example', publishedAtMs: 3000, index: 1 }),
+        makeComment('c', { content: 'https://c.example', publishedAtMs: 2000, index: 2 })
+    ];
+
+    const result = runSearchOnComments('', { links: true }, items, baseContext, {
+        preferPublishedAtOrder: true
+    });
+    assert.deepEqual(commentIds(result.results), ['b', 'c', 'a']);
+});
+
+test('runSearchOnComments: links filter keeps _index order without preferPublishedAtOrder (full-archive regression guard)', () => {
+    const items = [
+        makeComment('a', { content: 'https://a.example', publishedAtMs: 1000, index: 0 }),
+        makeComment('b', { content: 'https://b.example', publishedAtMs: 3000, index: 1 }),
+        makeComment('c', { content: 'https://c.example', publishedAtMs: 2000, index: 2 })
+    ];
+
+    const result = runSearchOnComments('', { links: true }, items, baseContext);
+    assert.deepEqual(commentIds(result.results), ['a', 'b', 'c']);
+});
+
+test('runSearchOnComments: timestamp filter sorts by publishedAtMs when preferPublishedAtOrder is set (instant unlock fix)', () => {
+    const items = [
+        makeComment('a', { isTimeLine: 'timeline', publishedAtMs: 1000, index: 0 }),
+        makeComment('b', { isTimeLine: 'timeline', publishedAtMs: 3000, index: 1 }),
+        makeComment('c', { isTimeLine: 'timeline', publishedAtMs: 2000, index: 2 })
+    ];
+
+    const result = runSearchOnComments('', { timestamp: true }, items, baseContext, {
+        preferPublishedAtOrder: true
+    });
+    assert.deepEqual(commentIds(result.results), ['b', 'c', 'a']);
+});
+
+test('runSearchOnComments: timestamp filter keeps _index order without preferPublishedAtOrder (full-archive regression guard)', () => {
+    const items = [
+        makeComment('a', { isTimeLine: 'timeline', publishedAtMs: 1000, index: 0 }),
+        makeComment('b', { isTimeLine: 'timeline', publishedAtMs: 3000, index: 1 }),
+        makeComment('c', { isTimeLine: 'timeline', publishedAtMs: 2000, index: 2 })
+    ];
+
+    const result = runSearchOnComments('', { timestamp: true }, items, baseContext);
     assert.deepEqual(commentIds(result.results), ['a', 'b', 'c']);
 });
 

@@ -913,6 +913,11 @@ export function initApp(): void {
                     state = pageOutcome.state;
                     if (pageOutcome.appendedCount === 0) {
                         removeInstantShowMore();
+                        // Even with zero new items, the API may have returned no nextPageToken,
+                        // making the session complete — re-sync degraded controls so unlockable
+                        // filters lose their locked visual state (click-time gate already allows
+                        // this; keep the visuals in sync too).
+                        syncInstantControlsFromState();
                         return;
                     }
 
@@ -2032,7 +2037,9 @@ export function initApp(): void {
             param?: IParamSearch
         ): CommentsSearchResult => {
             const context = buildSearchContext();
-            const result = runSearchOnComments('', param, getRemoteSearch(state).results, context);
+            const result = runSearchOnComments('', param, getRemoteSearch(state).results, context, {
+                preferPublishedAtOrder: true
+            });
             // Preserve the user's query on the result so render-side highlighting still works.
             result.query = query;
 
