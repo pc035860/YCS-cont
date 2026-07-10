@@ -319,6 +319,7 @@ All instant-mode status copy is rendered via `#ycs-search-total-result`. No stic
 | S5 Empty-query hint | Empty `Q` + explicit Search in instant mode | Hint copy from Section 12.2 |
 | S6 Upgrading | Full load in progress after instant use | Progress copy for upgrade path |
 | S7 Upgraded | Full load complete; same query re-run locally | Normal `(Comments) Found: M`; all filters unlocked |
+| S8 All-mode combined | Search type `all`: instant comments + other sources (chat/transcript) rendered | Instant chip + combined `(All) Found: N` (or filter-specific label) + load-all CTA; the chip **must not** be overwritten by plain text |
 
 Quota exceeded: show notify box `YouTube API quota exceeded. Instant search unavailable — you can still load comments normally.`
 

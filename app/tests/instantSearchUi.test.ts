@@ -5,6 +5,7 @@ import { JSDOM } from 'jsdom';
 import { mergeInstantPageResults } from '../src/source/web-resources/search/instantCommentsSearch';
 import {
     bindInstantDegradedCapture,
+    buildInstantAllModeStatusHtml,
     buildInstantResultsStatusHtml,
     buildUpgradeCompleteNotifyMessage,
     buildUpgradedStatusText,
@@ -383,4 +384,11 @@ test('bindInstantDegradedCapture: isFilterUnlocked lets unlocked filter clicks t
     assert.equal(actions.length, 2);
     assert.deepEqual(actions[1], { kind: 'export' });
     assert.equal(nativeClicks, 1);
+});
+
+test('buildInstantAllModeStatusHtml contains chip, escaped text, and load-all CTA', () => {
+    const html = buildInstantAllModeStatusHtml('Links, found: 5 <b>x</b>');
+    assert.match(html, /ycs-instant-chip/);
+    assert.match(html, /Links, found: 5 &lt;b&gt;x&lt;\/b&gt;/);
+    assert.match(html, /ycs-instant-load-all-cta/);
 });

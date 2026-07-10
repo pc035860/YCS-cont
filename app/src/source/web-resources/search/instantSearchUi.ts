@@ -150,6 +150,16 @@ export function buildInstantResultsStatusHtml(query: string, count: number): str
     return wrapInstantChipHtml(`${count} matches for &quot;${escapeHtml(trimmed)}&quot;`);
 }
 
+/**
+ * All-mode combined status (`comments + chat + transcript`) with the ⚡ Instant chip preserved —
+ * the chip must not be overwritten by plain text when other sources render alongside instant
+ * comments. Takes the pre-formatted, filter-specific result text so all-mode labels
+ * (e.g. "Links, found: N") stay intact.
+ */
+export function buildInstantAllModeStatusHtml(combinedText: string): string {
+    return wrapInstantChipHtml(escapeHtml(combinedText));
+}
+
 export function buildInstantStatusText(query: string, count: number): string {
     const trimmed = query.trim();
     if (!trimmed) {

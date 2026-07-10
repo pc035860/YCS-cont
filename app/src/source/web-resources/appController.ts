@@ -123,6 +123,7 @@ import {
     runInstantCommentSearch
 } from './search/instantCommentsSearch';
 import {
+    buildInstantAllModeStatusHtml,
     buildInstantEmptyQueryStatusText,
     buildInstantResultsStatusHtml,
     buildInstantZeroResultsStatusText,
@@ -2214,9 +2215,19 @@ export function initApp(): void {
                     (shouldRenderChat && commentsChat.size > 0) ||
                     (shouldRenderTranscript && getCueGroupCount(commentsTrVideo) > 0);
 
-                if (!usedInstantComments || hasOtherSources) {
+                const remoteSession = getRemoteSearch(state);
+                const instantChipVisible =
+                    usedInstantComments && remoteSession.active && remoteSession.results.length > 0;
+
+                if (instantChipVisible && hasOtherSources) {
+                    // Keep the ⚡ Instant chip visible instead of overwriting it with plain text
+                    // once other sources (chat/transcript) are also rendered — the combined count
+                    // includes API-fetched comments and must stay marked as instant.
+                    updateInstantStatusHtml(buildInstantAllModeStatusHtml(resultText));
+                } else if (!usedInstantComments || hasOtherSources) {
                     updateTotalResultDisplay(resultText);
                 }
+                // instantChipVisible && !hasOtherSources: chip already rendered by runInstantCommentsFlow.
             } catch (err) {
                 console.error(err);
             }
