@@ -277,7 +277,7 @@ Manual smoke checklist:
 
 Chrome E2E (agent-browser): System Chrome 137+ silently ignores `--load-extension`. Use Chrome for Testing 131; pass `--executable-path --extension --headed` on **every** invocation; `tab new` before `open`.
 
-E2E profile: do NOT use `~/.e2e-dev-loop-profile` — it is reserved for other web-app testing (and agent-browser fails to attach to it anyway). Create a dedicated throwaway profile (e.g. under the session scratchpad) per run. Instant-search E2E needs a YouTube Data API key: fetch via `op item get "YouTube Data Api v3 - auto" --reveal --fields label=credential` and enter it through the extension options page; never echo the key into logs/screenshots.
+E2E profile: do NOT use `~/.e2e-dev-loop-profile` — it is reserved for other web-app testing (and agent-browser fails to attach to it anyway). Create a dedicated throwaway profile (e.g. under the session scratchpad) per run. Instant-search E2E needs a YouTube Data API key: enter it through the extension options page; never echo the key into logs/screenshots.
 
 ---
 
