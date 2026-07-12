@@ -1008,7 +1008,9 @@ export function initApp(): void {
                         // Even with zero new items, the API may have returned no nextPageToken,
                         // making the session complete — re-sync degraded controls so unlockable
                         // filters lose their locked visual state (click-time gate already allows
-                        // this; keep the visuals in sync too).
+                        // this), and refresh the status HTML so the CTA shortens to match (it was
+                        // already computed against the post-merge session by fetchNextInstantSearchPage).
+                        updateInstantStatusHtml(pageOutcome.statusHtml);
                         syncInstantControlsFromState();
                         return;
                     }
