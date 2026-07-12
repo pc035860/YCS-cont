@@ -66,6 +66,14 @@ test('shouldUseInstantSearch: eligible with query and no comments', () => {
     assert.equal(shouldUseInstantSearch('hello', state, eligibleFlags), true);
 });
 
+test('shouldUseInstantSearch: community post falls back to non-instant routing', () => {
+    const state = createState();
+    assert.equal(
+        shouldUseInstantSearch('hello', state, { ...eligibleFlags, isCommunityPost: true }),
+        false
+    );
+});
+
 test('instantEligible: missing youtubeApiInstantSearch treated as enabled; Enable ignored', () => {
     assert.equal(instantEligible({ hasYoutubeApiKey: true, youtubeApiEnabled: true }), true);
     assert.equal(instantEligible({ hasYoutubeApiKey: true, youtubeApiEnabled: false }), true);

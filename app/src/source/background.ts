@@ -387,7 +387,10 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
                     ]);
 
                     if (opts.autoload) {
-                        if (!shouldSkipAutoloadFromStorage(opts)) {
+                        // Service worker has no DOM/page context; derive page type from the message
+                        // body, which already carries both ids (see sendGetCacheInIDB in utils/dom.ts).
+                        const isCommunityPost = Boolean(message.body.postId) && !message.body.videoId;
+                        if (!shouldSkipAutoloadFromStorage({ ...opts, isCommunityPost })) {
                             chrome.tabs.sendMessage(sender.tab?.id as number, { type: 'YCS_AUTOLOAD' });
                         }
                     }

@@ -305,6 +305,12 @@ export function initApp(): void {
     function app(): void {
         if (!isVideoPage()) return;
 
+        // Instant search requires a video-scoped context (watch/live/Shorts). Set this
+        // synchronously on every app() run (not gated behind the async YCS_OPTIONS round-trip) so
+        // an instant-search call made right after an SPA navigation never sees a stale page-type
+        // flag from the previous page.
+        GlobalStore.isCommunityPost = isPostsPage();
+
         // Clear GlobalStore to prevent data leakage across videos
         delete GlobalStore.getInitYtData;
         clearCurrentVideoMemberOnly(); // Clear members-only status when switching videos
@@ -2454,7 +2460,7 @@ export function initApp(): void {
 
                 const wrapOptAutoload = (value: boolean, opts: IYCSOptions): void => {
                     if (!opts.cache) {
-                        if (value && shouldSkipAutoload(opts)) return;
+                        if (value && shouldSkipAutoload({ ...opts, isCommunityPost: isPostsPage() })) return;
                         optAutoload(value);
                     }
                 };
@@ -2562,6 +2568,8 @@ export function initApp(): void {
                     } else {
                         GlobalStore.youtubeApiInstantSearch = true;
                     }
+                    // isCommunityPost is set synchronously at the top of app() (per-render), not here —
+                    // see the app() entry point. Avoids a stale value during the async options round-trip.
                     syncInstantSearchPlaceholder();
                     if (typeof opts.transcriptLanguage !== 'undefined') {
                         state = setSelectedTranscriptLanguage(

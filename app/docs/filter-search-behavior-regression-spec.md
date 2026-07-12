@@ -243,8 +243,11 @@ Instant search runs only when **all** of the following are true:
 3. No loaded or cached comments exist for the current video
 4. `Q` is non-empty after trim
 5. Search category is `comments`, or the comments segment of `all`
+6. Page is a video-scoped context (watch, `/live/`, or Shorts), not a community post (`/post/<id>`) — `getVideoId()` returns undefined on post pages, so instant search cannot resolve a video to query
 
 `youtubeApiEnabled` does **not** gate Instant Search. It only chooses Data API vs Innertube for **full comment load** (Load all / autoload full fetch). Instant can run with Enable OFF (Innertube full load + Data API `searchTerms`).
+
+On community post pages, full-load already falls back to Innertube (post pages have no video-scoped Data API equivalent), and autoload is **not** suppressed — condition 6 failing makes instant ineligible, which restores normal autoload behavior (see §12.3).
 
 When any Instant eligibility condition fails, search follows existing full-cache / local rules.
 

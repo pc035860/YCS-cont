@@ -46,6 +46,30 @@ test('shouldSkipAutoload mirrors instantEligible (Enable OFF + Instant ON still 
     assert.equal(shouldSkipAutoload(ineligible), false);
 });
 
+test('instantEligible: community post disables instant even with API key + Instant ON', () => {
+    assert.equal(
+        instantEligible({
+            hasYoutubeApiKey: true,
+            youtubeApiEnabled: true,
+            youtubeApiInstantSearch: true,
+            isCommunityPost: true
+        }),
+        false
+    );
+});
+
+test('shouldSkipAutoload: community post restores autoload (does not skip)', () => {
+    assert.equal(
+        shouldSkipAutoload({
+            hasYoutubeApiKey: true,
+            youtubeApiEnabled: true,
+            youtubeApiInstantSearch: true,
+            isCommunityPost: true
+        }),
+        false
+    );
+});
+
 test('shouldSkipAutoloadFromStorage: requires non-empty API key; Enable not required', () => {
     assert.equal(
         shouldSkipAutoloadFromStorage({
@@ -72,6 +96,18 @@ test('shouldSkipAutoloadFromStorage: requires non-empty API key; Enable not requ
     );
 });
 
+test('shouldSkipAutoloadFromStorage: community post restores autoload (does not skip)', () => {
+    assert.equal(
+        shouldSkipAutoloadFromStorage({
+            youtubeApiKey: 'abc',
+            youtubeApiEnabled: true,
+            youtubeApiInstantSearch: true,
+            isCommunityPost: true
+        }),
+        false
+    );
+});
+
 function makeComment(id: string): CommentItem {
     return {
         typeComment: 'C',
@@ -90,4 +126,14 @@ test('isInstantBrowseMode: eligible only when no comments loaded', () => {
     let state = createState();
     state = setComments(state, [makeComment('c1')]);
     assert.equal(isInstantBrowseMode(state, eligible), false);
+});
+
+test('isInstantBrowseMode: community post disables browse mode even with no comments loaded', () => {
+    const communityPost = {
+        hasYoutubeApiKey: true,
+        youtubeApiEnabled: false,
+        youtubeApiInstantSearch: true,
+        isCommunityPost: true
+    };
+    assert.equal(isInstantBrowseMode(createState(), communityPost), false);
 });

@@ -6,6 +6,7 @@ export interface InstantSearchFlags {
     hasYoutubeApiKey?: boolean;
     youtubeApiEnabled?: boolean;
     youtubeApiInstantSearch?: boolean;
+    isCommunityPost?: boolean;
 }
 
 export function resolveInstantSearchEnabled(flags: InstantSearchFlags): boolean {
@@ -13,6 +14,10 @@ export function resolveInstantSearchEnabled(flags: InstantSearchFlags): boolean 
 }
 
 export function instantEligible(flags: InstantSearchFlags = GlobalStore): boolean {
+    // Instant search needs a video-scoped context (watch/live/Shorts): getVideoId() returns
+    // undefined on community posts, so instant search would silently no-op there.
+    // See filter-search-behavior-regression-spec.md §12.1.
+    if (flags.isCommunityPost) return false;
     // Instant search needs an API key only. youtubeApiEnabled gates full Data API load, not SEARCH.
     return Boolean(flags.hasYoutubeApiKey) && resolveInstantSearchEnabled(flags);
 }
@@ -25,11 +30,13 @@ export function shouldSkipAutoloadFromStorage(opts: {
     youtubeApiKey?: string;
     youtubeApiEnabled?: boolean;
     youtubeApiInstantSearch?: boolean;
+    isCommunityPost?: boolean;
 }): boolean {
     return instantEligible({
         hasYoutubeApiKey: Boolean(opts.youtubeApiKey?.trim()),
         youtubeApiEnabled: opts.youtubeApiEnabled,
-        youtubeApiInstantSearch: opts.youtubeApiInstantSearch
+        youtubeApiInstantSearch: opts.youtubeApiInstantSearch,
+        isCommunityPost: opts.isCommunityPost
     });
 }
 
