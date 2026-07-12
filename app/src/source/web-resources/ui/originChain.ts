@@ -51,7 +51,7 @@ function findCommentByIndex(comments: CommentCollection, refId: number): Record<
     return comments.find((item) => Number.parseInt(String((item as any)?._index ?? ''), 10) === refId);
 }
 
-function resolveCommentId(entry: Record<string, any> | undefined): string | undefined {
+export function resolveCommentId(entry: Record<string, any> | undefined): string | undefined {
     if (!entry) return undefined;
     return (
         (entry as any)?.commentRenderer?.commentId ||

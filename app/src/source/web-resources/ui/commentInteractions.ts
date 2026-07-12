@@ -9,11 +9,32 @@ import {
     safeDomKey,
     parseRefId,
     resolveRefIndex,
+    resolveCommentId,
     resolveCurrentComment
 } from './originChain';
 import type { CommentStateAccessor, QueryGetter } from './originChain';
 
 type CommentCollection = Array<Record<string, any>>;
+
+/**
+ * Optional instant-mode dependencies. When omitted, reply expansion behaves exactly as it did
+ * before Task 18 (local-only, no on-demand fetch) - full-cache mode never provides these.
+ */
+export interface CommentInteractionsDeps {
+    /**
+     * Fetch the remaining replies for `commentId` (instant results only carry <=5 inline
+     * replies) and merge them into the session so `stateAccessor.getComments()` picks them up.
+     * Rejects with a `DOMException('AbortError')` on abort, or an `Error` carrying
+     * `isQuotaExceeded: true` on Data API quota errors.
+     */
+    fetchMissingReplies?: (commentId: string, parentItem: Record<string, any>) => Promise<Record<string, any>[]>;
+    /** Called when `fetchMissingReplies` rejects with a quota-exceeded error. */
+    onReplyQuotaExceeded?: () => void;
+}
+
+const REPLY_LOADING_CLASS = 'ycs-reply-loading';
+const REPLY_LOADING_TITLE = 'Loading replies…';
+const REPLY_DEFAULT_TITLE = 'Open replies to the comment';
 
 // === Scroll Position Lock Helpers ===
 
@@ -41,7 +62,8 @@ function restoreScrollPosition(anchor: HTMLElement, scrollContainer: HTMLElement
 export function registerCommentInteractions(
     container: HTMLElement,
     stateAccessor: CommentStateAccessor,
-    queryGetter: QueryGetter
+    queryGetter: QueryGetter,
+    deps?: CommentInteractionsDeps
 ): void {
     if (!container || !stateAccessor?.getComments) return;
     if (container.dataset.ycsInteractionsBound === 'true') {
@@ -78,7 +100,7 @@ export function registerCommentInteractions(
 
         const openReplyBtn = target.closest('.ycs-open-reply') as HTMLElement | null;
         if (openReplyBtn) {
-            handleOpenReply(openReplyBtn, stateAccessor, queryGetter);
+            void handleOpenReply(openReplyBtn, stateAccessor, queryGetter, deps);
         }
     });
 }
@@ -335,6 +357,34 @@ function collectRepliesForComment(
     return replies;
 }
 
+/** Find the parent comment matching `commentId` in the local collection. */
+function findParentComment(comments: CommentCollection, commentId: string): Record<string, any> | undefined {
+    return comments.find((entry) => resolveCommentId(entry) === commentId);
+}
+
+/** True total reply count from the Data API thread response (`renderer.replyCount`). */
+function getExpectedReplyCount(parentItem: Record<string, any> | undefined): number {
+    const raw = parentItem?.commentRenderer?.replyCount;
+    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'string') {
+        const parsed = Number.parseInt(raw, 10);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+}
+
+function setReplyButtonLoading(target: HTMLElement, loading: boolean): void {
+    if (loading) {
+        target.classList.add(REPLY_LOADING_CLASS);
+        target.textContent = '…';
+        target.title = REPLY_LOADING_TITLE;
+    } else {
+        target.classList.remove(REPLY_LOADING_CLASS);
+        target.textContent = '+';
+        target.title = REPLY_DEFAULT_TITLE;
+    }
+}
+
 function createRepliesContainer(commentContainer: HTMLElement, commentId: string): HTMLDivElement {
     const wrapper = document.createElement('div');
     const safeId = safeDomKey(commentId);
@@ -351,7 +401,12 @@ function createRepliesContainer(commentContainer: HTMLElement, commentId: string
     return wrapper;
 }
 
-function handleOpenReply(target: HTMLElement, stateAccessor: CommentStateAccessor, queryGetter: QueryGetter): void {
+async function handleOpenReply(
+    target: HTMLElement,
+    stateAccessor: CommentStateAccessor,
+    queryGetter: QueryGetter,
+    deps?: CommentInteractionsDeps
+): Promise<void> {
     const commentId = target.dataset.idcom;
     if (!commentId) return;
 
@@ -367,8 +422,39 @@ function handleOpenReply(target: HTMLElement, stateAccessor: CommentStateAccesso
         return;
     }
 
-    const comments = safeGetComments(stateAccessor);
-    const replies = collectRepliesForComment(comments, commentId, 0);
+    // Guard against double-click while an on-demand fetch is already in flight for this button.
+    if (target.classList.contains(REPLY_LOADING_CLASS)) return;
+
+    let comments = safeGetComments(stateAccessor);
+    let replies = collectRepliesForComment(comments, commentId, 0);
+
+    if (deps?.fetchMissingReplies) {
+        const parentItem = findParentComment(comments, commentId);
+        const expectedCount = getExpectedReplyCount(parentItem);
+
+        if (parentItem && replies.length < expectedCount) {
+            setReplyButtonLoading(target, true);
+            try {
+                await deps.fetchMissingReplies(commentId, parentItem);
+            } catch (error) {
+                setReplyButtonLoading(target, false);
+                if (error instanceof DOMException && error.name === 'AbortError') {
+                    return;
+                }
+                if ((error as { isQuotaExceeded?: boolean } | undefined)?.isQuotaExceeded) {
+                    deps.onReplyQuotaExceeded?.();
+                    return;
+                }
+                console.error('[YCS] Failed to fetch missing replies:', error);
+                return;
+            }
+
+            setReplyButtonLoading(target, false);
+            comments = safeGetComments(stateAccessor);
+            replies = collectRepliesForComment(comments, commentId, 0);
+        }
+    }
+
     if (replies.length === 0) {
         console.warn(`[YCS] No replies found in local state for comment ID: ${commentId}`);
         return;

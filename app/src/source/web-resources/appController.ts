@@ -122,6 +122,7 @@ import {
     InstantSearchQuotaError,
     runInstantCommentSearch
 } from './search/instantCommentsSearch';
+import { fetchAndMergeReplies } from './search/instantReplyFetch';
 import {
     buildInstantAllModeStatusHtml,
     buildInstantChipHtml,
@@ -144,6 +145,7 @@ import {
     UPGRADE_EXPORT_MODAL_MESSAGE,
     UPGRADE_MODAL_MESSAGE,
     UPGRADE_MODAL_TITLE,
+    UPGRADE_OPEN_REPLIES_MODAL_MESSAGE,
     UPGRADE_OPEN_WINDOW_MODAL_MESSAGE
 } from './search/instantSearchUi';
 import {
@@ -154,6 +156,7 @@ import {
     getDynamicFilterButtonConfigs
 } from './ui/filters';
 import { registerCommentInteractions } from './ui/commentInteractions';
+import type { CommentInteractionsDeps } from './ui/commentInteractions';
 import { runSearch as runCommentsSearch, runSearchOnComments, clearCommentsFuseCache } from './search/commentsSearch';
 import type { CommentsSearchResult } from './search/commentsSearch';
 import { runSearch as runChatSearch, clearChatFuseCache } from './search/chatSearch';
@@ -866,16 +869,62 @@ export function initApp(): void {
             getComments: () => getRemoteSearch(state).results
         });
 
+        /**
+         * Instant-mode-only comment interaction deps (Task 18): on-demand reply fetch when a
+         * thread's local replies (<=5 inline from the search response) fall short of its true
+         * `replyCount`. Full-cache mode never receives these - see `runCommentsPipeline` below,
+         * which calls `finalizeCommentsRender` without a `deps` argument.
+         */
+        const instantCommentInteractionsDeps: CommentInteractionsDeps = {
+            fetchMissingReplies: async (commentId, parentItem) => {
+                const videoId = getVideoId(window.location.href);
+                if (!videoId) {
+                    throw new Error('[YCS] Missing videoId for on-demand reply fetch');
+                }
+                // Guard against a superseded instant session (new search / clear / upgrade) landing
+                // mid-fetch and resurrecting a stale `remoteSearch` snapshot on completion - treat it
+                // the same as an aborted fetch (handleOpenReply already restores the button silently).
+                // Applies on BOTH the success path and the error path: a stale-generation quota/API
+                // error must not surface `onReplyQuotaExceeded` (e.g. an upgrade modal) for a request
+                // whose originating session/context no longer exists.
+                const requestGeneration = instantSearchGeneration;
+                const controller = new AbortController();
+                try {
+                    const outcome = await fetchAndMergeReplies({
+                        videoId,
+                        parentId: commentId,
+                        parentItem: parentItem as CommentItem,
+                        getState: () => state,
+                        signal: controller.signal
+                    });
+                    if (requestGeneration !== instantSearchGeneration) {
+                        throw new DOMException('Aborted', 'AbortError');
+                    }
+                    state = outcome.state;
+                    return outcome.fetchedReplies;
+                } catch (error) {
+                    if (requestGeneration !== instantSearchGeneration) {
+                        throw new DOMException('Aborted', 'AbortError');
+                    }
+                    throw error;
+                }
+            },
+            onReplyQuotaExceeded: () => {
+                void promptInstantUpgrade(UPGRADE_OPEN_REPLIES_MODAL_MESSAGE, {});
+            }
+        };
+
         /** Shared post-render tail: record the comments search count and (re)bind comment interactions. */
         const finalizeCommentsRender = (
             result: { total: number },
             stateAccessor: { getComments: () => CommentItem[] },
-            query: string
+            query: string,
+            deps?: CommentInteractionsDeps
         ): void => {
             state = setSearchCount(state, 'comments', result.total);
             const commentsContainer = document.getElementById('ycs_wrap_comments');
             if (commentsContainer instanceof HTMLElement) {
-                registerCommentInteractions(commentsContainer, stateAccessor, () => query);
+                registerCommentInteractions(commentsContainer, stateAccessor, () => query, deps);
             }
         };
 
@@ -935,7 +984,7 @@ export function initApp(): void {
                     stateAccessor,
                     onLocalBatchExhausted: () => renderInstantShowMore(selector, query)
                 });
-                finalizeCommentsRender(refreshed, stateAccessor, query);
+                finalizeCommentsRender(refreshed, stateAccessor, query, instantCommentInteractionsDeps);
             };
 
             showMore.addEventListener('click', async () => {
@@ -1111,7 +1160,7 @@ export function initApp(): void {
                     stateAccessor,
                     onLocalBatchExhausted: () => renderInstantShowMore(selector, trimmed)
                 });
-                finalizeCommentsRender(outcome.result, stateAccessor, query);
+                finalizeCommentsRender(outcome.result, stateAccessor, query, instantCommentInteractionsDeps);
 
                 if (outcome.result.total > 0) {
                     updateInstantStatusHtml(buildInstantResultsStatusHtml(trimmed, outcome.result.total));
@@ -2163,7 +2212,7 @@ export function initApp(): void {
                 stateAccessor,
                 onLocalBatchExhausted: () => renderInstantShowMore(selector, query)
             });
-            finalizeCommentsRender(result, stateAccessor, query);
+            finalizeCommentsRender(result, stateAccessor, query, instantCommentInteractionsDeps);
 
             return result;
         };

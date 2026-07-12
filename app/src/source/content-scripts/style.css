@@ -359,6 +359,12 @@ html[dark] .ycs_btn_active {
   margin-left: 6px;
 }
 
+/* On-demand reply fetch loading state (Task 18): text swap + shared pulse, no spinner asset. */
+.ycs-open-reply.ycs-reply-loading {
+  cursor: default;
+  animation: ycs-pulse 1.5s infinite ease-in-out;
+}
+
 .ycs-open-reply * {
   vertical-align: unset !important;
   pointer-events: none;

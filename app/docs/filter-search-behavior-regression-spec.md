@@ -360,3 +360,51 @@ auto-paginates the current session to completion in one click.
    `pageInfo.totalResults` is known (`N = max(1, ceil((totalResults - loadedCount) / 100))`, one
    `commentThreads.list` page = 1 quota unit / 100 results); otherwise
    `Fetch every remaining page (1 quota unit per 100 matches)`.
+
+### 12.9 On-demand Reply Fetch (MUST)
+
+Instant search requests `part=snippet,replies`, so each thread only carries up to 5 inline
+replies while the parent's `renderer.replyCount` shows the true total. Clicking `+` on a thread
+whose local replies fall short of that total triggers a background fetch instead of the
+"no replies found" no-op.
+
+1. **Local-first**: `handleOpenReply` always collects replies already present in
+   `remoteSearch.results` first (`collectRepliesForComment`). Only when the collected count is
+   less than the parent's `replyCount` AND an instant `fetchMissingReplies` dependency is wired
+   does an API call happen.
+2. **Full-cache mode is unaffected**: `registerCommentInteractions`'s `fetchMissingReplies` /
+   `onReplyQuotaExceeded` dependencies are optional and only provided by the instant render path
+   in `appController.ts`. Without them, reply expansion behaves exactly as before — local-only,
+   no fetch, "no replies found" warning on a genuine miss.
+3. **Fetch scope**: one click fetches **all** remaining pages of that single parent's replies in
+   one round trip (`comments.list?parentId=`, 1 quota unit per page of up to 100 replies) — no
+   reply-pagination UI. Replies-of-replies are out of scope (YouTube threads are 2 levels).
+4. **Loading state**: the `+` button gets class `ycs-reply-loading` (shared `ycs-pulse`
+   animation), text swaps to `…`, and title to `Loading replies…`. A second click while loading
+   is a no-op (guarded by the loading class) — collapse (removing an already-rendered replies
+   block) is unaffected and always available.
+5. **Merge and cache-by-merge**: fetched replies are transformed to `CommentItem` (
+   `transformReplyToCommentItem`, `originComment` set to the real parent) and merged into
+   `remoteSearch.results`, deduped by reply `commentId` against the already-inlined subset. The
+   merge reads `remoteSearch` fresh right after the fetch resolves (not a pre-fetch snapshot), so
+   two concurrent reply fetches on different threads never clobber each other. On the normal path,
+   re-expanding the same thread afterward is served entirely from local state — no second API call
+   for that parent during the session.
+   - **Known accepted limitation**: Show more / Fetch all (§12.8, Task 17) still merge onto a
+     session snapshot captured *before* their own API call. If a reply fetch resolves and merges
+     while a Show more / Fetch all page fetch is also in flight, and that page fetch finishes
+     later, its stale-snapshot write can silently drop the reply merge from `remoteSearch.results`.
+     Blast radius is narrow and self-healing: it requires overlapping in-flight requests from two
+     separate user actions; a Show more / Fetch all render already rebuilds the entire comments
+     subtree regardless (so the stale write causes no additional DOM breakage beyond that existing
+     subtree rebuild); and re-expanding the affected thread afterward just re-fetches its replies
+     (extra quota, no permanent data loss or crash).
+     Fixing this fully would require changing `fetchNextInstantSearchPage` in
+     `instantCommentsSearch.ts` (Task 17, out of scope for Task 18) to also merge against fresh
+     state instead of its pre-fetch snapshot.
+6. **Quota exceeded**: the button restores to `+` and the existing upgrade modal opens
+   (`UPGRADE_OPEN_REPLIES_MODAL_MESSAGE`, same modal used by degraded filters / export). No
+   pending intent is attached — after the full archive loads, clicking `+` again resolves
+   locally.
+7. **Abort / other errors**: an `AbortError` restores the button silently; any other error
+   restores the button and logs via `console.error`. Neither renders a replies block.

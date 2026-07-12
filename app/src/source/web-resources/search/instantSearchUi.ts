@@ -250,6 +250,9 @@ export const UPGRADE_EXPORT_MODAL_MESSAGE =
 export const UPGRADE_OPEN_WINDOW_MODAL_MESSAGE =
     'Opening all comments needs the full comment archive. Load all comments now? Your instant results stay visible while loading.';
 
+export const UPGRADE_OPEN_REPLIES_MODAL_MESSAGE =
+    'Viewing all replies needs the full comment archive. Load all comments now? Your instant results stay visible while loading.';
+
 function setDegraded(element: HTMLElement, degraded: boolean): void {
     if (degraded) {
         element.classList.add('ycs-btn-degraded');

@@ -5,7 +5,7 @@
  * API key is securely stored in background and never exposed to the web page.
  */
 
-import type { CommentItem } from '../../utils/interfaces/i_types';
+import type { CommentItem, YouTubeApiComment } from '../../utils/interfaces/i_types';
 
 /**
  * Result type for YouTube API comments request
@@ -253,6 +253,66 @@ export function requestYouTubeApiCommentSearch(options: {
                     break;
 
                 case 'YCS_YT_API_SEARCH_ERROR': {
+                    cleanup();
+                    if (data.body.aborted) {
+                        reject(new DOMException('Aborted', 'AbortError'));
+                        return;
+                    }
+                    const err = new Error(data.body.error);
+                    (err as Error & { isQuotaExceeded: boolean }).isQuotaExceeded = data.body.isQuotaExceeded;
+                    reject(err);
+                    break;
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Response for an on-demand reply fetch: raw `youtube#comment` resources for a single parent
+ * comment, across ALL pages of `comments.list?parentId=`. Transformation into `CommentItem`
+ * happens page-side (the real parent `CommentItem` only exists there) via
+ * `transformReplyToCommentItem`.
+ */
+export interface RepliesResponse {
+    items: YouTubeApiComment[];
+    quotaUsed: number;
+}
+
+/**
+ * Request all remaining replies for a single comment thread via background service worker.
+ * Used when instant search results only carry the Data API's inline reply subset (<=5) and the
+ * user expands a thread whose true `replyCount` is higher. API key never leaves the background.
+ */
+export function requestYouTubeApiCommentReplies(options: {
+    videoId: string;
+    parentId: string;
+    signal?: AbortSignal;
+}): Promise<RepliesResponse> {
+    return sendBackgroundRequest<RepliesResponse>({
+        startType: 'YCS_YT_API_REPLIES_START',
+        abortType: 'YCS_YT_API_REPLIES_ABORT',
+        startBody: {
+            videoId: options.videoId,
+            parentId: options.parentId
+        },
+        signal: options.signal,
+        timeoutMessage: `YouTube API replies request timed out after ${REQUEST_TIMEOUT_MS / 1000}s`,
+        onMessage: (data, { resolve, reject, cleanup }) => {
+            switch (data.type) {
+                case 'YCS_YT_API_REPLIES_RESULT':
+                    cleanup();
+                    if (options.signal?.aborted) {
+                        reject(new DOMException('Aborted', 'AbortError'));
+                        return;
+                    }
+                    resolve({
+                        items: data.body.items,
+                        quotaUsed: data.body.quotaUsed ?? 0
+                    });
+                    break;
+
+                case 'YCS_YT_API_REPLIES_ERROR': {
                     cleanup();
                     if (data.body.aborted) {
                         reject(new DOMException('Aborted', 'AbortError'));
