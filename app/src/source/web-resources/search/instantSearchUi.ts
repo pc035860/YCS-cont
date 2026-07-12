@@ -8,6 +8,13 @@ export const INSTANT_DEGRADED_TOOLTIP = 'Needs all comments loaded — click to 
 
 export const INSTANT_SHOW_MORE_TOOLTIP = 'Fetch next page from YouTube (~1 quota unit)';
 
+export const INSTANT_FETCH_ALL_LABEL = 'Fetch all matches';
+
+export const INSTANT_FETCH_ALL_TOOLTIP_UNKNOWN = 'Fetch every remaining page (1 quota unit per 100 matches)';
+
+/** Re-entry guard class shared by the Show more and Fetch all blocks while a page fetch is in flight. */
+export const INSTANT_FETCHING_CLASS = 'ycs-instant-fetching';
+
 /**
  * Filters that can never work on instant (Data API) data — the required fields
  * (creatorHeart, verifiedAuthor, sponsorCommentBadge, donatedChip, authorIsChannelOwner)
@@ -144,9 +151,14 @@ export function buildInstantResultsStatusText(query: string, count: number): str
 const INSTANT_BOLT_SVG =
     '<svg class="ycs-instant-bolt" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M8.7 21.3c-.8.6-1.9-.2-1.6-1.1l2-6.2H5.3c-.8 0-1.2-1-.7-1.6L15.3 2.7c.8-.6 1.9.2 1.6 1.1l-2 6.2h3.8c.8 0 1.2 1 .7 1.6L8.7 21.3z"/></svg>';
 
+/** Shared instant chip markup (SVG bolt + "Instant" label) — reused by the status line and the fetch-all block. */
+export function buildInstantChipHtml(): string {
+    return `<span class="ycs-instant-chip">${INSTANT_BOLT_SVG} Instant</span>`;
+}
+
 function wrapInstantChipHtml(bodyHtml: string): string {
     // Separator + CTA wrap as one unit so narrow layouts (sidebar mode) never leave a dangling "·"
-    return `<span class="ycs-instant-chip">${INSTANT_BOLT_SVG} Instant</span> ${bodyHtml} <span class="ycs-instant-load-all-wrap">· <button type="button" class="ycs-instant-load-all-cta">Load all comments for filters &amp; export</button></span>`;
+    return `${buildInstantChipHtml()} ${bodyHtml} <span class="ycs-instant-load-all-wrap">· <button type="button" class="ycs-instant-load-all-cta">Load all comments for filters &amp; export</button></span>`;
 }
 
 export function buildInstantResultsStatusHtml(query: string, count: number): string {
@@ -173,6 +185,27 @@ export function buildInstantStatusText(query: string, count: number): string {
         return buildInstantZeroResultsStatusText(trimmed);
     }
     return buildInstantResultsStatusText(trimmed, count);
+}
+
+/**
+ * Tooltip for the "Fetch all matches" auto-paginate block. When `totalResults` (Data API
+ * `pageInfo.totalResults`) is known, estimates remaining pages at 100 results/page (min 1);
+ * otherwise falls back to a generic per-100-matches quota note.
+ */
+export function buildInstantFetchAllTooltip(totalResults: number | undefined, loadedCount: number): string {
+    if (totalResults === undefined || !Number.isFinite(totalResults)) {
+        return INSTANT_FETCH_ALL_TOOLTIP_UNKNOWN;
+    }
+    const remainingPages = Math.max(1, Math.ceil((totalResults - loadedCount) / 100));
+    return `Fetch every remaining page (~${remainingPages} quota units)`;
+}
+
+/** Progress label shown on the fetch-all block while the auto-paginate loop is running. */
+export function buildInstantFetchAllProgressLabel(loadedCount?: number): string {
+    if (loadedCount === undefined) {
+        return 'Fetching all matches…';
+    }
+    return `Fetching all matches… (${loadedCount} loaded)`;
 }
 
 export function buildUpgradingStatusText(instantCount: number, loadedCount?: number): string {

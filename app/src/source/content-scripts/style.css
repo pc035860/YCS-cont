@@ -183,6 +183,11 @@ html[dark] .ycs-instant-chip {
   vertical-align: -0.125em;
 }
 
+/* "Fetch all matches" block: chip needs a wider gap than the 4px used in the status line. */
+#ycs_instant_fetch_all .ycs-instant-chip {
+  margin-right: 8px;
+}
+
 .ycs-instant-load-all-wrap {
   white-space: nowrap;
 }

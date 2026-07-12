@@ -34,6 +34,8 @@ export interface RemoteSearchSession {
     query: string;
     results: CommentItem[];
     pageToken?: string;
+    /** Approximate total match count from the Data API (`pageInfo.totalResults`); used for fetch-all quota estimates. */
+    totalResults?: number;
 }
 
 export interface WebResourcesState {

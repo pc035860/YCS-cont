@@ -2,10 +2,17 @@ import { strict as assert } from 'node:assert';
 import test from 'node:test';
 
 import { JSDOM } from 'jsdom';
-import { mergeInstantPageResults } from '../src/source/web-resources/search/instantCommentsSearch';
+import {
+    buildInitialRemoteSearchSession,
+    mergeInstantPageResults,
+    mergeRemoteSearchSession
+} from '../src/source/web-resources/search/instantCommentsSearch';
 import {
     bindInstantDegradedCapture,
     buildInstantAllModeStatusHtml,
+    buildInstantChipHtml,
+    buildInstantFetchAllProgressLabel,
+    buildInstantFetchAllTooltip,
     buildInstantResultsStatusHtml,
     buildUpgradeCompleteNotifyMessage,
     buildUpgradedStatusText,
@@ -14,6 +21,7 @@ import {
     DEGRADED_FILTER_ELEMENT_IDS,
     DEGRADED_FILTER_PARAMS,
     INSTANT_ALWAYS_DEGRADED_FILTER_PARAMS,
+    INSTANT_FETCH_ALL_TOOLTIP_UNKNOWN,
     INSTANT_UNLOCKABLE_FILTER_PARAMS,
     isDegradedFilterParam,
     isInstantBlockedFilterParam,
@@ -397,4 +405,72 @@ test('buildInstantAllModeStatusHtml contains chip, escaped text, and load-all CT
     assert.match(html, /ycs-instant-chip/);
     assert.match(html, /Links, found: 5 &lt;b&gt;x&lt;\/b&gt;/);
     assert.match(html, /ycs-instant-load-all-cta/);
+});
+
+test('buildInstantChipHtml renders the shared instant chip with SVG bolt, without the ⚡ emoji', () => {
+    const html = buildInstantChipHtml();
+    assert.match(html, /class="ycs-instant-chip"/);
+    assert.match(html, /<svg class="ycs-instant-bolt"/);
+    assert.match(html, /Instant/);
+    assert.doesNotMatch(html, /⚡/);
+});
+
+test('buildInstantFetchAllTooltip: known totalResults estimates remaining pages (min 1)', () => {
+    assert.equal(buildInstantFetchAllTooltip(250, 100), 'Fetch every remaining page (~2 quota units)');
+    // Exactly 100 remaining still rounds up to 1 page.
+    assert.equal(buildInstantFetchAllTooltip(200, 100), 'Fetch every remaining page (~1 quota units)');
+    // Already-loaded count meets/exceeds totalResults: floor at 1, never 0 or negative.
+    assert.equal(buildInstantFetchAllTooltip(100, 100), 'Fetch every remaining page (~1 quota units)');
+    assert.equal(buildInstantFetchAllTooltip(50, 100), 'Fetch every remaining page (~1 quota units)');
+});
+
+test('buildInstantFetchAllTooltip: unknown totalResults falls back to generic quota copy', () => {
+    assert.equal(buildInstantFetchAllTooltip(undefined, 0), INSTANT_FETCH_ALL_TOOLTIP_UNKNOWN);
+    assert.equal(buildInstantFetchAllTooltip(Number.NaN, 10), INSTANT_FETCH_ALL_TOOLTIP_UNKNOWN);
+});
+
+test('buildInstantFetchAllProgressLabel shows loaded count when known', () => {
+    assert.equal(buildInstantFetchAllProgressLabel(), 'Fetching all matches…');
+    assert.equal(buildInstantFetchAllProgressLabel(0), 'Fetching all matches… (0 loaded)');
+    assert.equal(buildInstantFetchAllProgressLabel(150), 'Fetching all matches… (150 loaded)');
+});
+
+test('buildInitialRemoteSearchSession stores totalResults from the response', () => {
+    const items = [makeComment('a'), makeComment('b')];
+    const session = buildInitialRemoteSearchSession('foo', items, { nextPageToken: 'p2', totalResults: 42 });
+    assert.equal(session.active, true);
+    assert.equal(session.query, 'foo');
+    assert.equal(session.results, items);
+    assert.equal(session.pageToken, 'p2');
+    assert.equal(session.totalResults, 42);
+});
+
+test('buildInitialRemoteSearchSession leaves totalResults undefined when the response omits it', () => {
+    const session = buildInitialRemoteSearchSession('foo', [], {});
+    assert.equal(session.totalResults, undefined);
+});
+
+test('mergeRemoteSearchSession refreshes totalResults from the latest response', () => {
+    const base = buildInitialRemoteSearchSession('foo', [makeComment('a')], {
+        nextPageToken: 'p2',
+        totalResults: 42
+    });
+    const merged = mergeRemoteSearchSession(base, [makeComment('a'), makeComment('b')], {
+        nextPageToken: undefined,
+        totalResults: 45
+    });
+    assert.equal(merged.results.length, 2);
+    assert.equal(merged.pageToken, undefined);
+    assert.equal(merged.totalResults, 45);
+});
+
+test('mergeRemoteSearchSession keeps the previous totalResults when the response omits it', () => {
+    const base = buildInitialRemoteSearchSession('foo', [makeComment('a')], {
+        nextPageToken: 'p2',
+        totalResults: 42
+    });
+    const merged = mergeRemoteSearchSession(base, [makeComment('a'), makeComment('b')], {
+        nextPageToken: 'p3'
+    });
+    assert.equal(merged.totalResults, 42);
 });

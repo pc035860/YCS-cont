@@ -9,6 +9,7 @@ import {
     resetController,
     resetRemoteSearch,
     setRemoteSearch,
+    type RemoteSearchSession,
     type WebResourcesState
 } from '../state';
 
@@ -38,6 +39,42 @@ function toFuseResults(items: CommentItem[]): ICommentsFuseResult[] {
     }));
 }
 
+/**
+ * Build a fresh session from the first-page response. Pure — no side effects — so totalResults
+ * propagation is unit-testable without mocking the background message channel.
+ */
+export function buildInitialRemoteSearchSession(
+    query: string,
+    items: CommentItem[],
+    response: { nextPageToken?: string; totalResults?: number }
+): RemoteSearchSession {
+    return {
+        ...createInitialRemoteSearch(),
+        active: true,
+        query,
+        results: items,
+        pageToken: response.nextPageToken,
+        totalResults: response.totalResults
+    };
+}
+
+/**
+ * Merge a fetched page into an existing session. `totalResults` refreshes from the latest
+ * response when present, otherwise the previously known value is kept.
+ */
+export function mergeRemoteSearchSession(
+    session: RemoteSearchSession,
+    mergedResults: CommentItem[],
+    response: { nextPageToken?: string; totalResults?: number }
+): RemoteSearchSession {
+    return {
+        ...session,
+        results: mergedResults,
+        pageToken: response.nextPageToken,
+        totalResults: response.totalResults ?? session.totalResults
+    };
+}
+
 export async function runInstantCommentSearch(
     query: string,
     state: WebResourcesState,
@@ -63,13 +100,7 @@ export async function runInstantCommentSearch(
     }
 
     const indexedItems = assignResultIndexes(response.items);
-    const session = {
-        ...createInitialRemoteSearch(),
-        active: true,
-        query: trimmed,
-        results: indexedItems,
-        pageToken: response.nextPageToken
-    };
+    const session = buildInitialRemoteSearchSession(trimmed, indexedItems, response);
 
     const nextState = setRemoteSearch(state, session);
     const result = buildInstantSearchResult(trimmed, indexedItems);
@@ -133,11 +164,7 @@ export async function fetchNextInstantSearchPage(
     }
 
     const merged = mergeInstantPageResults(session.results, response.items);
-    const nextSession = {
-        ...session,
-        results: merged,
-        pageToken: response.nextPageToken
-    };
+    const nextSession = mergeRemoteSearchSession(session, merged, response);
 
     const nextState = setRemoteSearch(state, nextSession);
     return {

@@ -124,7 +124,10 @@ import {
 } from './search/instantCommentsSearch';
 import {
     buildInstantAllModeStatusHtml,
+    buildInstantChipHtml,
     buildInstantEmptyQueryStatusText,
+    buildInstantFetchAllProgressLabel,
+    buildInstantFetchAllTooltip,
     buildInstantResultsStatusHtml,
     buildInstantZeroResultsStatusText,
     buildUpgradedStatusText,
@@ -132,6 +135,8 @@ import {
     buildUpgradeCompleteNotifyMessage,
     bindInstantDegradedCapture,
     createPendingUpgradeStore,
+    INSTANT_FETCH_ALL_LABEL,
+    INSTANT_FETCHING_CLASS,
     INSTANT_SHOW_MORE_TOOLTIP,
     isDegradedFilterParam,
     isInstantBlockedFilterParam,
@@ -854,6 +859,7 @@ export function initApp(): void {
 
         const removeInstantShowMore = (): void => {
             document.getElementById('ycs_instant_show_more')?.remove();
+            document.getElementById('ycs_instant_fetch_all')?.remove();
         };
 
         const getInstantResultAccessor = (): { getComments: () => CommentItem[] } => ({
@@ -884,25 +890,62 @@ export function initApp(): void {
             const wrapper = target?.querySelector('#ycs_wrap_comments') ?? target;
             if (!(wrapper instanceof HTMLElement)) return;
 
-            const showMore = document.createElement('div');
-            showMore.id = 'ycs_instant_show_more';
-            showMore.className = 'ycs-render-comment ycs-show_more_block';
-            showMore.title = INSTANT_SHOW_MORE_TOOLTIP;
+            const createActionBlock = (id: string, title: string): { block: HTMLDivElement; label: HTMLDivElement } => {
+                const block = document.createElement('div');
+                block.id = id;
+                block.className = 'ycs-render-comment ycs-show_more_block';
+                block.title = title;
+                const label = document.createElement('div');
+                label.className = 'ycs-title';
+                block.appendChild(label);
+                wrapper.appendChild(block);
+                return { block, label };
+            };
 
-            const button = document.createElement('div');
-            button.className = 'ycs-title';
+            const { block: showMore, label: button } = createActionBlock(
+                'ycs_instant_show_more',
+                INSTANT_SHOW_MORE_TOOLTIP
+            );
             button.textContent = 'Show more instant results';
-            showMore.appendChild(button);
-            wrapper.appendChild(showMore);
+
+            // "Fetch all matches": auto-paginate the session to completion. Rendered directly
+            // below Show more; visibility/removal mirror it exactly (both live/die together —
+            // see removeInstantShowMore and the shared isFetching guard).
+            const { block: fetchAllBlock, label: fetchAllLabel } = createActionBlock(
+                'ycs_instant_fetch_all',
+                buildInstantFetchAllTooltip(session.totalResults, session.results.length)
+            );
+            fetchAllLabel.innerHTML = buildInstantChipHtml();
+            // Progress updates go through this text node so they never wipe the chip markup.
+            const fetchAllText = document.createElement('span');
+            fetchAllText.textContent = INSTANT_FETCH_ALL_LABEL;
+            fetchAllLabel.appendChild(fetchAllText);
+
+            // Shared re-entry guard: a fetch on either block locks both, so a Show more click
+            // can't interleave a second in-flight page fetch with a running fetch-all loop.
+            const isFetching = (): boolean =>
+                showMore.classList.contains(INSTANT_FETCHING_CLASS) ||
+                fetchAllBlock.classList.contains(INSTANT_FETCHING_CLASS);
+
+            /** Single render of the current merged result list (both handlers share this tail). */
+            const renderMergedResults = (): void => {
+                const refreshed = buildInstantSearchResult(query, getRemoteSearch(state).results);
+                const stateAccessor = getInstantResultAccessor();
+                renderCommentsResult(selector, refreshed, {
+                    stateAccessor,
+                    onLocalBatchExhausted: () => renderInstantShowMore(selector, query)
+                });
+                finalizeCommentsRender(refreshed, stateAccessor, query);
+            };
 
             showMore.addEventListener('click', async () => {
-                if (showMore.classList.contains('ycs-instant-fetching')) return;
+                if (isFetching()) return;
 
                 const videoId = getVideoId(window.location.href);
                 if (!videoId) return;
 
                 const requestGeneration = instantSearchGeneration;
-                showMore.classList.add('ycs-instant-fetching');
+                showMore.classList.add(INSTANT_FETCHING_CLASS);
                 button.textContent = 'Fetching…';
 
                 try {
@@ -921,14 +964,7 @@ export function initApp(): void {
                         return;
                     }
 
-                    const refreshed = buildInstantSearchResult(query, getRemoteSearch(state).results);
-                    const stateAccessor = getInstantResultAccessor();
-                    renderCommentsResult(selector, refreshed, {
-                        stateAccessor,
-                        onLocalBatchExhausted: () => renderInstantShowMore(selector, query)
-                    });
-                    finalizeCommentsRender(refreshed, stateAccessor, query);
-
+                    renderMergedResults();
                     updateInstantStatusHtml(pageOutcome.statusHtml);
                     syncInstantControlsFromState();
                 } catch (error) {
@@ -938,11 +974,83 @@ export function initApp(): void {
                         console.error('[YCS] Instant pagination failed:', error);
                     }
                 } finally {
-                    showMore.classList.remove('ycs-instant-fetching');
+                    showMore.classList.remove(INSTANT_FETCHING_CLASS);
                     if (getRemoteSearch(state).pageToken) {
                         button.textContent = 'Show more instant results';
                     }
                 }
+            });
+
+            fetchAllBlock.addEventListener('click', async () => {
+                if (isFetching()) return;
+
+                // Stale-block guard: a new search resets the session (inactive / no pageToken)
+                // before its render replaces this DOM. A click in that window must not reach the
+                // final render below with an adopted new generation — mirror Show more's
+                // zero-page path (remove blocks, re-sync, no result render) instead.
+                const entrySession = getRemoteSearch(state);
+                if (!entrySession.active || !entrySession.pageToken) {
+                    removeInstantShowMore();
+                    syncInstantControlsFromState();
+                    return;
+                }
+
+                const videoId = getVideoId(window.location.href);
+                if (!videoId) return;
+
+                const requestGeneration = instantSearchGeneration;
+                showMore.classList.add(INSTANT_FETCHING_CLASS);
+                fetchAllBlock.classList.add(INSTANT_FETCHING_CLASS);
+                fetchAllText.textContent = buildInstantFetchAllProgressLabel();
+
+                try {
+                    for (;;) {
+                        const loopSession = getRemoteSearch(state);
+                        if (!loopSession.active || !loopSession.pageToken) break;
+
+                        const pageOutcome = await fetchNextInstantSearchPage(state, videoId);
+                        if (requestGeneration !== instantSearchGeneration) {
+                            // Superseded by query change / STOP / upgrade — do nothing more.
+                            return;
+                        }
+                        state = pageOutcome.state;
+                        // Per-page status update; the result list itself is only rendered once, below.
+                        updateInstantStatusHtml(pageOutcome.statusHtml);
+                        fetchAllText.textContent = buildInstantFetchAllProgressLabel(
+                            getRemoteSearch(state).results.length
+                        );
+                    }
+                } catch (error) {
+                    if (error instanceof InstantSearchQuotaError) {
+                        // Quota exhausted mid-loop: keep whatever pages were merged so far usable —
+                        // fall through to the final render below.
+                        showInstantNotifyMessage(error.message);
+                    } else {
+                        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+                            console.error('[YCS] Instant fetch-all failed:', error);
+                        }
+                        // Abort (STOP) or unexpected failure: silent stop, no render — mirrors
+                        // the Show more handler, which never renders on these paths either.
+                        return;
+                    }
+                } finally {
+                    showMore.classList.remove(INSTANT_FETCHING_CLASS);
+                    fetchAllBlock.classList.remove(INSTANT_FETCHING_CLASS);
+                    if (getRemoteSearch(state).pageToken) {
+                        fetchAllText.textContent = INSTANT_FETCH_ALL_LABEL;
+                    }
+                }
+
+                if (requestGeneration !== instantSearchGeneration) {
+                    return;
+                }
+
+                // Single final render of the merged result list (no per-page render churn).
+                // onLocalBatchExhausted re-invokes renderInstantShowMore, which removes both
+                // blocks when the session is now complete, or rebuilds them (fresh tooltip/
+                // listeners) when a quota error left pageToken set.
+                renderMergedResults();
+                syncInstantControlsFromState();
             });
         };
 

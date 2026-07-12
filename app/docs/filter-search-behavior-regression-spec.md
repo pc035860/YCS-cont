@@ -332,3 +332,31 @@ On Shorts pages, instant Search / Enter counts as search intent.
 
 1. Native comments stay hidden while search intent is active, including zero instant results
 2. Existing restore rules are unchanged: native comments restore only after clearing search text and removing active filter (or when YCS is collapsed/cleaned up)
+
+### 12.8 Fetch All Matches (MUST)
+
+`#ycs_instant_fetch_all` renders directly below `#ycs_instant_show_more` (single-page fetch) and
+auto-paginates the current session to completion in one click.
+
+1. **Visibility**: identical to Show more — only while the session is active AND `pageToken` is
+   present. Both blocks are created together (`renderInstantShowMore`) and removed together
+   (`removeInstantShowMore`); both disappear on completion.
+2. **Content**: the shared `.ycs-instant-chip` (SVG bolt + "Instant", never the ⚡ emoji) followed
+   by the label `Fetch all matches`.
+3. **Loop**: repeatedly calls the single-page fetch until `pageToken` is gone. Shares the
+   `instantSearchGeneration` guard and `AbortController` with Show more — query change, STOP, or
+   upgrade aborts the loop and no further UI update happens (silent stop). Clicking Show more
+   while a fetch-all loop is running is blocked, and vice versa (both blocks carry
+   `ycs-instant-fetching` during the loop).
+4. **Status updates**: the status line (`#ycs-search-total-result`) updates once per fetched page;
+   the comment result list itself is re-rendered **once**, after the loop ends — no per-page
+   render churn.
+5. **Quota exhaustion mid-loop**: shows the existing `InstantSearchQuotaError` notify copy; merged
+   results from completed pages stay rendered and usable; if `pageToken` remains, both blocks are
+   rebuilt (not removed) so the user can retry.
+6. **Completion**: flows through the normal complete-session path
+   (`syncInstantControlsFromState`) — unlockable filters un-dim exactly as with manual Show more.
+7. **Tooltip**: `Fetch every remaining page (~N quota units)` when the Data API's
+   `pageInfo.totalResults` is known (`N = max(1, ceil((totalResults - loadedCount) / 100))`, one
+   `commentThreads.list` page = 1 quota unit / 100 results); otherwise
+   `Fetch every remaining page (1 quota unit per 100 matches)`.
