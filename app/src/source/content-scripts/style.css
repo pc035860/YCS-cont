@@ -183,6 +183,10 @@ html[dark] .ycs-instant-chip {
   vertical-align: -0.125em;
 }
 
+.ycs-instant-load-all-wrap {
+  white-space: nowrap;
+}
+
 .ycs-instant-load-all-cta {
   border: none;
   background: none;

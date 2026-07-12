@@ -125,6 +125,12 @@ test('buildInstantResultsStatusHtml includes chip and load-all CTA', () => {
     assert.match(html, /foo bar/);
 });
 
+test('separator and load-all CTA wrap as one unit (no dangling middle dot)', () => {
+    const html = buildInstantResultsStatusHtml('foo', 3);
+    // "·" must live inside the nowrap wrapper together with the CTA button
+    assert.match(html, /<span class="ycs-instant-load-all-wrap">·\s*<button[^>]*ycs-instant-load-all-cta/);
+});
+
 test('buildUpgradingStatusText shows loaded count without percent', () => {
     assert.match(buildUpgradingStatusText(5, 42), /42 loaded/);
     assert.doesNotMatch(buildUpgradingStatusText(5, 42), /%/);

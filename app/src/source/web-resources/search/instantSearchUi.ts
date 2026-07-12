@@ -145,7 +145,8 @@ const INSTANT_BOLT_SVG =
     '<svg class="ycs-instant-bolt" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M8.7 21.3c-.8.6-1.9-.2-1.6-1.1l2-6.2H5.3c-.8 0-1.2-1-.7-1.6L15.3 2.7c.8-.6 1.9.2 1.6 1.1l-2 6.2h3.8c.8 0 1.2 1 .7 1.6L8.7 21.3z"/></svg>';
 
 function wrapInstantChipHtml(bodyHtml: string): string {
-    return `<span class="ycs-instant-chip">${INSTANT_BOLT_SVG} Instant</span> ${bodyHtml} · <button type="button" class="ycs-instant-load-all-cta">Load all comments for filters &amp; export</button>`;
+    // Separator + CTA wrap as one unit so narrow layouts (sidebar mode) never leave a dangling "·"
+    return `<span class="ycs-instant-chip">${INSTANT_BOLT_SVG} Instant</span> ${bodyHtml} <span class="ycs-instant-load-all-wrap">· <button type="button" class="ycs-instant-load-all-cta">Load all comments for filters &amp; export</button></span>`;
 }
 
 export function buildInstantResultsStatusHtml(query: string, count: number): string {
