@@ -315,7 +315,7 @@ All instant-mode status copy is rendered via `#ycs-search-total-result`. No stic
 | --- | --- | --- |
 | S1 Ready | Empty `Q`, instant eligible, no active search | Placeholder: `Search (instant via YouTube API)` |
 | S2 Searching | Instant API request in flight | `Searching YouTube…` |
-| S3 Results | Instant search returned matches | Instant chip + `N matches for … · Load all comments for filters & export` |
+| S3 Results | Instant search returned matches | Instant chip + `N matches for … · ` load-all CTA (see below) |
 | S4 Zero matches | Instant search returned zero items | Zero-match copy for current query |
 | S5 Empty-query hint | Empty `Q` + explicit Search in instant mode | Hint copy from Section 12.2 |
 | S6 Upgrading | Full load in progress after instant use | Progress copy for upgrade path |
@@ -324,7 +324,17 @@ All instant-mode status copy is rendered via `#ycs-search-total-result`. No stic
 
 Quota exceeded: show notify box `YouTube API quota exceeded. Instant search unavailable — you can still load comments normally.`
 
-`Load all` remains visible in instant mode at all times.
+`Load all` remains visible in instant mode at all times. Its label has two states, driven by
+`isInstantSessionComplete(state)` (all searchTerms pages fetched):
+
+| Session state | CTA label | Tooltip |
+| --- | --- | --- |
+| Incomplete (more pages to fetch) | `Load all comments for filters & export` | *(none)* |
+| Complete (all pages fetched; 6 filters unlocked locally) | `Load all comments` | `For export & remaining filters` |
+
+The CTA click behavior is unchanged in both states — it always opens the full-archive load path
+(export and the always-degraded filters — heart/verified/members/donated/author — still need it).
+The status line never grows longer in either state; the label only shortens on completion.
 
 ### 12.7 Shorts (MUST)
 

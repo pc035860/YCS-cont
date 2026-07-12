@@ -14,6 +14,7 @@ import {
     buildInstantFetchAllProgressLabel,
     buildInstantFetchAllTooltip,
     buildInstantResultsStatusHtml,
+    buildInstantResultsStatusText,
     buildUpgradeCompleteNotifyMessage,
     buildUpgradedStatusText,
     buildUpgradingStatusText,
@@ -131,6 +132,29 @@ test('buildInstantResultsStatusHtml includes chip and load-all CTA', () => {
     assert.match(html, /3 matches/);
     assert.match(html, /ycs-instant-load-all-cta/);
     assert.match(html, /foo bar/);
+});
+
+test('buildInstantResultsStatusHtml: incomplete session keeps the long CTA label without a tooltip', () => {
+    const html = buildInstantResultsStatusHtml('foo bar', 3, false);
+    assert.match(html, /<button type="button" class="ycs-instant-load-all-cta">Load all comments for filters &amp; export<\/button>/);
+    assert.doesNotMatch(html, /ycs-instant-load-all-cta"[^>]*title=/);
+});
+
+test('buildInstantResultsStatusHtml: complete session shortens the CTA label and adds a tooltip', () => {
+    const html = buildInstantResultsStatusHtml('foo bar', 3, true);
+    assert.match(
+        html,
+        /<button type="button" class="ycs-instant-load-all-cta" title="For export &amp; remaining filters">Load all comments<\/button>/
+    );
+    assert.doesNotMatch(html, /Load all comments for filters/);
+});
+
+test('buildInstantResultsStatusText: sessionComplete shortens the CTA copy', () => {
+    assert.equal(
+        buildInstantResultsStatusText('foo', 3),
+        '3 matches for "foo" · Load all comments for filters & export'
+    );
+    assert.equal(buildInstantResultsStatusText('foo', 3, true), '3 matches for "foo" · Load all comments');
 });
 
 test('separator and load-all CTA wrap as one unit (no dangling middle dot)', () => {
@@ -405,6 +429,17 @@ test('buildInstantAllModeStatusHtml contains chip, escaped text, and load-all CT
     assert.match(html, /ycs-instant-chip/);
     assert.match(html, /Links, found: 5 &lt;b&gt;x&lt;\/b&gt;/);
     assert.match(html, /ycs-instant-load-all-cta/);
+});
+
+test('buildInstantAllModeStatusHtml: incomplete session keeps the long CTA label', () => {
+    const html = buildInstantAllModeStatusHtml('(All) Found: 5', false);
+    assert.match(html, />Load all comments for filters &amp; export</);
+});
+
+test('buildInstantAllModeStatusHtml: complete session shortens the CTA label and adds a tooltip', () => {
+    const html = buildInstantAllModeStatusHtml('(All) Found: 5', true);
+    assert.match(html, /title="For export &amp; remaining filters">Load all comments</);
+    assert.doesNotMatch(html, /Load all comments for filters/);
 });
 
 test('buildInstantChipHtml renders the shared instant chip with SVG bolt, without the ⚡ emoji', () => {

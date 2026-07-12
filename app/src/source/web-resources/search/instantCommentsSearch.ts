@@ -1,6 +1,7 @@
 import type { CommentItem, ICommentsFuseResult } from '../../utils/interfaces/i_types';
 import { requestYouTubeApiCommentSearch } from '../handlers/youtubeDataApiHandler';
 import type { CommentsSearchResult } from './commentsSearch';
+import { isInstantSessionComplete } from './instantSearchGate';
 import { buildInstantResultsStatusHtml, buildInstantStatusText } from './instantSearchUi';
 import {
     createInitialRemoteSearch,
@@ -141,7 +142,11 @@ export async function fetchNextInstantSearchPage(
         return {
             state,
             appendedCount: 0,
-            statusHtml: buildInstantResultsStatusHtml(session.query, session.results.length)
+            statusHtml: buildInstantResultsStatusHtml(
+                session.query,
+                session.results.length,
+                isInstantSessionComplete(state)
+            )
         };
     }
 
@@ -170,7 +175,7 @@ export async function fetchNextInstantSearchPage(
     return {
         state: nextState,
         appendedCount: response.items.length,
-        statusHtml: buildInstantResultsStatusHtml(session.query, merged.length)
+        statusHtml: buildInstantResultsStatusHtml(session.query, merged.length, !response.nextPageToken)
     };
 }
 

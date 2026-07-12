@@ -143,9 +143,10 @@ export function buildInstantZeroResultsStatusText(query: string): string {
     return `No instant matches for "${trimmed}". Try different words, or Load all for fuzzy search.`;
 }
 
-export function buildInstantResultsStatusText(query: string, count: number): string {
+export function buildInstantResultsStatusText(query: string, count: number, sessionComplete = false): string {
     const trimmed = query.trim();
-    return `${count} matches for "${trimmed}" · Load all comments for filters & export`;
+    const cta = sessionComplete ? 'Load all comments' : 'Load all comments for filters & export';
+    return `${count} matches for "${trimmed}" · ${cta}`;
 }
 
 const INSTANT_BOLT_SVG =
@@ -156,14 +157,27 @@ export function buildInstantChipHtml(): string {
     return `<span class="ycs-instant-chip">${INSTANT_BOLT_SVG} Instant</span>`;
 }
 
-function wrapInstantChipHtml(bodyHtml: string): string {
-    // Separator + CTA wrap as one unit so narrow layouts (sidebar mode) never leave a dangling "·"
-    return `${buildInstantChipHtml()} ${bodyHtml} <span class="ycs-instant-load-all-wrap">· <button type="button" class="ycs-instant-load-all-cta">Load all comments for filters &amp; export</button></span>`;
+/**
+ * Once the instant session is complete (all searchTerms pages fetched), the long CTA label is
+ * misleading (unlockable filters no longer need "Load all") and needlessly long for sidebar
+ * mode, so it shortens with an explanatory tooltip instead. Incomplete sessions keep today's
+ * markup verbatim (no `title` attribute).
+ */
+function loadAllCtaHtml(sessionComplete: boolean): string {
+    if (sessionComplete) {
+        return `<button type="button" class="ycs-instant-load-all-cta" title="For export &amp; remaining filters">Load all comments</button>`;
+    }
+    return `<button type="button" class="ycs-instant-load-all-cta">Load all comments for filters &amp; export</button>`;
 }
 
-export function buildInstantResultsStatusHtml(query: string, count: number): string {
+function wrapInstantChipHtml(bodyHtml: string, sessionComplete = false): string {
+    // Separator + CTA wrap as one unit so narrow layouts (sidebar mode) never leave a dangling "·"
+    return `${buildInstantChipHtml()} ${bodyHtml} <span class="ycs-instant-load-all-wrap">· ${loadAllCtaHtml(sessionComplete)}</span>`;
+}
+
+export function buildInstantResultsStatusHtml(query: string, count: number, sessionComplete = false): string {
     const trimmed = query.trim();
-    return wrapInstantChipHtml(`${count} matches for &quot;${escapeHtml(trimmed)}&quot;`);
+    return wrapInstantChipHtml(`${count} matches for &quot;${escapeHtml(trimmed)}&quot;`, sessionComplete);
 }
 
 /**
@@ -172,8 +186,8 @@ export function buildInstantResultsStatusHtml(query: string, count: number): str
  * comments. Takes the pre-formatted, filter-specific result text so all-mode labels
  * (e.g. "Links, found: N") stay intact.
  */
-export function buildInstantAllModeStatusHtml(combinedText: string): string {
-    return wrapInstantChipHtml(escapeHtml(combinedText));
+export function buildInstantAllModeStatusHtml(combinedText: string, sessionComplete = false): string {
+    return wrapInstantChipHtml(escapeHtml(combinedText), sessionComplete);
 }
 
 export function buildInstantStatusText(query: string, count: number): string {

@@ -1131,7 +1131,7 @@ export function initApp(): void {
                 // Complete session, same query: serve filters/sort locally instead of re-hitting
                 // the API (which would replace the accumulated multi-page session with page 1).
                 const result = runInstantLocalPipeline(selector, trimmed, param);
-                updateInstantStatusHtml(buildInstantResultsStatusHtml(trimmed, result.total));
+                updateInstantStatusHtml(buildInstantResultsStatusHtml(trimmed, result.total, true));
                 syncInstantControlsFromState();
                 return true;
             }
@@ -1163,7 +1163,9 @@ export function initApp(): void {
                 finalizeCommentsRender(outcome.result, stateAccessor, query, instantCommentInteractionsDeps);
 
                 if (outcome.result.total > 0) {
-                    updateInstantStatusHtml(buildInstantResultsStatusHtml(trimmed, outcome.result.total));
+                    updateInstantStatusHtml(
+                        buildInstantResultsStatusHtml(trimmed, outcome.result.total, isInstantSessionComplete(state))
+                    );
                 } else {
                     removeInstantShowMore();
                     updateTotalResultDisplay(buildInstantZeroResultsStatusText(trimmed));
@@ -1691,7 +1693,11 @@ export function initApp(): void {
                         const session = getRemoteSearch(state);
                         if (session.active && session.query) {
                             updateInstantStatusHtml(
-                                buildInstantResultsStatusHtml(session.query, session.results.length)
+                                buildInstantResultsStatusHtml(
+                                    session.query,
+                                    session.results.length,
+                                    isInstantSessionComplete(state)
+                                )
                             );
                         }
                     }
@@ -2394,7 +2400,7 @@ export function initApp(): void {
                     // Keep the ⚡ Instant chip visible instead of overwriting it with plain text
                     // once other sources (chat/transcript) are also rendered — the combined count
                     // includes API-fetched comments and must stay marked as instant.
-                    updateInstantStatusHtml(buildInstantAllModeStatusHtml(resultText));
+                    updateInstantStatusHtml(buildInstantAllModeStatusHtml(resultText, isInstantSessionComplete(state)));
                 } else if (!usedInstantComments || hasOtherSources) {
                     updateTotalResultDisplay(resultText);
                 }
