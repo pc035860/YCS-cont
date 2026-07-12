@@ -143,6 +143,7 @@ Origin chain (parent-comment context for replies):
   - Clears text
   - If a filter is active, re-runs search with empty query + same filter
   - If no filter is active, clears rendered results and shows "Search cleared"
+  - Instant-mode exception: with an active filter, clears filter **and** search together (no re-run — an empty query would re-degrade the filter into the upgrade modal; see spec §5.3)
 
 - `#ycs_btn_clear` (filter clear):
   - Clears active filter

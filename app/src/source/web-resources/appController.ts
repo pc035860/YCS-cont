@@ -1749,12 +1749,19 @@ export function initApp(): void {
                     const elSearchRes = document.getElementById('ycs-search-result');
                     const elSearchTotalRes = document.getElementById('ycs-search-total-result') as HTMLElement | null;
 
-                    if (activeParam) {
+                    if (activeParam && !isInstantDegradedMode()) {
                         // Reapply current filter while only clearing the text query
                         requestAnimationFrame(() => {
                             btnSearch?.click();
                         });
                     } else if (elSearchRes) {
+                        if (activeParam) {
+                            // Instant mode: an empty query mismatches the session query, so
+                            // re-running the filter would re-degrade it into the upgrade modal —
+                            // clear the filter together with the text instead.
+                            setActiveFilterByElement(null);
+                            state = resetSearchCounts(state);
+                        }
                         searchIntentState.resetExecution();
                         clearInstantSessionUi({ clearResultsDom: true });
                         elSearchRes.innerText = '';

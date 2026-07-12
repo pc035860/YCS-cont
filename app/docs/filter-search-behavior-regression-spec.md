@@ -92,7 +92,8 @@ If implementation deviates from this spec without an explicit requirement change
 
 1. Clear `Q` first
 2. Branch:
-   - `F != none`: keep current filter and trigger one Search via `requestAnimationFrame` (re-search with empty query)
+   - `F != none` (full-cache mode): keep current filter and trigger one Search via `requestAnimationFrame` (re-search with empty query)
+   - `F != none` (instant mode — active instant session or instant browse mode): clear the filter **and** the search together; clear result area and set summary text to `Search cleared`. Re-running the filter with an empty query would mismatch the session query and re-degrade it into the upgrade modal (Section 12.4), which is not a meaningful outcome for a clear action — so the filter is dropped instead. **No upgrade modal may appear.**
    - `F == none`: do not search; clear result area and set summary text to `Search cleared`
 3. `SearchClearTextButton` becomes `hidden` immediately
 4. `FilterClearButton` becomes `hidden` immediately (if re-search runs, visibility is recalculated by formula)
