@@ -359,10 +359,39 @@ html[dark] .ycs_btn_active {
   margin-left: 6px;
 }
 
-/* On-demand reply fetch loading state (Task 18): text swap + shared pulse, no spinner asset. */
+/* On-demand reply fetch loading state (Task 18): the "+" dims instantly;
+   a shimmer sweep starts only after 400ms so sub-second loads never flash. */
 .ycs-open-reply.ycs-reply-loading {
   cursor: default;
-  animation: ycs-pulse 1.5s infinite ease-in-out;
+  position: relative;
+  overflow: hidden;
+  color: #065fd466;
+}
+
+html[dark='true'] .ycs-open-reply.ycs-reply-loading,
+html[dark] .ycs-open-reply.ycs-reply-loading {
+  color: #3ea6ff66;
+}
+
+.ycs-open-reply.ycs-reply-loading::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, currentColor 50%, transparent 70%);
+  opacity: 0;
+  transform: translateX(-100%);
+  animation: ycs-reply-shimmer 1.2s infinite 0.4s;
+}
+
+@keyframes ycs-reply-shimmer {
+  0% {
+    opacity: 0.5;
+    transform: translateX(-100%);
+  }
+  100% {
+    opacity: 0.5;
+    transform: translateX(100%);
+  }
 }
 
 .ycs-open-reply * {

@@ -376,11 +376,9 @@ function getExpectedReplyCount(parentItem: Record<string, any> | undefined): num
 function setReplyButtonLoading(target: HTMLElement, loading: boolean): void {
     if (loading) {
         target.classList.add(REPLY_LOADING_CLASS);
-        target.textContent = '…';
         target.title = REPLY_LOADING_TITLE;
     } else {
         target.classList.remove(REPLY_LOADING_CLASS);
-        target.textContent = '+';
         target.title = REPLY_DEFAULT_TITLE;
     }
 }

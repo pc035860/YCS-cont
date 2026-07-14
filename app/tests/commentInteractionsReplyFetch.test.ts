@@ -126,8 +126,9 @@ test('instant mode: collected < expected replyCount fetches missing replies and 
         await flush();
 
         // Loading state applied synchronously while the fetch is in flight.
+        // The "+" glyph stays put; the loading visual is CSS-only (dim + delayed shimmer).
         assert.equal(button.classList.contains('ycs-reply-loading'), true);
-        assert.equal(button.textContent, '…');
+        assert.equal(button.textContent, '+');
         assert.equal(button.title, 'Loading replies…');
         assert.equal(fetchCalls.length, 1);
         assert.equal(fetchCalls[0][0], 'c1');
