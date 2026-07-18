@@ -142,6 +142,7 @@ import {
     isDegradedFilterParam,
     isInstantBlockedFilterParam,
     syncInstantDegradedControls,
+    UPGRADE_EXPORT_MODAL_MESSAGE,
     UPGRADE_MODAL_MESSAGE,
     UPGRADE_MODAL_TITLE,
     UPGRADE_OPEN_REPLIES_MODAL_MESSAGE,
@@ -901,14 +902,36 @@ export function initApp(): void {
         };
 
         /**
-         * Instant-mode save ▾ path: show the two-option dialog (Load all matches for
-         * the current query, or Load all comments), then dispatch to the corresponding
-         * flow. MVP: after "Load all matches" completes the user re-clicks save to
-         * export — no pending-export state.
+         * Instant-mode save ▾ path. Two entry conditions:
+         *
+         *  1. Active instant search with results, session not complete (query non-empty,
+         *     results.length > 0). Show the two-option dialog — "Load all matches for
+         *     &lt;query&gt;" (auto-paginate the instant session) OR "Load all comments"
+         *     (full-load upgrade).
+         *  2. Everything else (browse mode / empty query / no results yet). Fall back
+         *     to the classic single-Continue confirm — the user hasn't expressed a
+         *     query-shaped intent, so "load all matches" would be a lying button.
+         *
+         * MVP: after "Load all matches" completes the user re-clicks save to export —
+         * no pending-export state.
          */
         const promptInstantExportChoice = async (): Promise<void> => {
             const session = getRemoteSearch(state);
-            const query = session.active ? session.query : getSearchQuery().trim();
+            const query = session.active ? session.query.trim() : '';
+            const hasResults = session.active && session.results.length > 0;
+            const sessionComplete = isInstantSessionComplete(state);
+            const activeInstantSearch = session.active && query.length > 0 && hasResults && !sessionComplete;
+
+            if (!activeInstantSearch) {
+                // No active instant search (empty query, browse mode, or session
+                // already complete but export somehow still locked) — the only
+                // sensible intent is a full-archive load. Keep the classic UX.
+                await promptInstantUpgrade(UPGRADE_EXPORT_MODAL_MESSAGE, {
+                    exportIntent: { format: EXPORT_FORMAT.TXT }
+                });
+                return;
+            }
+
             const choice: InstantExportChoice = await showThreeChoiceModal(
                 EXPORT_CHOICE_MODAL_TITLE,
                 buildExportChoiceModalMessage(query),
@@ -927,8 +950,18 @@ export function initApp(): void {
                 fetchAllBlock.click();
                 return;
             }
-            // Fallback / secondary: existing full-load flow with export intent set so
-            // the post-upgrade notify message tells the user export is unlocked.
+            if (action === 'primary-unavailable') {
+                // Guarded by the activeInstantSearch gate above — the fetch-all block
+                // is normally mounted whenever we reach this branch. If it's genuinely
+                // gone (mid-render, torn down) we close the dialog explicitly instead
+                // of silently running the full-load path (would be a "click A, run B"
+                // lying button).
+                console.warn('[YCS] Instant export: primary selected but ycs_instant_fetch_all is not mounted');
+                return;
+            }
+            // action === 'begin-full-upgrade' (secondary): existing full-load flow
+            // with export intent set so the post-upgrade notify tells the user
+            // export is unlocked.
             await beginInstantUpgrade({ exportIntent: { format: EXPORT_FORMAT.TXT } });
         };
 

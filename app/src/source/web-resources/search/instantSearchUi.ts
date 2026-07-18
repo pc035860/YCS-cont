@@ -309,17 +309,22 @@ export type InstantExportChoice = 'primary' | 'secondary' | 'cancel';
  * "Fetch all matches" auto-paginate block is currently mounted, decide which
  * action the caller should trigger. Extracted for testability — the caller
  * still owns the DOM-side click / full-load invocation.
+ *
+ * NOTE: primary + missing fetch-all block returns `'primary-unavailable'`, not
+ * a silent fallback to full-load. The caller is expected to gate this dialog
+ * behind "active instant search with results" so that condition should not
+ * arise; if it does, the caller must handle it explicitly (log + close) —
+ * a "clicked A, ran B" lying button is worse than a noop.
  */
 export function resolveInstantExportAction(
     choice: InstantExportChoice,
     fetchAllBlockPresent: boolean
-): 'click-fetch-all' | 'begin-full-upgrade' | 'noop' {
+): 'click-fetch-all' | 'begin-full-upgrade' | 'primary-unavailable' | 'noop' {
     if (choice === 'cancel') return 'noop';
     if (choice === 'secondary') return 'begin-full-upgrade';
-    // primary = Load all matches. Fall back to full upgrade if the auto-paginate
-    // block is not on the page (e.g. the user hasn't scrolled it into view yet).
+    // primary = Load all matches. Requires the auto-paginate block to be mounted.
     if (fetchAllBlockPresent) return 'click-fetch-all';
-    return 'begin-full-upgrade';
+    return 'primary-unavailable';
 }
 
 function setDegraded(element: HTMLElement, degraded: boolean): void {

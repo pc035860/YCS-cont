@@ -677,11 +677,12 @@ test('resolveInstantExportAction dispatches primary to click-fetch-all when the 
     assert.equal(resolveInstantExportAction('primary', true), 'click-fetch-all');
 });
 
-test('resolveInstantExportAction falls primary back to full upgrade when the fetch-all block is missing', () => {
-    // Guards against the case where the auto-paginate block isn't rendered yet
-    // (e.g. user hasn't scrolled the Show more block into view) — better to run
-    // the safe full-load than silently no-op.
-    assert.equal(resolveInstantExportAction('primary', false), 'begin-full-upgrade');
+test('resolveInstantExportAction returns primary-unavailable when the fetch-all block is missing', () => {
+    // Guarded upstream by the "active instant search" gate in promptInstantExportChoice —
+    // this branch should not normally be reached. If it is, the caller must NOT silently
+    // fall back to full-load (that would be a "clicked A, ran B" lying button); it must
+    // handle 'primary-unavailable' explicitly (log + close).
+    assert.equal(resolveInstantExportAction('primary', false), 'primary-unavailable');
 });
 
 test('resolveInstantExportAction always dispatches secondary to full upgrade', () => {
