@@ -40,6 +40,113 @@ interface RenderCommentOptions {
 // Set to false for production to reduce console noise
 const DEBUG = false;
 
+/**
+ * Auto-load the next "Show more" batch when the button scrolls into view.
+ *
+ * Uses IntersectionObserver as the sole visibility signal — the browser's own
+ * intersection tracking already accounts for every ancestor's overflow clip
+ * (the search result container has `overflow-y: auto`), so a
+ * `getBoundingClientRect` vs `window.innerHeight` polling check would be
+ * wrong: the button can sit far below the container's scrolled viewport yet
+ * still be inside the browser viewport rectangle.
+ *
+ * Freshness after each click (auto OR manual) is enforced by a companion
+ * click listener that calls `takeRecords()` before re-observing — per the
+ * IntersectionObserver spec, `takeRecords()` (not `unobserve`) is the queue
+ * drain that pops any pending `IntersectionObserverEntry` records so they
+ * cannot fire the callback afterward. The subsequent `unobserve` + `observe`
+ * pair delivers a fresh entry reflecting the button's new post-append
+ * position. This closes the race where a manual click and a queued auto-fire
+ * land in the same task and both append a batch (200 → manual 400 → stale
+ * auto 600).
+ *
+ * The manual click path is preserved verbatim: we simply invoke
+ * `showMore.click()`, so the existing handler (batch append, mark highlight,
+ * hook fire, self-remove on exhaustion) runs exactly as if the user had
+ * clicked.
+ *
+ * Cleanup: a companion `MutationObserver` with `subtree: true` watches the
+ * outermost known root (`#ycs-search-result`, with a fallback chain for edge
+ * cases). It fires on every removal path we care about — the wrap_* target
+ * being wiped via `clearTarget()` on a non-all-mode search, `elSearchAll`
+ * being wiped one level up in all-mode, and the button being self-removed by
+ * its own click handler on the last batch — because all of them surface as
+ * child-list mutations somewhere under the root. Any mutation just triggers
+ * a cheap `showMore.isConnected` recheck, so we detect removal regardless of
+ * which level of the DOM did the removing. Without this, any of the three
+ * scenarios would leak the observer + click-handler closure (owning the full
+ * models array).
+ *
+ * Guards:
+ * - No-op when `IntersectionObserver` is unavailable (older env / JSDOM in tests)
+ * - Callback rechecks `showMore.isConnected` before firing another click
+ */
+function attachAutoLoadObserver(showMore: HTMLElement): void {
+    if (typeof IntersectionObserver === 'undefined') return;
+
+    let disposed = false;
+    const cleanup = (): void => {
+        if (disposed) return;
+        disposed = true;
+        intersectionObserver.disconnect();
+        removalObserver?.disconnect();
+    };
+
+    const intersectionObserver = new IntersectionObserver((entries) => {
+        if (disposed) return;
+        if (!showMore.isConnected) {
+            cleanup();
+            return;
+        }
+        for (const entry of entries) {
+            if (entry.isIntersecting) {
+                showMore.click();
+                return;
+            }
+        }
+    });
+    intersectionObserver.observe(showMore);
+
+    // Re-arm on every click. This runs after the existing click handler in the
+    // renderer (registered earlier), so we always see the post-append DOM.
+    // `takeRecords()` — not `unobserve` — is the spec-defined queue drain:
+    // it pops any pending IntersectionObserverEntry records so they cannot
+    // fire the callback afterward. Without it, a manual click followed by a
+    // queued auto-fire in the same task would produce a duplicate append
+    // (200 → manual 400 → stale auto 600). We then re-observe to deliver a
+    // fresh entry for the button's new position, so the next batch drains
+    // only if it's still inside the container's visible clip.
+    showMore.addEventListener('click', () => {
+        if (disposed) return;
+        if (!showMore.isConnected) {
+            cleanup();
+            return;
+        }
+        intersectionObserver.takeRecords();
+        intersectionObserver.unobserve(showMore);
+        intersectionObserver.observe(showMore);
+    });
+
+    // Fallback removal watcher: IntersectionObserver never fires again once its
+    // target becomes disconnected via a `textContent = ''` wipe on any ancestor
+    // (which is exactly what happens on every new search — non-all-mode wipes
+    // the target itself, all-mode wipes `#ycs-search-result` which removes the
+    // wrap_* target one level up). Watching the outermost known root with
+    // `subtree: true` catches both paths in one observer, without leaking the
+    // observer + click-handler closure (which owns the full models array).
+    let removalObserver: MutationObserver | undefined;
+    if (typeof MutationObserver !== 'undefined') {
+        const container =
+            showMore.closest('#ycs-search-result') ?? showMore.parentElement?.parentElement ?? showMore.parentElement;
+        if (container) {
+            removalObserver = new MutationObserver(() => {
+                if (!showMore.isConnected) cleanup();
+            });
+            removalObserver.observe(container, { childList: true, subtree: true });
+        }
+    }
+}
+
 const LIKE_ICON_SVG = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet">
         <g>
@@ -580,6 +687,8 @@ function renderComment(el: string | HTMLElement, data: any, options: RenderComme
                 button.innerHTML = `Show more, found comments (${models.length - currentPos}) ${iconExpandShowMore()}`;
             }
         });
+
+        attachAutoLoadObserver(showMore);
     } else {
         onLocalBatchExhausted?.();
     }
@@ -652,6 +761,8 @@ function renderCommentChat(selector: string, data: any, querySearch?: string): v
                 button.innerHTML = `Show more, found chat replay (${models.length - currentPos}) ${iconExpandShowMore()}`;
             }
         });
+
+        attachAutoLoadObserver(showMore);
     }
 
     if (querySearch) {
@@ -720,6 +831,8 @@ function renderCommentTrVideo(selector: string, data: any, querySearch?: string)
                 button.innerHTML = `Show more, found transcript video (${models.length - currentPos}) ${iconExpandShowMore()}`;
             }
         });
+
+        attachAutoLoadObserver(showMore);
     }
 
     if (querySearch) {
