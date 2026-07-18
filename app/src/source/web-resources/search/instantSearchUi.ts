@@ -311,7 +311,8 @@ const INSTANT_EXPORT_QUERY_MAX_LEN = 50;
  * Removes characters that most desktop OSes reject or mangle in filenames
  * (`\` `/` `:` `*` `?` `"` `<` `>` `|` — the Windows-strict set covers macOS
  * / Linux fine — plus C0/C1 control chars), collapses runs of whitespace to
- * a single space, trims, and truncates to 50 code units. Not exhaustive
+ * a single space, trims, and truncates to 50 code points (surrogate-safe,
+ * so emoji and supplementary-plane CJK don't get split). Not exhaustive
  * (leaves Unicode intact — that's intentional; the filesystem accepts it)
  * — the goal is "no visible corruption from the OS", not "portable ASCII".
  *
@@ -326,8 +327,13 @@ export function sanitizeQueryForFilename(query: string): string {
     // Collapse whitespace runs, trim.
     const collapsed = stripped.replace(/\s+/g, ' ').trim();
     if (!collapsed) return '';
-    if (collapsed.length <= INSTANT_EXPORT_QUERY_MAX_LEN) return collapsed;
-    return collapsed.slice(0, INSTANT_EXPORT_QUERY_MAX_LEN).trimEnd();
+    // Iterate by code point (Array.from uses the string iterator, which
+    // yields whole surrogate pairs) so we never split an emoji / supplementary-
+    // plane CJK char across the 50-char boundary and leave an unpaired
+    // surrogate in the filename.
+    const codePoints = Array.from(collapsed);
+    if (codePoints.length <= INSTANT_EXPORT_QUERY_MAX_LEN) return collapsed;
+    return codePoints.slice(0, INSTANT_EXPORT_QUERY_MAX_LEN).join('').trimEnd();
 }
 
 /**

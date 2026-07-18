@@ -730,6 +730,28 @@ test('sanitizeQueryForFilename truncates to 50 chars and trims trailing space', 
     assert.equal(out2.endsWith(' '), false);
 });
 
+test('sanitizeQueryForFilename truncates by code point so surrogate pairs stay intact', () => {
+    // 49 ASCII + emoji (surrogate pair, 2 UTF-16 code units). Naive
+    // .slice(0, 50) would keep the high surrogate and drop the low one,
+    // leaving an unpaired \uD83D in the filename.
+    const withEmojiAtBoundary = 'a'.repeat(49) + '😀' + 'z';
+    const out = sanitizeQueryForFilename(withEmojiAtBoundary);
+    // 50 code points = 49 'a' + full emoji (2 code units) = 51 code units.
+    assert.equal(Array.from(out).length, 50);
+    assert.equal(out, 'a'.repeat(49) + '😀');
+    // No unpaired surrogate — the last code unit must be the low surrogate
+    // of the emoji, not the high surrogate on its own.
+    const lastCu = out.charCodeAt(out.length - 1);
+    assert.ok(lastCu >= 0xdc00 && lastCu <= 0xdfff, 'trailing code unit should be low surrogate');
+});
+
+test('sanitizeQueryForFilename handles mixed leading whitespace + Unicode + illegal + runs', () => {
+    // Leading whitespace, Unicode, illegal chars, and internal whitespace runs
+    // all in one string — order of ops (strip → collapse → trim → truncate)
+    // must survive intact.
+    assert.equal(sanitizeQueryForFilename('   英國/皇室   "test"   '), '英國皇室 test');
+});
+
 test('sanitizeQueryForFilename returns empty for empty / whitespace-only / all-illegal input', () => {
     assert.equal(sanitizeQueryForFilename(''), '');
     assert.equal(sanitizeQueryForFilename('   '), '');
