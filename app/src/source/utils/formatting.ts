@@ -338,14 +338,19 @@ function getCommentsHtmlText(comments: any): any | undefined {
         const authorChannelLine = (cmnt: any): string =>
             formatYoutubeUrl(cmnt?.commentRenderer?.authorEndpoint?.commandMetadata?.webCommandMetadata?.url || '');
 
-        const publishedNavigationLine = (cmnt: any): string =>
-            formatYoutubeUrl(
+        // Returns the fully-formatted nav line + trailing newline, OR '' when the
+        // renderer has no nav URL (Data API path never emits publishedTimeText.runs
+        // → skip the line entirely instead of leaving an orphan `youtube.com` row).
+        const publishedNavigationBlock = (cmnt: any): string => {
+            const rawUrl =
                 (wrapTryCatch(
                     () =>
                         cmnt.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.commandMetadata
                             .webCommandMetadata.url
-                ) as string) || ''
-            );
+                ) as string) || '';
+            if (!rawUrl) return '';
+            return `${formatYoutubeUrl(rawUrl)}\n`;
+        };
 
         const publishedTimeLine = (cmnt: any): string =>
             (wrapTryCatch(() => cmnt.commentRenderer.publishedTimeText.runs[0].text) as string) ||
@@ -392,8 +397,7 @@ function getCommentsHtmlText(comments: any): any | undefined {
 ${renderTypeComment(r)}
 ${r?.commentRenderer?.authorText?.simpleText || ''}
 ${authorChannelLine(r)}\n
-${publishedNavigationLine(r)}
-${publishedTimeLine(r)} | like: ${r?.commentRenderer?.likeCount || r?.commentRenderer?.voteCount?.simpleText || 0}${renderCountReply(r)}${getUserMember(r)}\n
+${publishedNavigationBlock(r)}${publishedTimeLine(r)} | like: ${r?.commentRenderer?.likeCount || r?.commentRenderer?.voteCount?.simpleText || 0}${renderCountReply(r)}${getUserMember(r)}\n
 ${r?.commentRenderer?.contentText?.fullText || ''}\n
                         `;
                     }
@@ -417,8 +421,7 @@ ${r?.commentRenderer?.contentText?.fullText || ''}\n
 ${renderTypeComment(c)}
 ${c?.commentRenderer?.authorText?.simpleText || ''}
 ${authorChannelLine(c)}\n
-${publishedNavigationLine(c)}
-${publishedTimeLine(c)} | like: ${c?.commentRenderer?.likeCount || c?.commentRenderer?.voteCount?.simpleText || 0}${renderCountReply(c)}${getUserMember(c)}\n
+${publishedNavigationBlock(c)}${publishedTimeLine(c)} | like: ${c?.commentRenderer?.likeCount || c?.commentRenderer?.voteCount?.simpleText || 0}${renderCountReply(c)}${getUserMember(c)}\n
 ${c?.commentRenderer?.contentText?.fullText || ''}
 ${renderReplies(c)}
 #####\n`;

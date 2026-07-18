@@ -409,6 +409,40 @@ test('getCommentsHtmlText: Data API comment (simpleText only, absolute authorEnd
     assert.ok(!html.includes('youtube.comhttp://'), 'must not glue youtube.com in front of absolute URL');
     // Published time falls back to simpleText
     assert.ok(html.includes('3 days ago'), 'should include simpleText published time');
+    // Nav URL is absent on Data API renderers — the whole line must be skipped,
+    // not left as an orphan bare `youtube.com` row.
+    assert.ok(!/\nyoutube\.com\s*\n/.test(html), 'must not emit orphan `youtube.com` line when nav URL is empty');
+});
+
+test('getCommentsHtmlText: full-scan comment keeps published-navigation line when URL is present', () => {
+    // Regression guard for the orphan-nav-line fix: when navigationEndpoint exists,
+    // the nav row must still be rendered (not accidentally suppressed).
+    const comments = [
+        {
+            typeComment: 'C',
+            commentRenderer: {
+                commentId: 'c3',
+                authorText: { simpleText: 'FullScan2' },
+                authorEndpoint: {
+                    commandMetadata: { webCommandMetadata: { url: '/@fs2' } }
+                },
+                publishedTimeText: {
+                    runs: [
+                        {
+                            text: '1 hour ago',
+                            navigationEndpoint: {
+                                commandMetadata: { webCommandMetadata: { url: '/watch?v=abc&lc=c3' } }
+                            }
+                        }
+                    ]
+                },
+                contentText: { fullText: 'body' },
+                likeCount: 0
+            }
+        }
+    ];
+    const html = getCommentsHtmlText(comments)?.html as string;
+    assert.ok(html.includes('youtube.com/watch?v=abc&lc=c3'), 'nav URL line still present when URL exists');
 });
 
 test('getCommentsHtmlText: full-scan comment (runs + relative authorEndpoint URL) keeps legacy behaviour', () => {
