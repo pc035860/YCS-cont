@@ -275,9 +275,13 @@ Manual smoke checklist:
 4. Verify export still works
 5. Verify Shorts page behavior
 
-Chrome E2E (agent-browser): System Chrome 137+ silently ignores `--load-extension`. Use Chrome for Testing 131; pass `--executable-path --extension --headed` on **every** invocation; `tab new` before `open`.
+Chrome E2E (agent-browser): System Chrome 137+ silently ignores `--load-extension` (extension enabled in `chrome://extensions` but `chrome.runtime` undefined in the page, no content-script injection). Use Chrome for Testing 131 (`~/.cache/puppeteer/chrome/mac_arm-131.*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`).
+
+agent-browser 0.32.1's own launch of CfT 131 fails silently (`Chrome exited early (exit code: 0) without writing DevToolsActivePort`) even with `--no-sandbox`. Workaround: launch CfT manually with `--remote-debugging-port=<port> --user-data-dir=<throwaway> --load-extension=<dist> --disable-extensions-except=<same> --disable-features=DisableLoadExtensionCommandLineSwitch` then attach agent-browser via `AGENT_BROWSER_CDP=<port>`. Verify targets at `http://localhost:<port>/json` shows the extension's `service_worker`. When self-launch is fixed, revert to `--executable-path --extension --headed`; `tab new` before `open` still applies.
 
 E2E profile: do NOT use `~/.e2e-dev-loop-profile` — it is reserved for other web-app testing (and agent-browser fails to attach to it anyway). Create a dedicated throwaway profile (e.g. under the session scratchpad) per run. Instant-search E2E needs a YouTube Data API key: enter it through the extension options page; never echo the key into logs/screenshots.
+
+E2E timing gotcha for `syncInstantDegradedControls`: on a fresh instant-eligible video the fixture MUST include the pre-options `syncInstantDegradedControls(false)` call fired from `initFilterButtons` before `hasYoutubeApiKey` propagates — a fixture that jumps straight to `(true) → (true, {sessionComplete: true})` passes even against a broken snapshot implementation. See `syncInstantDegradedControls: matches real app.ts sync sequence` in `instantSearchUi.test.ts`.
 
 ---
 
