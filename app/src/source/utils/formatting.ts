@@ -328,6 +328,30 @@ function getCommentsHtmlText(comments: any): any | undefined {
             }
         };
 
+        const formatYoutubeUrl = (path: string): string => {
+            // Absolute URLs (e.g. Data API's authorChannelUrl) are passed through unchanged;
+            // relative paths from full-scan renderers get the legacy `youtube.com` prefix.
+            if (path && /^https?:\/\//i.test(path)) return path;
+            return `youtube.com${path || ''}`;
+        };
+
+        const authorChannelLine = (cmnt: any): string =>
+            formatYoutubeUrl(cmnt?.commentRenderer?.authorEndpoint?.commandMetadata?.webCommandMetadata?.url || '');
+
+        const publishedNavigationLine = (cmnt: any): string =>
+            formatYoutubeUrl(
+                (wrapTryCatch(
+                    () =>
+                        cmnt.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.commandMetadata
+                            .webCommandMetadata.url
+                ) as string) || ''
+            );
+
+        const publishedTimeLine = (cmnt: any): string =>
+            (wrapTryCatch(() => cmnt.commentRenderer.publishedTimeText.runs[0].text) as string) ||
+            cmnt?.commentRenderer?.publishedTimeText?.simpleText ||
+            '';
+
         const renderTypeComment = (cmnt: any): string => {
             try {
                 if (cmnt?.typeComment === 'C') {
@@ -367,9 +391,9 @@ function getCommentsHtmlText(comments: any): any | undefined {
                         resReplies += `
 ${renderTypeComment(r)}
 ${r?.commentRenderer?.authorText?.simpleText || ''}
-youtube.com${r?.commentRenderer?.authorEndpoint?.commandMetadata?.webCommandMetadata?.url || ''}\n
-youtube.com${wrapTryCatch(() => r.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.commandMetadata.webCommandMetadata.url) || ''}
-${wrapTryCatch(() => r.commentRenderer.publishedTimeText.runs[0].text) || ''} | like: ${r?.commentRenderer?.likeCount || r?.commentRenderer?.voteCount?.simpleText || 0}${renderCountReply(r)}${getUserMember(r)}\n
+${authorChannelLine(r)}\n
+${publishedNavigationLine(r)}
+${publishedTimeLine(r)} | like: ${r?.commentRenderer?.likeCount || r?.commentRenderer?.voteCount?.simpleText || 0}${renderCountReply(r)}${getUserMember(r)}\n
 ${r?.commentRenderer?.contentText?.fullText || ''}\n
                         `;
                     }
@@ -392,9 +416,9 @@ ${r?.commentRenderer?.contentText?.fullText || ''}\n
 \n#####\n
 ${renderTypeComment(c)}
 ${c?.commentRenderer?.authorText?.simpleText || ''}
-youtube.com${c?.commentRenderer?.authorEndpoint?.commandMetadata?.webCommandMetadata?.url || ''}\n
-youtube.com${wrapTryCatch(() => c.commentRenderer.publishedTimeText.runs[0].navigationEndpoint.commandMetadata.webCommandMetadata.url) || ''}
-${wrapTryCatch(() => c.commentRenderer.publishedTimeText.runs[0].text) || ''} | like: ${c?.commentRenderer?.likeCount || c?.commentRenderer?.voteCount?.simpleText || 0}${renderCountReply(c)}${getUserMember(c)}\n
+${authorChannelLine(c)}\n
+${publishedNavigationLine(c)}
+${publishedTimeLine(c)} | like: ${c?.commentRenderer?.likeCount || c?.commentRenderer?.voteCount?.simpleText || 0}${renderCountReply(c)}${getUserMember(c)}\n
 ${c?.commentRenderer?.contentText?.fullText || ''}
 ${renderReplies(c)}
 #####\n`;

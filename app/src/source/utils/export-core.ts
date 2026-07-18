@@ -132,7 +132,11 @@ function createTranscriptPayloadSkeleton(input: {
 }
 
 function formatYoutubePath(path?: string): string {
-    return `youtube.com${path || ''}`;
+    const value = path || '';
+    // Absolute URLs (e.g. Data API's authorChannelUrl) are passed through unchanged;
+    // relative paths from full-scan renderers get the legacy `youtube.com` prefix.
+    if (/^https?:\/\//i.test(value)) return value;
+    return `youtube.com${value}`;
 }
 
 function buildAuthorChannelUrl(renderer: any): string {
@@ -166,7 +170,10 @@ function createCommentExportItem(renderer: any, videoId: string): CommentExportI
             authorIsChannelOwner: Boolean(renderer?.authorIsChannelOwner),
             channel: buildAuthorChannelUrl(renderer)
         },
-        publishedTimeText: wrapTryCatch(() => renderer?.publishedTimeText?.runs?.[0]?.text) || '',
+        publishedTimeText:
+            (wrapTryCatch(() => renderer?.publishedTimeText?.runs?.[0]?.text) as string) ||
+            renderer?.publishedTimeText?.simpleText ||
+            '',
         commentMessage: buildCommentMessage(renderer),
         totalLikes: parseLikeCount(renderer?.voteCount?.simpleText ?? renderer?.likeCount),
         member: buildMemberTooltip(renderer),

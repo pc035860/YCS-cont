@@ -224,3 +224,36 @@ test('buildCommentsExportPayload handles nested replies (replyLevel >= 2)', () =
     assert.ok(replyAuthors.includes('Reply1'), 'Should include first reply');
     assert.ok(replyAuthors.includes('Reply2'), 'Should include nested reply');
 });
+
+test('buildCommentsExportPayload: Data API-shaped renderer (simpleText only, absolute authorChannelUrl)', () => {
+    // Reproduces the instant-search export path where transform.ts populates only
+    // publishedTimeText.simpleText and an absolute authorEndpoint URL.
+    const comments: CommentItem[] = [
+        {
+            commentRenderer: {
+                commentId: 'dc1',
+                authorText: { simpleText: 'DataApi' },
+                authorEndpoint: {
+                    commandMetadata: {
+                        webCommandMetadata: { url: 'http://www.youtube.com/channel/UCabc' }
+                    }
+                },
+                publishedTimeText: { simpleText: '3 days ago' },
+                contentText: { fullText: 'body' },
+                likeCount: 4
+            },
+            typeComment: 'C'
+        }
+    ];
+
+    const payload = buildCommentsExportPayload({
+        titleVideo: 'Demo',
+        url: 'https://www.youtube.com/watch?v=vid',
+        comments
+    });
+
+    // Bug 2: absolute URL must pass through, not get 'youtube.com' glued in front.
+    assert.equal(payload.comments[0].author.channel, 'http://www.youtube.com/channel/UCabc');
+    // Bug 1: publishedTimeText falls back to simpleText.
+    assert.equal(payload.comments[0].publishedTimeText, '3 days ago');
+});
