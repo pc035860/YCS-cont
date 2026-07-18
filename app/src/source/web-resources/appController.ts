@@ -920,12 +920,23 @@ export function initApp(): void {
             const query = session.active ? session.query.trim() : '';
             const hasResults = session.active && session.results.length > 0;
             const sessionComplete = isInstantSessionComplete(state);
-            const activeInstantSearch = session.active && query.length > 0 && hasResults && !sessionComplete;
+            // The "Fetch all matches" auto-paginate block is the DOM element the
+            // primary button dispatches to. `renderInstantShowMore` refuses to
+            // mount it while the local-batch show-more (`#ycs_search_show_more`)
+            // is present (see appController.ts renderInstantShowMore guard) —
+            // i.e. when the user has more instant matches than the local batch
+            // size and hasn't paged through them yet. If we can't dispatch, we
+            // must not offer the primary label ("Load all matches for &lt;query&gt;")
+            // — that would be a lying button. Fall through to the classic
+            // single-Continue confirm instead.
+            const fetchAllBlockMounted = document.getElementById('ycs_instant_fetch_all') !== null;
+            const activeInstantSearch =
+                session.active && query.length > 0 && hasResults && !sessionComplete && fetchAllBlockMounted;
 
             if (!activeInstantSearch) {
-                // No active instant search (empty query, browse mode, or session
-                // already complete but export somehow still locked) — the only
-                // sensible intent is a full-archive load. Keep the classic UX.
+                // No active instant search, OR primary path not runnable right
+                // now — either way, the only sensible offer is a full-archive
+                // load via the classic single-Continue confirm.
                 await promptInstantUpgrade(UPGRADE_EXPORT_MODAL_MESSAGE, {
                     exportIntent: { format: EXPORT_FORMAT.TXT }
                 });
@@ -939,6 +950,9 @@ export function initApp(): void {
                 EXPORT_CHOICE_SECONDARY_LABEL
             );
 
+            // Re-read the fetch-all block at dispatch time — a re-render between
+            // gate and dispatch could have removed it. resolveInstantExportAction
+            // returns 'primary-unavailable' in that (rare) case.
             const fetchAllBlock = document.getElementById('ycs_instant_fetch_all');
             const action = resolveInstantExportAction(choice, fetchAllBlock !== null);
             if (action === 'noop') return;
@@ -951,11 +965,8 @@ export function initApp(): void {
                 return;
             }
             if (action === 'primary-unavailable') {
-                // Guarded by the activeInstantSearch gate above — the fetch-all block
-                // is normally mounted whenever we reach this branch. If it's genuinely
-                // gone (mid-render, torn down) we close the dialog explicitly instead
-                // of silently running the full-load path (would be a "click A, run B"
-                // lying button).
+                // Race: gate passed but the block vanished before dispatch.
+                // Log and close — no silent re-route to a different action.
                 console.warn('[YCS] Instant export: primary selected but ycs_instant_fetch_all is not mounted');
                 return;
             }
