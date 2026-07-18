@@ -303,6 +303,50 @@ export const EXPORT_CHOICE_SECONDARY_LABEL = 'Load all comments';
 
 export type InstantExportChoice = 'primary' | 'secondary' | 'cancel';
 
+const INSTANT_EXPORT_QUERY_MAX_LEN = 50;
+
+/**
+ * Sanitize a query for embedding into an export filename.
+ *
+ * Removes characters that most desktop OSes reject or mangle in filenames
+ * (`\` `/` `:` `*` `?` `"` `<` `>` `|` — the Windows-strict set covers macOS
+ * / Linux fine — plus C0/C1 control chars), collapses runs of whitespace to
+ * a single space, trims, and truncates to 50 code units. Not exhaustive
+ * (leaves Unicode intact — that's intentional; the filesystem accepts it)
+ * — the goal is "no visible corruption from the OS", not "portable ASCII".
+ *
+ * Callers use the sanitized string as the payload for a filename tag like
+ * ` - search '<query>'`; wrapping quotes are the caller's job.
+ */
+export function sanitizeQueryForFilename(query: string): string {
+    if (!query) return '';
+    // Strip filesystem-illegal chars + control chars (C0 + DEL + C1 range).
+    // eslint-disable-next-line no-control-regex
+    const stripped = query.replace(/[\\/:*?"<>|\x00-\x1F\x7F-\x9F]/g, '');
+    // Collapse whitespace runs, trim.
+    const collapsed = stripped.replace(/\s+/g, ' ').trim();
+    if (!collapsed) return '';
+    if (collapsed.length <= INSTANT_EXPORT_QUERY_MAX_LEN) return collapsed;
+    return collapsed.slice(0, INSTANT_EXPORT_QUERY_MAX_LEN).trimEnd();
+}
+
+/**
+ * Build the ASCII-safe title suffix appended to `meta.title` on instant-export
+ * fallback (the "Comments, &lt;title&gt; - search '&lt;q&gt;' (N)" filename).
+ *
+ * Format: ` - search '<sanitized>'` (leading space, ASCII hyphen, single
+ * quotes — single quotes are filename-legal on macOS / Linux / Windows,
+ * unlike double quotes which some downloaders and shells mangle).
+ *
+ * Returns empty string when the sanitized query is empty (caller then
+ * appends nothing — the untagged filename is a safe fallback).
+ */
+export function buildInstantExportTitleSuffix(query: string): string {
+    const sanitized = sanitizeQueryForFilename(query);
+    if (!sanitized) return '';
+    return ` - search '${sanitized}'`;
+}
+
 /**
  * Pure dispatch: given the user's modal choice (primary = Load all matches,
  * secondary = Load all comments, cancel = close) and whether the on-page

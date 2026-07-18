@@ -151,6 +151,7 @@ import {
     EXPORT_CHOICE_SECONDARY_LABEL,
     buildExportChoiceModalMessage,
     buildExportChoicePrimaryLabel,
+    buildInstantExportTitleSuffix,
     resolveInstantExportAction,
     type InstantExportChoice
 } from './search/instantSearchUi';
@@ -2258,16 +2259,19 @@ export function initApp(): void {
             // Prefer the full local archive; fall back to the accumulated instant-search
             // results so users can export a completed instant session without a full Load all.
             // When falling back, tag the export title with the search query so the resulting
-            // filename ("Comments, <title> — search \"<q>\" (N).*") makes the origin obvious.
+            // filename ("Comments, <title> - search '<q>' (N).*") makes the origin obvious.
+            // Tag format is ASCII (hyphen + single quotes); query is sanitized for filename
+            // safety by buildInstantExportTitleSuffix — see instantSearchUi.ts. The full-scan
+            // path (comments present) does not enter this branch, so its filename is unchanged.
             let comments = getComments(state);
             let meta = getExportMeta();
             if (!comments || comments.length === 0) {
                 const remote = getRemoteSearch(state);
                 if (!remote.results || remote.results.length === 0) return;
                 comments = remote.results;
-                const query = (remote.query ?? '').trim();
-                if (query) {
-                    meta = { ...meta, title: `${meta.title || document.title} — search "${query}"` };
+                const suffix = buildInstantExportTitleSuffix(remote.query ?? '');
+                if (suffix) {
+                    meta = { ...meta, title: `${meta.title || document.title}${suffix}` };
                 }
             }
 

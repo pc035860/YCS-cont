@@ -17,7 +17,9 @@ import {
     buildInstantFetchAllTooltip,
     buildInstantResultsStatusHtml,
     buildInstantResultsStatusText,
+    buildInstantExportTitleSuffix,
     resolveInstantExportAction,
+    sanitizeQueryForFilename,
     buildUpgradeCompleteNotifyMessage,
     buildUpgradedStatusText,
     buildUpgradingStatusText,
@@ -693,4 +695,69 @@ test('resolveInstantExportAction always dispatches secondary to full upgrade', (
 test('resolveInstantExportAction dispatches cancel to noop regardless of block presence', () => {
     assert.equal(resolveInstantExportAction('cancel', true), 'noop');
     assert.equal(resolveInstantExportAction('cancel', false), 'noop');
+});
+
+test('sanitizeQueryForFilename strips filesystem-illegal characters', () => {
+    assert.equal(sanitizeQueryForFilename('a/b:c"d*e?f<g>h|i\\j'), 'abcdefghij');
+});
+
+test('sanitizeQueryForFilename strips control chars and DEL', () => {
+    assert.equal(sanitizeQueryForFilename('hello\x00world\x1F\x7F!'), 'helloworld!');
+});
+
+test('sanitizeQueryForFilename collapses whitespace and trims', () => {
+    assert.equal(sanitizeQueryForFilename('  hello   world  '), 'hello world');
+    // Tab / newline are C0 control chars so they get stripped by the illegal-char
+    // pass before whitespace collapse — the collapse only sees regular spaces.
+    assert.equal(sanitizeQueryForFilename('a\tb\nc'), 'abc');
+});
+
+test('sanitizeQueryForFilename preserves Unicode (CJK) unchanged', () => {
+    assert.equal(sanitizeQueryForFilename('英國 皇室'), '英國 皇室');
+    assert.equal(sanitizeQueryForFilename('日本語のテスト'), '日本語のテスト');
+});
+
+test('sanitizeQueryForFilename truncates to 50 chars and trims trailing space', () => {
+    const long = 'a'.repeat(75);
+    const out = sanitizeQueryForFilename(long);
+    assert.equal(out.length, 50);
+    assert.equal(out, 'a'.repeat(50));
+
+    // Truncation must not leave a trailing space (mid-word break at boundary).
+    const withSpaceAt50 = 'a'.repeat(49) + ' ' + 'b'.repeat(20);
+    const out2 = sanitizeQueryForFilename(withSpaceAt50);
+    assert.equal(out2.length, 49);
+    assert.equal(out2.endsWith(' '), false);
+});
+
+test('sanitizeQueryForFilename returns empty for empty / whitespace-only / all-illegal input', () => {
+    assert.equal(sanitizeQueryForFilename(''), '');
+    assert.equal(sanitizeQueryForFilename('   '), '');
+    assert.equal(sanitizeQueryForFilename('///???'), '');
+});
+
+test('buildInstantExportTitleSuffix returns ASCII-safe tag with single-quoted query', () => {
+    assert.equal(buildInstantExportTitleSuffix('love'), " - search 'love'");
+});
+
+test('buildInstantExportTitleSuffix preserves Unicode query but strips illegal chars', () => {
+    // The exact scenario from 批醬's screenshot: `英國` (Chinese) should be preserved.
+    assert.equal(buildInstantExportTitleSuffix('英國'), " - search '英國'");
+    // Mixed: `a/b"c` → illegal stripped, keep the rest.
+    assert.equal(buildInstantExportTitleSuffix('a/b"c'), " - search 'abc'");
+});
+
+test('buildInstantExportTitleSuffix returns empty string when the sanitized query is empty', () => {
+    // Empty suffix means the caller appends nothing — filename falls back to
+    // the untagged `Comments, <title> (N).*` form, which is safe.
+    assert.equal(buildInstantExportTitleSuffix(''), '');
+    assert.equal(buildInstantExportTitleSuffix('   '), '');
+    assert.equal(buildInstantExportTitleSuffix('///???'), '');
+});
+
+test('buildInstantExportTitleSuffix truncates long queries inside the tag', () => {
+    const long = 'x'.repeat(120);
+    const out = buildInstantExportTitleSuffix(long);
+    // Wrapping ` - search '` + 50 x's + `'` = 12 + 50 + 1 = 63 chars total.
+    assert.equal(out, " - search '" + 'x'.repeat(50) + "'");
 });
