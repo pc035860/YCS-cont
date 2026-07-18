@@ -1402,6 +1402,7 @@ export function initApp(): void {
             bindInstantDegradedCapture(elLiveApp, {
                 isActive: isInstantDegradedMode,
                 isFilterUnlocked: isInstantFilterUnlocked,
+                isExportUnlocked: () => isInstantSessionComplete(state),
                 onAction: (action) => {
                     if (action.kind === 'filter') {
                         const filterParam = { [action.param]: true } as IParamSearch;
@@ -2098,15 +2099,28 @@ export function initApp(): void {
         const btnSaveCommentsToFile = document.getElementById('ycs_save_all_comments');
         const btnSaveCommentsToFileMenu = document.getElementById('ycs_save_all_comments_menu');
         setupDropdown(btnSaveCommentsToFile, btnSaveCommentsToFileMenu, (format) => {
-            const comments = getComments(state);
-            if (!comments || comments.length === 0) return;
+            // Prefer the full local archive; fall back to the accumulated instant-search
+            // results so users can export a completed instant session without a full Load all.
+            // When falling back, tag the export title with the search query so the resulting
+            // filename ("Comments, <title> — search \"<q>\" (N).*") makes the origin obvious.
+            let comments = getComments(state);
+            let meta = getExportMeta();
+            if (!comments || comments.length === 0) {
+                const remote = getRemoteSearch(state);
+                if (!remote.results || remote.results.length === 0) return;
+                comments = remote.results;
+                const query = (remote.query ?? '').trim();
+                if (query) {
+                    meta = { ...meta, title: `${meta.title || document.title} — search "${query}"` };
+                }
+            }
 
             if (format === EXPORT_FORMAT.TXT) {
-                downloadCommentsFile(comments, getExportMeta());
+                downloadCommentsFile(comments, meta);
             } else if (format === EXPORT_FORMAT.JSON) {
-                downloadCommentsFileJSON(comments, getExportMeta());
+                downloadCommentsFileJSON(comments, meta);
             } else if (format === EXPORT_FORMAT.XLSX) {
-                downloadCommentsFileXLSX(comments, getExportMeta());
+                downloadCommentsFileXLSX(comments, meta);
             }
         });
 

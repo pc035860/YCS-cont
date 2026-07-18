@@ -162,10 +162,14 @@ export function buildInstantChipHtml(): string {
  * misleading (unlockable filters no longer need "Load all") and needlessly long for sidebar
  * mode, so it shortens with an explanatory tooltip instead. Incomplete sessions keep today's
  * markup verbatim (no `title` attribute).
+ *
+ * Export is served directly from the accumulated instant results in the complete state
+ * (see `syncInstantDegradedControls` / save-dropdown fallback), so the tooltip only
+ * references the always-degraded filters that still require the full local archive.
  */
 function loadAllCtaHtml(sessionComplete: boolean): string {
     if (sessionComplete) {
-        return `<button type="button" class="ycs-instant-load-all-cta" title="For export &amp; remaining filters">Load all comments</button>`;
+        return `<button type="button" class="ycs-instant-load-all-cta" title="For remaining filters">Load all comments</button>`;
     }
     return `<button type="button" class="ycs-instant-load-all-cta">Load all comments for filters &amp; export</button>`;
 }
@@ -269,20 +273,44 @@ export const UPGRADE_OPEN_REPLIES_MODAL_MESSAGE =
 
 function setDegraded(element: HTMLElement, degraded: boolean): void {
     if (degraded) {
+        // Snapshot the native title on the first transition into degraded so
+        // we can restore it on unlock — otherwise repeated syncs would keep
+        // overwriting the snapshot with our own degraded copy.
+        if (!element.classList.contains('ycs-btn-degraded')) {
+            const nativeTitle = element.getAttribute('title');
+            if (nativeTitle !== null && nativeTitle !== INSTANT_DEGRADED_TOOLTIP) {
+                element.dataset.ycsNativeTitle = nativeTitle;
+            }
+        }
         element.classList.add('ycs-btn-degraded');
         element.setAttribute('title', INSTANT_DEGRADED_TOOLTIP);
     } else {
         element.classList.remove('ycs-btn-degraded');
         if (element.getAttribute('title') === INSTANT_DEGRADED_TOOLTIP) {
-            element.removeAttribute('title');
+            const nativeTitle = element.dataset.ycsNativeTitle;
+            if (nativeTitle !== undefined) {
+                element.setAttribute('title', nativeTitle);
+                delete element.dataset.ycsNativeTitle;
+            } else {
+                element.removeAttribute('title');
+            }
         }
     }
 }
 
 /**
+ * Element IDs that unlock once the instant session is complete (all API pages fetched).
+ * Combines unlockable filters with the comments-save dropdown — export runs directly
+ * against the accumulated instant results in that state, so the degraded prompt no
+ * longer applies.
+ */
+const SESSION_COMPLETE_UNLOCK_IDS = new Set<string>([...UNLOCKABLE_FILTER_ELEMENT_IDS, ...DEGRADED_EXPORT_ELEMENT_IDS]);
+
+/**
  * Sync degraded-control visuals for instant mode.
- * When `sessionComplete` is true, only always-degraded filters (+ export/extended/open-window)
- * stay marked degraded; unlockable filters have their degraded styling removed.
+ * When `sessionComplete` is true, only always-degraded filters (+ extended/open-window)
+ * stay marked degraded; unlockable filters AND the export dropdown have their degraded
+ * styling removed.
  */
 export function syncInstantDegradedControls(active: boolean, options?: { sessionComplete?: boolean }): void {
     const sessionComplete = Boolean(options?.sessionComplete);
@@ -291,7 +319,7 @@ export function syncInstantDegradedControls(active: boolean, options?: { session
         for (const elementId of DEGRADED_ELEMENT_IDS) {
             const element = document.getElementById(elementId);
             if (!element) continue;
-            const degraded = !UNLOCKABLE_FILTER_ELEMENT_IDS.includes(elementId);
+            const degraded = !SESSION_COMPLETE_UNLOCK_IDS.has(elementId);
             setDegraded(element, degraded);
         }
         return;
@@ -348,6 +376,7 @@ export function bindInstantDegradedCapture(
         isActive: () => boolean;
         onAction: (action: InstantDegradedAction) => void;
         isFilterUnlocked?: (param: FilterParamKey) => boolean;
+        isExportUnlocked?: () => boolean;
     }
 ): void {
     const flagged = root as HTMLElement & { __ycsInstantDegradedBound?: boolean };
@@ -362,6 +391,11 @@ export function bindInstantDegradedCapture(
             if (!action) return;
             if (action.kind === 'filter' && options.isFilterUnlocked?.(action.param)) {
                 // Unlocked filter: let the native handler run (keeps sort-order toggling free).
+                return;
+            }
+            if (action.kind === 'export' && options.isExportUnlocked?.()) {
+                // Instant session complete: let the save dropdown open its native menu, whose
+                // handler falls back to the accumulated instant results (see appController).
                 return;
             }
             event.preventDefault();

@@ -144,7 +144,7 @@ test('buildInstantResultsStatusHtml: complete session shortens the CTA label and
     const html = buildInstantResultsStatusHtml('foo bar', 3, true);
     assert.match(
         html,
-        /<button type="button" class="ycs-instant-load-all-cta" title="For export &amp; remaining filters">Load all comments<\/button>/
+        /<button type="button" class="ycs-instant-load-all-cta" title="For remaining filters">Load all comments<\/button>/
     );
     assert.doesNotMatch(html, /Load all comments for filters/);
 });
@@ -322,6 +322,87 @@ function buildDegradedControlsDom(): JSDOM {
     </body></html>`);
 }
 
+test('syncInstantDegradedControls: preserves native title across degrade → unlock cycle for the save button', () => {
+    // Reproduce the real DOM shape: `#ycs_save_all_comments` ships with a native
+    // `title="Save comments to file"` (renderView.ts). If setDegraded strips it
+    // on unlock, hovering Save shows no tooltip — a real regression once the
+    // export button unlocks on session complete.
+    const dom = buildDegradedControlsDom();
+    const { document } = dom.window;
+    (globalThis as any).document = document;
+    try {
+        const saveButton = document.getElementById('ycs_save_all_comments') as HTMLElement;
+        saveButton.setAttribute('title', 'Save comments to file');
+
+        // Degrade → title snapshot captured, degraded copy displayed.
+        syncInstantDegradedControls(true);
+        assert.equal(saveButton.classList.contains('ycs-btn-degraded'), true);
+        assert.equal(saveButton.getAttribute('title'), 'Needs all comments loaded — click to load');
+
+        // A second degrade pass must not overwrite the snapshot with our own copy.
+        syncInstantDegradedControls(true);
+
+        // Session complete unlocks the export: native title restored, dataset cleaned up.
+        syncInstantDegradedControls(true, { sessionComplete: true });
+        assert.equal(saveButton.classList.contains('ycs-btn-degraded'), false);
+        assert.equal(saveButton.getAttribute('title'), 'Save comments to file');
+        assert.equal(saveButton.dataset.ycsNativeTitle, undefined);
+    } finally {
+        delete (globalThis as any).document;
+    }
+});
+
+test('syncInstantDegradedControls: matches real app.ts sync sequence on a fresh instant-eligible video', () => {
+    // Regression fixture that mirrors the actual sync-call sequence observed via
+    // instrumented E2E on a fresh instant-eligible video (see PR #157 review round):
+    //   1. `initFilterButtons` → `syncInstantControlsFromState` fires BEFORE the
+    //      async YCS_OPTIONS message arrives, so `hasYoutubeApiKey` is still
+    //      undefined and `isInstantDegradedMode()` returns false → active=false.
+    //   2. Options land → `syncInstantSearchPlaceholder` fires
+    //      `syncInstantDegradedControls(true)` (no sessionComplete arg → second
+    //      branch, active=true). This is the transition that MUST snapshot.
+    //   3. A repeated degrade pass (same call again) MUST NOT overwrite the
+    //      snapshot with its own degraded copy.
+    //   4. Instant session completes → `syncInstantDegradedControls(true,
+    //      { sessionComplete: true })` → first branch → save unlocks with the
+    //      snapshotted native title restored, `dataset.ycsNativeTitle` deleted.
+    // The prior fixture skipped step 1 entirely; without step 1 no measurable
+    // difference exists between working code and a broken "always overwrite"
+    // implementation, because step 2's snapshot logic runs cleanly either way.
+    const dom = buildDegradedControlsDom();
+    const { document } = dom.window;
+    (globalThis as any).document = document;
+    try {
+        const saveButton = document.getElementById('ycs_save_all_comments') as HTMLElement;
+        saveButton.setAttribute('title', 'Save comments to file');
+
+        // 1. Pre-options sync: nothing degraded yet, native title must survive the no-op unlock.
+        syncInstantDegradedControls(false);
+        assert.equal(saveButton.getAttribute('title'), 'Save comments to file');
+        assert.equal(saveButton.classList.contains('ycs-btn-degraded'), false);
+
+        // 2. Options-arrived degrade: snapshot the native title before overwriting it.
+        syncInstantDegradedControls(true);
+        assert.equal(saveButton.classList.contains('ycs-btn-degraded'), true);
+        assert.equal(saveButton.getAttribute('title'), 'Needs all comments loaded — click to load');
+        assert.equal(saveButton.dataset.ycsNativeTitle, 'Save comments to file');
+
+        // 3. Repeated degrade must be a no-op on the snapshot — otherwise the
+        // second pass would overwrite the stored native title with the degraded
+        // copy and unlock later would restore the wrong string.
+        syncInstantDegradedControls(true);
+        assert.equal(saveButton.dataset.ycsNativeTitle, 'Save comments to file');
+
+        // 4. Session complete unlocks: native title restored, dataset cleared.
+        syncInstantDegradedControls(true, { sessionComplete: true });
+        assert.equal(saveButton.classList.contains('ycs-btn-degraded'), false);
+        assert.equal(saveButton.getAttribute('title'), 'Save comments to file');
+        assert.equal(saveButton.dataset.ycsNativeTitle, undefined);
+    } finally {
+        delete (globalThis as any).document;
+    }
+});
+
 test('syncInstantDegradedControls: active + no sessionComplete degrades everything', () => {
     const dom = buildDegradedControlsDom();
     const { document } = dom.window;
@@ -337,7 +418,7 @@ test('syncInstantDegradedControls: active + no sessionComplete degrades everythi
     }
 });
 
-test('syncInstantDegradedControls: active + sessionComplete unlocks only unlockable filters', () => {
+test('syncInstantDegradedControls: active + sessionComplete unlocks unlockable filters AND export', () => {
     const dom = buildDegradedControlsDom();
     const { document } = dom.window;
     (globalThis as any).document = document;
@@ -350,6 +431,13 @@ test('syncInstantDegradedControls: active + sessionComplete unlocks only unlocka
             assert.equal(el.hasAttribute('title'), false, `${id} should have no degraded tooltip`);
         }
 
+        // Export unlocks alongside filters: instant results become the export source.
+        for (const id of DEGRADED_EXPORT_ELEMENT_IDS) {
+            const el = document.getElementById(id) as HTMLElement;
+            assert.equal(el.classList.contains('ycs-btn-degraded'), false, `${id} should be unlocked on complete`);
+            assert.equal(el.hasAttribute('title'), false, `${id} should have no degraded tooltip`);
+        }
+
         const alwaysDegradedIds = DEGRADED_FILTER_ELEMENT_IDS.filter(
             (id) => !UNLOCKABLE_FILTER_ELEMENT_IDS.includes(id)
         );
@@ -358,11 +446,7 @@ test('syncInstantDegradedControls: active + sessionComplete unlocks only unlocka
             assert.equal(el.classList.contains('ycs-btn-degraded'), true, `${id} should stay degraded`);
         }
 
-        for (const id of [
-            ...DEGRADED_EXPORT_ELEMENT_IDS,
-            DEGRADED_EXTENDED_SEARCH_ID,
-            DEGRADED_OPEN_COMMENTS_WINDOW_ID
-        ]) {
+        for (const id of [DEGRADED_EXTENDED_SEARCH_ID, DEGRADED_OPEN_COMMENTS_WINDOW_ID]) {
             const el = document.getElementById(id) as HTMLElement;
             assert.equal(el.classList.contains('ycs-btn-degraded'), true, `${id} should stay degraded`);
         }
@@ -424,6 +508,59 @@ test('bindInstantDegradedCapture: isFilterUnlocked lets unlocked filter clicks t
     assert.equal(nativeClicks, 1);
 });
 
+test('bindInstantDegradedCapture: isExportUnlocked lets export clicks through natively', () => {
+    const dom = new JSDOM(`<!DOCTYPE html><html><body>
+        <div class="ycs-app">
+            <button id="ycs_btn_heart">Heart</button>
+            <button id="ycs_save_all_comments">Save</button>
+        </div>
+    </body></html>`);
+    const { document } = dom.window;
+    const root = document.querySelector('.ycs-app') as HTMLElement;
+
+    const actions: InstantDegradedAction[] = [];
+    let nativeClicks = 0;
+    let exportUnlocked = false;
+
+    bindInstantDegradedCapture(root, {
+        isActive: () => true,
+        isExportUnlocked: () => exportUnlocked,
+        onAction: (action) => actions.push(action)
+    });
+
+    const attachNative = (button: HTMLElement): void => {
+        button.addEventListener('click', () => {
+            nativeClicks += 1;
+        });
+    };
+    attachNative(document.getElementById('ycs_save_all_comments') as HTMLElement);
+    attachNative(document.getElementById('ycs_btn_heart') as HTMLElement);
+
+    // Locked (session incomplete): export intercepted, degraded action fires.
+    document
+        .getElementById('ycs_save_all_comments')
+        ?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    assert.equal(actions.length, 1);
+    assert.deepEqual(actions[0], { kind: 'export' });
+    assert.equal(nativeClicks, 0);
+
+    // Unlocked (session complete): export passes through to native handler.
+    exportUnlocked = true;
+    const nativeExportClick = new dom.window.MouseEvent('click', { bubbles: true, cancelable: true });
+    document.getElementById('ycs_save_all_comments')?.dispatchEvent(nativeExportClick);
+    assert.equal(nativeExportClick.defaultPrevented, false);
+    assert.equal(actions.length, 1);
+    assert.equal(nativeClicks, 1);
+
+    // Always-degraded filter still intercepted regardless of export state.
+    document
+        .getElementById('ycs_btn_heart')
+        ?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    assert.equal(actions.length, 2);
+    assert.deepEqual(actions[1], { kind: 'filter', elementId: 'ycs_btn_heart', param: 'heart' });
+    assert.equal(nativeClicks, 1);
+});
+
 test('buildInstantAllModeStatusHtml contains chip, escaped text, and load-all CTA', () => {
     const html = buildInstantAllModeStatusHtml('Links, found: 5 <b>x</b>');
     assert.match(html, /ycs-instant-chip/);
@@ -438,7 +575,7 @@ test('buildInstantAllModeStatusHtml: incomplete session keeps the long CTA label
 
 test('buildInstantAllModeStatusHtml: complete session shortens the CTA label and adds a tooltip', () => {
     const html = buildInstantAllModeStatusHtml('(All) Found: 5', true);
-    assert.match(html, /title="For export &amp; remaining filters">Load all comments</);
+    assert.match(html, /title="For remaining filters">Load all comments</);
     assert.doesNotMatch(html, /Load all comments for filters/);
 });
 

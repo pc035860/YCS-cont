@@ -283,7 +283,7 @@ When instant mode is eligible (`hasYoutubeApiKey` + Instant ON; Enable irrelevan
 
 In instant mode, plain text search is fully supported. Filters fall into two tiers:
 
-**Always incompatible** (Data API responses lack the required fields — `creatorHeart`, `verifiedAuthor`, `sponsorCommentBadge`, `donatedChip`, `authorIsChannelOwner`): `heart`, `verified`, `members`, `donated`, `author`, `timestampViz`. Also always degraded: extended search, export/save, open-all-comments window (`#ycs_open_all_comments_window`).
+**Always incompatible** (Data API responses lack the required fields — `creatorHeart`, `verifiedAuthor`, `sponsorCommentBadge`, `donatedChip`, `authorIsChannelOwner`): `heart`, `verified`, `members`, `donated`, `author`, `timestampViz`. Also always degraded: extended search, open-all-comments window (`#ycs_open_all_comments_window`). **Export/save** (`#ycs_save_all_comments`) is degraded while the instant session is incomplete but unlocks once the session is complete — export then runs directly against the accumulated instant results (filename picks up a `— search "<query>"` suffix so the origin is visible).
 
 **Conditionally unlocked** (work locally on the instant subset once the session is complete): `random`, `links`, `likes`, `replied`, `timestamp`, `sortFirst`.
 
@@ -333,10 +333,11 @@ Quota exceeded: show notify box `YouTube API quota exceeded. Instant search unav
 | Session state | CTA label | Tooltip |
 | --- | --- | --- |
 | Incomplete (more pages to fetch) | `Load all comments for filters & export` | *(none)* |
-| Complete (all pages fetched; 6 filters unlocked locally) | `Load all comments` | `For export & remaining filters` |
+| Complete (all pages fetched; 6 filters + export unlocked locally) | `Load all comments` | `For remaining filters` |
 
 The CTA click behavior is unchanged in both states — it always opens the full-archive load path
-(export and the always-degraded filters — heart/verified/members/donated/author — still need it).
+(the always-degraded filters — heart/verified/members/donated/author — still need it; export runs
+locally against the instant results in the complete state and no longer needs the full archive).
 The status line never grows longer in either state; the label only shortens on completion.
 
 ### 12.7 Shorts (MUST)
