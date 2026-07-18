@@ -142,11 +142,16 @@ import {
     isDegradedFilterParam,
     isInstantBlockedFilterParam,
     syncInstantDegradedControls,
-    UPGRADE_EXPORT_MODAL_MESSAGE,
     UPGRADE_MODAL_MESSAGE,
     UPGRADE_MODAL_TITLE,
     UPGRADE_OPEN_REPLIES_MODAL_MESSAGE,
-    UPGRADE_OPEN_WINDOW_MODAL_MESSAGE
+    UPGRADE_OPEN_WINDOW_MODAL_MESSAGE,
+    EXPORT_CHOICE_MODAL_TITLE,
+    EXPORT_CHOICE_SECONDARY_LABEL,
+    buildExportChoiceModalMessage,
+    buildExportChoicePrimaryLabel,
+    resolveInstantExportAction,
+    type InstantExportChoice
 } from './search/instantSearchUi';
 import {
     FILTER_BUTTONS,
@@ -394,6 +399,80 @@ export function initApp(): void {
                 };
 
                 okBtn.addEventListener('click', onOk);
+                cancelBtn.addEventListener('click', onCancel);
+                modal.addEventListener('click', onBackdrop);
+            });
+        }
+
+        /**
+         * Three-choice variant of showConfirmModal — primary / secondary / cancel.
+         * Reuses the same modal DOM; toggles the normally-hidden `ycs_confirm_secondary`
+         * button. Backdrop click / missing DOM both resolve as 'cancel'.
+         */
+        function showThreeChoiceModal(
+            title: string,
+            message: string,
+            primaryLabel: string,
+            secondaryLabel: string
+        ): Promise<'primary' | 'secondary' | 'cancel'> {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('ycs_confirm_modal');
+                const titleEl = document.getElementById('ycs_confirm_title');
+                const messageEl = document.getElementById('ycs_confirm_message');
+                const okBtn = document.getElementById('ycs_confirm_ok');
+                const secondaryBtn = document.getElementById('ycs_confirm_secondary');
+                const cancelBtn = document.getElementById('ycs_confirm_cancel');
+
+                if (!modal || !titleEl || !messageEl || !okBtn || !secondaryBtn || !cancelBtn) {
+                    // Fallback: if the modal DOM isn't wired up (unlikely — inline HTML
+                    // ships with the extension), default to cancel so the user isn't
+                    // silently dropped into the more expensive full-load path.
+                    resolve('cancel');
+                    return;
+                }
+
+                titleEl.textContent = title;
+                messageEl.textContent = message;
+                okBtn.textContent = primaryLabel;
+                secondaryBtn.textContent = secondaryLabel;
+                secondaryBtn.style.display = '';
+                modal.style.display = 'block';
+
+                // Preserve the original OK label so subsequent two-choice modals
+                // (showConfirmModal) still read "Continue".
+                const originalOkLabel = 'Continue';
+
+                const cleanup = () => {
+                    modal.style.display = 'none';
+                    okBtn.textContent = originalOkLabel;
+                    secondaryBtn.style.display = 'none';
+                    okBtn.removeEventListener('click', onPrimary);
+                    secondaryBtn.removeEventListener('click', onSecondary);
+                    cancelBtn.removeEventListener('click', onCancel);
+                    modal.removeEventListener('click', onBackdrop);
+                };
+
+                const onPrimary = () => {
+                    cleanup();
+                    resolve('primary');
+                };
+                const onSecondary = () => {
+                    cleanup();
+                    resolve('secondary');
+                };
+                const onCancel = () => {
+                    cleanup();
+                    resolve('cancel');
+                };
+                const onBackdrop = (e: Event) => {
+                    if (e.target === modal) {
+                        cleanup();
+                        resolve('cancel');
+                    }
+                };
+
+                okBtn.addEventListener('click', onPrimary);
+                secondaryBtn.addEventListener('click', onSecondary);
                 cancelBtn.addEventListener('click', onCancel);
                 modal.addEventListener('click', onBackdrop);
             });
@@ -819,6 +898,38 @@ export function initApp(): void {
             const confirmed = await showConfirmModal(UPGRADE_MODAL_TITLE, message);
             if (!confirmed) return;
             await beginInstantUpgrade(intent);
+        };
+
+        /**
+         * Instant-mode save ▾ path: show the two-option dialog (Load all matches for
+         * the current query, or Load all comments), then dispatch to the corresponding
+         * flow. MVP: after "Load all matches" completes the user re-clicks save to
+         * export — no pending-export state.
+         */
+        const promptInstantExportChoice = async (): Promise<void> => {
+            const session = getRemoteSearch(state);
+            const query = session.active ? session.query : getSearchQuery().trim();
+            const choice: InstantExportChoice = await showThreeChoiceModal(
+                EXPORT_CHOICE_MODAL_TITLE,
+                buildExportChoiceModalMessage(query),
+                buildExportChoicePrimaryLabel(query),
+                EXPORT_CHOICE_SECONDARY_LABEL
+            );
+
+            const fetchAllBlock = document.getElementById('ycs_instant_fetch_all');
+            const action = resolveInstantExportAction(choice, fetchAllBlock !== null);
+            if (action === 'noop') return;
+            if (action === 'click-fetch-all' && fetchAllBlock) {
+                // Auto-paginate the instant session to completion. When done, the
+                // session becomes complete and a second save ▾ click will fall through
+                // to the direct instant-results export (bindInstantDegradedCapture no
+                // longer intercepts). No pending-export state — MVP.
+                fetchAllBlock.click();
+                return;
+            }
+            // Fallback / secondary: existing full-load flow with export intent set so
+            // the post-upgrade notify message tells the user export is unlocked.
+            await beginInstantUpgrade({ exportIntent: { format: EXPORT_FORMAT.TXT } });
         };
 
         const getSearchQuery = (): string => {
@@ -1410,9 +1521,10 @@ export function initApp(): void {
                         return;
                     }
                     if (action.kind === 'export') {
-                        void promptInstantUpgrade(UPGRADE_EXPORT_MODAL_MESSAGE, {
-                            exportIntent: { format: EXPORT_FORMAT.TXT }
-                        });
+                        // Two-option dialog: Load all matches (auto-paginate instant
+                        // query, MVP: no auto-export after) or Load all comments
+                        // (existing full-load flow with export intent).
+                        void promptInstantExportChoice();
                         return;
                     }
                     if (action.kind === 'openWindow') {

@@ -1160,6 +1160,7 @@ function renderLoadComments(
                         <p id="ycs_confirm_message"></p>
                         <div class="ycs_confirm_buttons">
                             <button id="ycs_confirm_cancel" class="ycs-btn-search">Cancel</button>
+                            <button id="ycs_confirm_secondary" class="ycs-btn-search" style="display:none"></button>
                             <button id="ycs_confirm_ok" class="ycs-btn-search ycs_btn_primary">Continue</button>
                         </div>
                     </div>

@@ -9,12 +9,15 @@ import {
 } from '../src/source/web-resources/search/instantCommentsSearch';
 import {
     bindInstantDegradedCapture,
+    buildExportChoiceModalMessage,
+    buildExportChoicePrimaryLabel,
     buildInstantAllModeStatusHtml,
     buildInstantChipHtml,
     buildInstantFetchAllProgressLabel,
     buildInstantFetchAllTooltip,
     buildInstantResultsStatusHtml,
     buildInstantResultsStatusText,
+    resolveInstantExportAction,
     buildUpgradeCompleteNotifyMessage,
     buildUpgradedStatusText,
     buildUpgradingStatusText,
@@ -645,4 +648,48 @@ test('mergeRemoteSearchSession keeps the previous totalResults when the response
         nextPageToken: 'p3'
     });
     assert.equal(merged.totalResults, 42);
+});
+
+test('buildExportChoicePrimaryLabel embeds the query when non-empty', () => {
+    assert.equal(buildExportChoicePrimaryLabel('love'), 'Load all matches for "love"');
+    assert.equal(buildExportChoicePrimaryLabel('  spaced  '), 'Load all matches for "spaced"');
+});
+
+test('buildExportChoicePrimaryLabel falls back to a generic label when query is empty', () => {
+    assert.equal(buildExportChoicePrimaryLabel(''), 'Load all matches');
+    assert.equal(buildExportChoicePrimaryLabel('   '), 'Load all matches');
+});
+
+test('buildExportChoiceModalMessage explains the two options and quotes the query', () => {
+    const msg = buildExportChoiceModalMessage('love');
+    assert.ok(msg.includes('"love"'), 'quotes the query');
+    assert.ok(/faster/i.test(msg), 'mentions the faster instant path');
+    assert.ok(/full comment archive/i.test(msg), 'mentions the full-archive fallback');
+});
+
+test('buildExportChoiceModalMessage handles empty query gracefully', () => {
+    const msg = buildExportChoiceModalMessage('');
+    assert.ok(!msg.includes('""'), 'no empty quoted string');
+    assert.ok(/complete result set/i.test(msg));
+});
+
+test('resolveInstantExportAction dispatches primary to click-fetch-all when the block is mounted', () => {
+    assert.equal(resolveInstantExportAction('primary', true), 'click-fetch-all');
+});
+
+test('resolveInstantExportAction falls primary back to full upgrade when the fetch-all block is missing', () => {
+    // Guards against the case where the auto-paginate block isn't rendered yet
+    // (e.g. user hasn't scrolled the Show more block into view) — better to run
+    // the safe full-load than silently no-op.
+    assert.equal(resolveInstantExportAction('primary', false), 'begin-full-upgrade');
+});
+
+test('resolveInstantExportAction always dispatches secondary to full upgrade', () => {
+    assert.equal(resolveInstantExportAction('secondary', true), 'begin-full-upgrade');
+    assert.equal(resolveInstantExportAction('secondary', false), 'begin-full-upgrade');
+});
+
+test('resolveInstantExportAction dispatches cancel to noop regardless of block presence', () => {
+    assert.equal(resolveInstantExportAction('cancel', true), 'noop');
+    assert.equal(resolveInstantExportAction('cancel', false), 'noop');
 });

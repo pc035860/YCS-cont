@@ -271,6 +271,57 @@ export const UPGRADE_OPEN_WINDOW_MODAL_MESSAGE =
 export const UPGRADE_OPEN_REPLIES_MODAL_MESSAGE =
     'Viewing all replies needs the full comment archive. Load all comments now? Your instant results stay visible while loading.';
 
+/**
+ * Instant-mode export choice modal (shown when the user clicks save ▾ while the
+ * instant search session is not yet complete). Two-option UX:
+ *   - primary (Load all matches):   auto-paginate the current instant query;
+ *                                    ~1 quota unit per remaining page. Faster,
+ *                                    only fetches matches for the search term.
+ *   - secondary (Load all comments): fetch the full local comment archive
+ *                                    (existing "Load all" flow); unlocks all
+ *                                    filters + export.
+ */
+export const EXPORT_CHOICE_MODAL_TITLE = 'Export instant results?';
+
+export function buildExportChoiceModalMessage(query: string): string {
+    const trimmed = query.trim();
+    if (!trimmed) {
+        return 'Export needs a complete result set. Load all matches for the current instant query, or load the full comment archive?';
+    }
+    return `Export needs a complete result set. Load all matches for "${trimmed}" (faster), or load the full comment archive?`;
+}
+
+export function buildExportChoicePrimaryLabel(query: string): string {
+    const trimmed = query.trim();
+    if (!trimmed) {
+        return 'Load all matches';
+    }
+    return `Load all matches for "${trimmed}"`;
+}
+
+export const EXPORT_CHOICE_SECONDARY_LABEL = 'Load all comments';
+
+export type InstantExportChoice = 'primary' | 'secondary' | 'cancel';
+
+/**
+ * Pure dispatch: given the user's modal choice (primary = Load all matches,
+ * secondary = Load all comments, cancel = close) and whether the on-page
+ * "Fetch all matches" auto-paginate block is currently mounted, decide which
+ * action the caller should trigger. Extracted for testability — the caller
+ * still owns the DOM-side click / full-load invocation.
+ */
+export function resolveInstantExportAction(
+    choice: InstantExportChoice,
+    fetchAllBlockPresent: boolean
+): 'click-fetch-all' | 'begin-full-upgrade' | 'noop' {
+    if (choice === 'cancel') return 'noop';
+    if (choice === 'secondary') return 'begin-full-upgrade';
+    // primary = Load all matches. Fall back to full upgrade if the auto-paginate
+    // block is not on the page (e.g. the user hasn't scrolled it into view yet).
+    if (fetchAllBlockPresent) return 'click-fetch-all';
+    return 'begin-full-upgrade';
+}
+
 function setDegraded(element: HTMLElement, degraded: boolean): void {
     if (degraded) {
         // Snapshot the native title on the first transition into degraded so
