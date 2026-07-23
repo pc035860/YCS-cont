@@ -29,6 +29,15 @@ export interface LiveRecordingState {
     recoveryAttempts: number; // Number of recovery attempts since last success
 }
 
+export interface RemoteSearchSession {
+    active: boolean;
+    query: string;
+    results: CommentItem[];
+    pageToken?: string;
+    /** Approximate total match count from the Data API (`pageInfo.totalResults`); used for fetch-all quota estimates. */
+    totalResults?: number;
+}
+
 export interface WebResourcesState {
     comments: CommentItem[];
     commentsChat: Map<number, ChatItem>;
@@ -41,6 +50,7 @@ export interface WebResourcesState {
     countSearch: CountBuckets;
     controller: AbortController;
     liveRecording: LiveRecordingState;
+    remoteSearch: RemoteSearchSession;
 }
 
 function createCounts(): CountBuckets {
@@ -71,6 +81,14 @@ function createLiveRecordingState(): LiveRecordingState {
     };
 }
 
+export function createInitialRemoteSearch(): RemoteSearchSession {
+    return {
+        active: false,
+        query: '',
+        results: []
+    };
+}
+
 export function createState(): WebResourcesState {
     return {
         comments: [],
@@ -83,7 +101,8 @@ export function createState(): WebResourcesState {
         count: createCounts(),
         countSearch: createCounts(),
         controller: new AbortController(),
-        liveRecording: createLiveRecordingState()
+        liveRecording: createLiveRecordingState(),
+        remoteSearch: createInitialRemoteSearch()
     };
 }
 
@@ -272,4 +291,19 @@ export function setChatSource(state: WebResourcesState, chatSource?: ChatSource)
         ...state,
         chatSource
     };
+}
+
+export function getRemoteSearch(state: WebResourcesState): RemoteSearchSession {
+    return state.remoteSearch;
+}
+
+export function setRemoteSearch(state: WebResourcesState, remoteSearch: RemoteSearchSession): WebResourcesState {
+    return {
+        ...state,
+        remoteSearch
+    };
+}
+
+export function resetRemoteSearch(state: WebResourcesState): WebResourcesState {
+    return setRemoteSearch(state, createInitialRemoteSearch());
 }

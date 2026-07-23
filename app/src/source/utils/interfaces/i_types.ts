@@ -57,6 +57,8 @@ export interface CommentRenderer extends Record<string, unknown> {
     isTimeLine?: 'timeline' | string;
     likeCount?: number | string;
     likesForSort?: number;
+    /** Parsed Data API `snippet.publishedAt` in epoch ms; only set for instant (Data API) comments. */
+    publishedAtMs?: number;
     publishedTimeText?: {
         simpleText?: string;
         runs?: Array<{
@@ -337,7 +339,8 @@ export interface IYCSOptions {
     transcriptLanguage?: string;
     youtubeApiKey?: string; // Empty = use Innertube; Filled = use YouTube Data API (storage only)
     hasYoutubeApiKey?: boolean; // Flag exposed to web page (API key never exposed)
-    youtubeApiEnabled?: boolean; // Enable YouTube Data API (default: true, requires API key)
+    youtubeApiEnabled?: boolean; // Enable Data API for full comment load (default: true; Instant search does not require this)
+    youtubeApiInstantSearch?: boolean; // Instant search before full load (default: true when API key present; independent of youtubeApiEnabled)
     autoExpandReplyContext?: boolean; // Auto-expand parent comment chain for reply results
 }
 

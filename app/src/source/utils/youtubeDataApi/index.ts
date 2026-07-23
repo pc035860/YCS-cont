@@ -27,8 +27,13 @@ export {
     isQuotaExceeded,
     isInvalidApiKey,
     fetchCommentThreads,
+    fetchCommentThreadsSearch,
     fetchCommentReplies
 } from './client';
+
+// Instant search exports
+export { fetchCommentSearchPage } from './search';
+export type { InstantSearchPage } from './search';
 
 // Comment fetching exports
 export { getAllCommentsYouTubeApi } from './comments';

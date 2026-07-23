@@ -1,4 +1,4 @@
-import Fuse from '../../../../node_modules/fuse.js/dist/fuse';
+import Fuse from '../../../../node_modules/fuse.js/dist/fuse.js';
 
 import { buildKeysSignature, buildOptionsSignature, cloneFuseOptions } from './fuseCacheUtils';
 
@@ -16,9 +16,10 @@ import {
     createDonatedFilter,
     createChannelOwnerFilter
 } from '../../utils/filters/commentsAgg';
-import { ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
-import { getComments, WebResourcesState } from '../state';
-import { SearchContext } from './types';
+import type { CommentItem, ICommentsFuseResult, IParamSearch } from '../../utils/interfaces/i_types';
+import { getComments } from '../state';
+import type { WebResourcesState } from '../state';
+import type { SearchContext } from './types';
 import { GlobalStore } from '../../utils/common';
 
 export interface SearchButtonState {
@@ -109,7 +110,45 @@ export function runSearch(
     state: WebResourcesState,
     context: SearchContext
 ): CommentsSearchResult {
-    const comments = getComments(state);
+    return runSearchOnComments(query, filters, getComments(state), context);
+}
+
+function getPublishedAtMs(entry: ICommentsFuseResult): number | undefined {
+    return (entry.item as CommentItem | undefined)?.commentRenderer?.publishedAtMs;
+}
+
+/**
+ * Sort by `_index` (load order) unless `preferPublishedAtOrder` is set AND the first item
+ * carries `publishedAtMs`. `publishedAtMs` is populated for every YouTube Data API-sourced
+ * comment (both Instant `searchTerms` results and a full "Enable" Data API archive load — see
+ * `transformApiCommentToRenderer`), so presence alone cannot distinguish the two. Callers must
+ * opt in explicitly: only the instant local filter pipeline (complete session) passes `true` —
+ * `runSearch`'s general path (Innertube or Data-API full archive) never does, so full-archive
+ * ordering is unchanged regardless of data source.
+ */
+function sortByLoadOrderOrPublishedDate(list: ICommentsFuseResult[], preferPublishedAtOrder: boolean): void {
+    if (preferPublishedAtOrder && typeof getPublishedAtMs(list[0]) === 'number') {
+        list.sort((a, b) => (getPublishedAtMs(b) ?? 0) - (getPublishedAtMs(a) ?? 0));
+    } else {
+        list.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
+    }
+}
+
+/**
+ * Core search pipeline over an explicit comments array — extracted so the instant local
+ * filter pipeline (complete instant session) can reuse it without a full WebResourcesState.
+ *
+ * `preferPublishedAtOrder` scopes the Data-API date-order fix (see `sortByLoadOrderOrPublishedDate`)
+ * to the instant local pipeline only; defaults to `false` for the general `runSearch` path.
+ */
+export function runSearchOnComments(
+    query: string,
+    filters: IParamSearch | undefined,
+    comments: CommentItem[],
+    context: SearchContext,
+    pipelineOptions?: { preferPublishedAtOrder?: boolean }
+): CommentsSearchResult {
+    const preferPublishedAtOrder = pipelineOptions?.preferPublishedAtOrder === true;
     const trimmedQuery = query?.trim?.() ?? '';
 
     if (!comments || comments.length === 0) {
@@ -183,7 +222,7 @@ export function runSearch(
         );
 
         if (resultSearch.length > 0) {
-            resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
+            sortByLoadOrderOrPublishedDate(resultSearch, preferPublishedAtOrder);
 
             let sortOrder = param.sortOrder ?? context.sortOrders.comments['ycs_btn_links'];
             if (sortOrder === undefined && trimmedQuery) {
@@ -376,7 +415,7 @@ export function runSearch(
                     return getFirstTimestamp(a.item) - getFirstTimestamp(b.item);
                 });
             } else {
-                resultSearch.sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0));
+                sortByLoadOrderOrPublishedDate(resultSearch, preferPublishedAtOrder);
             }
 
             const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_timestamps']);
@@ -398,6 +437,12 @@ export function runSearch(
         resultSearch = applyTextMatches(newest, matches);
 
         if (resultSearch.length > 0) {
+            // Instant (Data API) results carry publishedAtMs and are relevance-ordered, not
+            // load-ordered; sort by actual publish date when present. See
+            // sortByLoadOrderOrPublishedDate for why this only applies when preferPublishedAtOrder
+            // is set (instant local pipeline), not to the general full-archive runSearch path.
+            sortByLoadOrderOrPublishedDate(resultSearch, preferPublishedAtOrder);
+
             const resolvedOrder = ensureSortOrder(param.sortOrder ?? context.sortOrders.comments['ycs_btn_sort_first']);
             if (resolvedOrder === 'oldest') {
                 resultSearch = Array.from(resultSearch).reverse();

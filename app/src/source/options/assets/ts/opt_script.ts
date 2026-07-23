@@ -4,6 +4,7 @@ import { isNumeric } from '../../../utils/common';
 import { idb } from '../../../utils/libs';
 
 import { IStorageEstimate } from '../../../utils/interfaces/i_types';
+import { shouldSkipAutoloadFromStorage } from '../../../web-resources/search/instantSearchGate';
 
 const STORE_CACHE_YCS = 'STORE_CACHE_YCS';
 
@@ -13,6 +14,7 @@ window.onload = async (): Promise<void> => {
             if (typeof param !== 'boolean') return;
 
             (document.getElementById('y_opts_autoload') as HTMLInputElement).checked = param;
+            updateAutoloadInstantVisual();
         };
 
         const optSetAutoload = async (opt: HTMLInputElement): Promise<void> => {
@@ -213,12 +215,58 @@ window.onload = async (): Promise<void> => {
         // YouTube Data API handlers
         let currentApiEnabled = true;
         let currentApiKey = '';
+        let currentInstantSearch = true;
+
+        const AUTOLOAD_INSTANT_TOOLTIP =
+            'When instant search is enabled, comments are not auto-loaded on new videos. Cached videos still restore automatically.';
+
+        const updateAutoloadInstantVisual = (): void => {
+            const autoloadCheckbox = document.getElementById('y_opts_autoload') as HTMLInputElement | null;
+            const autoloadWrap = document.getElementById('y_opts_autoload_wrap');
+            if (!autoloadCheckbox || !autoloadWrap) return;
+
+            const instantActive = shouldSkipAutoloadFromStorage({
+                youtubeApiKey: currentApiKey,
+                youtubeApiEnabled: currentApiEnabled,
+                youtubeApiInstantSearch: currentInstantSearch
+            });
+
+            autoloadWrap.classList.toggle('ycs_autoload_instant_muted', instantActive);
+            if (instantActive) {
+                autoloadCheckbox.title = AUTOLOAD_INSTANT_TOOLTIP;
+            } else {
+                autoloadCheckbox.removeAttribute('title');
+            }
+        };
+
+        const setRenderYoutubeApiInstantSearch = (param: boolean): void => {
+            const checkbox = document.getElementById('y_opts_youtube_api_instant_search') as HTMLInputElement | null;
+            if (!checkbox) return;
+            checkbox.checked = param !== false;
+            currentInstantSearch = param !== false;
+            updateAutoloadInstantVisual();
+            updateApiModeDisplay();
+        };
+
+        const optSetYoutubeApiInstantSearch = async (enabled: boolean): Promise<void> => {
+            try {
+                await chrome.storage.local.set({
+                    youtubeApiInstantSearch: enabled
+                });
+                currentInstantSearch = enabled;
+                updateAutoloadInstantVisual();
+                updateApiModeDisplay();
+            } catch (err) {
+                console.error(err);
+            }
+        };
 
         const setRenderYoutubeApiEnabled = (param: boolean): void => {
             const checkbox = document.getElementById('y_opts_youtube_api_enabled') as HTMLInputElement | null;
             if (!checkbox) return;
             checkbox.checked = param !== false; // default true
             currentApiEnabled = param !== false;
+            updateAutoloadInstantVisual();
             updateApiModeDisplay();
         };
 
@@ -228,6 +276,7 @@ window.onload = async (): Promise<void> => {
                     youtubeApiEnabled: enabled
                 });
                 currentApiEnabled = enabled;
+                updateAutoloadInstantVisual();
                 updateApiModeDisplay();
             } catch (err) {
                 console.error(err);
@@ -239,6 +288,7 @@ window.onload = async (): Promise<void> => {
             if (!input) return;
             input.value = param ?? '';
             currentApiKey = param ?? '';
+            updateAutoloadInstantVisual();
             updateApiModeDisplay();
         };
 
@@ -249,6 +299,7 @@ window.onload = async (): Promise<void> => {
                     youtubeApiKey: trimmedValue
                 });
                 currentApiKey = trimmedValue;
+                updateAutoloadInstantVisual();
                 updateApiModeDisplay();
             } catch (err) {
                 console.error(err);
@@ -259,11 +310,18 @@ window.onload = async (): Promise<void> => {
             const modeValue = document.getElementById('ycs_api_mode_value') as HTMLElement | null;
             if (!modeValue) return;
 
-            const hasKey = currentApiKey && currentApiKey.trim();
-            const isEnabled = currentApiEnabled && hasKey;
+            const hasKey = Boolean(currentApiKey && currentApiKey.trim());
+            const fullLoadViaDataApi = hasKey && currentApiEnabled;
+            const instantOn = currentInstantSearch !== false;
 
-            if (isEnabled) {
-                modeValue.textContent = 'YouTube Data API';
+            if (fullLoadViaDataApi) {
+                modeValue.textContent = instantOn
+                    ? 'YouTube Data API (full load + Instant)'
+                    : 'YouTube Data API (full load)';
+                modeValue.classList.add('youtube-api');
+                modeValue.classList.remove('disabled');
+            } else if (hasKey && instantOn) {
+                modeValue.textContent = 'Innertube load + Instant search';
                 modeValue.classList.add('youtube-api');
                 modeValue.classList.remove('disabled');
             } else if (hasKey && !currentApiEnabled) {
@@ -778,6 +836,10 @@ window.onload = async (): Promise<void> => {
                         setRenderYoutubeApiEnabled(storageOpts[key]);
                         break;
 
+                    case 'youtubeApiInstantSearch':
+                        setRenderYoutubeApiInstantSearch(storageOpts[key]);
+                        break;
+
                     default:
                         break;
                 }
@@ -789,6 +851,7 @@ window.onload = async (): Promise<void> => {
 
         // Initialize YouTube API key events
         initYoutubeApiKeyEvents();
+        updateAutoloadInstantVisual();
 
         const elAutoload = document.getElementsByClassName('ycs_inner_wrap')[0];
         elAutoload?.addEventListener('click', async (e: Event) => {
@@ -850,6 +913,10 @@ window.onload = async (): Promise<void> => {
 
                 case 'y_opts_youtube_api_enabled':
                     optSetYoutubeApiEnabled((e.target as HTMLInputElement).checked);
+                    break;
+
+                case 'y_opts_youtube_api_instant_search':
+                    optSetYoutubeApiInstantSearch((e.target as HTMLInputElement).checked);
                     break;
 
                 default:

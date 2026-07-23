@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import test from 'node:test';
 
-import { safeUrl, parseFormattedNumber } from '../src/source/utils/formatting';
+import { safeUrl, parseFormattedNumber, getCommentsHtmlText } from '../src/source/utils/formatting';
 import { formatCommentRuns } from '../src/source/utils/innertube/comments/pipeline';
 import { formatChatRuns } from '../src/source/utils/innertube/chat/utils';
 import { escapeHtml } from '../src/source/utils/common';
@@ -380,4 +380,100 @@ test('escapeHtml: raw special characters should be encoded', () => {
     assert.equal(escapeHtml('<script>'), '&lt;script&gt;');
     assert.equal(escapeHtml('"quoted"'), '&quot;quoted&quot;');
     assert.equal(escapeHtml("it's"), 'it&#39;s');
+});
+
+test('getCommentsHtmlText: Data API comment (simpleText only, absolute authorEndpoint URL) renders time + non-glued URL', () => {
+    // Simulates Data API transform output — publishedTimeText has only `simpleText`
+    // (no `runs`), authorEndpoint carries an absolute channel URL.
+    const comments = [
+        {
+            typeComment: 'C',
+            commentRenderer: {
+                commentId: 'c1',
+                authorText: { simpleText: 'DataApiUser' },
+                authorEndpoint: {
+                    commandMetadata: {
+                        webCommandMetadata: { url: 'http://www.youtube.com/channel/UCabc' }
+                    }
+                },
+                publishedTimeText: { simpleText: '3 days ago' },
+                contentText: { fullText: 'hi from data api' },
+                likeCount: 0
+            }
+        }
+    ];
+    const html = getCommentsHtmlText(comments)?.html as string;
+    assert.equal(typeof html, 'string', 'getCommentsHtmlText returns { html }');
+    // Author channel URL: absolute -> passthrough, NOT prefixed with youtube.com
+    assert.ok(html.includes('http://www.youtube.com/channel/UCabc'), 'should include absolute channel URL');
+    assert.ok(!html.includes('youtube.comhttp://'), 'must not glue youtube.com in front of absolute URL');
+    // Published time falls back to simpleText
+    assert.ok(html.includes('3 days ago'), 'should include simpleText published time');
+    // Nav URL is absent on Data API renderers — the whole line must be skipped,
+    // not left as an orphan bare `youtube.com` row.
+    assert.ok(!/\nyoutube\.com\s*\n/.test(html), 'must not emit orphan `youtube.com` line when nav URL is empty');
+});
+
+test('getCommentsHtmlText: full-scan comment keeps published-navigation line when URL is present', () => {
+    // Regression guard for the orphan-nav-line fix: when navigationEndpoint exists,
+    // the nav row must still be rendered (not accidentally suppressed).
+    const comments = [
+        {
+            typeComment: 'C',
+            commentRenderer: {
+                commentId: 'c3',
+                authorText: { simpleText: 'FullScan2' },
+                authorEndpoint: {
+                    commandMetadata: { webCommandMetadata: { url: '/@fs2' } }
+                },
+                publishedTimeText: {
+                    runs: [
+                        {
+                            text: '1 hour ago',
+                            navigationEndpoint: {
+                                commandMetadata: { webCommandMetadata: { url: '/watch?v=abc&lc=c3' } }
+                            }
+                        }
+                    ]
+                },
+                contentText: { fullText: 'body' },
+                likeCount: 0
+            }
+        }
+    ];
+    const html = getCommentsHtmlText(comments)?.html as string;
+    assert.ok(html.includes('youtube.com/watch?v=abc&lc=c3'), 'nav URL line still present when URL exists');
+});
+
+test('getCommentsHtmlText: full-scan comment (runs + relative authorEndpoint URL) keeps legacy behaviour', () => {
+    const comments = [
+        {
+            typeComment: 'C',
+            commentRenderer: {
+                commentId: 'c2',
+                authorText: { simpleText: 'FullScanUser' },
+                authorEndpoint: {
+                    commandMetadata: {
+                        webCommandMetadata: { url: '/@fullscan' }
+                    }
+                },
+                publishedTimeText: {
+                    runs: [
+                        {
+                            text: '5 minutes ago',
+                            navigationEndpoint: {
+                                commandMetadata: { webCommandMetadata: { url: '/watch?v=vid&lc=c2' } }
+                            }
+                        }
+                    ]
+                },
+                contentText: { fullText: 'legacy path' },
+                likeCount: 1
+            }
+        }
+    ];
+    const html = getCommentsHtmlText(comments)?.html as string;
+    assert.ok(html.includes('youtube.com/@fullscan'), 'legacy relative path is prefixed');
+    assert.ok(html.includes('youtube.com/watch?v=vid&lc=c2'), 'legacy nav URL is prefixed');
+    assert.ok(html.includes('5 minutes ago'), 'runs[0].text preferred when present');
 });

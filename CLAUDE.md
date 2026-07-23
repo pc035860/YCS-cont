@@ -101,10 +101,9 @@ Search engines:
 - `app/src/source/web-resources/search/transcriptSearch.ts`
 
 Origin chain (parent-comment context for replies):
-- `app/src/source/web-resources/ui/originChain.ts` — single source of truth for `expandOriginChainFor` and `autoExpandAllRepliesIn`
-- `commentInteractions.ts:handleOpenCommentAll` and `render.ts:renderCommentsResult` are the only callers
-- **DOM scope / review note:** Chain wrappers use document-wide checks and removal (`ycs-com-all-*` via `getElementById` / `querySelectorAll` in `originChain.ts` and `commentInteractions.ts`). That matches the current navigation model: only one YCS search result subtree is active at a time (e.g. `executeSearchBasedOnType` runs `timestampViz` by clearing `#ycs-search-result` in `timestampVizHandler.ts` before chart + `#ycs-timestamp-interval-results`, so “main comment results” and “interval results” are not simultaneously present as sibling panels in normal use).
-- If a future change introduces **two** persistent comment result roots in the same document with the same reply key, scope origin-chain existence/removal to each result container (or disambiguate ids); treat that as an explicit product/architecture change, not an assumed regression from the current branch.
+- `ui/originChain.ts` — sole owner of `expandOriginChainFor` / `autoExpandAllRepliesIn`
+- Callers: `commentInteractions.ts:handleOpenCommentAll`, `render.ts:renderCommentsResult`
+- Wrappers use document-wide ids (`ycs-com-all-*`); safe while only one comment-result subtree is active. If two persistent result roots share a reply key, scope existence/removal per container.
 
 ---
 
@@ -144,6 +143,7 @@ Origin chain (parent-comment context for replies):
   - Clears text
   - If a filter is active, re-runs search with empty query + same filter
   - If no filter is active, clears rendered results and shows "Search cleared"
+  - Instant-mode exception: with an active filter, clears filter **and** search together (no re-run — an empty query would re-degrade the filter into the upgrade modal; see spec §5.3)
 
 - `#ycs_btn_clear` (filter clear):
   - Clears active filter
@@ -201,8 +201,24 @@ Do not merge these semantics.
 - New TS files MUST split: `import { foo } from './x'; import type { FooType } from './x';`
 - Symptom: `SyntaxError: The requested module './x' does not provide an export named 'FooType'` when running `npm test`.
 
+### 10) Instant Search gates Autoload; does not replace it
+
+- Do NOT remove Autoload globally. When instant-eligible (API key + Instant ON; **Enable irrelevant**), suppress autoload on cache miss via `shouldSkipAutoload` at all four triggers.
+- Autoload ON + instant OFF still auto-loads full comments.
+- Instant ≠ Enable: Instant uses Data API `searchTerms`; Enable only chooses Data API vs Innertube for **full** Load all.
+
+### 11) Instant empty query makes no API call
+
+- Instant mode: empty Search/Enter shows a hint and does **not** call the API (unlike full-cache empty query returning the full dataset).
+- Instant search still requires explicit Search/Enter (not input-only).
+
+### 12) Instant degraded filters need stable capture delegation
+
+- Incompatible filters use `ycs-btn-degraded` + confirm modal → Load all → pending filter re-apply.
+- Capture handlers must use event delegation on stable `.ycs-app`, not per-button listeners — `loadFilterButtons()` rebuilds `#ycs-btn-panel` and wipes per-button captures.
+
 Canonical behavior baseline doc:
-- `app/docs/filter-search-behavior-regression-spec.md`
+- `app/docs/filter-search-behavior-regression-spec.md` (incl. §12 Instant Search)
 
 ---
 
@@ -217,8 +233,8 @@ Canonical behavior baseline doc:
 3. Transcript loading has multiple paths
    Player API call uses ANDROID → WEB client fallback; preserve both paths.
 
-4. Empty query search should still return full dataset
-   This is expected behavior, not a bug.
+4. Empty query search should still return full dataset (full-cache / Innertube path)
+   This is expected behavior, not a bug. Instant Search empty query differs — see Gotcha 11.
 
 5. Innertube client type and auth header must be consistent
    ANDROID client + browser SAPISIDHASH authorization = HTTP 400. Only send auth headers with WEB client requests.
@@ -227,30 +243,15 @@ Canonical behavior baseline doc:
 
 ## Recent Significant Changes
 
-1. Shorts mounting behavior was refactored around comments panel scope
-- YCS mount target is the Shorts comments panel content area
-- Shorts DOM selectors are centralized in `shortsSupport.ts` with fallback; `appController.ts` imports from there
-- Current strategy is synchronous mount/retry without pre-mount mutation waiting
+1. Shorts: mount in comments panel; selectors in `shortsSupport.ts`; native comments follow search intent; layout scoped to YCS-owned elements only
 
-2. Shorts native comments visibility now follows search intent state
-- Any executed search/filter intent hides native comments even with `0` results
-- Native comments restore only after clearing search text and removing active filter (or when YCS is collapsed/cleaned up)
-- Shorts UI state re-sync is applied after actions to handle panel re-render timing
+2. Transcript Player API: ANDROID → WEB (+ SAPISIDHASH / racyCheckOk) fallback for age-restricted; rethrow AbortError in both stages
 
-3. Shorts layout logic is now isolated to YCS-owned elements
-- Removed legacy engagement/description panel-wide height manipulation
-- Height adjustments now stay scoped to YCS container/search area and respect native footer overlap
+3. Reply origin chain auto-expand via `autoExpandReplyContext` + `postBatchHook` (`ui/originChain.ts`); default off; jsdom for DOM tests
 
-4. Transcript Player API now uses two-stage client fallback for age-restricted videos
-- Primary: ANDROID client (no auth, works for most videos)
-- Fallback: WEB client with SAPISIDHASH auth + racyCheckOk/contentCheckOk (for age-restricted)
-- AbortError is rethrown in both stages to respect cancellation
-
-5. Reply origin chain auto-expand is opt-in via `autoExpandReplyContext` option
-- New file `app/src/source/web-resources/ui/originChain.ts` owns expand logic
-- `renderComment` gained a `postBatchHook` option for per-batch post-processing
-- Default off — when enabled, parent comment chain is auto-rendered above each reply on initial render and after every Show more click
-- jsdom is now a devDep for DOM-based tests; first such test is `tests/autoExpandReplyContext.test.ts`
+4. Instant Search (Option B): YouTube Data API `commentThreads.list?searchTerms=` when API key + `youtubeApiInstantSearch` and no full comments loaded (Enable/`youtubeApiEnabled` is independent — gates full Data API load only)
+- Results live in `remoteSearch`; never overwrite `state.comments`
+- Details: `filter-search-behavior-regression-spec.md` §12; SEARCH types in `youtube-data-api-messaging.md`
 
 ---
 
@@ -274,6 +275,14 @@ Manual smoke checklist:
 4. Verify export still works
 5. Verify Shorts page behavior
 
+Chrome E2E (agent-browser): System Chrome 137+ silently ignores `--load-extension` (extension enabled in `chrome://extensions` but `chrome.runtime` undefined in the page, no content-script injection). Use Chrome for Testing 131 (`~/.cache/puppeteer/chrome/mac_arm-131.*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`).
+
+agent-browser 0.32.1's own launch of CfT 131 fails silently (`Chrome exited early (exit code: 0) without writing DevToolsActivePort`) even with `--no-sandbox`. Workaround: launch CfT manually with `--remote-debugging-port=<port> --user-data-dir=<throwaway> --load-extension=<dist> --disable-extensions-except=<same> --disable-features=DisableLoadExtensionCommandLineSwitch` then attach agent-browser via `AGENT_BROWSER_CDP=<port>`. Verify targets at `http://localhost:<port>/json` shows the extension's `service_worker`. When self-launch is fixed, revert to `--executable-path --extension --headed`; `tab new` before `open` still applies.
+
+E2E profile: do NOT use `~/.e2e-dev-loop-profile` — it is reserved for other web-app testing (and agent-browser fails to attach to it anyway). Create a dedicated throwaway profile (e.g. under the session scratchpad) per run. Instant-search E2E needs a YouTube Data API key: enter it through the extension options page; never echo the key into logs/screenshots.
+
+E2E timing gotcha for `syncInstantDegradedControls`: on a fresh instant-eligible video the fixture MUST include the pre-options `syncInstantDegradedControls(false)` call fired from `initFilterButtons` before `hasYoutubeApiKey` propagates — a fixture that jumps straight to `(true) → (true, {sessionComplete: true})` passes even against a broken snapshot implementation. See `syncInstantDegradedControls: matches real app.ts sync sequence` in `instantSearchUi.test.ts`.
+
 ---
 
 ## Documentation Map
@@ -284,7 +293,7 @@ Manual smoke checklist:
 - `app/docs/innertube-nested-comments.md`
 - `app/docs/sap-sid-authorization.md`
 - `app/docs/adaptive-authorization-headers.md`
-- `app/docs/youtube-data-api-messaging.md`
-- `app/docs/filter-search-behavior-regression-spec.md`
+- `app/docs/youtube-data-api-messaging.md` (incl. SEARCH types)
+- `app/docs/filter-search-behavior-regression-spec.md` (incl. §12 Instant Search)
 
 When behavior rules change, update the relevant doc in the same PR.

@@ -1,7 +1,7 @@
 import urlRegex from 'url-regex';
 
 import { isNumeric } from '../common';
-import { ICommentItem, ICommentsFuseResult } from '../interfaces/i_types';
+import type { ICommentItem, ICommentsFuseResult } from '../interfaces/i_types';
 
 function filterAuthorComments(comments: any): [] {
     if (comments.length === 0) return [];

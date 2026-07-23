@@ -104,8 +104,57 @@ import {
     setLiveRecording,
     resetLiveRecording,
     getChatSource,
-    setChatSource
+    setChatSource,
+    resetRemoteSearch,
+    getRemoteSearch
 } from './state';
+import {
+    isInstantBrowseMode,
+    isInstantSessionComplete,
+    shouldSkipAutoload,
+    shouldUseInstantSearch
+} from './search/instantSearchGate';
+import {
+    abortInFlightCommentLoad,
+    abortInFlightInstantSearch,
+    buildInstantSearchResult,
+    fetchNextInstantSearchPage,
+    InstantSearchQuotaError,
+    runInstantCommentSearch
+} from './search/instantCommentsSearch';
+import { fetchAndMergeReplies } from './search/instantReplyFetch';
+import {
+    buildInstantAllModeStatusHtml,
+    buildInstantChipHtml,
+    buildInstantEmptyQueryStatusText,
+    buildInstantFetchAllProgressLabel,
+    buildInstantFetchAllTooltip,
+    buildInstantResultsStatusHtml,
+    buildInstantZeroResultsStatusText,
+    buildUpgradedStatusText,
+    buildUpgradingStatusText,
+    buildUpgradeCompleteNotifyMessage,
+    bindInstantDegradedCapture,
+    createPendingUpgradeStore,
+    INSTANT_FETCH_ALL_LABEL,
+    INSTANT_FETCHING_CLASS,
+    INSTANT_SHOW_MORE_TOOLTIP,
+    isDegradedFilterParam,
+    isInstantBlockedFilterParam,
+    syncInstantDegradedControls,
+    UPGRADE_EXPORT_MODAL_MESSAGE,
+    UPGRADE_MODAL_MESSAGE,
+    UPGRADE_MODAL_TITLE,
+    UPGRADE_OPEN_REPLIES_MODAL_MESSAGE,
+    UPGRADE_OPEN_WINDOW_MODAL_MESSAGE,
+    EXPORT_CHOICE_MODAL_TITLE,
+    EXPORT_CHOICE_SECONDARY_LABEL,
+    buildExportChoiceModalMessage,
+    buildExportChoicePrimaryLabel,
+    buildInstantExportTitleSuffix,
+    resolveInstantExportAction,
+    type InstantExportChoice
+} from './search/instantSearchUi';
 import {
     FILTER_BUTTONS,
     FilterButtonRegistry,
@@ -114,7 +163,9 @@ import {
     getDynamicFilterButtonConfigs
 } from './ui/filters';
 import { registerCommentInteractions } from './ui/commentInteractions';
-import { runSearch as runCommentsSearch, clearCommentsFuseCache } from './search/commentsSearch';
+import type { CommentInteractionsDeps } from './ui/commentInteractions';
+import { runSearch as runCommentsSearch, runSearchOnComments, clearCommentsFuseCache } from './search/commentsSearch';
+import type { CommentsSearchResult } from './search/commentsSearch';
 import { runSearch as runChatSearch, clearChatFuseCache } from './search/chatSearch';
 import { runSearch as runTranscriptSearch, clearTranscriptFuseCache } from './search/transcriptSearch';
 import { SearchContext, SortOrder } from './search/types';
@@ -261,6 +312,12 @@ export function initApp(): void {
     function app(): void {
         if (!isVideoPage()) return;
 
+        // Instant search requires a video-scoped context (watch/live/Shorts). Set this
+        // synchronously on every app() run (not gated behind the async YCS_OPTIONS round-trip) so
+        // an instant-search call made right after an SPA navigation never sees a stale page-type
+        // flag from the previous page.
+        GlobalStore.isCommunityPost = isPostsPage();
+
         // Clear GlobalStore to prevent data leakage across videos
         delete GlobalStore.getInitYtData;
         clearCurrentVideoMemberOnly(); // Clear members-only status when switching videos
@@ -344,6 +401,80 @@ export function initApp(): void {
                 };
 
                 okBtn.addEventListener('click', onOk);
+                cancelBtn.addEventListener('click', onCancel);
+                modal.addEventListener('click', onBackdrop);
+            });
+        }
+
+        /**
+         * Three-choice variant of showConfirmModal — primary / secondary / cancel.
+         * Reuses the same modal DOM; toggles the normally-hidden `ycs_confirm_secondary`
+         * button. Backdrop click / missing DOM both resolve as 'cancel'.
+         */
+        function showThreeChoiceModal(
+            title: string,
+            message: string,
+            primaryLabel: string,
+            secondaryLabel: string
+        ): Promise<'primary' | 'secondary' | 'cancel'> {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('ycs_confirm_modal');
+                const titleEl = document.getElementById('ycs_confirm_title');
+                const messageEl = document.getElementById('ycs_confirm_message');
+                const okBtn = document.getElementById('ycs_confirm_ok');
+                const secondaryBtn = document.getElementById('ycs_confirm_secondary');
+                const cancelBtn = document.getElementById('ycs_confirm_cancel');
+
+                if (!modal || !titleEl || !messageEl || !okBtn || !secondaryBtn || !cancelBtn) {
+                    // Fallback: if the modal DOM isn't wired up (unlikely — inline HTML
+                    // ships with the extension), default to cancel so the user isn't
+                    // silently dropped into the more expensive full-load path.
+                    resolve('cancel');
+                    return;
+                }
+
+                titleEl.textContent = title;
+                messageEl.textContent = message;
+                okBtn.textContent = primaryLabel;
+                secondaryBtn.textContent = secondaryLabel;
+                secondaryBtn.style.display = '';
+                modal.style.display = 'block';
+
+                // Preserve the original OK label so subsequent two-choice modals
+                // (showConfirmModal) still read "Continue".
+                const originalOkLabel = 'Continue';
+
+                const cleanup = () => {
+                    modal.style.display = 'none';
+                    okBtn.textContent = originalOkLabel;
+                    secondaryBtn.style.display = 'none';
+                    okBtn.removeEventListener('click', onPrimary);
+                    secondaryBtn.removeEventListener('click', onSecondary);
+                    cancelBtn.removeEventListener('click', onCancel);
+                    modal.removeEventListener('click', onBackdrop);
+                };
+
+                const onPrimary = () => {
+                    cleanup();
+                    resolve('primary');
+                };
+                const onSecondary = () => {
+                    cleanup();
+                    resolve('secondary');
+                };
+                const onCancel = () => {
+                    cleanup();
+                    resolve('cancel');
+                };
+                const onBackdrop = (e: Event) => {
+                    if (e.target === modal) {
+                        cleanup();
+                        resolve('cancel');
+                    }
+                };
+
+                okBtn.addEventListener('click', onPrimary);
+                secondaryBtn.addEventListener('click', onSecondary);
                 cancelBtn.addEventListener('click', onCancel);
                 modal.addEventListener('click', onBackdrop);
             });
@@ -574,8 +705,32 @@ export function initApp(): void {
             }
         };
 
-        // Helper function to manage #ycs-search-total-result element visibility and content
-        // This ensures consistent behavior across all search functions
+        const pendingUpgrade = createPendingUpgradeStore();
+        let instantUpgradeSnapshot: { query: string; matchCount: number } | null = null;
+        let isUpgradingFromInstant = false;
+        let instantSearchGeneration = 0;
+        /** Bumped when a full comment load starts or is discarded for instant search. */
+        let commentLoadGeneration = 0;
+
+        const isInstantSessionActive = (): boolean => getRemoteSearch(state).active;
+        const isInstantDegradedMode = (): boolean => isInstantSessionActive() || isInstantBrowseMode(state);
+
+        /** Keep degraded-control visuals in sync with the current instant session completeness. */
+        const syncInstantControlsFromState = (): void => {
+            syncInstantDegradedControls(isInstantDegradedMode(), { sessionComplete: isInstantSessionComplete(state) });
+        };
+
+        /**
+         * Click-time predicate for the two-tier filter unlock: session must be complete AND the
+         * active query must still match the session's query (edited-then-clicked → upgrade modal).
+         */
+        const isInstantFilterUnlocked = (param: FilterParamKey): boolean => {
+            const session = getRemoteSearch(state);
+            if (!session.active || !isInstantSessionComplete(state)) return false;
+            if (session.query !== getSearchQuery().trim()) return false;
+            return !isInstantBlockedFilterParam(param, true);
+        };
+
         const updateTotalResultDisplay = (text: string, forceShow = true): void => {
             const nodeTotalSearchResult = document.getElementById('ycs-search-total-result');
             if (nodeTotalSearchResult) {
@@ -597,9 +752,607 @@ export function initApp(): void {
             syncShortsFooterBySearchState({ debounceResync: true });
         };
 
+        const bindInstantStatusActions = (container: HTMLElement): void => {
+            if ((container as HTMLElement & { __ycsInstantBound?: boolean }).__ycsInstantBound) return;
+            (container as HTMLElement & { __ycsInstantBound?: boolean }).__ycsInstantBound = true;
+            container.addEventListener('click', (event) => {
+                const target = event.target as HTMLElement | null;
+                if (target?.closest('.ycs-instant-load-all-cta')) {
+                    event.preventDefault();
+                    void beginInstantUpgrade();
+                }
+            });
+        };
+
+        const updateInstantStatusHtml = (html: string, forceShow = true): void => {
+            const nodeTotalSearchResult = document.getElementById('ycs-search-total-result');
+            if (!nodeTotalSearchResult) return;
+
+            nodeTotalSearchResult.innerHTML = html;
+            if (forceShow) {
+                nodeTotalSearchResult.classList.remove('ycs-hidden');
+            } else {
+                nodeTotalSearchResult.classList.add('ycs-hidden');
+            }
+            bindInstantStatusActions(nodeTotalSearchResult);
+
+            const searchCounts = getSearchCounts(state);
+            const resTotalSearch = searchCounts.comments + searchCounts.commentsChat + searchCounts.commentsTrVideo;
+            const btnClear = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
+            const hasActiveFilter = hasActiveSearchFilter();
+            const hasQuery = getSearchQuery().trim().length > 0;
+            if (btnClear)
+                btnClear.style.visibility = (!hasQuery && resTotalSearch > 0) || hasActiveFilter ? 'visible' : 'hidden';
+
+            syncShortsFooterBySearchState({ debounceResync: true });
+        };
+
+        const clearInstantSessionUi = (options?: { clearResultsDom?: boolean }): void => {
+            instantSearchGeneration += 1;
+            state = resetRemoteSearch(state);
+            syncInstantControlsFromState();
+            removeInstantShowMore();
+            if (options?.clearResultsDom) {
+                const elSearchRes = document.getElementById('ycs-search-result');
+                if (elSearchRes) elSearchRes.textContent = '';
+            }
+        };
+
+        const updateInstantUpgradeProgress = (loadedCount: number): void => {
+            if (!isUpgradingFromInstant || !instantUpgradeSnapshot) return;
+            updateTotalResultDisplay(buildUpgradingStatusText(instantUpgradeSnapshot.matchCount, loadedCount));
+        };
+
+        const beginInstantUpgrade = async (intent?: Parameters<typeof pendingUpgrade.set>[0]): Promise<void> => {
+            if (intent) {
+                pendingUpgrade.set(intent);
+            }
+            // Active instant results OR browse-mode upgrade (degraded filter/export before first search).
+            if (isInstantSessionActive() || isInstantBrowseMode(state) || pendingUpgrade.peek()) {
+                const session = getRemoteSearch(state);
+                instantUpgradeSnapshot = {
+                    query: session.active ? session.query : getSearchQuery().trim(),
+                    matchCount: session.active ? session.results.length : 0
+                };
+                isUpgradingFromInstant = true;
+                instantSearchGeneration += 1;
+                if (session.active) {
+                    state = abortInFlightInstantSearch(state);
+                }
+            }
+            document.getElementById('ycs-load-all')?.click();
+        };
+
+        const completeInstantUpgrade = (): void => {
+            if (!isUpgradingFromInstant || !instantUpgradeSnapshot) return;
+
+            const savedQuery = instantUpgradeSnapshot.query;
+            const intent = pendingUpgrade.consume();
+            isUpgradingFromInstant = false;
+            instantUpgradeSnapshot = null;
+
+            state = resetRemoteSearch(state);
+            syncInstantControlsFromState();
+            syncInstantSearchPlaceholder();
+            removeInstantShowMore();
+
+            const inputSearch = document.getElementById('ycs-input-search') as HTMLInputElement | null;
+            if (inputSearch && savedQuery) {
+                inputSearch.value = savedQuery;
+            }
+
+            if (intent?.enableExtendedSearch) {
+                const extendedToggle = document.getElementById('ycs_extended_search') as HTMLInputElement | null;
+                if (extendedToggle) {
+                    extendedToggle.checked = true;
+                }
+            }
+
+            if (intent?.filterParam) {
+                const paramKey = Object.keys(intent.filterParam).find(
+                    (key) => key !== 'sortOrder' && (intent.filterParam as Record<string, unknown>)[key]
+                ) as FilterParamKey | undefined;
+                const elementId = paramKey
+                    ? FILTER_BUTTONS.find((config) => config.param === paramKey)?.elementId
+                    : undefined;
+                const filterEl = elementId ? (document.getElementById(elementId) as HTMLElement | null) : null;
+                if (paramKey) {
+                    setActiveFilterByElement(paramKey, filterEl ?? undefined);
+                }
+                executeSearchBasedOnType(intent.filterParam);
+
+                const filterLabel = (filterEl?.textContent || '').replace(/\s+/g, ' ').trim() || paramKey || 'selected';
+                showInstantNotifyMessage(
+                    buildUpgradeCompleteNotifyMessage({
+                        filterLabel,
+                        exportUnlocked: Boolean(intent.exportIntent)
+                    })
+                );
+            } else {
+                executeSearchBasedOnType();
+                showInstantNotifyMessage(
+                    buildUpgradeCompleteNotifyMessage({
+                        query: savedQuery,
+                        exportUnlocked: Boolean(intent?.exportIntent)
+                    })
+                );
+            }
+
+            const localCount = getSearchCounts(state).comments;
+            updateTotalResultDisplay(buildUpgradedStatusText(localCount));
+
+            if (intent?.openCommentsWindow) {
+                const comments = getComments(state);
+                if (comments.length > 0) {
+                    try {
+                        openCommentsWindow(comments, getExportMeta());
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+            }
+        };
+
+        const promptInstantUpgrade = async (
+            message: string,
+            intent: Parameters<typeof pendingUpgrade.set>[0]
+        ): Promise<void> => {
+            const confirmed = await showConfirmModal(UPGRADE_MODAL_TITLE, message);
+            if (!confirmed) return;
+            await beginInstantUpgrade(intent);
+        };
+
+        /**
+         * Instant-mode save ▾ path. Two entry conditions:
+         *
+         *  1. Active instant search with results, session not complete (query non-empty,
+         *     results.length > 0). Show the two-option dialog — "Load all matches for
+         *     &lt;query&gt;" (auto-paginate the instant session) OR "Load all comments"
+         *     (full-load upgrade).
+         *  2. Everything else (browse mode / empty query / no results yet). Fall back
+         *     to the classic single-Continue confirm — the user hasn't expressed a
+         *     query-shaped intent, so "load all matches" would be a lying button.
+         *
+         * MVP: after "Load all matches" completes the user re-clicks save to export —
+         * no pending-export state.
+         */
+        const promptInstantExportChoice = async (): Promise<void> => {
+            const session = getRemoteSearch(state);
+            const query = session.active ? session.query.trim() : '';
+            const hasResults = session.active && session.results.length > 0;
+            const sessionComplete = isInstantSessionComplete(state);
+            // The "Fetch all matches" auto-paginate block is the DOM element the
+            // primary button dispatches to. `renderInstantShowMore` refuses to
+            // mount it while the local-batch show-more (`#ycs_search_show_more`)
+            // is present (see appController.ts renderInstantShowMore guard) —
+            // i.e. when the user has more instant matches than the local batch
+            // size and hasn't paged through them yet. If we can't dispatch, we
+            // must not offer the primary label ("Load all matches for &lt;query&gt;")
+            // — that would be a lying button. Fall through to the classic
+            // single-Continue confirm instead.
+            const fetchAllBlockMounted = document.getElementById('ycs_instant_fetch_all') !== null;
+            const activeInstantSearch =
+                session.active && query.length > 0 && hasResults && !sessionComplete && fetchAllBlockMounted;
+
+            if (!activeInstantSearch) {
+                // No active instant search, OR primary path not runnable right
+                // now — either way, the only sensible offer is a full-archive
+                // load via the classic single-Continue confirm.
+                await promptInstantUpgrade(UPGRADE_EXPORT_MODAL_MESSAGE, {
+                    exportIntent: { format: EXPORT_FORMAT.TXT }
+                });
+                return;
+            }
+
+            const choice: InstantExportChoice = await showThreeChoiceModal(
+                EXPORT_CHOICE_MODAL_TITLE,
+                buildExportChoiceModalMessage(query),
+                buildExportChoicePrimaryLabel(query),
+                EXPORT_CHOICE_SECONDARY_LABEL
+            );
+
+            // Re-read the fetch-all block at dispatch time — a re-render between
+            // gate and dispatch could have removed it. resolveInstantExportAction
+            // returns 'primary-unavailable' in that (rare) case.
+            const fetchAllBlock = document.getElementById('ycs_instant_fetch_all');
+            const action = resolveInstantExportAction(choice, fetchAllBlock !== null);
+            if (action === 'noop') return;
+            if (action === 'click-fetch-all' && fetchAllBlock) {
+                // Auto-paginate the instant session to completion. When done, the
+                // session becomes complete and a second save ▾ click will fall through
+                // to the direct instant-results export (bindInstantDegradedCapture no
+                // longer intercepts). No pending-export state — MVP.
+                fetchAllBlock.click();
+                return;
+            }
+            if (action === 'primary-unavailable') {
+                // Race: gate passed but the block vanished before dispatch.
+                // Log and close — no silent re-route to a different action.
+                console.warn('[YCS] Instant export: primary selected but ycs_instant_fetch_all is not mounted');
+                return;
+            }
+            // action === 'begin-full-upgrade' (secondary): existing full-load flow
+            // with export intent set so the post-upgrade notify tells the user
+            // export is unlocked.
+            await beginInstantUpgrade({ exportIntent: { format: EXPORT_FORMAT.TXT } });
+        };
+
         const getSearchQuery = (): string => {
             const inputSearch = document.getElementById('ycs-input-search') as HTMLInputElement | null;
             return inputSearch?.value ?? '';
+        };
+
+        const DEFAULT_SEARCH_PLACEHOLDER = 'Search';
+
+        const syncInstantSearchPlaceholder = (): void => {
+            const inputSearch = document.getElementById('ycs-input-search') as HTMLInputElement | null;
+            if (!inputSearch) return;
+            if (isInstantBrowseMode(state)) {
+                inputSearch.placeholder = 'Search (instant via YouTube API)';
+                if (!isInstantSessionActive() && getSearchQuery().trim().length === 0) {
+                    updateTotalResultDisplay('', false);
+                }
+                syncInstantDegradedControls(true);
+            } else {
+                inputSearch.placeholder = DEFAULT_SEARCH_PLACEHOLDER;
+                if (!isInstantSessionActive()) {
+                    syncInstantDegradedControls(false);
+                }
+            }
+        };
+
+        let instantNotifyClearTimer: ReturnType<typeof setTimeout> | undefined;
+
+        const showInstantNotifyMessage = (message: string, options?: { autoClearMs?: number }): void => {
+            const notify = document.querySelector('.ycs_notify_box') as HTMLElement | null;
+            if (!notify) return;
+            if (instantNotifyClearTimer !== undefined) {
+                clearTimeout(instantNotifyClearTimer);
+                instantNotifyClearTimer = undefined;
+            }
+            notify.textContent = message;
+            const autoClearMs = options?.autoClearMs ?? 8000;
+            if (autoClearMs > 0) {
+                instantNotifyClearTimer = setTimeout(() => {
+                    if (notify.textContent === message) {
+                        notify.textContent = '';
+                    }
+                    instantNotifyClearTimer = undefined;
+                }, autoClearMs);
+            }
+        };
+
+        const removeInstantShowMore = (): void => {
+            document.getElementById('ycs_instant_show_more')?.remove();
+            document.getElementById('ycs_instant_fetch_all')?.remove();
+        };
+
+        const getInstantResultAccessor = (): { getComments: () => CommentItem[] } => ({
+            getComments: () => getRemoteSearch(state).results
+        });
+
+        /**
+         * Instant-mode-only comment interaction deps (Task 18): on-demand reply fetch when a
+         * thread's local replies (<=5 inline from the search response) fall short of its true
+         * `replyCount`. Full-cache mode never receives these - see `runCommentsPipeline` below,
+         * which calls `finalizeCommentsRender` without a `deps` argument.
+         */
+        const instantCommentInteractionsDeps: CommentInteractionsDeps = {
+            fetchMissingReplies: async (commentId, parentItem) => {
+                const videoId = getVideoId(window.location.href);
+                if (!videoId) {
+                    throw new Error('[YCS] Missing videoId for on-demand reply fetch');
+                }
+                // Guard against a superseded instant session (new search / clear / upgrade) landing
+                // mid-fetch and resurrecting a stale `remoteSearch` snapshot on completion - treat it
+                // the same as an aborted fetch (handleOpenReply already restores the button silently).
+                // Applies on BOTH the success path and the error path: a stale-generation quota/API
+                // error must not surface `onReplyQuotaExceeded` (e.g. an upgrade modal) for a request
+                // whose originating session/context no longer exists.
+                const requestGeneration = instantSearchGeneration;
+                const controller = new AbortController();
+                try {
+                    const outcome = await fetchAndMergeReplies({
+                        videoId,
+                        parentId: commentId,
+                        parentItem: parentItem as CommentItem,
+                        getState: () => state,
+                        signal: controller.signal
+                    });
+                    if (requestGeneration !== instantSearchGeneration) {
+                        throw new DOMException('Aborted', 'AbortError');
+                    }
+                    state = outcome.state;
+                    return outcome.fetchedReplies;
+                } catch (error) {
+                    if (requestGeneration !== instantSearchGeneration) {
+                        throw new DOMException('Aborted', 'AbortError');
+                    }
+                    throw error;
+                }
+            },
+            onReplyQuotaExceeded: () => {
+                void promptInstantUpgrade(UPGRADE_OPEN_REPLIES_MODAL_MESSAGE, {});
+            }
+        };
+
+        /** Shared post-render tail: record the comments search count and (re)bind comment interactions. */
+        const finalizeCommentsRender = (
+            result: { total: number },
+            stateAccessor: { getComments: () => CommentItem[] },
+            query: string,
+            deps?: CommentInteractionsDeps
+        ): void => {
+            state = setSearchCount(state, 'comments', result.total);
+            const commentsContainer = document.getElementById('ycs_wrap_comments');
+            if (commentsContainer instanceof HTMLElement) {
+                registerCommentInteractions(commentsContainer, stateAccessor, () => query, deps);
+            }
+        };
+
+        const renderInstantShowMore = (selector: string, query: string): void => {
+            removeInstantShowMore();
+            const session = getRemoteSearch(state);
+            if (!session.active || !session.pageToken) return;
+            // Wait until local DOM batch ("Show more, found comments") is exhausted.
+            if (document.getElementById('ycs_search_show_more')) return;
+
+            const target = document.querySelector(selector);
+            const wrapper = target?.querySelector('#ycs_wrap_comments') ?? target;
+            if (!(wrapper instanceof HTMLElement)) return;
+
+            const createActionBlock = (id: string, title: string): { block: HTMLDivElement; label: HTMLDivElement } => {
+                const block = document.createElement('div');
+                block.id = id;
+                block.className = 'ycs-render-comment ycs-show_more_block';
+                block.title = title;
+                const label = document.createElement('div');
+                label.className = 'ycs-title';
+                block.appendChild(label);
+                wrapper.appendChild(block);
+                return { block, label };
+            };
+
+            const { block: showMore, label: button } = createActionBlock(
+                'ycs_instant_show_more',
+                INSTANT_SHOW_MORE_TOOLTIP
+            );
+            button.textContent = 'Show more instant results';
+
+            // "Fetch all matches": auto-paginate the session to completion. Rendered directly
+            // below Show more; visibility/removal mirror it exactly (both live/die together —
+            // see removeInstantShowMore and the shared isFetching guard).
+            const { block: fetchAllBlock, label: fetchAllLabel } = createActionBlock(
+                'ycs_instant_fetch_all',
+                buildInstantFetchAllTooltip(session.totalResults, session.results.length)
+            );
+            fetchAllLabel.innerHTML = buildInstantChipHtml();
+            // Progress updates go through this text node so they never wipe the chip markup.
+            const fetchAllText = document.createElement('span');
+            fetchAllText.textContent = INSTANT_FETCH_ALL_LABEL;
+            fetchAllLabel.appendChild(fetchAllText);
+
+            // Shared re-entry guard: a fetch on either block locks both, so a Show more click
+            // can't interleave a second in-flight page fetch with a running fetch-all loop.
+            const isFetching = (): boolean =>
+                showMore.classList.contains(INSTANT_FETCHING_CLASS) ||
+                fetchAllBlock.classList.contains(INSTANT_FETCHING_CLASS);
+
+            /** Single render of the current merged result list (both handlers share this tail). */
+            const renderMergedResults = (): void => {
+                const refreshed = buildInstantSearchResult(query, getRemoteSearch(state).results);
+                const stateAccessor = getInstantResultAccessor();
+                renderCommentsResult(selector, refreshed, {
+                    stateAccessor,
+                    onLocalBatchExhausted: () => renderInstantShowMore(selector, query)
+                });
+                finalizeCommentsRender(refreshed, stateAccessor, query, instantCommentInteractionsDeps);
+            };
+
+            showMore.addEventListener('click', async () => {
+                if (isFetching()) return;
+
+                const videoId = getVideoId(window.location.href);
+                if (!videoId) return;
+
+                const requestGeneration = instantSearchGeneration;
+                showMore.classList.add(INSTANT_FETCHING_CLASS);
+                button.textContent = 'Fetching…';
+
+                try {
+                    const pageOutcome = await fetchNextInstantSearchPage(state, videoId);
+                    if (requestGeneration !== instantSearchGeneration) {
+                        return;
+                    }
+                    state = pageOutcome.state;
+                    if (pageOutcome.appendedCount === 0) {
+                        removeInstantShowMore();
+                        // Even with zero new items, the API may have returned no nextPageToken,
+                        // making the session complete — re-sync degraded controls so unlockable
+                        // filters lose their locked visual state (click-time gate already allows
+                        // this), and refresh the status HTML so the CTA shortens to match (it was
+                        // already computed against the post-merge session by fetchNextInstantSearchPage).
+                        updateInstantStatusHtml(pageOutcome.statusHtml);
+                        syncInstantControlsFromState();
+                        return;
+                    }
+
+                    renderMergedResults();
+                    updateInstantStatusHtml(pageOutcome.statusHtml);
+                    syncInstantControlsFromState();
+                } catch (error) {
+                    if (error instanceof InstantSearchQuotaError) {
+                        showInstantNotifyMessage(error.message);
+                    } else if (!(error instanceof DOMException && error.name === 'AbortError')) {
+                        console.error('[YCS] Instant pagination failed:', error);
+                    }
+                } finally {
+                    showMore.classList.remove(INSTANT_FETCHING_CLASS);
+                    if (getRemoteSearch(state).pageToken) {
+                        button.textContent = 'Show more instant results';
+                    }
+                }
+            });
+
+            fetchAllBlock.addEventListener('click', async () => {
+                if (isFetching()) return;
+
+                // Stale-block guard: a new search resets the session (inactive / no pageToken)
+                // before its render replaces this DOM. A click in that window must not reach the
+                // final render below with an adopted new generation — mirror Show more's
+                // zero-page path (remove blocks, re-sync, no result render) instead.
+                const entrySession = getRemoteSearch(state);
+                if (!entrySession.active || !entrySession.pageToken) {
+                    removeInstantShowMore();
+                    syncInstantControlsFromState();
+                    return;
+                }
+
+                const videoId = getVideoId(window.location.href);
+                if (!videoId) return;
+
+                const requestGeneration = instantSearchGeneration;
+                showMore.classList.add(INSTANT_FETCHING_CLASS);
+                fetchAllBlock.classList.add(INSTANT_FETCHING_CLASS);
+                fetchAllText.textContent = buildInstantFetchAllProgressLabel();
+
+                try {
+                    for (;;) {
+                        const loopSession = getRemoteSearch(state);
+                        if (!loopSession.active || !loopSession.pageToken) break;
+
+                        const pageOutcome = await fetchNextInstantSearchPage(state, videoId);
+                        if (requestGeneration !== instantSearchGeneration) {
+                            // Superseded by query change / STOP / upgrade — do nothing more.
+                            return;
+                        }
+                        state = pageOutcome.state;
+                        // Per-page status update; the result list itself is only rendered once, below.
+                        updateInstantStatusHtml(pageOutcome.statusHtml);
+                        fetchAllText.textContent = buildInstantFetchAllProgressLabel(
+                            getRemoteSearch(state).results.length
+                        );
+                    }
+                } catch (error) {
+                    if (error instanceof InstantSearchQuotaError) {
+                        // Quota exhausted mid-loop: keep whatever pages were merged so far usable —
+                        // fall through to the final render below.
+                        showInstantNotifyMessage(error.message);
+                    } else {
+                        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+                            console.error('[YCS] Instant fetch-all failed:', error);
+                        }
+                        // Abort (STOP) or unexpected failure: silent stop, no render — mirrors
+                        // the Show more handler, which never renders on these paths either.
+                        return;
+                    }
+                } finally {
+                    showMore.classList.remove(INSTANT_FETCHING_CLASS);
+                    fetchAllBlock.classList.remove(INSTANT_FETCHING_CLASS);
+                    if (getRemoteSearch(state).pageToken) {
+                        fetchAllText.textContent = INSTANT_FETCH_ALL_LABEL;
+                    }
+                }
+
+                if (requestGeneration !== instantSearchGeneration) {
+                    return;
+                }
+
+                // Single final render of the merged result list (no per-page render churn).
+                // onLocalBatchExhausted re-invokes renderInstantShowMore, which removes both
+                // blocks when the session is now complete, or rebuilds them (fresh tooltip/
+                // listeners) when a quota error left pageToken set.
+                renderMergedResults();
+                syncInstantControlsFromState();
+            });
+        };
+
+        const runInstantCommentsFlow = async (
+            selector: string,
+            query: string,
+            param?: IParamSearch
+        ): Promise<boolean> => {
+            const trimmed = query.trim();
+            if (!trimmed) {
+                if (isInstantBrowseMode(state)) {
+                    clearInstantSessionUi({ clearResultsDom: true });
+                    updateTotalResultDisplay(buildInstantEmptyQueryStatusText());
+                    return true;
+                }
+                const result = runCommentsPipeline(selector, query, param);
+                updateTotalResultDisplay(result.summary);
+                return false;
+            }
+
+            if (!shouldUseInstantSearch(query, state)) {
+                const result = runCommentsPipeline(selector, query, param);
+                updateTotalResultDisplay(result.summary);
+                return false;
+            }
+
+            const activeSession = getRemoteSearch(state);
+            if (activeSession.active && isInstantSessionComplete(state) && activeSession.query === trimmed) {
+                // Complete session, same query: serve filters/sort locally instead of re-hitting
+                // the API (which would replace the accumulated multi-page session with page 1).
+                const result = runInstantLocalPipeline(selector, trimmed, param);
+                updateInstantStatusHtml(buildInstantResultsStatusHtml(trimmed, result.total, true));
+                syncInstantControlsFromState();
+                return true;
+            }
+
+            const videoId = getVideoId(window.location.href);
+            if (!videoId) {
+                updateTotalResultDisplay('(Comments) Found: 0');
+                return true;
+            }
+
+            state = abortInFlightCommentLoad(state);
+            state = clearComments(state);
+            instantSearchGeneration += 1;
+            // Invalidate any in-flight full-load completion so partial archive cannot overwrite instant results.
+            commentLoadGeneration += 1;
+
+            const searchBtn = document.getElementById('ycs_btn_search') as HTMLButtonElement | null;
+            if (searchBtn) searchBtn.disabled = true;
+            updateTotalResultDisplay('Searching YouTube…');
+
+            try {
+                const outcome = await runInstantCommentSearch(query, state, { videoId });
+                state = outcome.state;
+                const stateAccessor = getInstantResultAccessor();
+                renderCommentsResult(selector, outcome.result, {
+                    stateAccessor,
+                    onLocalBatchExhausted: () => renderInstantShowMore(selector, trimmed)
+                });
+                finalizeCommentsRender(outcome.result, stateAccessor, query, instantCommentInteractionsDeps);
+
+                if (outcome.result.total > 0) {
+                    updateInstantStatusHtml(
+                        buildInstantResultsStatusHtml(trimmed, outcome.result.total, isInstantSessionComplete(state))
+                    );
+                } else {
+                    removeInstantShowMore();
+                    updateTotalResultDisplay(buildInstantZeroResultsStatusText(trimmed));
+                }
+
+                syncInstantControlsFromState();
+                return true;
+            } catch (error) {
+                if (error instanceof InstantSearchQuotaError) {
+                    showInstantNotifyMessage(error.message);
+                    updateTotalResultDisplay('');
+                } else if (error instanceof DOMException && error.name === 'AbortError') {
+                    updateTotalResultDisplay('');
+                } else {
+                    console.error('[YCS] Instant search failed:', error);
+                    updateTotalResultDisplay('Instant search failed. Try Load all or search again.');
+                }
+                syncInstantControlsFromState();
+                removeInstantShowMore();
+                return true;
+            } finally {
+                if (searchBtn) searchBtn.disabled = false;
+            }
         };
 
         const setActiveFilterByElement = (param: FilterParamKey | null, el?: HTMLElement): void => {
@@ -665,6 +1418,22 @@ export function initApp(): void {
             searchIntentState.markSearchExecuted();
             syncShortsFooterBySearchState({ debounceResync: true });
 
+            if (param && isInstantDegradedMode()) {
+                const filterKey = (Object.keys(param) as Array<keyof IParamSearch>).find(
+                    (key) => key !== 'sortOrder' && param[key]
+                );
+                if (
+                    filterKey &&
+                    filterKey !== 'quickChat' &&
+                    filterKey !== 'quickTranscript' &&
+                    isDegradedFilterParam(filterKey as FilterParamKey) &&
+                    !isInstantFilterUnlocked(filterKey as FilterParamKey)
+                ) {
+                    void promptInstantUpgrade(UPGRADE_MODAL_MESSAGE, { filterParam: param });
+                    return;
+                }
+            }
+
             // Special handling for timestampViz
             if (param?.timestampViz) {
                 handleTimestampViz();
@@ -679,8 +1448,7 @@ export function initApp(): void {
 
             switch (selected) {
                 case 'comments': {
-                    const result = runCommentsPipeline('#ycs-search-result', query, param);
-                    updateTotalResultDisplay(result.summary);
+                    void runInstantCommentsFlow('#ycs-search-result', query, param);
                     break;
                 }
                 case 'chat': {
@@ -695,7 +1463,7 @@ export function initApp(): void {
                 }
                 case 'all':
                 default: {
-                    searchCommentsAll('#ycs-search-result', param);
+                    void searchCommentsAll('#ycs-search-result', param);
                     break;
                 }
             }
@@ -745,6 +1513,7 @@ export function initApp(): void {
                         setActiveFilterByElement(null);
 
                         state = resetSearchCounts(state);
+                        clearInstantSessionUi({ clearResultsDom: true });
 
                         const eInputSearch = document.getElementById('ycs-input-search') as HTMLInputElement;
 
@@ -778,9 +1547,42 @@ export function initApp(): void {
                 (clearButton as any).__ycsClearHandler = clearHandler;
                 clearButton.addEventListener('click', clearHandler);
             }
+
+            syncInstantControlsFromState();
         };
 
         initFilterButtons();
+
+        const elLiveApp = document.getElementsByClassName('ycs-app')[0];
+        if (elLiveApp instanceof HTMLElement) {
+            bindInstantDegradedCapture(elLiveApp, {
+                isActive: isInstantDegradedMode,
+                isFilterUnlocked: isInstantFilterUnlocked,
+                isExportUnlocked: () => isInstantSessionComplete(state),
+                onAction: (action) => {
+                    if (action.kind === 'filter') {
+                        const filterParam = { [action.param]: true } as IParamSearch;
+                        void promptInstantUpgrade(UPGRADE_MODAL_MESSAGE, { filterParam });
+                        return;
+                    }
+                    if (action.kind === 'export') {
+                        // Two-option dialog: Load all matches (auto-paginate instant
+                        // query, MVP: no auto-export after) or Load all comments
+                        // (existing full-load flow with export intent).
+                        void promptInstantExportChoice();
+                        return;
+                    }
+                    if (action.kind === 'openWindow') {
+                        void promptInstantUpgrade(UPGRADE_OPEN_WINDOW_MODAL_MESSAGE, {
+                            openCommentsWindow: true
+                        });
+                        return;
+                    }
+                    void promptInstantUpgrade(UPGRADE_MODAL_MESSAGE, { enableExtendedSearch: true });
+                }
+            });
+        }
+
         // No restore from storage; ensure clear button hidden initially
         try {
             const btnClearInit = document.getElementById('ycs_btn_clear') as HTMLButtonElement | null;
@@ -788,8 +1590,6 @@ export function initApp(): void {
         } catch {
             // Silently ignore DOM initialization errors
         }
-
-        const elLiveApp = document.getElementsByClassName('ycs-app')[0];
 
         const elCountComments = document.getElementById('ycs-count-load') as HTMLElement | null;
         const elCountCommentsCollapsed = document.getElementById('ycs-count-load-collapsed') as HTMLElement | null;
@@ -831,7 +1631,22 @@ export function initApp(): void {
                 const startPostId = getPostId(startUrl);
 
                 state = clearComments(state);
+                const remoteSession = getRemoteSearch(state);
+                if (remoteSession.active) {
+                    instantUpgradeSnapshot = {
+                        query: remoteSession.query,
+                        matchCount: remoteSession.results.length
+                    };
+                    isUpgradingFromInstant = true;
+                    instantSearchGeneration += 1;
+                    state = abortInFlightInstantSearch(state);
+                    updateInstantUpgradeProgress(0);
+                } else if (!isUpgradingFromInstant) {
+                    state = resetRemoteSearch(state);
+                }
                 const comments = getComments(state);
+                commentLoadGeneration += 1;
+                const loadGeneration = commentLoadGeneration;
 
                 const currentTarget = e.currentTarget as HTMLButtonElement;
                 const defaultLabel = currentTarget.innerText;
@@ -866,7 +1681,10 @@ export function initApp(): void {
                                     startVideoId,
                                     controller.signal,
                                     GlobalStore.autoload ? GlobalStore.maxComments : undefined,
-                                    (count) => showLoadComments(count, elLoadCmnts)
+                                    (count) => {
+                                        showLoadComments(count, elLoadCmnts);
+                                        updateInstantUpgradeProgress(count);
+                                    }
                                 );
                                 comments.push(...result.comments);
                                 console.log(
@@ -960,6 +1778,15 @@ export function initApp(): void {
                                 GlobalStore.autoload ? GlobalStore.maxComments : undefined,
                                 selectedSortOrder
                             );
+                            if (isUpgradingFromInstant) {
+                                updateInstantUpgradeProgress(comments.length);
+                            }
+                        }
+
+                        // Stale load: instant search (or a newer Load) discarded this fetch — do not mix partials.
+                        if (loadGeneration !== commentLoadGeneration) {
+                            console.log('[YCS] Discarding stale comment load after abort/supersede');
+                            return;
                         }
 
                         // Verify video or post hasn't changed before saving cache
@@ -995,8 +1822,21 @@ export function initApp(): void {
                         }
                     }
 
+                    if (loadGeneration !== commentLoadGeneration) {
+                        return;
+                    }
+
                     if (comments.length > 0) {
                         state = setCount(state, 'comments', comments.length);
+                        state = setComments(state, comments);
+
+                        if (isUpgradingFromInstant) {
+                            completeInstantUpgrade();
+                        } else {
+                            state = resetRemoteSearch(state);
+                            syncInstantControlsFromState();
+                            syncInstantSearchPlaceholder();
+                        }
                     }
 
                     const counts = getCounts(state);
@@ -1012,6 +1852,21 @@ export function initApp(): void {
                     GlobalStore.autoload = false;
                     currentTarget.disabled = false;
                     currentTarget.innerText = defaultLabel;
+                    if (isUpgradingFromInstant && getComments(state).length === 0) {
+                        isUpgradingFromInstant = false;
+                        instantUpgradeSnapshot = null;
+                        pendingUpgrade.clear();
+                        const session = getRemoteSearch(state);
+                        if (session.active && session.query) {
+                            updateInstantStatusHtml(
+                                buildInstantResultsStatusHtml(
+                                    session.query,
+                                    session.results.length,
+                                    isInstantSessionComplete(state)
+                                )
+                            );
+                        }
+                    }
                 }
             });
         }
@@ -1223,13 +2078,21 @@ export function initApp(): void {
                     const elSearchRes = document.getElementById('ycs-search-result');
                     const elSearchTotalRes = document.getElementById('ycs-search-total-result') as HTMLElement | null;
 
-                    if (activeParam) {
+                    if (activeParam && !isInstantDegradedMode()) {
                         // Reapply current filter while only clearing the text query
                         requestAnimationFrame(() => {
                             btnSearch?.click();
                         });
                     } else if (elSearchRes) {
+                        if (activeParam) {
+                            // Instant mode: an empty query mismatches the session query, so
+                            // re-running the filter would re-degrade it into the upgrade modal —
+                            // clear the filter together with the text instead.
+                            setActiveFilterByElement(null);
+                            state = resetSearchCounts(state);
+                        }
                         searchIntentState.resetExecution();
+                        clearInstantSessionUi({ clearResultsDom: true });
                         elSearchRes.innerText = '';
                         if (elSearchTotalRes) elSearchTotalRes.innerText = 'Search cleared';
                         syncShortsFooterBySearchState();
@@ -1393,15 +2256,31 @@ export function initApp(): void {
         const btnSaveCommentsToFile = document.getElementById('ycs_save_all_comments');
         const btnSaveCommentsToFileMenu = document.getElementById('ycs_save_all_comments_menu');
         setupDropdown(btnSaveCommentsToFile, btnSaveCommentsToFileMenu, (format) => {
-            const comments = getComments(state);
-            if (!comments || comments.length === 0) return;
+            // Prefer the full local archive; fall back to the accumulated instant-search
+            // results so users can export a completed instant session without a full Load all.
+            // When falling back, tag the export title with the search query so the resulting
+            // filename ("Comments, <title> - search '<q>' (N).*") makes the origin obvious.
+            // Tag format is ASCII (hyphen + single quotes); query is sanitized for filename
+            // safety by buildInstantExportTitleSuffix — see instantSearchUi.ts. The full-scan
+            // path (comments present) does not enter this branch, so its filename is unchanged.
+            let comments = getComments(state);
+            let meta = getExportMeta();
+            if (!comments || comments.length === 0) {
+                const remote = getRemoteSearch(state);
+                if (!remote.results || remote.results.length === 0) return;
+                comments = remote.results;
+                const suffix = buildInstantExportTitleSuffix(remote.query ?? '');
+                if (suffix) {
+                    meta = { ...meta, title: `${meta.title || document.title}${suffix}` };
+                }
+            }
 
             if (format === EXPORT_FORMAT.TXT) {
-                downloadCommentsFile(comments, getExportMeta());
+                downloadCommentsFile(comments, meta);
             } else if (format === EXPORT_FORMAT.JSON) {
-                downloadCommentsFileJSON(comments, getExportMeta());
+                downloadCommentsFileJSON(comments, meta);
             } else if (format === EXPORT_FORMAT.XLSX) {
-                downloadCommentsFileXLSX(comments, getExportMeta());
+                downloadCommentsFileXLSX(comments, meta);
             }
         });
 
@@ -1494,14 +2373,34 @@ export function initApp(): void {
             };
 
             renderCommentsResult(selector, result, { stateAccessor });
+            finalizeCommentsRender(result, stateAccessor, query);
 
-            state = setSearchCount(state, 'comments', result.total);
+            return result;
+        };
 
-            const commentsContainer = document.getElementById('ycs_wrap_comments');
+        /**
+         * Instant local filter pipeline: runs filters/sort over an already-complete instant
+         * session's results without any API call. Passes an empty query to the search core —
+         * `session.results` already ARE the query matches; re-running Fuse would double-filter.
+         */
+        const runInstantLocalPipeline = (
+            selector: string,
+            query: string,
+            param?: IParamSearch
+        ): CommentsSearchResult => {
+            const context = buildSearchContext();
+            const result = runSearchOnComments('', param, getRemoteSearch(state).results, context, {
+                preferPublishedAtOrder: true
+            });
+            // Preserve the user's query on the result so render-side highlighting still works.
+            result.query = query;
 
-            if (commentsContainer instanceof HTMLElement) {
-                registerCommentInteractions(commentsContainer, stateAccessor, () => query);
-            }
+            const stateAccessor = getInstantResultAccessor();
+            renderCommentsResult(selector, result, {
+                stateAccessor,
+                onLocalBatchExhausted: () => renderInstantShowMore(selector, query)
+            });
+            finalizeCommentsRender(result, stateAccessor, query, instantCommentInteractionsDeps);
 
             return result;
         };
@@ -1580,7 +2479,7 @@ export function initApp(): void {
 
             return result;
         };
-        const searchCommentsAll = (selector: string, param?: IParamSearch): void => {
+        const searchCommentsAll = async (selector: string, param?: IParamSearch): Promise<void> => {
             const elSearchAll = document.querySelector(selector);
             const comments = getComments(state);
             const commentsChat = getCommentsChat(state);
@@ -1618,10 +2517,17 @@ export function initApp(): void {
 
             state = resetSearchCounts(state);
 
+            let usedInstantComments = false;
+
             try {
                 if (comments.length > 0) {
                     elSearchAll?.appendChild(elWrapComments);
                     runCommentsPipeline('#ycs_allsearch__wrap_comments', query, param);
+                } else if (shouldUseInstantSearch(query, state)) {
+                    elSearchAll?.appendChild(elWrapComments);
+                    usedInstantComments = await runInstantCommentsFlow('#ycs_allsearch__wrap_comments', query, param);
+                } else if (!query.trim() && isInstantBrowseMode(state)) {
+                    usedInstantComments = await runInstantCommentsFlow('#ycs_allsearch__wrap_comments', query, param);
                 }
 
                 if (shouldRenderChat && commentsChat.size > 0) {
@@ -1663,7 +2569,24 @@ export function initApp(): void {
                 } else {
                     resultText = `(All) Found: ${resTotalSearch}`;
                 }
-                updateTotalResultDisplay(resultText);
+
+                const hasOtherSources =
+                    (shouldRenderChat && commentsChat.size > 0) ||
+                    (shouldRenderTranscript && getCueGroupCount(commentsTrVideo) > 0);
+
+                const remoteSession = getRemoteSearch(state);
+                const instantChipVisible =
+                    usedInstantComments && remoteSession.active && remoteSession.results.length > 0;
+
+                if (instantChipVisible && hasOtherSources) {
+                    // Keep the ⚡ Instant chip visible instead of overwriting it with plain text
+                    // once other sources (chat/transcript) are also rendered — the combined count
+                    // includes API-fetched comments and must stay marked as instant.
+                    updateInstantStatusHtml(buildInstantAllModeStatusHtml(resultText, isInstantSessionComplete(state)));
+                } else if (!usedInstantComments || hasOtherSources) {
+                    updateTotalResultDisplay(resultText);
+                }
+                // instantChipVisible && !hasOtherSources: chip already rendered by runInstantCommentsFlow.
             } catch (err) {
                 console.error(err);
             }
@@ -1703,6 +2626,7 @@ export function initApp(): void {
 
                 const optAutoload = (value: boolean): void => {
                     if (value === true) {
+                        if (shouldSkipAutoload()) return;
                         GlobalStore.autoload = true;
                         elLoadAll?.click();
                     }
@@ -1710,6 +2634,7 @@ export function initApp(): void {
 
                 const wrapOptAutoload = (value: boolean, opts: IYCSOptions): void => {
                     if (!opts.cache) {
+                        if (value && shouldSkipAutoload({ ...opts, isCommunityPost: isPostsPage() })) return;
                         optAutoload(value);
                     }
                 };
@@ -1812,6 +2737,14 @@ export function initApp(): void {
                     if (typeof opts.youtubeApiEnabled !== 'undefined') {
                         GlobalStore.youtubeApiEnabled = Boolean(opts.youtubeApiEnabled);
                     }
+                    if (typeof opts.youtubeApiInstantSearch !== 'undefined') {
+                        GlobalStore.youtubeApiInstantSearch = opts.youtubeApiInstantSearch !== false;
+                    } else {
+                        GlobalStore.youtubeApiInstantSearch = true;
+                    }
+                    // isCommunityPost is set synchronously at the top of app() (per-render), not here —
+                    // see the app() entry point. Avoids a stale value during the async options round-trip.
+                    syncInstantSearchPlaceholder();
                     if (typeof opts.transcriptLanguage !== 'undefined') {
                         state = setSelectedTranscriptLanguage(
                             state,
@@ -1926,6 +2859,9 @@ export function initApp(): void {
                         console.error(err);
                     }
                     state = setComments(state, cachedComments);
+                    state = resetRemoteSearch(state);
+                    syncInstantDegradedControls(false);
+                    syncInstantSearchPlaceholder();
 
                     const chatEntries = JSON.parse(body.commentsChat || '[]') as Array<[number, ChatItem]>;
                     state = setCommentsChat(state, new Map<number, ChatItem>(chatEntries));
@@ -2004,11 +2940,16 @@ export function initApp(): void {
                     updateTitleCount(totalCount);
                     appendCachedInfoToCounters(crdate);
                 } else {
-                    window.postMessage({ type: 'YCS_AUTOLOAD' }, window.location.origin);
+                    if (!shouldSkipAutoload()) {
+                        window.postMessage({ type: 'YCS_AUTOLOAD' }, window.location.origin);
+                    } else {
+                        syncInstantSearchPlaceholder();
+                    }
                 }
             }
 
             if (e.data?.type === 'YCS_AUTOLOAD') {
+                if (shouldSkipAutoload()) return;
                 GlobalStore.autoload = true;
                 elLoadAll?.click();
             }

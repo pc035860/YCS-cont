@@ -17,7 +17,7 @@
       <div class="ycs_inner_wrap">
         <h1>Options</h1>
 
-        <div>
+        <div id="y_opts_autoload_wrap">
           <label for="y_opts_autoload">Autoloading comments:</label>
           <input type="checkbox" name="Autoloading comments" id="y_opts_autoload" class="ycs_opts_checkbox" />
 
@@ -269,11 +269,21 @@
           <div class="ycs_api_header">
             <label>YouTube Data API (Optional):</label>
             <div class="ycs_api_enable_control">
-              <label for="y_opts_youtube_api_enabled">Enable:</label>
+              <label for="y_opts_youtube_api_enabled">Enable (full load):</label>
               <input
                 type="checkbox"
-                name="Enable YouTube Data API"
+                name="Enable YouTube Data API for full comment load"
                 id="y_opts_youtube_api_enabled"
+                class="ycs_opts_checkbox"
+                checked
+              />
+            </div>
+            <div class="ycs_api_enable_control">
+              <label for="y_opts_youtube_api_instant_search">Instant search:</label>
+              <input
+                type="checkbox"
+                name="Instant search before full load"
+                id="y_opts_youtube_api_instant_search"
                 class="ycs_opts_checkbox"
                 checked
               />
@@ -282,7 +292,8 @@
 
           <div class="ycs_description_option ycs_api_desc">
             <p>
-              Use official YouTube Data API instead of Innertube. (<a
+              With an API key: <strong>Enable</strong> uses Data API for full comment load (otherwise Innertube).
+              <strong>Instant search</strong> can run separately via <code>searchTerms</code> before any load. (<a
                 href="https://developers.google.com/youtube/registering_an_application"
                 target="_blank"
                 rel="noopener"

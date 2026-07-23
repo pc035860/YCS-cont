@@ -161,6 +161,65 @@ ytd-comments .ycs-app {
   word-break: break-word;
 }
 
+.ycs-instant-chip {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-right: 4px;
+  border-radius: 3px;
+  background-color: #fff3cd;
+  color: #856404;
+  font-size: 12px;
+  font-weight: 600;
+  vertical-align: baseline;
+}
+
+html[dark='true'] .ycs-instant-chip,
+html[dark] .ycs-instant-chip {
+  background-color: #3d3419;
+  color: #ffd866;
+}
+
+.ycs-instant-bolt {
+  vertical-align: -0.125em;
+}
+
+/* "Fetch all matches" block: chip needs a wider gap than the 4px used in the status line. */
+#ycs_instant_fetch_all .ycs-instant-chip {
+  margin-right: 8px;
+}
+
+.ycs-instant-load-all-wrap {
+  white-space: nowrap;
+}
+
+.ycs-instant-load-all-cta {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  color: #065fd4;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+}
+
+html[dark='true'] .ycs-instant-load-all-cta,
+html[dark] .ycs-instant-load-all-cta {
+  color: #3ea6ff;
+}
+
+.ycs-instant-load-all-cta:hover {
+  opacity: 0.85;
+}
+
+.ycs-btn-degraded {
+  opacity: 0.38;
+}
+
+.ycs-btn-degraded:hover {
+  opacity: 0.5;
+}
+
 .ycs-infobar {
   clear: none;
 }
@@ -298,6 +357,41 @@ html[dark] .ycs_btn_active {
   background-color: #34495e1c;
   vertical-align: text-bottom;
   margin-left: 6px;
+}
+
+/* On-demand reply fetch loading state (Task 18): the "+" dims instantly;
+   a shimmer sweep starts only after 400ms so sub-second loads never flash. */
+.ycs-open-reply.ycs-reply-loading {
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+  color: #065fd466;
+}
+
+html[dark='true'] .ycs-open-reply.ycs-reply-loading,
+html[dark] .ycs-open-reply.ycs-reply-loading {
+  color: #3ea6ff66;
+}
+
+.ycs-open-reply.ycs-reply-loading::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, currentColor 50%, transparent 70%);
+  opacity: 0;
+  transform: translateX(-100%);
+  animation: ycs-reply-shimmer 1.2s infinite 0.4s;
+}
+
+@keyframes ycs-reply-shimmer {
+  0% {
+    opacity: 0.5;
+    transform: translateX(-100%);
+  }
+  100% {
+    opacity: 0.5;
+    transform: translateX(100%);
+  }
 }
 
 .ycs-open-reply * {

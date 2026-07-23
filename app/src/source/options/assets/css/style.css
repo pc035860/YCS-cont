@@ -417,6 +417,14 @@ tbody#ycs_all_cache_body_table > tr > td > div {
   background-color: #3a3a3a;
 }
 
+.ycs_autoload_instant_muted {
+  opacity: 0.38;
+}
+
+.ycs_autoload_instant_muted label {
+  color: #adadad;
+}
+
 .ycs_drag_handle {
   color: #adadad;
   font-size: 18px;

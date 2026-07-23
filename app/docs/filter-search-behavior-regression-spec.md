@@ -92,7 +92,8 @@ If implementation deviates from this spec without an explicit requirement change
 
 1. Clear `Q` first
 2. Branch:
-   - `F != none`: keep current filter and trigger one Search via `requestAnimationFrame` (re-search with empty query)
+   - `F != none` (full-cache mode): keep current filter and trigger one Search via `requestAnimationFrame` (re-search with empty query)
+   - `F != none` (instant mode — active instant session or instant browse mode): clear the filter **and** the search together; clear result area and set summary text to `Search cleared`. Re-running the filter with an empty query would mismatch the session query and re-degrade it into the upgrade modal (Section 12.4), which is not a meaningful outcome for a clear action — so the filter is dropped instead. **No upgrade modal may appear.**
    - `F == none`: do not search; clear result area and set summary text to `Search cleared`
 3. `SearchClearTextButton` becomes `hidden` immediately
 4. `FilterClearButton` becomes `hidden` immediately (if re-search runs, visibility is recalculated by formula)
@@ -226,3 +227,198 @@ The following behaviors are explicitly confirmed as fixed rules and must not cha
 1. Clearing input via Backspace does not auto-search; result update requires explicit search action (`Enter` / `Search` / filter action).
 2. Re-clicking non-sortable filters (`likes/replied/random/timestampViz`) does not toggle-off; it only re-runs search.
 3. Quick-filter forced type applies only to the click action itself; subsequent `Search` follows dropdown type.
+
+---
+
+## 12. Instant Search Mode (YouTube Data API)
+
+When YouTube Data API instant search is enabled, search behavior before a full comment load differs from full-cache mode. These rules apply only while no loaded or cached comments exist for the current video.
+
+### 12.1 Instant Mode Eligibility (MUST)
+
+Instant search runs only when **all** of the following are true:
+
+1. `hasYoutubeApiKey === true`
+2. `youtubeApiInstantSearch === true` (default `true`)
+3. No loaded or cached comments exist for the current video
+4. `Q` is non-empty after trim
+5. Search category is `comments`, or the comments segment of `all`
+6. Page is a video-scoped context (watch, `/live/`, or Shorts), not a community post (`/post/<id>`) — `getVideoId()` returns undefined on post pages, so instant search cannot resolve a video to query
+
+`youtubeApiEnabled` does **not** gate Instant Search. It only chooses Data API vs Innertube for **full comment load** (Load all / autoload full fetch). Instant can run with Enable OFF (Innertube full load + Data API `searchTerms`).
+
+On community post pages, full-load already falls back to Innertube (post pages have no video-scoped Data API equivalent), and autoload is **not** suppressed — condition 6 failing makes instant ineligible, which restores normal autoload behavior (see §12.3).
+
+When any Instant eligibility condition fails, search follows existing full-cache / local rules.
+
+Cache hit always uses local search. The instant path is never used when full comment data already exists for the current video.
+
+### 12.2 Empty-Query Behavior (MUST)
+
+Empty-query semantics differ by data availability:
+
+| Mode | Empty `Q` + Search / Enter |
+| --- | --- |
+| Full-cache (comments loaded) | Returns the full dataset (existing rule) |
+| Instant (no loaded comments) | Shows hint copy only; **no API call** |
+
+Instant-mode empty-query hint copy:
+
+`Type something to search instantly, or click Load all to browse every comment.`
+
+Typing and Backspace-to-empty must not trigger API calls. Search refresh requires explicit actions (`Enter` / `Search` / filter click), consistent with Section 3 rule 6.
+
+### 12.3 Autoload Suppression (MUST)
+
+When instant mode is eligible (`hasYoutubeApiKey` + Instant ON; Enable irrelevant) and the comment cache misses, autoload must not fire even when `autoload: true` is set in options.
+
+| Autoload option | Instant search option | Cache | Behavior |
+| --- | --- | --- | --- |
+| ON | OFF | miss | Auto full load (current behavior; Data API or Innertube per Enable) |
+| ON | ON | miss | No auto load; search-ready state (Enable does not matter) |
+| OFF | any | miss | Manual load only |
+| any | any | hit | Restore from IndexedDB unchanged |
+
+### 12.4 Filter Degradation in Instant Mode (MUST)
+
+In instant mode, plain text search is fully supported. Filters fall into two tiers:
+
+**Always incompatible** (Data API responses lack the required fields — `creatorHeart`, `verifiedAuthor`, `sponsorCommentBadge`, `donatedChip`, `authorIsChannelOwner`): `heart`, `verified`, `members`, `donated`, `author`, `timestampViz`. Also always degraded: extended search, open-all-comments window (`#ycs_open_all_comments_window`). **Export/save** (`#ycs_save_all_comments`) is degraded while the instant session is incomplete but unlocks once the session is complete — export then runs directly against the accumulated instant results (filename picks up a `— search "<query>"` suffix so the origin is visible).
+
+**Conditionally unlocked** (work locally on the instant subset once the session is complete): `random`, `links`, `likes`, `replied`, `timestamp`, `sortFirst`.
+
+A session is **complete** when all of: session active, ≥1 result, and no `nextPageToken` remaining (single-page result, or every API page fetched via show-more). Unlocked filters then run **locally** over the instant result set — no API call — and `sortFirst`, `links`, `timestamp` order by `publishedAt` date instead of load order (Data API results are relevance-ordered, not load-ordered). `timestamp` only takes this date-order path when `sortTimestamp=false` (default); with `sortTimestamp=true` it still orders by the in-comment video timestamp, unaffected by this fix. This date-order fix is scoped to the instant local pipeline only (`preferPublishedAtOrder` opt-in in `commentsSearch.ts`): a full "Enable" Data API archive load shares the same transform (so it also carries `publishedAtMs`) but goes through the general `runSearch` path, which never opts in — its ordering, like full-archive Innertube ordering, is unchanged. Clearing an active filter on the same query also re-renders locally instead of re-hitting the API.
+
+Unlockable filters **re-degrade** (upgrade modal on click) when: the session is incomplete (unfetched pages remain), the query text no longer matches the session query, or the session is cleared/reset.
+
+While degraded, in both active instant-result sessions and instant browse mode (eligible, no loaded comments yet), the first click opens the upgrade modal.
+
+For each degraded control:
+
+1. Apply class `ycs-btn-degraded` (dimmed to ~0.38 opacity; **not** `disabled`)
+2. Tooltip: `Needs all comments loaded — click to load`
+3. Click opens the existing `#ycs_confirm_modal`
+4. Confirming triggers full comment load
+5. The clicked filter is remembered and auto-applied after load completes and the current query re-runs locally
+6. Open-all-comments window: after load completes, open the full-archive window (do not open on the instant subset)
+
+### 12.5 Abort In-Flight Full Load (MUST)
+
+If the user triggers instant Search while a full comment fetch is in progress:
+
+1. Abort the in-flight full load via `AbortController`
+2. Discard partial fetch data
+3. Do not mix remote instant results with partial local datasets in one result list
+
+### 12.6 Status Line States (MUST)
+
+All instant-mode status copy is rendered via `#ycs-search-total-result`. No sticky banners.
+
+| State | Condition | Copy / UI |
+| --- | --- | --- |
+| S1 Ready | Empty `Q`, instant eligible, no active search | Placeholder: `Search (instant via YouTube API)` |
+| S2 Searching | Instant API request in flight | `Searching YouTube…` |
+| S3 Results | Instant search returned matches | Instant chip + `N matches for … · ` load-all CTA (see below) |
+| S4 Zero matches | Instant search returned zero items | Zero-match copy for current query |
+| S5 Empty-query hint | Empty `Q` + explicit Search in instant mode | Hint copy from Section 12.2 |
+| S6 Upgrading | Full load in progress after instant use | Progress copy for upgrade path |
+| S7 Upgraded | Full load complete; same query re-run locally | Normal `(Comments) Found: M`; all filters unlocked |
+| S8 All-mode combined | Search type `all`: instant comments + other sources (chat/transcript) rendered | Instant chip + combined `(All) Found: N` (or filter-specific label) + load-all CTA; the chip **must not** be overwritten by plain text |
+
+Quota exceeded: show notify box `YouTube API quota exceeded. Instant search unavailable — you can still load comments normally.`
+
+`Load all` remains visible in instant mode at all times. Its label has two states, driven by
+`isInstantSessionComplete(state)` (all searchTerms pages fetched):
+
+| Session state | CTA label | Tooltip |
+| --- | --- | --- |
+| Incomplete (more pages to fetch) | `Load all comments for filters & export` | *(none)* |
+| Complete (all pages fetched; 6 filters + export unlocked locally) | `Load all comments` | `For remaining filters` |
+
+The CTA click behavior is unchanged in both states — it always opens the full-archive load path
+(the always-degraded filters — heart/verified/members/donated/author — still need it; export runs
+locally against the instant results in the complete state and no longer needs the full archive).
+The status line never grows longer in either state; the label only shortens on completion.
+
+### 12.7 Shorts (MUST)
+
+On Shorts pages, instant Search / Enter counts as search intent.
+
+1. Native comments stay hidden while search intent is active, including zero instant results
+2. Existing restore rules are unchanged: native comments restore only after clearing search text and removing active filter (or when YCS is collapsed/cleaned up)
+
+### 12.8 Fetch All Matches (MUST)
+
+`#ycs_instant_fetch_all` renders directly below `#ycs_instant_show_more` (single-page fetch) and
+auto-paginates the current session to completion in one click.
+
+1. **Visibility**: identical to Show more — only while the session is active AND `pageToken` is
+   present. Both blocks are created together (`renderInstantShowMore`) and removed together
+   (`removeInstantShowMore`); both disappear on completion.
+2. **Content**: the shared `.ycs-instant-chip` (SVG bolt + "Instant", never the ⚡ emoji) followed
+   by the label `Fetch all matches`.
+3. **Loop**: repeatedly calls the single-page fetch until `pageToken` is gone. Shares the
+   `instantSearchGeneration` guard and `AbortController` with Show more — query change, STOP, or
+   upgrade aborts the loop and no further UI update happens (silent stop). Clicking Show more
+   while a fetch-all loop is running is blocked, and vice versa (both blocks carry
+   `ycs-instant-fetching` during the loop).
+4. **Status updates**: the status line (`#ycs-search-total-result`) updates once per fetched page;
+   the comment result list itself is re-rendered **once**, after the loop ends — no per-page
+   render churn.
+5. **Quota exhaustion mid-loop**: shows the existing `InstantSearchQuotaError` notify copy; merged
+   results from completed pages stay rendered and usable; if `pageToken` remains, both blocks are
+   rebuilt (not removed) so the user can retry.
+6. **Completion**: flows through the normal complete-session path
+   (`syncInstantControlsFromState`) — unlockable filters un-dim exactly as with manual Show more.
+7. **Tooltip**: `Fetch every remaining page (~N quota units)` when the Data API's
+   `pageInfo.totalResults` is known (`N = max(1, ceil((totalResults - loadedCount) / 100))`, one
+   `commentThreads.list` page = 1 quota unit / 100 results); otherwise
+   `Fetch every remaining page (1 quota unit per 100 matches)`.
+
+### 12.9 On-demand Reply Fetch (MUST)
+
+Instant search requests `part=snippet,replies`, so each thread only carries up to 5 inline
+replies while the parent's `renderer.replyCount` shows the true total. Clicking `+` on a thread
+whose local replies fall short of that total triggers a background fetch instead of the
+"no replies found" no-op.
+
+1. **Local-first**: `handleOpenReply` always collects replies already present in
+   `remoteSearch.results` first (`collectRepliesForComment`). Only when the collected count is
+   less than the parent's `replyCount` AND an instant `fetchMissingReplies` dependency is wired
+   does an API call happen.
+2. **Full-cache mode is unaffected**: `registerCommentInteractions`'s `fetchMissingReplies` /
+   `onReplyQuotaExceeded` dependencies are optional and only provided by the instant render path
+   in `appController.ts`. Without them, reply expansion behaves exactly as before — local-only,
+   no fetch, "no replies found" warning on a genuine miss.
+3. **Fetch scope**: one click fetches **all** remaining pages of that single parent's replies in
+   one round trip (`comments.list?parentId=`, 1 quota unit per page of up to 100 replies) — no
+   reply-pagination UI. Replies-of-replies are out of scope (YouTube threads are 2 levels).
+4. **Loading state**: the `+` button gets class `ycs-reply-loading` (shared `ycs-pulse`
+   animation), text swaps to `…`, and title to `Loading replies…`. A second click while loading
+   is a no-op (guarded by the loading class) — collapse (removing an already-rendered replies
+   block) is unaffected and always available.
+5. **Merge and cache-by-merge**: fetched replies are transformed to `CommentItem` (
+   `transformReplyToCommentItem`, `originComment` set to the real parent) and merged into
+   `remoteSearch.results`, deduped by reply `commentId` against the already-inlined subset. The
+   merge reads `remoteSearch` fresh right after the fetch resolves (not a pre-fetch snapshot), so
+   two concurrent reply fetches on different threads never clobber each other. On the normal path,
+   re-expanding the same thread afterward is served entirely from local state — no second API call
+   for that parent during the session.
+   - **Known accepted limitation**: Show more / Fetch all (§12.8, Task 17) still merge onto a
+     session snapshot captured *before* their own API call. If a reply fetch resolves and merges
+     while a Show more / Fetch all page fetch is also in flight, and that page fetch finishes
+     later, its stale-snapshot write can silently drop the reply merge from `remoteSearch.results`.
+     Blast radius is narrow and self-healing: it requires overlapping in-flight requests from two
+     separate user actions; a Show more / Fetch all render already rebuilds the entire comments
+     subtree regardless (so the stale write causes no additional DOM breakage beyond that existing
+     subtree rebuild); and re-expanding the affected thread afterward just re-fetches its replies
+     (extra quota, no permanent data loss or crash).
+     Fixing this fully would require changing `fetchNextInstantSearchPage` in
+     `instantCommentsSearch.ts` (Task 17, out of scope for Task 18) to also merge against fresh
+     state instead of its pre-fetch snapshot.
+6. **Quota exceeded**: the button restores to `+` and the existing upgrade modal opens
+   (`UPGRADE_OPEN_REPLIES_MODAL_MESSAGE`, same modal used by degraded filters / export). No
+   pending intent is attached — after the full archive loads, clicking `+` again resolves
+   locally.
+7. **Abort / other errors**: an `AbortError` restores the button silently; any other error
+   restores the button and logs via `console.error`. Neither renders a replies block.
