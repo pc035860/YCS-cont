@@ -6,6 +6,7 @@ const options = {
     autoClear: 200,
     hiddenByDefault: false,
     sidebarByDefault: false,
+    showSidebarToggle: true,
     sortTimestamp: false,
     autoExpandReplyContext: false,
     hiddenByDefaultShorts: false,

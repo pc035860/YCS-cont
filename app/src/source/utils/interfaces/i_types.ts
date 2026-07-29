@@ -334,6 +334,7 @@ export interface IYCSOptions {
     hiddenByDefault?: boolean;
     hiddenByDefaultShorts?: boolean;
     sidebarByDefault?: boolean;
+    showSidebarToggle?: boolean;
     enableShortsSupport?: boolean;
     filterButtons?: Array<{ id: string; enabled: boolean }>;
     transcriptLanguage?: string;

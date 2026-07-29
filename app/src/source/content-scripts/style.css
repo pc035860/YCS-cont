@@ -623,6 +623,10 @@ html[dark] .ycs-origin-trigger {
 .ycs-app.ycs-in-sidebar .ycs-btn-toggle-sidebar.ycs-label-sidebar {
   display: none;
 }
+/* Hide the Sidebar/Main toggle entirely (showSidebarToggle option off) */
+.ycs-app.ycs-hide-sidebar-toggle .ycs-btn-toggle-sidebar {
+  display: none;
+}
 .ycs-app.ycs-in-sidebar {
   margin-bottom: 8px;
 }
@@ -689,6 +693,11 @@ html[dark] .ycs-origin-trigger {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.ycs-app-toggle .ycs-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 .ycs-app-toggle .ycs-title {
   margin-top: -3px;
