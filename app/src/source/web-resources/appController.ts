@@ -2718,6 +2718,19 @@ export function initApp(): void {
                     }
                 };
 
+                const optShowSidebarToggle = (opts: IYCSOptions): void => {
+                    try {
+                        const app = document.querySelector('.ycs-app') as HTMLElement | null;
+                        if (!app) return;
+
+                        // Absent key on old profiles means default true
+                        const show = opts.showSidebarToggle !== false;
+                        app.classList.toggle('ycs-hide-sidebar-toggle', !show);
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
                 try {
                     const opts = (e.data.text ?? {}) as IYCSOptions;
 
@@ -2785,6 +2798,10 @@ export function initApp(): void {
 
                             case 'sidebarByDefault':
                                 optSidebarByDefault(opts);
+                                break;
+
+                            case 'showSidebarToggle':
+                                optShowSidebarToggle(opts);
                                 break;
 
                             case 'hiddenByDefaultShorts':
