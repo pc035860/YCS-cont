@@ -20,6 +20,51 @@ This repository is the source-based continuation of **YCS (YouTube Comment Searc
 
 The extension enables searching, filtering, and exporting YouTube comments, replies, chat replays, and video transcripts, with continuous fixes for YouTube API changes (2024-2025).
 
+## What's New Since the Original
+
+User-facing improvements added on top of the original YCS source (`sonigy/YCS`, last upstream commit Oct 2024).
+
+### Keeping up with YouTube
+
+- Comment loading migrated to YouTube's Innertube API, tracking its format changes through 2024-2026
+- Works across YouTube's SPA navigation — switching videos no longer needs a page reload
+- Support for member-only videos, age-restricted videos, and multi-account sessions
+- Chat replay falls back to an HTML path for logged-out users
+- Comment loading fixed for currently-live videos
+
+### More content you can search
+
+- **Community Post comments** — a source the original never covered
+- **Nested replies** (subThreads), so deeper reply chains are searchable
+- **Live chat recording** for ongoing live streams, not just chat replay
+- **Shorts pages** get dedicated support, with a toggle to turn it off entirely
+
+### Search
+
+- **Instant Search** — searches via the YouTube Data API before the full comment archive finishes downloading, so you get results without waiting
+- Faster repeat searches through result caching
+- New filters: timestamp visualization, plus optional quick-jump buttons for chat and transcript
+- Exact-match option for text highlighting
+- Timestamp comments can be sorted by video time instead of post time
+- A clear button on the search box, with clearing the text and clearing the filter kept as separate actions
+
+### Export
+
+- Export format picker (`.TXT` / `.JSON` / `.XLSX`) moved into a dropdown
+- Transcripts can be exported as `.SRT` subtitles
+
+### Options
+
+The original had four settings. There are now eighteen, including:
+
+- Drag-and-drop reordering and on/off toggles for every filter button
+- A cap on how many comments autoload fetches
+- Mount YCS in the sidebar instead of the main column, and optionally hide the Sidebar/Main toggle button
+- Start collapsed by default, with a separate setting for Shorts pages
+- Preferred transcript language
+- Auto-expand the parent-comment context for replies
+- Your own YouTube Data API key, with independent switches for full loading and Instant Search
+
 ## Development Setup
 
 ### Prerequisites
