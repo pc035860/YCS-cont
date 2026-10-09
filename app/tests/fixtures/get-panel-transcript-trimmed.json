@@ -1,0 +1,268 @@
+{
+  "content": {
+    "engagementPanelSectionListRenderer": {
+      "content": {
+        "sectionListRenderer": {
+          "contents": [
+            {
+              "itemSectionRenderer": {
+                "header": {
+                  "macroMarkersPanelItemViewModel": {
+                    "item": {
+                      "timelineChapterViewModel": {
+                        "title": "第 1 章節：A stark warning from a former AI doomer"
+                      }
+                    },
+                    "onTap": {
+                      "innertubeCommand": {
+                        "watchEndpoint": {
+                          "videoId": "jt508VjX2H8",
+                          "startTimeSeconds": 0
+                        }
+                      }
+                    }
+                  }
+                },
+                "contents": [
+                  {
+                    "macroMarkersPanelItemViewModel": {
+                      "item": {
+                        "timelineItemViewModel": {
+                          "timestamp": "0:00",
+                          "contentItems": [
+                            {
+                              "transcriptSegmentViewModel": {
+                                "simpleText": "An argument that I've been making for a long time now is that if we really want to understand what's happening in AI, we have to understand the futurist",
+                                "timestamp": "0:00"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "onTap": {
+                        "innertubeCommand": {
+                          "watchEndpoint": {
+                            "videoId": "jt508VjX2H8",
+                            "startTimeSeconds": 0
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "macroMarkersPanelItemViewModel": {
+                      "item": {
+                        "timelineItemViewModel": {
+                          "timestamp": "1:59",
+                          "contentItems": [
+                            {
+                              "transcriptSegmentViewModel": {
+                                "simpleText": "Emil, thank you for joining me on the show.",
+                                "timestamp": "1:59"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "onTap": {
+                        "innertubeCommand": {
+                          "watchEndpoint": {
+                            "videoId": "jt508VjX2H8",
+                            "startTimeSeconds": 119
+                          }
+                        }
+                      }
+                    }
+                  }
+                ],
+                "sectionIdentifier": "timeline_view_section0"
+              }
+            },
+            {
+              "itemSectionRenderer": {
+                "header": {
+                  "macroMarkersPanelItemViewModel": {
+                    "item": {
+                      "timelineChapterViewModel": {
+                        "title": "第 2 章節：Interview with Emile Torres"
+                      }
+                    },
+                    "onTap": {
+                      "innertubeCommand": {
+                        "watchEndpoint": {
+                          "videoId": "jt508VjX2H8",
+                          "startTimeSeconds": 121
+                        }
+                      }
+                    }
+                  }
+                },
+                "contents": [
+                  {
+                    "macroMarkersPanelItemViewModel": {
+                      "item": {
+                        "timelineChapterViewModel": {
+                          "title": "第 2 章節：Interview with Emile Torres"
+                        }
+                      },
+                      "onTap": {
+                        "innertubeCommand": {
+                          "watchEndpoint": {
+                            "videoId": "jt508VjX2H8",
+                            "startTimeSeconds": 121
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "macroMarkersPanelItemViewModel": {
+                      "item": {
+                        "timelineItemViewModel": {
+                          "timestamp": "2:03",
+                          "contentItems": [
+                            {
+                              "transcriptSegmentViewModel": {
+                                "simpleText": "Thanks for inviting me. Great to be here. Uh, I've been looking forward to this conversation for a long time. I think both your story and your research",
+                                "timestamp": "2:03"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "onTap": {
+                        "innertubeCommand": {
+                          "watchEndpoint": {
+                            "videoId": "jt508VjX2H8",
+                            "startTimeSeconds": 123
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "macroMarkersPanelItemViewModel": {
+                      "item": {
+                        "timelineItemViewModel": {
+                          "timestamp": "2:11",
+                          "contentItems": [
+                            {
+                              "transcriptSegmentViewModel": {
+                                "simpleText": "is being too overlooked in our current moment. I think it is very relevant to a lot of issues that people care about or",
+                                "timestamp": "2:11"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "macroMarkersPanelItemViewModel": {
+                      "item": {
+                        "timelineItemViewModel": {
+                          "timestamp": "1:13:55",
+                          "contentItems": [
+                            {
+                              "transcriptSegmentViewModel": {
+                                "simpleText": "All right. So, that was my interview with Emil Torres.",
+                                "timestamp": "1:13:55"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "onTap": {
+                        "innertubeCommand": {
+                          "watchEndpoint": {
+                            "videoId": "jt508VjX2H8",
+                            "startTimeSeconds": 4435
+                          }
+                        }
+                      }
+                    }
+                  }
+                ],
+                "sectionIdentifier": "timeline_view_section1"
+              }
+            },
+            {
+              "itemSectionRenderer": {
+                "header": {
+                  "macroMarkersPanelItemViewModel": {
+                    "item": {
+                      "timelineChapterViewModel": {
+                        "title": "第 3 章節：Cal recaps the interview with Emile"
+                      }
+                    },
+                    "onTap": {
+                      "innertubeCommand": {
+                        "watchEndpoint": {
+                          "videoId": "jt508VjX2H8",
+                          "startTimeSeconds": 4437
+                        }
+                      }
+                    }
+                  }
+                },
+                "contents": [
+                  {
+                    "macroMarkersPanelItemViewModel": {
+                      "item": {
+                        "timelineItemViewModel": {
+                          "timestamp": "1:14:00",
+                          "contentItems": [
+                            {
+                              "transcriptSegmentViewModel": {
+                                "simpleText": "That was really useful. Look, I've been writing about these ideologies for a little while now. I had a big New York Times article. I've done a bunch of podcast interviews where I've given my",
+                                "timestamp": "1:14:00"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "onTap": {
+                        "innertubeCommand": {
+                          "watchEndpoint": {
+                            "videoId": "jt508VjX2H8",
+                            "startTimeSeconds": 4440
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "macroMarkersPanelItemViewModel": {
+                      "item": {
+                        "timelineItemViewModel": {
+                          "timestamp": "1:17:33",
+                          "contentItems": [
+                            {
+                              "transcriptSegmentViewModel": {
+                                "simpleText": "And when [music] you do, I will send you a free guide to my seven best ideas about cultivating a deep life. Sign up today, calubber.com/id.",
+                                "timestamp": "1:17:33"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "onTap": {
+                        "innertubeCommand": {
+                          "watchEndpoint": {
+                            "videoId": "jt508VjX2H8",
+                            "startTimeSeconds": 4653
+                          }
+                        }
+                      }
+                    }
+                  }
+                ],
+                "sectionIdentifier": "timeline_view_section2"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

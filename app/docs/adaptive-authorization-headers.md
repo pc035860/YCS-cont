@@ -200,7 +200,7 @@ Adaptive authorization is **currently applied only to comment requests**, not to
 - Chat replay API (`utils/innertube/chat.ts`)
 
 **Transcript Requests** (always send auth):
-- Transcript API (`utils/innertube/transcript.ts`)
+- Transcript API (`utils/innertube/transcript.ts`): WEB player fallback and timedtext requests; the last-resort `get_panel` fallback sends no auth header (not required)
 
 ### Rationale
 
