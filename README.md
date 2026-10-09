@@ -174,6 +174,7 @@ The extension integrates with YouTube's internal Innertube API for comments, cha
 - [sap-sid-authorization.md](app/docs/sap-sid-authorization.md) - SAPISID authorization header generation
 - [adaptive-authorization-headers.md](app/docs/adaptive-authorization-headers.md) - Adaptive authorization for member-only videos
 - [youtube-data-api-messaging.md](app/docs/youtube-data-api-messaging.md) - YouTube Data API v3 messaging architecture
+- [transcript-loading.md](app/docs/transcript-loading.md) - Transcript loading chain and language selection
 
 ## Credits
 - Original YCS by **sonigy**
