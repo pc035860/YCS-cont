@@ -1150,13 +1150,12 @@ html[dark] .ycs_dropdown_item:hover {
 }
 
 .ycs_dropdown_item--active {
-  font-weight: 500;
-  box-shadow: inset 3px 0 0 #065fd4;
+  background: rgba(6, 95, 212, 0.1);
 }
 
 html[dark='true'] .ycs_dropdown_item--active,
 html[dark] .ycs_dropdown_item--active {
-  box-shadow: inset 3px 0 0 #3ea6ff;
+  background: rgba(62, 166, 255, 0.12);
 }
 
 html[dark='true'] .ycs-infobar__search button,
