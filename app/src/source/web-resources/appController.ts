@@ -85,6 +85,7 @@ import {
     getCommentsTrVideo,
     getController,
     getSelectedTranscriptLanguage,
+    getEffectiveTranscriptLanguage,
     getSelectedCommentSortOrder,
     getTranscriptTracks as getStateTranscriptTracks,
     getCounts,
@@ -95,6 +96,7 @@ import {
     setCommentsChat,
     setCommentsTrVideo,
     setSelectedTranscriptLanguage,
+    setDefaultTranscriptLanguage,
     setSelectedCommentSortOrder,
     setTranscriptTracks,
     setCount,
@@ -2142,6 +2144,7 @@ export function initApp(): void {
                 setTranscriptTracks,
                 getSelectedTranscriptLanguage,
                 setSelectedTranscriptLanguage,
+                getEffectiveTranscriptLanguage,
                 getController,
                 resetController,
                 getCounts,
@@ -2759,7 +2762,7 @@ export function initApp(): void {
                     // see the app() entry point. Avoids a stale value during the async options round-trip.
                     syncInstantSearchPlaceholder();
                     if (typeof opts.transcriptLanguage !== 'undefined') {
-                        state = setSelectedTranscriptLanguage(
+                        state = setDefaultTranscriptLanguage(
                             state,
                             typeof opts.transcriptLanguage === 'string' && opts.transcriptLanguage.trim()
                                 ? opts.transcriptLanguage.trim()

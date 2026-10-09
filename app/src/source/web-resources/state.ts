@@ -44,7 +44,10 @@ export interface WebResourcesState {
     chatSource?: ChatSource;
     commentsTrVideo?: TranscriptData;
     transcriptTracks?: TranscriptTrackInfo[];
+    /** Language explicitly picked in the transcript menu this session; undefined = use the default. */
     selectedTranscriptLanguage?: string;
+    /** Default transcript language from the options page; undefined = YouTube's default track. */
+    defaultTranscriptLanguage?: string;
     selectedCommentSortOrder: CommentSortOrder;
     count: CountBuckets;
     countSearch: CountBuckets;
@@ -97,6 +100,7 @@ export function createState(): WebResourcesState {
         commentsTrVideo: undefined,
         transcriptTracks: undefined,
         selectedTranscriptLanguage: undefined,
+        defaultTranscriptLanguage: undefined,
         selectedCommentSortOrder: CommentSortOrder.NewestFirst,
         count: createCounts(),
         countSearch: createCounts(),
@@ -180,6 +184,18 @@ export function setSelectedTranscriptLanguage(state: WebResourcesState, language
         ...state,
         selectedTranscriptLanguage: languageCode
     };
+}
+
+export function setDefaultTranscriptLanguage(state: WebResourcesState, languageCode?: string): WebResourcesState {
+    return {
+        ...state,
+        defaultTranscriptLanguage: languageCode
+    };
+}
+
+/** Language to load: session pick, else options default, else undefined (YouTube default). */
+export function getEffectiveTranscriptLanguage(state: WebResourcesState): string | undefined {
+    return state.selectedTranscriptLanguage ?? state.defaultTranscriptLanguage;
 }
 
 export function getSelectedCommentSortOrder(state: WebResourcesState): CommentSortOrder {
