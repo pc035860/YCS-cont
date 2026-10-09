@@ -245,7 +245,7 @@ Canonical behavior baseline doc:
 
 1. Shorts: mount in comments panel; selectors in `shortsSupport.ts`; native comments follow search intent; layout scoped to YCS-owned elements only
 
-2. Transcript loading (`transcript.ts` `getTranscriptVideo`): player API (ANDROID → WEB + SAPISIDHASH / racyCheckOk for age-restricted) → timedtext → timedtext + `pot` → `get_panel` (`PAmodern_transcript_view`, params built from videoId, `hl` picks language) as last fallback; rethrow AbortError. `get_transcript` removed (always 400). get_panel cues are paragraph-merged, second-precision — keep it last
+2. Transcript loading (`transcript.ts` `getTranscriptVideo`): player API (ANDROID → WEB + SAPISIDHASH / racyCheckOk for age-restricted) → timedtext → timedtext + `pot` → `get_panel` (`PAmodern_transcript_view`, params built from videoId, `hl` picks language: chosen → player default track → ytcfg HL) as last fallback; rethrow AbortError. `get_transcript` removed (always 400). get_panel cues are paragraph-merged, second-precision — keep it last
 
 3. Reply origin chain auto-expand via `autoExpandReplyContext` + `postBatchHook` (`ui/originChain.ts`); default off; jsdom for DOM tests
 

@@ -601,10 +601,12 @@ export async function getTranscriptVideo(
             }
         }
 
-        // Last resort: native transcript panel (paragraph-merged, second precision)
+        // Last resort: native transcript panel (paragraph-merged, second precision).
+        // get_panel picks the language by hl, so with no choice request the same default track timedtext would.
         const videoId = getVideoId(window.location.href);
         if (videoId) {
-            return await fetchTranscriptViaGetPanel(videoId, options?.languageCode, signal);
+            const panelLanguage = options?.languageCode ?? info?.defaultTrack?.languageCode;
+            return await fetchTranscriptViaGetPanel(videoId, panelLanguage, signal);
         }
     } catch (e) {
         console.error(e);
