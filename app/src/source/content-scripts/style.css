@@ -1141,12 +1141,21 @@ html[dark] .ycs_dropdown_menu {
 }
 
 .ycs_dropdown_item:hover {
-  background: #f0f0f0;
+  background-image: linear-gradient(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.06));
 }
 
 html[dark='true'] .ycs_dropdown_item:hover,
 html[dark] .ycs_dropdown_item:hover {
-  background: #3a3a3a;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.07));
+}
+
+.ycs_dropdown_item--active {
+  background-color: rgba(0, 0, 0, 0.18);
+}
+
+html[dark='true'] .ycs_dropdown_item--active,
+html[dark] .ycs_dropdown_item--active {
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
 html[dark='true'] .ycs-infobar__search button,

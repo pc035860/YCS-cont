@@ -1,73 +1,9 @@
-import { deepFindObjKey, getCleanUrlVideo, getVideoId, wrapTryCatch } from '../common';
-import type { TranscriptData, TranscriptTrackInfo } from '../interfaces/i_types';
-import { buildInnertubeBody, buildInnertubeHeaders } from './request';
-import { getInitYtData, getInnertubeApiKey, getPageCfgData, type InnertubeRequestParams } from './core';
+import { getVideoId, wrapTryCatch } from '../common';
+import type { TranscriptCueGroup, TranscriptData, TranscriptTrackInfo } from '../interfaces/i_types';
+import { buildInnertubeBody } from './request';
+import { getInnertubeApiKey, getPageCfgData } from './core';
 import { buildSapSidAuthorizationHeader } from './authHeaders';
 import { ANDROID_CLIENT_FALLBACK, WEB_CLIENT_FALLBACK } from './fallbacks';
-
-async function findInitYParams(initData: object | [object]): Promise<string | undefined> {
-    try {
-        if (initData) {
-            // Handle both object and legacy array formats
-            const dataArray = Array.isArray(initData) ? initData : [initData];
-            let param;
-            for (const obj of dataArray) {
-                const findObj = deepFindObjKey(obj, 'serializedShareEntity')[0];
-                if (findObj) {
-                    [, param] = (Object as any).entries(findObj)[0];
-                }
-
-                if (param) break;
-            }
-            return param;
-        }
-    } catch (e) {
-        console.error(e);
-        return undefined;
-    }
-
-    return undefined;
-}
-
-async function getParamsForTranscript(
-    globalContext: Window & typeof globalThis,
-    param: string,
-    signal?: AbortSignal
-): Promise<InnertubeRequestParams | undefined> {
-    try {
-        const ytcfgData = await getPageCfgData(globalContext, signal);
-        const cleanUrl = getCleanUrlVideo(globalContext.location.href) ?? globalContext.location.href;
-
-        if (!ytcfgData) {
-            return undefined;
-        }
-
-        return {
-            headers: buildInnertubeHeaders(
-                ytcfgData,
-                {
-                    'x-youtube-client-version': ytcfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION || ''
-                },
-                globalContext
-            ),
-            referrer: cleanUrl,
-            referrerPolicy: 'origin-when-cross-origin',
-            body: JSON.stringify(
-                buildInnertubeBody({
-                    ytcfgData,
-                    params: param,
-                    clientFallback: {}
-                })
-            ),
-            method: 'POST',
-            mode: 'cors',
-            credentials: 'include'
-        };
-    } catch (e) {
-        console.error(e);
-        return undefined;
-    }
-}
 
 function getTranscriptPot(): string | undefined {
     try {
@@ -151,6 +87,41 @@ function parseCaptionTracks(captions: any | undefined): TranscriptTrackInfo[] {
     }
 
     return tracks;
+}
+
+/**
+ * Resolve the player's default caption track. Order: root defaultCaptionTrackIndex,
+ * default audio track's defaultCaptionTrackIndex, default audio track's first
+ * captionTrackIndices entry (multi-language ASR videos expose only this), then tracks[0].
+ * Matches by vssId so a manual and an asr track sharing a languageCode are not confused.
+ */
+export function resolveDefaultTranscriptTrack(
+    captions: any | undefined,
+    tracks: TranscriptTrackInfo[]
+): TranscriptTrackInfo | undefined {
+    const captionTracks: any[] = Array.isArray(captions?.captionTracks) ? captions.captionTracks : [];
+    const defaultAudioTrack =
+        typeof captions?.defaultAudioTrackIndex === 'number' && Array.isArray(captions?.audioTracks)
+            ? captions.audioTracks[captions.defaultAudioTrackIndex]
+            : undefined;
+
+    const candidateIndices = [
+        captions?.defaultCaptionTrackIndex,
+        defaultAudioTrack?.defaultCaptionTrackIndex,
+        Array.isArray(defaultAudioTrack?.captionTrackIndices) ? defaultAudioTrack.captionTrackIndices[0] : undefined
+    ];
+
+    for (const index of candidateIndices) {
+        if (typeof index !== 'number') continue;
+        const caption = captionTracks[index];
+        if (!caption) continue;
+        const match = caption.vssId
+            ? tracks.find((track) => track.vssId === caption.vssId)
+            : tracks.find((track) => track.languageCode === caption.languageCode);
+        if (match) return match;
+    }
+
+    return tracks[0];
 }
 
 async function getTranscriptTrackInfo(
@@ -244,39 +215,9 @@ async function getTranscriptTrackInfo(
 
     const tracks = parseCaptionTracks(captions);
 
-    let defaultTrack: TranscriptTrackInfo | undefined;
-    const captionTracks: any[] = Array.isArray(captions?.captionTracks) ? captions.captionTracks : [];
-
-    // First, check if there's a direct defaultCaptionTrackIndex at root level
-    const defaultCaptionIndex =
-        typeof captions?.defaultCaptionTrackIndex === 'number' ? captions.defaultCaptionTrackIndex : undefined;
-
-    if (typeof defaultCaptionIndex === 'number' && captionTracks[defaultCaptionIndex]) {
-        const defaultCaption = captionTracks[defaultCaptionIndex];
-        defaultTrack = tracks.find((track) => track.languageCode === defaultCaption?.languageCode);
-    }
-
-    // If no direct default, check the default audio track's defaultCaptionTrackIndex
-    if (!defaultTrack && typeof captions?.defaultAudioTrackIndex === 'number') {
-        const defaultAudioTrack = Array.isArray(captions?.audioTracks)
-            ? captions.audioTracks[captions.defaultAudioTrackIndex]
-            : undefined;
-
-        // Use the audio track's defaultCaptionTrackIndex, not the first caption index
-        const audioDefaultCaptionIndex =
-            typeof defaultAudioTrack?.defaultCaptionTrackIndex === 'number'
-                ? defaultAudioTrack.defaultCaptionTrackIndex
-                : undefined;
-
-        if (typeof audioDefaultCaptionIndex === 'number' && captionTracks[audioDefaultCaptionIndex]) {
-            const defaultCaption = captionTracks[audioDefaultCaptionIndex];
-            defaultTrack = tracks.find((track) => track.languageCode === defaultCaption?.languageCode);
-        }
-    }
-
     return {
         tracks,
-        defaultTrack: defaultTrack || tracks[0]
+        defaultTrack: resolveDefaultTranscriptTrack(captions, tracks)
     };
 }
 
@@ -415,7 +356,7 @@ export async function getTranscriptTracks(signal: AbortSignal): Promise<Transcri
     }
 }
 
-function selectTranscriptTrack(
+export function selectTranscriptTrack(
     tracks: TranscriptTrackInfo[] | undefined,
     preferredLanguage?: string,
     autogenerated?: boolean,
@@ -423,11 +364,23 @@ function selectTranscriptTrack(
 ): TranscriptTrackInfo | undefined {
     if (!tracks || tracks.length === 0) return undefined;
     const autoGeneratedTrack = tracks.find((track) => track.isAutoGenerated);
-    if (autogenerated) return autoGeneratedTrack;
+
     if (preferredLanguage) {
         const normalizedPreferred = preferredLanguage.toLowerCase();
-        const exact = tracks.find((track) => track.languageCode?.toLowerCase() === normalizedPreferred);
-        if (exact) return exact;
+        const preferredPrimary = normalizedPreferred.split('-')[0];
+        const exact = tracks.filter((track) => track.languageCode?.toLowerCase() === normalizedPreferred);
+        const candidates = exact.length
+            ? exact
+            : tracks.filter((track) => track.languageCode?.toLowerCase().split('-')[0] === preferredPrimary);
+        if (candidates.length) {
+            // Prefer the requested kind: asr when asked for auto-generated, manual otherwise
+            const wantAuto = autogenerated === true;
+            return candidates.find((track) => Boolean(track.isAutoGenerated) === wantAuto) ?? candidates[0];
+        }
+    }
+
+    if (autogenerated === true && !preferredLanguage) {
+        return fallbackTrack?.isAutoGenerated ? fallbackTrack : autoGeneratedTrack;
     }
 
     if (fallbackTrack) {
@@ -462,62 +415,145 @@ async function fetchTranscriptFromTimedText(baseUrl: string, signal: AbortSignal
     return buildTranscriptFromTimedText(text) as TranscriptData | undefined;
 }
 
+function hasCueGroups(data: TranscriptData | undefined): boolean {
+    return Boolean(
+        wrapTryCatch(
+            () =>
+                data?.actions?.[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body
+                    ?.transcriptBodyRenderer?.cueGroups?.length
+        )
+    );
+}
+
+function encodeVarint(value: number): number[] {
+    const out: number[] = [];
+    let n = value;
+    while (n > 127) {
+        out.push((n & 127) | 128);
+        n >>>= 7;
+    }
+    out.push(n);
+    return out;
+}
+
+function encodeLengthDelimited(fieldNumber: number, bytes: number[]): number[] {
+    return [...encodeVarint((fieldNumber << 3) | 2), ...encodeVarint(bytes.length), ...bytes];
+}
+
+/**
+ * get_panel transcript params: base64(protobuf field 149 { 1: videoId, 3: 1 }).
+ */
+export function buildGetPanelTranscriptParams(videoId: string): string {
+    const inner = [...encodeLengthDelimited(1, Array.from(new TextEncoder().encode(videoId))), (3 << 3) | 0, 1];
+    return btoa(String.fromCharCode(...encodeLengthDelimited(149, inner)));
+}
+
+function parseTimestampSec(timestamp: string): number {
+    return timestamp.split(':').reduce((acc, part) => acc * 60 + (Number(part) || 0), 0);
+}
+
+/**
+ * Convert a get_panel (PAmodern_transcript_view) response into TranscriptData.
+ * Sections are one per chapter; chapter-title items are skipped. Segments carry no
+ * duration, so it is derived from the next segment's start (last: videoLengthSec - start, or 0).
+ */
+export function parseGetPanelTranscript(json: any, videoLengthSec?: number): TranscriptData | undefined {
+    const sections: any[] | undefined =
+        json?.content?.engagementPanelSectionListRenderer?.content?.sectionListRenderer?.contents;
+    if (!Array.isArray(sections) || sections.length === 0) return undefined;
+
+    const segments = sections
+        .flatMap((section) => section?.itemSectionRenderer?.contents ?? [])
+        .map((item) => item?.macroMarkersPanelItemViewModel)
+        .filter((marker) => marker?.item?.timelineItemViewModel)
+        .map((marker) => {
+            const timeline = marker.item.timelineItemViewModel;
+            const segment = timeline.contentItems?.[0]?.transcriptSegmentViewModel;
+            const startSec: number =
+                marker.onTap?.innertubeCommand?.watchEndpoint?.startTimeSeconds ??
+                parseTimestampSec(timeline.timestamp ?? segment?.timestamp ?? '0');
+            return { startSec, text: (segment?.simpleText as string | undefined) ?? '' };
+        });
+    if (segments.length === 0) return undefined;
+
+    const cueGroups: TranscriptCueGroup[] = segments.map(({ startSec, text }, i) => {
+        const nextSec = segments[i + 1]?.startSec ?? videoLengthSec;
+        const durationSec = nextSec !== undefined && Number.isFinite(nextSec) ? Math.max(0, nextSec - startSec) : 0;
+        return {
+            transcriptCueGroupRenderer: {
+                formattedStartOffset: { simpleText: toFormatted(startSec) },
+                cues: [
+                    {
+                        transcriptCueRenderer: {
+                            startOffsetMs: startSec * 1000,
+                            durationMs: durationSec * 1000,
+                            cue: { simpleText: text }
+                        }
+                    }
+                ]
+            }
+        };
+    });
+
+    return {
+        actions: [
+            {
+                updateEngagementPanelAction: {
+                    content: { transcriptRenderer: { body: { transcriptBodyRenderer: { cueGroups } } } }
+                }
+            }
+        ]
+    };
+}
+
+function getPlayingVideoLengthSec(videoId: string): number | undefined {
+    const player = document.getElementById('movie_player') as any;
+    if (player?.getVideoData?.()?.video_id !== videoId) return undefined;
+    const duration = (player.querySelector('video') as HTMLVideoElement | null)?.duration;
+    return duration !== undefined && Number.isFinite(duration) ? duration : undefined;
+}
+
+async function fetchTranscriptViaGetPanel(
+    videoId: string,
+    languageCode: string | undefined,
+    signal: AbortSignal
+): Promise<TranscriptData | undefined> {
+    try {
+        const pageCfgData = await getPageCfgData(window, signal);
+        const ytcfgClient = pageCfgData?.INNERTUBE_CONTEXT?.client as Record<string, unknown> | undefined;
+        const client = {
+            clientName: WEB_CLIENT_FALLBACK.clientName,
+            clientVersion: pageCfgData?.INNERTUBE_CONTEXT_CLIENT_VERSION || WEB_CLIENT_FALLBACK.clientVersion,
+            hl: languageCode || (pageCfgData?.HL as string) || window.navigator?.language || 'en',
+            gl: (pageCfgData?.GL as string) || (ytcfgClient?.gl as string) || 'US'
+        };
+        const res = await fetch('https://www.youtube.com/youtubei/v1/get_panel?prettyPrint=false', {
+            method: 'POST',
+            mode: 'cors' as RequestMode,
+            credentials: 'include',
+            headers: { 'content-type': 'application/json' },
+            signal,
+            cache: 'no-store',
+            body: JSON.stringify({
+                context: { client },
+                panelId: 'PAmodern_transcript_view',
+                params: buildGetPanelTranscriptParams(videoId)
+            })
+        } as RequestInit);
+        if (!res.ok) return undefined;
+        return parseGetPanelTranscript(await res.json(), getPlayingVideoLengthSec(videoId));
+    } catch (e: unknown) {
+        if (e instanceof DOMException && e.name === 'AbortError') throw e;
+        console.error('get_panel transcript fallback failed', e);
+        return undefined;
+    }
+}
+
 export async function getTranscriptVideo(
     signal: AbortSignal,
     options?: { languageCode?: string; autogenerated?: boolean }
 ): Promise<TranscriptData | undefined> {
     try {
-        const initData = await getInitYtData(getCleanUrlVideo(window.location.href) as any, signal);
-
-        try {
-            if (initData) {
-                const ytInitParam = await findInitYParams(initData);
-                if (ytInitParam) {
-                    const params = await getParamsForTranscript(window, ytInitParam, signal);
-                    if (!params) {
-                        throw new Error('Missing innertube params for transcript request');
-                    }
-                    if (options?.languageCode && params?.body) {
-                        try {
-                            const body = typeof params.body === 'string' ? JSON.parse(params.body) : {};
-                            body.params = undefined;
-                            body.captionParams = options.languageCode;
-                            params.body = JSON.stringify(body);
-                        } catch (err) {
-                            console.warn('Failed to inject language into youtubei body', err);
-                        }
-                    }
-
-                    if (params) {
-                        const requestInit: RequestInit = {
-                            ...params,
-                            signal,
-                            cache: 'no-store'
-                        };
-
-                        if (requestInit.body === undefined) {
-                            requestInit.body = params.body;
-                        }
-
-                        const resp = await fetch(
-                            `https://www.youtube.com/youtubei/v1/get_transcript?key=${getInnertubeApiKey()}`,
-                            requestInit
-                        );
-                        const json = (await resp.json()) as TranscriptData;
-                        const hasTranscript = wrapTryCatch(() =>
-                            Boolean(
-                                json.actions?.[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body
-                                    ?.transcriptBodyRenderer?.cueGroups?.length
-                            )
-                        );
-                        if (hasTranscript) return json;
-                    }
-                }
-            }
-        } catch (e) {
-            console.error('youtubei get_transcript attempt failed', e);
-        }
-
         const info = await getTranscriptTrackInfo(window, signal);
         const tracks: TranscriptTrackInfo[] = info?.tracks ?? [];
         const selectedTrack = selectTranscriptTrack(
@@ -531,13 +567,7 @@ export async function getTranscriptVideo(
         if (trackBaseUrl) {
             try {
                 const built = await fetchTranscriptFromTimedText(trackBaseUrl, signal);
-                const ok = wrapTryCatch(() =>
-                    Boolean(
-                        built?.actions?.[0]?.updateEngagementPanelAction?.content?.transcriptRenderer?.body
-                            ?.transcriptBodyRenderer?.cueGroups?.length
-                    )
-                );
-                if (ok) {
+                if (hasCueGroups(built)) {
                     return built;
                 }
             } catch (err) {
@@ -564,11 +594,19 @@ export async function getTranscriptVideo(
                     } as RequestInit);
                     const text = await viaTimedText.text();
                     const built = buildTranscriptFromTimedText(text) as TranscriptData | undefined;
-                    if (built) return built;
+                    if (hasCueGroups(built)) return built;
                 } catch (err) {
                     console.error('timedtext with pot failed', err);
                 }
             }
+        }
+
+        // Last resort: native transcript panel (paragraph-merged, second precision).
+        // get_panel picks the language by hl, so with no choice request the same default track timedtext would.
+        const videoId = getVideoId(window.location.href);
+        if (videoId) {
+            const panelLanguage = options?.languageCode ?? info?.defaultTrack?.languageCode;
+            return await fetchTranscriptViaGetPanel(videoId, panelLanguage, signal);
         }
     } catch (e) {
         console.error(e);

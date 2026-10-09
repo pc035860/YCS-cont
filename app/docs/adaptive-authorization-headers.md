@@ -199,8 +199,8 @@ Adaptive authorization is **currently applied only to comment requests**, not to
 - Live chat API (`utils/innertube/chat.ts`)
 - Chat replay API (`utils/innertube/chat.ts`)
 
-**Transcript Requests** (always send auth):
-- Transcript API (`utils/innertube/transcript.ts`)
+**Transcript Requests** (fixed per request, not adaptive):
+- Transcript API (`utils/innertube/transcript.ts`): timedtext requests and the WEB player fallback send SAPISIDHASH; the primary ANDROID player call and the last-resort `get_panel` fallback send no auth header (ANDROID + SAPISIDHASH = HTTP 400; `get_panel` does not require it)
 
 ### Rationale
 
@@ -222,7 +222,7 @@ PBJ request (`ytInitialData` with `pbj=1` parameter) failure rate is near zero, 
 
 4. **Chat and Transcript Exclusion**
 
-Chat and transcript requests **always send authorization headers** because their request size remains nearly the same regardless of whether the header is present. The optimization benefit would be minimal compared to comments.
+Chat requests and transcript timedtext / WEB player requests **always send authorization headers** (the transcript ANDROID player and `get_panel` calls never do) because their request size remains nearly the same regardless of whether the header is present. The optimization benefit would be minimal compared to comments.
 
 ### Future Considerations
 

@@ -245,7 +245,7 @@ Canonical behavior baseline doc:
 
 1. Shorts: mount in comments panel; selectors in `shortsSupport.ts`; native comments follow search intent; layout scoped to YCS-owned elements only
 
-2. Transcript Player API: ANDROID → WEB (+ SAPISIDHASH / racyCheckOk) fallback for age-restricted; rethrow AbortError in both stages
+2. Transcript loading (`transcript.ts` `getTranscriptVideo`): player API (ANDROID → WEB + SAPISIDHASH / racyCheckOk for age-restricted) → timedtext → timedtext + `pot` → `get_panel` (`PAmodern_transcript_view`, params built from videoId, `hl` picks language: chosen → player default track → page HL → navigator.language → `en`) as last fallback; rethrow AbortError. `get_transcript` removed (always 400). get_panel cues are paragraph-merged, second-precision — keep it last. Details: `app/docs/transcript-loading.md`
 
 3. Reply origin chain auto-expand via `autoExpandReplyContext` + `postBatchHook` (`ui/originChain.ts`); default off; jsdom for DOM tests
 
@@ -295,5 +295,6 @@ E2E timing gotcha for `syncInstantDegradedControls`: on a fresh instant-eligible
 - `app/docs/adaptive-authorization-headers.md`
 - `app/docs/youtube-data-api-messaging.md` (incl. SEARCH types)
 - `app/docs/filter-search-behavior-regression-spec.md` (incl. §12 Instant Search)
+- `app/docs/transcript-loading.md` (loading chain, track selection, language dropdown)
 
 When behavior rules change, update the relevant doc in the same PR.
