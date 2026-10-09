@@ -1149,6 +1149,16 @@ html[dark] .ycs_dropdown_item:hover {
   background: #3a3a3a;
 }
 
+.ycs_dropdown_item--active {
+  font-weight: 500;
+  box-shadow: inset 3px 0 0 #065fd4;
+}
+
+html[dark='true'] .ycs_dropdown_item--active,
+html[dark] .ycs_dropdown_item--active {
+  box-shadow: inset 3px 0 0 #3ea6ff;
+}
+
 html[dark='true'] .ycs-infobar__search button,
 html[dark] .ycs-infobar__search button {
   border: 0;

@@ -116,4 +116,4 @@ Verified in a real browser (2026-10-09):
 |-------|-------|
 | `jt508VjX2H8` | Multi-language AI asr (#162): Default loads the original-audio language, not `tracks[0]`; picking any asr language loads that language, not the first asr track |
 | `en0GuyhieQk` | Empty ANDROID timedtext body: transcript still loads via `get_panel` in the default track language |
-| A video with manual + auto in one language | Picking the auto item loads asr cues; Load and highlight follow the known limitation above |
+| `YuOjMdevW0Q` | Manual + auto in one language (`ja` manual + `ja` asr): picking the auto item loads asr cues; Load and highlight follow the known limitation above |
