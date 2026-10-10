@@ -14,7 +14,7 @@ This repository is the source-based continuation of **YCS (YouTube Comment Searc
 
 **Status**:
 - Main development branch: `v2-source`
-- Supported browsers: Chrome 88+ (Manifest V3), Firefox
+- Supported browsers: Chrome 88+ (Manifest V3), Firefox, Safari 16.4+ (macOS; see [SAFARI.md](SAFARI.md))
 - Original project: [sonigy/YCS](https://github.com/sonigy/YCS)
 - Migrated from `ycs_cont_migration` branch to single-repo structure
 
@@ -115,6 +115,8 @@ npm test
 3. Enable "Developer mode"
 4. Click "Load unpacked" and select **`app/dist/`** directory
 
+Safari: `make build-safari VERSION=x.y.z`, then Safari > Settings > Developer > "Add Temporary Extension…" and pick `packing/safari-x.y.z.zip`. See [SAFARI.md](SAFARI.md) for the Xcode route.
+
 ## Release Workflow
 
 From project root, use the Makefile:
@@ -126,15 +128,15 @@ make release TYPE=major
 ```
 
 This will:
-- Update version in `app/manifest.json` and `app/manifest.firefox.json`
+- Update version in `app/manifest.json`, `app/manifest.firefox.json` and `app/manifest.safari.json`
 - Create git commit and tag
-- Build both Chrome and Firefox versions
+- Build Chrome, Firefox and Safari versions
 - Package as `.zip` files in `packing/` directory
 
 **Manual build** (if needed):
 ```bash
-./scripts/build-extension.sh chrome    # or firefox
-./scripts/package-extension.sh chrome  # or firefox
+./scripts/build-extension.sh chrome    # or firefox / safari
+./scripts/package-extension.sh chrome  # or firefox / safari
 ```
 
 ## Technical Documentation

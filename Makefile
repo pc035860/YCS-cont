@@ -1,4 +1,4 @@
-.PHONY: help release build-chrome build-firefox build-all clean
+.PHONY: help release build-chrome build-firefox build-safari safari-xcode build-all clean
 
 # Configuration
 APP_DIR := app
@@ -12,6 +12,8 @@ help:
 	@echo "  make release TYPE=[major|minor|patch]  - Create new release"
 	@echo "  make build-chrome VERSION=x.y.z        - Build Chrome extension"
 	@echo "  make build-firefox VERSION=x.y.z       - Build Firefox extension"
+	@echo "  make build-safari VERSION=x.y.z        - Build Safari extension (zip + folder)"
+	@echo "  make safari-xcode VERSION=x.y.z        - Build Safari + generate Xcode app project (macOS only)"
 	@echo "  make build-all VERSION=x.y.z           - Build both platforms"
 	@echo "  make clean                             - Clean packing directory"
 	@echo ""
@@ -34,7 +36,7 @@ release:
 	echo "" && \
 	\
 	echo "📦 Step 2: Committing changes..." && \
-	git add app/manifest.json app/manifest.firefox.json && \
+	git add app/manifest.json app/manifest.firefox.json app/manifest.safari.json && \
 	git commit -m "Bump version to $$VERSION" && \
 	git tag -a "v$$VERSION" -m "Release v$$VERSION" && \
 	echo "" && \
@@ -50,6 +52,7 @@ release:
 	echo "   - Git tag: v$$VERSION" && \
 	echo "   - Chrome: packing/chrome-$$VERSION.zip" && \
 	echo "   - Firefox: packing/firefox-$$VERSION.zip" && \
+	echo "   - Safari: packing/safari-$$VERSION.zip" && \
 	echo "" && \
 	echo "Next steps:" && \
 	echo "   1. Review the packages in packing/" && \
@@ -75,7 +78,21 @@ build-firefox:
 	@./scripts/build-extension.sh firefox
 	@./scripts/package-extension.sh firefox $(VERSION) "$(DIST_PATH)"
 
-# Build both platforms
+# Build Safari extension
+build-safari:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "❌ VERSION is required"; \
+		exit 1; \
+	fi
+	@echo "🧭 Building Safari extension v$(VERSION)..."
+	@./scripts/build-extension.sh safari
+	@./scripts/package-extension.sh safari $(VERSION) "$(DIST_PATH)"
+
+# Build Safari extension and wrap it in an Xcode app project (requires macOS + Xcode)
+safari-xcode: build-safari
+	@./scripts/safari-xcode.sh $(VERSION)
+
+# Build all platforms
 build-all:
 	@if [ -z "$(VERSION)" ]; then \
 		echo "❌ VERSION is required"; \
@@ -84,6 +101,8 @@ build-all:
 	@$(MAKE) build-chrome VERSION=$(VERSION)
 	@echo ""
 	@$(MAKE) build-firefox VERSION=$(VERSION)
+	@echo ""
+	@$(MAKE) build-safari VERSION=$(VERSION)
 
 # Clean packing directory
 clean:

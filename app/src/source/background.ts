@@ -325,7 +325,7 @@ async function fetchAllCommentsBackground(
 const STORE_CACHE_YCS = 'STORE_CACHE_YCS';
 
 chrome.runtime.onInstalled.addListener(async () => {
-    const optsStorage = await chrome.storage.local.get();
+    const optsStorage = await chrome.storage.local.get(null);
 
     await chrome.storage.local.set({
         ...options,
@@ -338,15 +338,21 @@ chrome.runtime.onInstalled.addListener(async () => {
                 try {
                     console.log('BG tab.id: ', tab.id);
 
-                    chrome.scripting.insertCSS({
-                        target: { tabId: tab.id },
-                        files: ['content-scripts/style.css']
-                    });
+                    // These return promises; catch rejections (e.g. Safari before the user has
+                    // granted access to youtube.com) so they don't surface as unhandled errors.
+                    Promise.resolve(
+                        chrome.scripting.insertCSS({
+                            target: { tabId: tab.id },
+                            files: ['content-scripts/style.css']
+                        })
+                    ).catch((err) => console.warn('[YCS] insertCSS failed:', err));
 
-                    chrome.scripting.executeScript({
-                        target: { tabId: tab.id },
-                        files: ['content-scripts/cscripts.js']
-                    });
+                    Promise.resolve(
+                        chrome.scripting.executeScript({
+                            target: { tabId: tab.id },
+                            files: ['content-scripts/cscripts.js']
+                        })
+                    ).catch((err) => console.warn('[YCS] executeScript failed:', err));
                 } catch (err) {
                     console.error(err);
                 }
@@ -355,7 +361,34 @@ chrome.runtime.onInstalled.addListener(async () => {
     });
 });
 
+// Files the content script may ask us to run in the page's MAIN world (see cscripts.ts).
+const MAIN_WORLD_FILES = new Set(['web-resources/wresources.js', 'web-resources/xlsx-global.js']);
+
 chrome.runtime.onMessage.addListener(async (message, sender) => {
+    if (message?.type === 'YCS_INJECT_MAIN_WORLD') {
+        const tabId = sender.tab?.id;
+        const file = message?.file;
+        if (!tabId || typeof file !== 'string' || !MAIN_WORLD_FILES.has(file)) return;
+        const frameId = sender.frameId ?? 0;
+        let ok = false;
+        try {
+            await chrome.scripting.executeScript({
+                target: { tabId, frameIds: [frameId] },
+                files: [file],
+                world: 'MAIN'
+            } as chrome.scripting.ScriptInjection<any[], unknown>);
+            ok = true;
+        } catch (err) {
+            console.warn('[YCS] MAIN world injection failed:', file, err);
+        }
+        try {
+            await chrome.tabs.sendMessage(tabId, { type: 'YCS_MAIN_WORLD_RESULT', file, ok }, { frameId });
+        } catch {
+            // Tab closed or navigated away
+        }
+        return;
+    }
+
     if (message?.type === 'YCS_SET_BADGE') {
         console.info('BG YCS_SET_BADGE:', message);
         chrome.action.setBadgeText({ text: message?.text?.toString(), tabId: sender.tab?.id });
@@ -412,7 +445,9 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
 
             const quotaBytes = opts.autoClear * 1000000 || 200 * 1000000;
 
-            const infoUseStorage = (await navigator.storage.estimate()) as IStorageEstimate;
+            const infoUseStorage = (
+                typeof navigator.storage?.estimate === 'function' ? await navigator.storage.estimate() : { usage: 0 }
+            ) as IStorageEstimate;
 
             const db = await idb;
 
