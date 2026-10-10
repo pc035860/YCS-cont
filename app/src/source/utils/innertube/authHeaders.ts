@@ -12,12 +12,19 @@ export interface BuildSapSidAuthorizationHeaderOptions {
     hrefOverride?: string;
 }
 
-const HTTPS_LIKE_SCHEMES = new Set(['https:', 'chrome-extension:', 'chrome-untrusted:', 'moz-extension:']);
+const HTTPS_LIKE_SCHEMES = new Set([
+    'https:',
+    'chrome-extension:',
+    'chrome-untrusted:',
+    'moz-extension:',
+    'safari-web-extension:'
+]);
 const ALLOWED_ORIGIN_SCHEMES = new Set([
     'http',
     'https',
     'chrome-extension',
     'moz-extension',
+    'safari-web-extension',
     'file',
     'android-app',
     'chrome-search',

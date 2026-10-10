@@ -2,13 +2,14 @@
 # bump-version.sh - Semantic version bumping tool
 # Usage: ./bump-version.sh [major|minor|patch]
 #
-# Updates version in both app/manifest.json and app/manifest.firefox.json
+# Updates version in app/manifest.json, app/manifest.firefox.json and app/manifest.safari.json
 
 set -e
 
 TYPE="${1:-patch}"
 MANIFEST_CHROME="app/manifest.json"
 MANIFEST_FIREFOX="app/manifest.firefox.json"
+MANIFEST_SAFARI="app/manifest.safari.json"
 
 # Validate bump type
 if [[ ! "$TYPE" =~ ^(major|minor|patch)$ ]]; then
@@ -25,6 +26,11 @@ fi
 
 if [ ! -f "$MANIFEST_FIREFOX" ]; then
     echo "❌ $MANIFEST_FIREFOX not found"
+    exit 1
+fi
+
+if [ ! -f "$MANIFEST_SAFARI" ]; then
+    echo "❌ $MANIFEST_SAFARI not found"
     exit 1
 fi
 
@@ -68,13 +74,16 @@ echo "New version: $NEW_VERSION"
 if [[ "$OSTYPE" == "darwin"* ]]; then
     sed -i '' "s/\"version\": *\"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" "$MANIFEST_CHROME"
     sed -i '' "s/\"version\": *\"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" "$MANIFEST_FIREFOX"
+    sed -i '' "s/\"version\": *\"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" "$MANIFEST_SAFARI"
 else
     sed -i "s/\"version\": *\"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" "$MANIFEST_CHROME"
     sed -i "s/\"version\": *\"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" "$MANIFEST_FIREFOX"
+    sed -i "s/\"version\": *\"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" "$MANIFEST_SAFARI"
 fi
 
 echo "✅ Updated $MANIFEST_CHROME: $CURRENT_VERSION → $NEW_VERSION"
 echo "✅ Updated $MANIFEST_FIREFOX: $CURRENT_VERSION → $NEW_VERSION"
+echo "✅ Updated $MANIFEST_SAFARI: $CURRENT_VERSION → $NEW_VERSION"
 
 # Output new version for Makefile to capture
 echo "$NEW_VERSION"

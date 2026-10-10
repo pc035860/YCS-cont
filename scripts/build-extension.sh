@@ -1,6 +1,6 @@
 #!/bin/bash
-# build-extension.sh - Build Chrome/Firefox extension
-# Usage: ./build-extension.sh [chrome|firefox]
+# build-extension.sh - Build Chrome/Firefox/Safari extension
+# Usage: ./build-extension.sh [chrome|firefox|safari]
 #
 # Builds extension in app/ directory using the appropriate manifest
 
@@ -10,9 +10,9 @@ PLATFORM=$1
 APP_DIR="app"
 
 # Validate platform
-if [[ ! "$PLATFORM" =~ ^(chrome|firefox)$ ]]; then
+if [[ ! "$PLATFORM" =~ ^(chrome|firefox|safari)$ ]]; then
     echo "❌ Invalid platform: $PLATFORM"
-    echo "Usage: $0 [chrome|firefox]"
+    echo "Usage: $0 [chrome|firefox|safari]"
     exit 1
 fi
 
@@ -24,6 +24,9 @@ echo "📋 Step 1: Preparing manifest..."
 if [ "$PLATFORM" = "firefox" ]; then
     cp "$APP_DIR/manifest.firefox.json" "$APP_DIR/src/static/manifest.json"
     echo "✅ Using Firefox manifest"
+elif [ "$PLATFORM" = "safari" ]; then
+    cp "$APP_DIR/manifest.safari.json" "$APP_DIR/src/static/manifest.json"
+    echo "✅ Using Safari manifest"
 else
     cp "$APP_DIR/manifest.json" "$APP_DIR/src/static/manifest.json"
     echo "✅ Using Chrome manifest"

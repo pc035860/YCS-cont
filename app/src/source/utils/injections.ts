@@ -62,9 +62,9 @@ async function insertFileScriptWithLoad(pathFile: string, selector: string): Pro
 }
 
 function removeInjectionYCS(): void {
-    const scripts = document.querySelectorAll(
-        `script[src="chrome-extension://${chrome.runtime.id}/web-resources/wresources.js"]`
-    );
+    // Use getURL rather than a hardcoded chrome-extension:// prefix so this also matches
+    // Firefox (moz-extension://) and Safari (safari-web-extension://) URLs.
+    const scripts = document.querySelectorAll(`script[src="${chrome.runtime.getURL('web-resources/wresources.js')}"]`);
     for (const script of scripts) {
         script.remove();
     }

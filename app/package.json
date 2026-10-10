@@ -14,6 +14,7 @@
     "src/source/browser-action/baction.html",
     "src/source/content-scripts/cscripts.ts",
     "src/source/web-resources/wresources.ts",
+    "src/source/web-resources/xlsx-global.ts",
     "src/source/background.ts",
     "src/source/content-scripts/style.css"
   ],

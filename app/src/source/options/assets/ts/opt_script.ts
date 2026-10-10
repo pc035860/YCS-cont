@@ -772,7 +772,7 @@ window.onload = async (): Promise<void> => {
             }
         };
 
-        const optsStorage = await chrome.storage.local.get();
+        const optsStorage = await chrome.storage.local.get(null);
         // console.log('optsStorage: ', optsStorage);
 
         await chrome.storage.local.set({
@@ -780,7 +780,7 @@ window.onload = async (): Promise<void> => {
             ...optsStorage
         });
 
-        const storageOpts = await chrome.storage.local.get();
+        const storageOpts = await chrome.storage.local.get(null);
         // console.log('storageOpts: ', storageOpts);
 
         if (storageOpts) {

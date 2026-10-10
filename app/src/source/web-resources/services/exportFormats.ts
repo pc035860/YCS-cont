@@ -18,8 +18,50 @@ import {
 // Lazy-load xlsx only when user chooses .xlsx export
 let xlsxModulePromise: Promise<any> | null = null;
 function loadXLSX(): Promise<any> {
-    if (!xlsxModulePromise) xlsxModulePromise = import('xlsx');
+    if (!xlsxModulePromise) {
+        xlsxModulePromise = withTimeout(import('xlsx'), 8000).catch((err) => {
+            // The lazy chunk is loaded with a <script> tag, which Safari blocks under YouTube's
+            // CSP. Ask the extension to inject a standalone XLSX bundle into the page instead.
+            console.warn('[YCS] Lazy xlsx chunk failed, trying extension injection:', err);
+            return loadXLSXViaExtension();
+        });
+        xlsxModulePromise.catch(() => {
+            xlsxModulePromise = null;
+        });
+    }
     return xlsxModulePromise;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return new Promise((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error('timeout')), ms);
+        promise.then(
+            (v) => {
+                clearTimeout(t);
+                resolve(v);
+            },
+            (e) => {
+                clearTimeout(t);
+                reject(e);
+            }
+        );
+    });
+}
+
+function loadXLSXViaExtension(): Promise<any> {
+    const existing = (window as any).__ycsXLSX;
+    if (existing) return Promise.resolve(existing);
+    return new Promise((resolve, reject) => {
+        const onMessage = (e: MessageEvent): void => {
+            if (e.source !== window || e.data?.type !== 'YCS_LOAD_XLSX_RESULT') return;
+            window.removeEventListener('message', onMessage);
+            const XLSX = (window as any).__ycsXLSX;
+            if (e.data.ok && XLSX) resolve(XLSX);
+            else reject(new Error('Unable to load xlsx'));
+        };
+        window.addEventListener('message', onMessage);
+        window.postMessage({ type: 'YCS_LOAD_XLSX' }, window.location.origin);
+    });
 }
 type SheetBuilder<TPayload> = (XLSX: any, workbook: any, payload: TPayload, createdLabel: string) => void;
 
