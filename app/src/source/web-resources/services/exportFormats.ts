@@ -5,6 +5,7 @@ import {
     buildTranscriptExportPayload
 } from '../../utils/export-core';
 import { buildSrtContent } from '../../utils/formatting';
+import { createXlsxLoader, loadXLSXViaExtension } from './xlsxLoader';
 import {
     getSheetDetails,
     getSheetComments,
@@ -15,12 +16,16 @@ import {
     getSheetTrVideo
 } from '../../utils/sheets';
 
-// Lazy-load xlsx only when user chooses .xlsx export
-let xlsxModulePromise: Promise<any> | null = null;
-function loadXLSX(): Promise<any> {
-    if (!xlsxModulePromise) xlsxModulePromise = import('xlsx');
-    return xlsxModulePromise;
-}
+// Build-time platform flag (YCS_PLATFORM is set by scripts/build-extension.sh). Kept module-local so
+// Parcel inlines it as a literal and the minifier strips Safari-only code from other builds.
+const IS_SAFARI_BUILD = process.env.YCS_PLATFORM === 'safari';
+
+// Lazy-load xlsx only when user chooses .xlsx export (see xlsxLoader.ts for the Safari path)
+const loadXLSX = createXlsxLoader({
+    useExtensionInjection: IS_SAFARI_BUILD,
+    importModule: () => import('xlsx'),
+    loadViaExtension: () => loadXLSXViaExtension()
+});
 type SheetBuilder<TPayload> = (XLSX: any, workbook: any, payload: TPayload, createdLabel: string) => void;
 
 function createJsonResponse(fileName: string, payload: unknown): { content: string; fileName: string; mime: string } {

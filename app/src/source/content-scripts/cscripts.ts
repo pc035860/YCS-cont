@@ -1,4 +1,9 @@
 import { insertFileScriptWithLoad, removeInjectionYCS, removeInjections } from '../utils/injections';
+import { createMainWorldInjector, MAIN_WORLD_RESULT } from '../utils/mainWorld';
+
+// Build-time platform flag (YCS_PLATFORM is set by scripts/build-extension.sh). Kept module-local so
+// Parcel inlines it as a literal and the minifier strips Safari-only code from other builds.
+const IS_SAFARI_BUILD = process.env.YCS_PLATFORM === 'safari';
 
 const DEBUG = false;
 
@@ -6,6 +11,11 @@ const DEBUG = false;
     removeInjectionYCS();
 
     function initContentScript(): void {
+        // Safari only: main-world injection via the background (see utils/mainWorld.ts).
+        const mainWorld = IS_SAFARI_BUILD
+            ? createMainWorldInjector((message) => chrome.runtime.sendMessage(message))
+            : null;
+
         // Whitelist of allowed runtime message types
         const ALLOWED_RUNTIME_MESSAGE_TYPES = new Set<string>([
             'YCS_CACHE_STORAGE_GET_SEND',
@@ -26,6 +36,10 @@ const DEBUG = false;
                 if (typeof message !== 'object' || message === null) return;
                 const type = (message as any).type;
                 if (typeof type !== 'string') return;
+                if (IS_SAFARI_BUILD && type === MAIN_WORLD_RESULT) {
+                    mainWorld?.handleResult((message as any).file, (message as any).ok);
+                    return;
+                }
                 if (!ALLOWED_RUNTIME_MESSAGE_TYPES.has(type)) {
                     if (DEBUG) console.warn('[YCS] Unknown runtime message type:', type);
                     return;
@@ -75,7 +89,8 @@ const DEBUG = false;
             'YCS_YT_API_SEARCH_START',
             'YCS_YT_API_SEARCH_ABORT',
             'YCS_YT_API_REPLIES_START',
-            'YCS_YT_API_REPLIES_ABORT'
+            'YCS_YT_API_REPLIES_ABORT',
+            ...(IS_SAFARI_BUILD ? ['YCS_LOAD_XLSX'] : [])
         ]);
 
         const VIDEO_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
@@ -112,8 +127,13 @@ const DEBUG = false;
                         return;
                     }
 
+                    if (IS_SAFARI_BUILD && msg.type === 'YCS_LOAD_XLSX') {
+                        const ok = (await mainWorld?.request('web-resources/xlsx-global.js', 10000)) ?? false;
+                        window.postMessage({ type: 'YCS_LOAD_XLSX_RESULT', ok }, window.location.origin);
+                    }
+
                     if (msg.type === 'NUMBER_COMMENTS') {
-                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, {
+                        chrome.runtime.sendMessage({
                             type: 'YCS_SET_BADGE',
                             text: truncateString(msg.text, 100)
                         });
@@ -123,7 +143,7 @@ const DEBUG = false;
                         try {
                             if (DEBUG) console.log('[YCS] GET_OPTIONS', msg);
 
-                            const opts = await chrome.storage.local.get();
+                            const opts = await chrome.storage.local.get(null);
 
                             // Security: Filter out sensitive data, only expose hasYoutubeApiKey flag
                             const { youtubeApiKey, ...safeOpts } = opts;
@@ -144,7 +164,7 @@ const DEBUG = false;
                             if (DEBUG) console.warn('[YCS] Invalid video ID format');
                             return;
                         }
-                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg, (res) => {
+                        chrome.runtime.sendMessage(msg, (res) => {
                             if (DEBUG) console.log('[YCS] Response YCS_CACHE_STORAGE SET:', res);
                         });
                     }
@@ -154,7 +174,7 @@ const DEBUG = false;
                             if (DEBUG) console.warn('[YCS] Invalid video or post ID format');
                             return;
                         }
-                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg, (res) => {
+                        chrome.runtime.sendMessage(msg, (res) => {
                             if (DEBUG) console.log('[YCS] Response YCS_CACHE_STORAGE GET:', res);
                         });
                     }
@@ -166,12 +186,12 @@ const DEBUG = false;
                             return;
                         }
                         if (DEBUG) console.log('[YCS] Forwarding YouTube API START:', msg);
-                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg);
+                        chrome.runtime.sendMessage(msg);
                     }
 
                     if (msg.type === 'YCS_YT_API_COMMENTS_ABORT' && msg?.body) {
                         if (DEBUG) console.log('[YCS] Forwarding YouTube API ABORT:', msg);
-                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg);
+                        chrome.runtime.sendMessage(msg);
                     }
 
                     if (msg.type === 'YCS_YT_API_SEARCH_START' && msg?.body) {
@@ -180,12 +200,12 @@ const DEBUG = false;
                             return;
                         }
                         if (DEBUG) console.log('[YCS] Forwarding YouTube API SEARCH START:', msg);
-                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg);
+                        chrome.runtime.sendMessage(msg);
                     }
 
                     if (msg.type === 'YCS_YT_API_SEARCH_ABORT' && msg?.body) {
                         if (DEBUG) console.log('[YCS] Forwarding YouTube API SEARCH ABORT:', msg);
-                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg);
+                        chrome.runtime.sendMessage(msg);
                     }
 
                     if (msg.type === 'YCS_YT_API_REPLIES_START' && msg?.body) {
@@ -194,12 +214,12 @@ const DEBUG = false;
                             return;
                         }
                         if (DEBUG) console.log('[YCS] Forwarding YouTube API REPLIES START:', msg);
-                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg);
+                        chrome.runtime.sendMessage(msg);
                     }
 
                     if (msg.type === 'YCS_YT_API_REPLIES_ABORT' && msg?.body) {
                         if (DEBUG) console.log('[YCS] Forwarding YouTube API REPLIES ABORT:', msg);
-                        chrome.runtime.sendMessage(`${chrome.runtime.id}`, msg);
+                        chrome.runtime.sendMessage(msg);
                     }
                 } catch (err) {
                     console.error(err);
@@ -211,9 +231,13 @@ const DEBUG = false;
         const SCRIPT_SRCS = ['web-resources/wresources.js'];
         const fullSrcs = SCRIPT_SRCS.map((src) => chrome.runtime.getURL(src));
         removeInjections(fullSrcs);
+        // Safari applies the page's Content-Security-Policy to <script src> tags pointing at
+        // extension URLs (Chrome/Firefox exempt them), and YouTube's CSP blocks them. There we
+        // inject through chrome.scripting in the MAIN world instead, falling back to the tag.
         (async function (srcs: string[], target: string): Promise<void> {
-            for (const src of srcs) {
-                await insertFileScriptWithLoad(src, target);
+            for (let i = 0; i < srcs.length; i++) {
+                if (mainWorld && (await mainWorld.request(SCRIPT_SRCS[i]))) continue;
+                await insertFileScriptWithLoad(srcs[i], target);
             }
         })(fullSrcs, 'body');
     }

@@ -4,7 +4,7 @@ This file provides practical guidance for contributors working on YCS.
 
 ## Project Overview
 
-YCS (YouTube Comment Search) is a browser extension for Chrome/Firefox that loads, searches, filters, and exports:
+YCS (YouTube Comment Search) is a browser extension for Chrome/Firefox/Safari that loads, searches, filters, and exports:
 - YouTube comments/replies
 - chat replay
 - video transcript
@@ -64,6 +64,8 @@ Manual release scripts (root):
 ./scripts/bump-version.sh patch
 ./scripts/build-extension.sh chrome
 ./scripts/build-extension.sh firefox
+./scripts/build-extension.sh safari   # manifest: app/manifest.safari.json, guide: SAFARI.md
+# Safari-only code is gated on a module-local IS_SAFARI_BUILD = process.env.YCS_PLATFORM === 'safari' (inlined at build time)
 ./scripts/package-extension.sh chrome
 ```
 
@@ -86,7 +88,7 @@ Three-layer message flow:
 
 1. Web page layer (`web-resources`)  
 2. Content script bridge (`content-scripts`)  
-3. Service worker (`background.ts`)
+3. Service worker (`background.ts`); runs as a non-persistent background page in the Firefox and Safari builds, so avoid service-worker-only globals there
 
 Main state container:
 - `app/src/source/web-resources/state.ts`

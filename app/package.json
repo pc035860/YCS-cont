@@ -21,7 +21,7 @@
     "prepare-manifest": "node scripts/prepare-manifest.cjs",
     "prebuild": "npm run prepare-manifest",
     "predev": "npm run prepare-manifest",
-    "rm": "rimraf dist && rimraf .parcel-cache && rimraf dev",
+    "rm": "rimraf dist && rimraf .parcel-cache && rimraf .parcel-cache-xlsx && rimraf dev",
     "lint": "eslint src/source/ --ext .ts",
     "typecheck": "tsc --noEmit",
     "dev": "parcel serve --dist-dir dev --no-hmr",

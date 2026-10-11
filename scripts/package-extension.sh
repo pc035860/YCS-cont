@@ -1,6 +1,6 @@
 #!/bin/bash
 # package-extension.sh - Package built extension to packing directory
-# Usage: ./package-extension.sh [chrome|firefox] [version] [dist_path]
+# Usage: ./package-extension.sh [chrome|firefox|safari] [version] [dist_path]
 
 set -e
 
@@ -9,15 +9,15 @@ VERSION="$2"
 DIST_PATH="${3:-app/dist}"
 
 # Validate parameters
-if [[ ! "$PLATFORM" =~ ^(chrome|firefox)$ ]]; then
+if [[ ! "$PLATFORM" =~ ^(chrome|firefox|safari)$ ]]; then
     echo "❌ Invalid platform: $PLATFORM"
-    echo "Usage: $0 [chrome|firefox] [version] [dist_path]"
+    echo "Usage: $0 [chrome|firefox|safari] [version] [dist_path]"
     exit 1
 fi
 
 if [ -z "$VERSION" ]; then
     echo "❌ Version is required"
-    echo "Usage: $0 [chrome|firefox] [version] [dist_path]"
+    echo "Usage: $0 [chrome|firefox|safari] [version] [dist_path]"
     exit 1
 fi
 
@@ -47,8 +47,9 @@ echo "Creating archive: $ZIP_FILE"
 # Save current directory
 ORIG_DIR=$(pwd)
 
-if [ "$PLATFORM" = "firefox" ]; then
-    # Firefox: zip directly from dist without parent folder
+if [ "$PLATFORM" = "firefox" ] || [ "$PLATFORM" = "safari" ]; then
+    # Firefox/Safari: zip directly from dist without a parent folder (manifest.json at the
+    # zip root; Safari loads it via Settings > Developer > Add Temporary Extension...)
     cd "$DIST_PATH"
     zip -r "$ORIG_DIR/${ZIP_FILE}" . > /dev/null
 else
