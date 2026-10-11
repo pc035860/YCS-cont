@@ -59,8 +59,24 @@ rm -rf dist/
 echo ""
 
 echo "📦 Step 4: Running clean rebuild..."
+# Inlined at build time (src/source/utils/platform.ts); strips Safari-only code from other builds.
+export YCS_PLATFORM="$PLATFORM"
 npm run rebuild
 echo ""
+
+if [ "$PLATFORM" = "safari" ]; then
+    # Standalone XLSX bundle used by Safari's .xlsx export fallback (see SAFARI.md). Built
+    # separately so it ships only in the Safari build; the separate Parcel config skips the
+    # static-files reporter, which would otherwise copy src/static into dist/web-resources.
+    echo "📦 Step 5: Building Safari XLSX bundle..."
+    rm -rf .parcel-cache-xlsx
+    npx parcel build src/source/web-resources/xlsx-global.ts \
+        --config ./.parcelrc.safari-xlsx \
+        --dist-dir dist/web-resources \
+        --cache-dir .parcel-cache-xlsx \
+        --no-source-maps
+    echo ""
+fi
 
 echo "✅ $PLATFORM extension built successfully!"
 echo "📁 Output: $(pwd)/dist/"

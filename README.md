@@ -14,7 +14,7 @@ This repository is the source-based continuation of **YCS (YouTube Comment Searc
 
 **Status**:
 - Main development branch: `v2-source`
-- Supported browsers: Chrome 88+ (Manifest V3), Firefox, Safari 16.4+ (macOS; see [SAFARI.md](SAFARI.md))
+- Supported browsers: Chrome 88+ (Manifest V3), Firefox, Safari 27+ (macOS; tested on 27.0.1; see [SAFARI.md](SAFARI.md))
 - Original project: [sonigy/YCS](https://github.com/sonigy/YCS)
 - Migrated from `ycs_cont_migration` branch to single-repo structure
 

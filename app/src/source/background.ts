@@ -12,6 +12,11 @@ import {
 import { transformThreadToCommentItems, transformReplyToCommentItem } from './utils/youtubeDataApi/transform';
 import { fetchCommentSearchPage } from './utils/youtubeDataApi/search';
 import { shouldSkipAutoloadFromStorage } from './web-resources/search/instantSearchGate';
+import { handleInjectMainWorldMessage } from './utils/mainWorld';
+
+// Build-time platform flag (YCS_PLATFORM is set by scripts/build-extension.sh). Kept module-local so
+// Parcel inlines it as a literal and the minifier strips Safari-only code from other builds.
+const IS_SAFARI_BUILD = process.env.YCS_PLATFORM === 'safari';
 
 // Track active YouTube API requests for abort handling
 interface ActiveRequest {
@@ -323,6 +328,10 @@ async function fetchAllCommentsBackground(
 }
 
 const STORE_CACHE_YCS = 'STORE_CACHE_YCS';
+// Used only when navigator.storage.estimate() is unavailable (seen in some Safari extension
+// contexts): bound the cache by entry count instead, so the autoClear limit isn't silently ignored.
+const CACHE_ENTRY_LIMIT_FALLBACK = 200;
+let warnedNoStorageEstimate = false;
 
 chrome.runtime.onInstalled.addListener(async () => {
     const optsStorage = await chrome.storage.local.get(null);
@@ -361,31 +370,19 @@ chrome.runtime.onInstalled.addListener(async () => {
     });
 });
 
-// Files the content script may ask us to run in the page's MAIN world (see cscripts.ts).
-const MAIN_WORLD_FILES = new Set(['web-resources/wresources.js', 'web-resources/xlsx-global.js']);
-
 chrome.runtime.onMessage.addListener(async (message, sender) => {
-    if (message?.type === 'YCS_INJECT_MAIN_WORLD') {
-        const tabId = sender.tab?.id;
-        const file = message?.file;
-        if (!tabId || typeof file !== 'string' || !MAIN_WORLD_FILES.has(file)) return;
-        const frameId = sender.frameId ?? 0;
-        let ok = false;
-        try {
-            await chrome.scripting.executeScript({
-                target: { tabId, frameIds: [frameId] },
-                files: [file],
-                world: 'MAIN'
-            } as chrome.scripting.ScriptInjection<any[], unknown>);
-            ok = true;
-        } catch (err) {
-            console.warn('[YCS] MAIN world injection failed:', file, err);
-        }
-        try {
-            await chrome.tabs.sendMessage(tabId, { type: 'YCS_MAIN_WORLD_RESULT', file, ok }, { frameId });
-        } catch {
-            // Tab closed or navigated away
-        }
+    // Safari only: run allowlisted files in the page's MAIN world (see utils/mainWorld.ts).
+    if (
+        IS_SAFARI_BUILD &&
+        (await handleInjectMainWorldMessage(message, sender, {
+            executeScript: (injection) =>
+                chrome.scripting.executeScript(injection as chrome.scripting.ScriptInjection<any[], unknown>),
+            // MV3 returns a promise here; the bundled @types/chrome version types it as void.
+            sendToTab: async (tabId, msg, options) => {
+                await (chrome.tabs.sendMessage(tabId, msg, options) as unknown);
+            }
+        }))
+    ) {
         return;
     }
 
@@ -445,18 +442,26 @@ chrome.runtime.onMessage.addListener(async (message, sender) => {
 
             const quotaBytes = opts.autoClear * 1000000 || 200 * 1000000;
 
-            const infoUseStorage = (
-                typeof navigator.storage?.estimate === 'function' ? await navigator.storage.estimate() : { usage: 0 }
-            ) as IStorageEstimate;
-
             const db = await idb;
 
-            if ((infoUseStorage.usage as number) < quotaBytes) {
-                await db.put(STORE_CACHE_YCS, message, message.body.videoId ?? message.body.postId);
-            } else if ((infoUseStorage.usage as number) >= quotaBytes) {
-                await db.clear(STORE_CACHE_YCS);
-                await db.put(STORE_CACHE_YCS, message, message.body.videoId ?? message.body.postId);
+            let overLimit: boolean;
+            if (typeof navigator.storage?.estimate === 'function') {
+                const infoUseStorage = (await navigator.storage.estimate()) as IStorageEstimate;
+                overLimit = (infoUseStorage.usage as number) >= quotaBytes;
+            } else {
+                if (!warnedNoStorageEstimate) {
+                    warnedNoStorageEstimate = true;
+                    console.warn(
+                        `[YCS] navigator.storage.estimate() unavailable; limiting cache to ${CACHE_ENTRY_LIMIT_FALLBACK} entries instead of ${opts.autoClear || 200} MB`
+                    );
+                }
+                overLimit = (await db.count(STORE_CACHE_YCS)) >= CACHE_ENTRY_LIMIT_FALLBACK;
             }
+
+            if (overLimit) {
+                await db.clear(STORE_CACHE_YCS);
+            }
+            await db.put(STORE_CACHE_YCS, message, message.body.videoId ?? message.body.postId);
         }
     }
 

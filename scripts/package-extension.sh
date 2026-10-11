@@ -48,9 +48,8 @@ echo "Creating archive: $ZIP_FILE"
 ORIG_DIR=$(pwd)
 
 if [ "$PLATFORM" = "firefox" ] || [ "$PLATFORM" = "safari" ]; then
-    # Firefox/Safari: zip directly (manifest.json at zip root, loadable via
-    # Safari > Settings > Developer > Add Temporary Extension...)
-    # Firefox: zip directly from dist without parent folder
+    # Firefox/Safari: zip directly from dist without a parent folder (manifest.json at the
+    # zip root; Safari loads it via Settings > Developer > Add Temporary Extension...)
     cd "$DIST_PATH"
     zip -r "$ORIG_DIR/${ZIP_FILE}" . > /dev/null
 else

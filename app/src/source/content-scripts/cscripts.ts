@@ -1,4 +1,9 @@
 import { insertFileScriptWithLoad, removeInjectionYCS, removeInjections } from '../utils/injections';
+import { createMainWorldInjector, MAIN_WORLD_RESULT } from '../utils/mainWorld';
+
+// Build-time platform flag (YCS_PLATFORM is set by scripts/build-extension.sh). Kept module-local so
+// Parcel inlines it as a literal and the minifier strips Safari-only code from other builds.
+const IS_SAFARI_BUILD = process.env.YCS_PLATFORM === 'safari';
 
 const DEBUG = false;
 
@@ -6,29 +11,10 @@ const DEBUG = false;
     removeInjectionYCS();
 
     function initContentScript(): void {
-        // Main-world injection via the background (used on Safari, where the page CSP blocks
-        // <script src="safari-web-extension://..."> tags). Resolves true when the background
-        // reports a successful chrome.scripting.executeScript({ world: 'MAIN' }).
-        const pendingMainWorld = new Map<string, (ok: boolean) => void>();
-        function injectMainWorld(file: string, timeoutMs = 4000): Promise<boolean> {
-            return new Promise((resolve) => {
-                const timer = setTimeout(() => {
-                    pendingMainWorld.delete(file);
-                    resolve(false);
-                }, timeoutMs);
-                pendingMainWorld.set(file, (ok) => {
-                    clearTimeout(timer);
-                    pendingMainWorld.delete(file);
-                    resolve(ok);
-                });
-                try {
-                    chrome.runtime.sendMessage({ type: 'YCS_INJECT_MAIN_WORLD', file });
-                } catch (err) {
-                    console.warn('[YCS] Main-world injection request failed:', err);
-                    pendingMainWorld.get(file)?.(false);
-                }
-            });
-        }
+        // Safari only: main-world injection via the background (see utils/mainWorld.ts).
+        const mainWorld = IS_SAFARI_BUILD
+            ? createMainWorldInjector((message) => chrome.runtime.sendMessage(message))
+            : null;
 
         // Whitelist of allowed runtime message types
         const ALLOWED_RUNTIME_MESSAGE_TYPES = new Set<string>([
@@ -50,9 +36,8 @@ const DEBUG = false;
                 if (typeof message !== 'object' || message === null) return;
                 const type = (message as any).type;
                 if (typeof type !== 'string') return;
-                if (type === 'YCS_MAIN_WORLD_RESULT') {
-                    const file = (message as any).file;
-                    if (typeof file === 'string') pendingMainWorld.get(file)?.((message as any).ok === true);
+                if (IS_SAFARI_BUILD && type === MAIN_WORLD_RESULT) {
+                    mainWorld?.handleResult((message as any).file, (message as any).ok);
                     return;
                 }
                 if (!ALLOWED_RUNTIME_MESSAGE_TYPES.has(type)) {
@@ -105,7 +90,7 @@ const DEBUG = false;
             'YCS_YT_API_SEARCH_ABORT',
             'YCS_YT_API_REPLIES_START',
             'YCS_YT_API_REPLIES_ABORT',
-            'YCS_LOAD_XLSX'
+            ...(IS_SAFARI_BUILD ? ['YCS_LOAD_XLSX'] : [])
         ]);
 
         const VIDEO_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
@@ -142,8 +127,8 @@ const DEBUG = false;
                         return;
                     }
 
-                    if (msg.type === 'YCS_LOAD_XLSX') {
-                        const ok = await injectMainWorld('web-resources/xlsx-global.js', 10000);
+                    if (IS_SAFARI_BUILD && msg.type === 'YCS_LOAD_XLSX') {
+                        const ok = (await mainWorld?.request('web-resources/xlsx-global.js', 10000)) ?? false;
                         window.postMessage({ type: 'YCS_LOAD_XLSX_RESULT', ok }, window.location.origin);
                     }
 
@@ -249,10 +234,9 @@ const DEBUG = false;
         // Safari applies the page's Content-Security-Policy to <script src> tags pointing at
         // extension URLs (Chrome/Firefox exempt them), and YouTube's CSP blocks them. There we
         // inject through chrome.scripting in the MAIN world instead, falling back to the tag.
-        const preferMainWorld = chrome.runtime.getURL('').startsWith('safari-web-extension:');
         (async function (srcs: string[], target: string): Promise<void> {
             for (let i = 0; i < srcs.length; i++) {
-                if (preferMainWorld && (await injectMainWorld(SCRIPT_SRCS[i]))) continue;
+                if (mainWorld && (await mainWorld.request(SCRIPT_SRCS[i]))) continue;
                 await insertFileScriptWithLoad(srcs[i], target);
             }
         })(fullSrcs, 'body');

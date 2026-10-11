@@ -6,7 +6,8 @@
 # (or use `make safari-xcode VERSION=x.y.z`, which does both).
 #
 # Environment overrides:
-#   YCS_BUNDLE_ID   Bundle identifier for the container app (default: local.ycs-cont.safari)
+#   YCS_BUNDLE_ID   Bundle identifier for the container app (default: local.ycs-cont.YCS--Cont--).
+#                   Its last component should be the sanitized app name (YCS--Cont--); see below.
 #   YCS_PLATFORMS   "macos" (default), "ios", or "both"
 #   YCS_OPEN        set to 0 to skip opening Xcode afterwards
 
@@ -27,7 +28,20 @@ fi
 
 EXT_DIR="packing/YCS-cont/safari-${VERSION}"
 PROJECT_DIR="packing/YCS-Safari-${VERSION}"
-BUNDLE_ID="${YCS_BUNDLE_ID:-local.ycs-cont.safari}"
+APP_NAME="YCS (Cont.)"
+
+# The packager gives the extension "<bundle-id>.Extension" but derives the app's ID from the
+# bundle-id prefix plus the sanitized app name. If the last component differs from that name,
+# Xcode 27 fails with "embedded binary's bundle identifier is not prefixed with that of the
+# parent app". So the default follows that rule, and custom IDs get a warning.
+APP_ID_SUFFIX=$(printf '%s' "$APP_NAME" | sed 's/[^A-Za-z0-9-]/-/g')
+BUNDLE_ID="${YCS_BUNDLE_ID:-local.ycs-cont.${APP_ID_SUFFIX}}"
+if [ "${BUNDLE_ID##*.}" != "$APP_ID_SUFFIX" ]; then
+    echo "⚠️  YCS_BUNDLE_ID=$BUNDLE_ID: its last component isn't \"$APP_ID_SUFFIX\"."
+    echo "   Xcode may refuse to build (extension ID not prefixed with the app ID)."
+    echo "   If it does, use ${BUNDLE_ID%.*}.${APP_ID_SUFFIX} instead."
+    echo ""
+fi
 PLATFORMS="${YCS_PLATFORMS:-macos}"
 
 if [ ! -f "$EXT_DIR/manifest.json" ]; then
@@ -65,7 +79,7 @@ fi
 echo "🧭 Generating Xcode project with $TOOL..."
 xcrun "$TOOL" "$EXT_DIR" \
     --project-location "$PROJECT_DIR" \
-    --app-name "YCS (Cont.)" \
+    --app-name "$APP_NAME" \
     --bundle-identifier "$BUNDLE_ID" \
     --swift \
     --copy-resources \
@@ -75,7 +89,8 @@ xcrun "$TOOL" "$EXT_DIR" \
     "${OPEN_FLAG[@]}"
 
 echo ""
-echo "✅ Xcode project: $PROJECT_DIR"
+# The packager creates the project one level below --project-location.
+echo "✅ Xcode project: $PROJECT_DIR/$APP_NAME/$APP_NAME.xcodeproj"
 echo ""
 echo "Next steps:"
 echo "   1. In Xcode, pick the macOS scheme and press Run (⌘R)."

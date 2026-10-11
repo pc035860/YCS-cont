@@ -65,6 +65,7 @@ Manual release scripts (root):
 ./scripts/build-extension.sh chrome
 ./scripts/build-extension.sh firefox
 ./scripts/build-extension.sh safari   # manifest: app/manifest.safari.json, guide: SAFARI.md
+# Safari-only code is gated on a module-local IS_SAFARI_BUILD = process.env.YCS_PLATFORM === 'safari' (inlined at build time)
 ./scripts/package-extension.sh chrome
 ```
 

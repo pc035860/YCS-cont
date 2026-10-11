@@ -14,7 +14,7 @@ help:
 	@echo "  make build-firefox VERSION=x.y.z       - Build Firefox extension"
 	@echo "  make build-safari VERSION=x.y.z        - Build Safari extension (zip + folder)"
 	@echo "  make safari-xcode VERSION=x.y.z        - Build Safari + generate Xcode app project (macOS only)"
-	@echo "  make build-all VERSION=x.y.z           - Build both platforms"
+	@echo "  make build-all VERSION=x.y.z           - Build all platforms (Chrome, Firefox, Safari)"
 	@echo "  make clean                             - Clean packing directory"
 	@echo ""
 	@echo "Example:"
@@ -30,8 +30,8 @@ release:
 	@echo "🚀 Starting release process (TYPE=$(TYPE))..."
 	@echo ""
 
-	# Step 1: Bump version in both manifests
-	@echo "📝 Step 1: Updating version in app/manifest.json and app/manifest.firefox.json..."
+	# Step 1: Bump version in all manifests
+	@echo "📝 Step 1: Updating version in app/manifest.json, app/manifest.firefox.json and app/manifest.safari.json..."
 	@VERSION=$$(./scripts/bump-version.sh $(TYPE) | tail -1) && \
 	echo "" && \
 	\
