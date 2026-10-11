@@ -61,12 +61,18 @@ xcodebuild -project "$OUT/xcode/$APP_NAME/$APP_NAME.xcodeproj" \
 }
 
 echo "🔌 [4/4] Registering extension..."
-# Drop every other registration of a YCS (Cont.) app or appex (older build paths,
-# loose .appex copies). pluginkit does not list all of them, but Safari still shows
-# each one as a separate YCS entry, so walk the LaunchServices database too.
+# Drop other registrations of this local test build (older build paths, loose .appex
+# copies). pluginkit does not list all of them, but Safari still shows each one as a
+# separate YCS entry, so walk the LaunchServices database too. Only paths that no
+# longer exist or carry our local.ycs-cont.* bundle id are touched, so an installed
+# release copy elsewhere is left alone.
 "$LSREGISTER" -dump 2>/dev/null | sed -n 's/^path: *\(.*YCS (Cont\.)[^/]*\.app\(ex\)\{0,1\}\) (0x[0-9a-f]*)$/\1/p' | sort -u |
 while IFS= read -r path; do
     case "$path" in "$APP" | "$APPEX") continue ;; esac
+    if [ -e "$path" ]; then
+        id=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$path/Contents/Info.plist" 2>/dev/null || true)
+        case "$id" in local.ycs-cont.*) ;; *) continue ;; esac
+    fi
     echo "   removing stale registration: $path"
     pluginkit -r "$path" 2>/dev/null || true
     "$LSREGISTER" -u "$path" 2>/dev/null || true
