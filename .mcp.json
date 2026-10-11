@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "safari": {
+      "type": "stdio",
+      "command": "/usr/bin/safaridriver",
+      "args": [
+        "--mcp"
+      ],
+      "env": {}
+    }
+  }
+}
