@@ -24,6 +24,12 @@
   display: none !important;
 }
 
+.ycs-app.ycs-hide-images .ycs-comment-image-wrapper::before {
+  content: '[Image hidden]';
+  opacity: 0.7;
+  font-size: 0.9em;
+}
+
 html[dark='true'] .ycs-app,
 html[dark] .ycs-app {
   color: #fff;

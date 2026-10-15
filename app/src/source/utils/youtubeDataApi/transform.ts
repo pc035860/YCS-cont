@@ -247,7 +247,7 @@ function formatRunsToText(runs: CommentRun[]): { fullText: string; renderFullTex
             const image = run.attachment.image;
             const width = image.width || 24;
             const height = image.height || 24;
-            renderFullText += `<img src="${safeUrl(image.url)}" alt="${encode(text)}" title="${encode(text)}" width="${width}" height="${height}" style="margin-left: 2px; margin-right: 2px;" class="${image.isImage ? 'ycs-attachment ycs-comment-image' : 'ycs-attachment'}">`;
+            renderFullText += `<span class="${image.isImage ? 'ycs-comment-image-wrapper' : ''}"><img src="${safeUrl(image.url)}" alt="${encode(text)}" title="${encode(text)}" width="${width}" height="${height}" style="margin-left: 2px; margin-right: 2px;" class="${image.isImage ? 'ycs-attachment ycs-comment-image' : 'ycs-attachment'}"></span>`;
         } else {
             renderFullText += encode(text);
         }
