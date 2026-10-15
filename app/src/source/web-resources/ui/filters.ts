@@ -3,6 +3,7 @@ import type { IParamSearch, ISelectedSearch } from '../../utils/interfaces/i_typ
 import { resetSearchCounts } from '../state';
 import type { WebResourcesState } from '../state';
 import { options } from '../../config/options';
+import { mergeFilterButtonsWithDefaults } from '../../config/filterButtons';
 
 export type FilterParamKey = Exclude<keyof IParamSearch, 'sortOrder'>;
 
@@ -185,7 +186,7 @@ export function registerFilterButtons({
 // Generate button configurations dynamically based on user settings
 function getDynamicFilterButtonConfigs(filterButtons?: Array<{ id: string; enabled: boolean }>): FilterButtonConfig[] {
     try {
-        const buttonsToUse = filterButtons || options.filterButtons;
+        const buttonsToUse = mergeFilterButtonsWithDefaults(filterButtons, options.filterButtons);
 
         // Only return enabled button configurations
         const enabledButtons = buttonsToUse.filter((button: { id: string; enabled: boolean }) => button.enabled);

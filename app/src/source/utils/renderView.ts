@@ -4,6 +4,7 @@ import { safeUrl } from '../utils/formatting';
 import { randomString, isShortsPage, isPostsPage } from '../utils/common';
 import { markTextComment, getPiP } from '../utils/dom';
 import { options } from '../config/options';
+import { mergeFilterButtonsWithDefaults } from '../config/filterButtons';
 import { buildCommentViewModels, buildChatMessageViewModels, buildTranscriptViewModels } from './viewModels';
 import type {
     CommentViewModel,
@@ -1399,7 +1400,7 @@ function renderSearch(node: HTMLElement): void {
 // Dynamically load filter buttons
 function loadFilterButtons(filterButtons?: Array<{ id: string; enabled: boolean }>): void {
     try {
-        const buttonsToUse = filterButtons || options.filterButtons;
+        const buttonsToUse = mergeFilterButtonsWithDefaults(filterButtons, options.filterButtons);
         const enabledButtons = buttonsToUse.filter((button: { id: string; enabled: boolean }) => button.enabled);
 
         const panel = document.getElementById('ycs-btn-panel');

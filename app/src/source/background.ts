@@ -1,4 +1,5 @@
 import { options } from './config/options';
+import { mergeFilterButtonsWithDefaults } from './config/filterButtons';
 import { IStorageEstimate, CommentItem } from './utils/interfaces/i_types';
 import type { YouTubeApiComment } from './utils/interfaces/i_types';
 import { idb } from './utils/libs';
@@ -338,7 +339,10 @@ chrome.runtime.onInstalled.addListener(async () => {
 
     await chrome.storage.local.set({
         ...options,
-        ...optsStorage
+        ...optsStorage,
+        ...(Array.isArray(optsStorage.filterButtons) && {
+            filterButtons: mergeFilterButtonsWithDefaults(optsStorage.filterButtons, options.filterButtons)
+        })
     });
 
     chrome.tabs.query({ url: '*://*.youtube.com/*' }, (tabs) => {
