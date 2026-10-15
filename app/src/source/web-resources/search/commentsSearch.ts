@@ -12,6 +12,7 @@ import {
     createMemberFilter,
     createCreatorHeartFilter,
     createLinksFilter,
+    createGifsFilter,
     createTimelineFilter,
     createDonatedFilter,
     createChannelOwnerFilter
@@ -214,6 +215,12 @@ export function runSearchOnComments(
             if (likesB !== likesA) return likesB - likesA;
             return (a.refIndex || 0) - (b.refIndex || 0);
         });
+    } else if (param.gifs) {
+        const agg = applyFilters(comments, [createGifsFilter(true)]);
+        resultSearch = applyTextMatches(
+            agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
+            matches
+        );
     } else if (param.links) {
         const agg = applyFilters(comments, [createLinksFilter(true)]);
         resultSearch = applyTextMatches(

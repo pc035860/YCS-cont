@@ -175,7 +175,15 @@ import { renderCommentsResult, renderChatResult, renderTranscriptResult } from '
 
 const DEBUG = false;
 
-const CHAT_UNSUPPORTED_FILTERS = ['heart', 'likes', 'replied', 'random', 'quickTranscript', 'timestampViz'] as const;
+const CHAT_UNSUPPORTED_FILTERS = [
+    'heart',
+    'likes',
+    'replied',
+    'random',
+    'quickTranscript',
+    'timestampViz',
+    'gifs'
+] as const;
 const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'heart',
     'likes',
@@ -186,7 +194,8 @@ const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'members',
     'verified',
     'quickChat',
-    'timestampViz'
+    'timestampViz',
+    'gifs'
 ] as const;
 type SortAttribute = 'sort' | 'sortChat' | 'sortTrp';
 
@@ -2684,6 +2693,15 @@ export function initApp(): void {
                     }
                 };
 
+                const optHideGifs = (value: boolean): void => {
+                    try {
+                        GlobalStore.hideGifs = value;
+                        document.querySelector('.ycs-app')?.classList.toggle('ycs-hide-gifs', value);
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
                 const optHiddenByDefault = (opts: IYCSOptions): void => {
                     try {
                         const app = document.querySelector('.ycs-app') as HTMLElement;
@@ -2793,6 +2811,10 @@ export function initApp(): void {
 
                             case 'autoExpandReplyContext':
                                 optAutoExpandReplyContext(Boolean(opts.autoExpandReplyContext));
+                                break;
+
+                            case 'hideGifs':
+                                optHideGifs(Boolean(opts.hideGifs));
                                 break;
 
                             case 'hiddenByDefault':

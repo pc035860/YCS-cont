@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { safeUrl } from '../utils/formatting';
-import { randomString, isShortsPage, isPostsPage } from '../utils/common';
+import { randomString, isShortsPage, isPostsPage, GlobalStore } from '../utils/common';
 import { markTextComment, getPiP } from '../utils/dom';
 import { options } from '../config/options';
 import { buildCommentViewModels, buildChatMessageViewModels, buildTranscriptViewModels } from './viewModels';
@@ -936,6 +936,7 @@ function renderLoadComments(
 
     const nodeTag = document.createElement('div');
     nodeTag.className = isShortsPage() ? 'ycs-app ycs-compact' : 'ycs-app';
+    nodeTag.classList.toggle('ycs-hide-gifs', Boolean(GlobalStore.hideGifs));
     nodeTag.innerHTML = `
         <div class="ycs-app-toggle"><p class="ycs-title ycs-left">YouTube Comment Search <span id="ycs-count-load-collapsed"></span></p><div class="ycs-right"><button class="ycs-btn-toggle-app ycs-btn-search ycs_noselect" type="button">Show YCS</button>${sidebarToggleButtons()}</div></div>
         <div class="ycs-app-main">
@@ -1238,6 +1239,11 @@ function generateFilterButtonHTML(buttonId: string): string {
             dataSortChat: 'newest',
             dataSortTrp: 'newest'
         },
+        ycs_btn_gifs: {
+            name: 'gifs',
+            title: 'Show comments and replies with GIFs',
+            icon: '<span class="ycs-creator-gif_icon">🖼️</span>'
+        },
         ycs_btn_likes: {
             name: 'likes',
             title: 'Show comments, replies by number of likes (sort largest to smallest)'
@@ -1314,23 +1320,25 @@ function generateFilterButtonHTML(buttonId: string): string {
                             ? ''
                             : config.name === 'links'
                               ? 'Links'
-                              : config.name === 'likes'
-                                ? 'Likes'
-                                : config.name === 'replied'
-                                  ? 'Replied'
-                                  : config.name === 'members'
-                                    ? 'Members'
-                                    : config.name === 'donated'
-                                      ? 'Donated'
-                                      : config.name === 'sortFirst'
-                                        ? 'All'
-                                        : config.name === 'random'
-                                          ? 'Random'
-                                          : config.name === 'quickChat'
-                                            ? 'Chat'
-                                            : config.name === 'quickTranscript'
-                                              ? 'Transcript'
-                                              : config.name
+                              : config.name === 'gifs'
+                                ? ''
+                                : config.name === 'likes'
+                                  ? 'Likes'
+                                  : config.name === 'replied'
+                                    ? 'Replied'
+                                    : config.name === 'members'
+                                      ? 'Members'
+                                      : config.name === 'donated'
+                                        ? 'Donated'
+                                        : config.name === 'sortFirst'
+                                          ? 'All'
+                                          : config.name === 'random'
+                                            ? 'Random'
+                                            : config.name === 'quickChat'
+                                              ? 'Chat'
+                                              : config.name === 'quickTranscript'
+                                                ? 'Transcript'
+                                                : config.name
             }
             ${sortIcon}
         </button>`;

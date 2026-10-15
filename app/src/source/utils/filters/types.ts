@@ -12,6 +12,7 @@ export interface DerivedComment {
     isDonated: boolean;
     hasCreatorHeart: boolean;
     hasLinks: boolean;
+    hasGifs: boolean;
     isTimeline: boolean;
     isChannelOwner: boolean;
     publishedTimeText: string;

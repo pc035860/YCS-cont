@@ -20,6 +20,10 @@
   font-family: Roboto, Arial, sans-serif;
 }
 
+.ycs-app.ycs-hide-gifs .ycs-comment-gif {
+  display: none !important;
+}
+
 html[dark='true'] .ycs-app,
 html[dark] .ycs-app {
   color: #fff;

@@ -4,7 +4,7 @@ import test from 'node:test';
 import { transformThreadToCommentItems } from '../src/source/utils/youtubeDataApi/transform';
 
 // Helper to create a mock YouTube API comment thread
-function createMockThread(textDisplay: string, textOriginal?: string) {
+function createMockThread(textDisplay: string, textOriginal?: string, imageUrl?: string) {
     return {
         id: 'thread123',
         snippet: {
@@ -16,6 +16,7 @@ function createMockThread(textDisplay: string, textOriginal?: string) {
                     authorDisplayName: 'Test User',
                     authorProfileImageUrl: 'https://example.com/avatar.jpg',
                     authorChannelUrl: 'https://www.youtube.com/channel/UC123',
+                    ...(imageUrl ? { imageUrl } : {}),
                     likeCount: 0,
                     publishedAt: '2024-01-01T00:00:00Z',
                     updatedAt: '2024-01-01T00:00:00Z'
@@ -52,6 +53,16 @@ test('transformThreadToCommentItems: XSS - HTML injection in comment should be s
     // YouTube Data API strips HTML tags
     assert.ok(!renderFullText.includes('<img'), 'Raw img tag should not appear');
     assert.ok(!renderFullText.includes('onerror='), 'Event handler should not appear');
+});
+
+test('transformThreadToCommentItems: extracts valid image attachments', () => {
+    const thread = createMockThread('comment text', undefined, 'https://i.ytimg.com/comment.gif');
+    const items = transformThreadToCommentItems(thread as any, 'video123');
+    const renderer = items[0].commentRenderer as any;
+
+    assert.equal(renderer.contentText.runs[1].attachment.image.url, 'https://i.ytimg.com/comment.gif');
+    assert.equal(renderer.contentText.runs[1].attachment.image.isGif, true);
+    assert.ok(renderer.contentText.renderFullText.includes('ycs-comment-gif'));
 });
 
 test('transformThreadToCommentItems: XSS - javascript URL in link should be blocked', () => {

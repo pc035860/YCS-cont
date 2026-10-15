@@ -70,6 +70,10 @@ export function createLinksFilter(only = true): FilterConfig<boolean> {
     return createFilter('links', 'Links Filter', (item, flag) => (!flag ? true : item.hasLinks), only);
 }
 
+export function createGifsFilter(only = true): FilterConfig<boolean> {
+    return createFilter('gifs', 'GIFs Filter', (item, flag) => (!flag ? true : item.hasGifs), only);
+}
+
 export function createTimelineFilter(only = true): FilterConfig<boolean> {
     return createFilter('timeline', 'Timeline Filter', (item, flag) => (!flag ? true : item.isTimeline), only);
 }

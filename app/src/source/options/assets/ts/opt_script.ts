@@ -89,6 +89,12 @@ window.onload = async (): Promise<void> => {
             (document.getElementById('y_opts_hidden_by_default') as HTMLInputElement).checked = param;
         };
 
+        const setRenderHideGifs = (param: boolean): void => {
+            if (typeof param !== 'boolean') return;
+
+            (document.getElementById('y_opts_hide_gifs') as HTMLInputElement).checked = param;
+        };
+
         const optSetSortTimestamp = async (opt: HTMLInputElement): Promise<void> => {
             try {
                 await chrome.storage.local.set({
@@ -415,6 +421,7 @@ window.onload = async (): Promise<void> => {
                 ycs_btn_heart: '❤ (Heart)',
                 ycs_btn_verified: '✔ (Verified)',
                 ycs_btn_links: 'Links',
+                ycs_btn_gifs: '🖼️ (GIFs)',
                 ycs_btn_likes: 'Likes',
                 ycs_btn_replied_comments: 'Replied',
                 ycs_btn_members: 'Members',
@@ -684,6 +691,16 @@ window.onload = async (): Promise<void> => {
             }
         };
 
+        const optSetHideGifs = async (opt: HTMLInputElement): Promise<void> => {
+            try {
+                await chrome.storage.local.set({
+                    hideGifs: opt.checked
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
         const optSetHiddenByDefaultShorts = async (opt: HTMLInputElement): Promise<void> => {
             try {
                 await chrome.storage.local.set({
@@ -811,6 +828,10 @@ window.onload = async (): Promise<void> => {
                         setRenderHiddenByDefault(storageOpts[key]);
                         break;
 
+                    case 'hideGifs':
+                        setRenderHideGifs(storageOpts[key]);
+                        break;
+
                     case 'sortTimestamp':
                         setRenderSortTimestampOpt(storageOpts[key]);
                         break;
@@ -904,6 +925,10 @@ window.onload = async (): Promise<void> => {
 
                 case 'y_opts_hidden_by_default':
                     optSetHiddenByDefault(e.target as HTMLInputElement);
+                    break;
+
+                case 'y_opts_hide_gifs':
+                    optSetHideGifs(e.target as HTMLInputElement);
                     break;
 
                 case 'y_opts_sort_timestamp':

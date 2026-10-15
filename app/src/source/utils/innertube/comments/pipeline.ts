@@ -131,6 +131,15 @@ export function formatCommentRuns(runs: any[] | undefined, currentVideoId: strin
                 const alt = (wrapTryCatch(() => (partTextComment as any).emoji.shortcuts?.[0]) as string) || '';
                 const style = `margin-left: 2px; margin-right: 2px;`;
                 renderFullTextComment += `<img src="${safeUrl(url)}" alt="${encode(alt)}" title="${encode(alt)}" width="24" height="24" style="${style}" class="ycs-attachment">`;
+            } else if (wrapTryCatch(() => (partTextComment as any).attachment?.image?.isGif)) {
+                const image: any = wrapTryCatch(() => (partTextComment as any).attachment.image);
+                const url = image?.url || '';
+                const width = image?.width || 24;
+                const height = image?.height || 24;
+                const margin = image?.margin || { left: 0, right: 0 };
+                const style = `display: block; margin-left: ${margin.left || 0}px; margin-right: ${margin.right || 0}px;`;
+                const alt = text || '';
+                renderFullTextComment += `<img src="${safeUrl(url)}" alt="${encode(alt)}" title="${encode(alt)}" width="${width}" height="${height}" style="${style}" class="ycs-attachment ycs-comment-gif">`;
             } else if (wrapTryCatch(() => (partTextComment as any).attachment?.image)) {
                 const image: any = wrapTryCatch(() => (partTextComment as any).attachment.image);
                 const url = image?.url || '';
@@ -431,7 +440,34 @@ export function generateCommentObjectFromFW(params: {
 
         rawRuns.sort((a: any, b: any) => (a?.startIndex || 0) - (b?.startIndex || 0));
         const runs = migrateRuns(baseText, rawRuns);
-
+        const surfaceAttachment = wrapTryCatch(
+            () => surfaceUpdate?.imageAttachmentViewModel?.commentImageAttachmentViewModel
+        );
+        if (surfaceAttachment) {
+            const sources = wrapTryCatch(() => surfaceAttachment.image.sources) || [];
+            const source = sources[sources.length - 1];
+            const attachmentUrl = wrapTryCatch(() => source.url);
+            if (attachmentUrl) {
+                const sourceWidth = Number(wrapTryCatch(() => source.width) || surfaceAttachment.width);
+                const sourceHeight = Number(wrapTryCatch(() => source.height) || surfaceAttachment.height);
+                const hasValidDimensions =
+                    Number.isFinite(sourceWidth) &&
+                    Number.isFinite(sourceHeight) &&
+                    sourceWidth > 0 &&
+                    sourceHeight > 0;
+                const scale = hasValidDimensions ? Math.min(228 / sourceWidth, 128 / sourceHeight, 1) : 1;
+                runs.push({
+                    attachment: {
+                        image: {
+                            url: attachmentUrl,
+                            isGif: true,
+                            width: hasValidDimensions ? Math.round(sourceWidth * scale) : 24,
+                            height: hasValidDimensions ? Math.round(sourceHeight * scale) : 24
+                        }
+                    }
+                });
+            }
+        }
         const author = wrapTryCatch(() => update.author) || {};
         const likeCountLiked = wrapTryCatch(() => update.toolbar?.likeCountLiked);
         let likeCount = 0;
@@ -902,6 +938,10 @@ export function prepareFieldsComment(cmnt: any): object {
                 if (navigationEndpoint) {
                     runCopy.navigationEndpoint = navigationEndpoint;
                 }
+                const attachment = wrapTryCatch(() => run?.attachment);
+                if (attachment) {
+                    runCopy.attachment = attachment;
+                }
                 return runCopy;
             });
         });
@@ -1027,6 +1067,7 @@ export function prepareFieldsComment(cmnt: any): object {
                 if (!textPart) continue;
                 const originalText = wrapTryCatch(() => textPart?.text);
                 const navEndpoint = wrapTryCatch(() => textPart?.navigationEndpoint);
+                const attachment = wrapTryCatch(() => textPart?.attachment);
                 if (navEndpoint) {
                     wrapTryCatch(
                         () =>
@@ -1051,10 +1092,16 @@ export function prepareFieldsComment(cmnt: any): object {
                     if (typeof originalText !== 'undefined') {
                         cmnt.commentRenderer.contentText.runs[i].text = originalText;
                     }
+                    if (attachment) {
+                        cmnt.commentRenderer.contentText.runs[i].attachment = attachment;
+                    }
                 } else {
                     cmnt.commentRenderer.contentText.runs[i] = {};
                     if (typeof originalText !== 'undefined') {
                         cmnt.commentRenderer.contentText.runs[i].text = originalText;
+                    }
+                    if (attachment) {
+                        cmnt.commentRenderer.contentText.runs[i].attachment = attachment;
                     }
                 }
             }
@@ -1144,6 +1191,9 @@ export function prepareFieldsComment(cmnt: any): object {
                 }
                 if (run?.navigationEndpoint) {
                     sanitized.navigationEndpoint = run.navigationEndpoint;
+                }
+                if (run?.attachment) {
+                    sanitized.attachment = run.attachment;
                 }
                 return sanitized;
             });

@@ -243,6 +243,11 @@ function formatRunsToText(runs: CommentRun[]): { fullText: string; renderFullTex
             const rawUrl = run.navigationEndpoint.commandMetadata.webCommandMetadata.url;
             const url = safeUrl(rawUrl);
             renderFullText += `<a class="ycs-comment-link" href="${url}" target="_blank" rel="noopener">${encode(text)}</a>`;
+        } else if (run.attachment?.image?.url) {
+            const image = run.attachment.image;
+            const width = image.width || 24;
+            const height = image.height || 24;
+            renderFullText += `<img src="${safeUrl(image.url)}" alt="${encode(text)}" title="${encode(text)}" width="${width}" height="${height}" style="margin-left: 2px; margin-right: 2px;" class="ycs-attachment${image.isGif ? ' ycs-comment-gif' : ''}">`;
         } else {
             renderFullText += encode(text);
         }
@@ -292,6 +297,18 @@ function transformApiCommentToRenderer(
     replyCount?: number
 ): CommentRenderer {
     const { runs, hasTimeline } = parseTextToRuns(apiComment.snippet.textDisplay, videoId);
+    const imageUrl = apiComment.snippet.imageUrl;
+    if (imageUrl && safeUrl(imageUrl) !== '#') {
+        runs.push({
+            text: '',
+            attachment: {
+                image: {
+                    url: imageUrl,
+                    isGif: true
+                }
+            }
+        });
+    }
     const { fullText, renderFullText } = formatRunsToText(runs);
 
     const renderer: CommentRenderer = {
