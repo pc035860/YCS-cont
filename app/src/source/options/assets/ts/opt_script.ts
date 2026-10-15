@@ -1,4 +1,5 @@
 import { options } from '../../../config/options';
+import { mergeFilterButtonsWithDefaults } from '../../../config/filterButtons';
 import { formatBytes } from '../../../utils/formatting';
 import { isNumeric } from '../../../utils/common';
 import { idb } from '../../../utils/libs';
@@ -844,7 +845,7 @@ window.onload = async (): Promise<void> => {
                         break;
 
                     case 'filterButtons':
-                        setRenderFilterButtons(storageOpts[key]);
+                        setRenderFilterButtons(mergeFilterButtonsWithDefaults(storageOpts[key], options.filterButtons));
                         break;
 
                     case 'youtubeApiKey':
