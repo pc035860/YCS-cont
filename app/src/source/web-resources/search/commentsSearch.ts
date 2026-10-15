@@ -12,7 +12,7 @@ import {
     createMemberFilter,
     createCreatorHeartFilter,
     createLinksFilter,
-    createGifsFilter,
+    createImagesFilter,
     createTimelineFilter,
     createDonatedFilter,
     createChannelOwnerFilter
@@ -215,8 +215,8 @@ export function runSearchOnComments(
             if (likesB !== likesA) return likesB - likesA;
             return (a.refIndex || 0) - (b.refIndex || 0);
         });
-    } else if (param.gifs) {
-        const agg = applyFilters(comments, [createGifsFilter(true)]);
+    } else if (param.images) {
+        const agg = applyFilters(comments, [createImagesFilter(true)]);
         resultSearch = applyTextMatches(
             agg.items.map((item) => ({ item, refIndex: (item as any)?._index ?? 0 })),
             matches

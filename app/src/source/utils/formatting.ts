@@ -360,6 +360,7 @@ function getCommentsHtmlText(comments: any): any | undefined {
         const commentContent = (cmnt: any): string => {
             const text = cmnt?.commentRenderer?.contentText?.fullText || '';
             const imageUrls = (cmnt?.commentRenderer?.contentText?.runs || [])
+                .filter((run: any) => run?.attachment?.image?.isImage)
                 .map((run: any) => run?.attachment?.image?.url)
                 .filter((url: unknown): url is string => typeof url === 'string' && url.length > 0);
             return imageUrls.length > 0 ? `${text}\n${imageUrls.join('\n')}` : text;

@@ -56,13 +56,13 @@ test('transformThreadToCommentItems: XSS - HTML injection in comment should be s
 });
 
 test('transformThreadToCommentItems: extracts valid image attachments', () => {
-    const thread = createMockThread('comment text', undefined, 'https://i.ytimg.com/comment.gif');
+    const thread = createMockThread('comment text', undefined, 'https://i.ytimg.com/comment.webp');
     const items = transformThreadToCommentItems(thread as any, 'video123');
     const renderer = items[0].commentRenderer as any;
 
-    assert.equal(renderer.contentText.runs[1].attachment.image.url, 'https://i.ytimg.com/comment.gif');
-    assert.equal(renderer.contentText.runs[1].attachment.image.isGif, true);
-    assert.ok(renderer.contentText.renderFullText.includes('ycs-comment-gif'));
+    assert.equal(renderer.contentText.runs[1].attachment.image.url, 'https://i.ytimg.com/comment.webp');
+    assert.equal(renderer.contentText.runs[1].attachment.image.isImage, true);
+    assert.ok(renderer.contentText.renderFullText.includes('ycs-comment-image'));
 });
 
 test('transformThreadToCommentItems: XSS - javascript URL in link should be blocked', () => {

@@ -90,17 +90,19 @@ test('buildCommentsExportPayload includes attachment image URLs', () => {
     const comments: CommentItem[] = [
         {
             commentRenderer: {
-                commentId: 'gif-comment',
-                authorText: { simpleText: 'Gif User' },
+                commentId: 'image-comment',
+                authorText: { simpleText: 'Image User' },
                 contentText: {
-                    fullText: 'A comment with a GIF',
+                    fullText: 'A comment with an image',
                     runs: [
-                        { text: 'A comment with a GIF' },
+                        { text: 'A comment with an image' },
                         {
                             text: '',
                             attachment: {
                                 image: {
-                                    isGif: true, url: 'https://i.ytimg.com/comment.gif' }
+                                    isImage: true,
+                                    url: 'https://i.ytimg.com/comment.webp'
+                                }
                             }
                         }
                     ]
@@ -112,7 +114,7 @@ test('buildCommentsExportPayload includes attachment image URLs', () => {
 
     const payload = buildCommentsExportPayload({ comments, videoId: 'vid' });
 
-    assert.equal(payload.comments[0].imageUrl, 'https://i.ytimg.com/comment.gif');
+    assert.equal(payload.comments[0].imageUrl, 'https://i.ytimg.com/comment.webp');
 });
 
 test('buildCommentsExportPayload excludes emoji image URLs', () => {

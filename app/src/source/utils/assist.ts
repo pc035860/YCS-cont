@@ -92,7 +92,7 @@ export {
     createMemberFilter,
     createCreatorHeartFilter,
     createLinksFilter,
-    createGifsFilter
+    createImagesFilter
 } from './filters/commentsAgg';
 
 export {

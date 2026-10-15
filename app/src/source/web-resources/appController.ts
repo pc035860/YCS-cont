@@ -182,7 +182,7 @@ const CHAT_UNSUPPORTED_FILTERS = [
     'random',
     'quickTranscript',
     'timestampViz',
-    'gifs'
+    'images'
 ] as const;
 const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'heart',
@@ -195,7 +195,7 @@ const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'verified',
     'quickChat',
     'timestampViz',
-    'gifs'
+    'images'
 ] as const;
 type SortAttribute = 'sort' | 'sortChat' | 'sortTrp';
 
@@ -2693,10 +2693,10 @@ export function initApp(): void {
                     }
                 };
 
-                const optHideGifs = (value: boolean): void => {
+                const optHideImages = (value: boolean): void => {
                     try {
-                        GlobalStore.hideGifs = value;
-                        document.querySelector('.ycs-app')?.classList.toggle('ycs-hide-gifs', value);
+                        GlobalStore.hideImages = value;
+                        document.querySelector('.ycs-app')?.classList.toggle('ycs-hide-images', value);
                     } catch (err) {
                         console.error(err);
                     }
@@ -2813,8 +2813,8 @@ export function initApp(): void {
                                 optAutoExpandReplyContext(Boolean(opts.autoExpandReplyContext));
                                 break;
 
-                            case 'hideGifs':
-                                optHideGifs(Boolean(opts.hideGifs));
+                            case 'hideImages':
+                                optHideImages(Boolean(opts.hideImages));
                                 break;
 
                             case 'hiddenByDefault':

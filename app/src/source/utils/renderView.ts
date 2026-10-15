@@ -936,7 +936,7 @@ function renderLoadComments(
 
     const nodeTag = document.createElement('div');
     nodeTag.className = isShortsPage() ? 'ycs-app ycs-compact' : 'ycs-app';
-    nodeTag.classList.toggle('ycs-hide-gifs', Boolean(GlobalStore.hideGifs));
+    nodeTag.classList.toggle('ycs-hide-images', Boolean(GlobalStore.hideImages));
     nodeTag.innerHTML = `
         <div class="ycs-app-toggle"><p class="ycs-title ycs-left">YouTube Comment Search <span id="ycs-count-load-collapsed"></span></p><div class="ycs-right"><button class="ycs-btn-toggle-app ycs-btn-search ycs_noselect" type="button">Show YCS</button>${sidebarToggleButtons()}</div></div>
         <div class="ycs-app-main">
@@ -1239,9 +1239,9 @@ function generateFilterButtonHTML(buttonId: string): string {
             dataSortChat: 'newest',
             dataSortTrp: 'newest'
         },
-        ycs_btn_gifs: {
-            name: 'gifs',
-            title: 'Show comments and replies with GIFs',
+        ycs_btn_images: {
+            name: 'images',
+            title: 'Show comments and replies with images',
             icon: '<span class="ycs-creator-gif_icon">🖼️</span>'
         },
         ycs_btn_likes: {
@@ -1320,7 +1320,7 @@ function generateFilterButtonHTML(buttonId: string): string {
                             ? ''
                             : config.name === 'links'
                               ? 'Links'
-                              : config.name === 'gifs'
+                              : config.name === 'images'
                                 ? ''
                                 : config.name === 'likes'
                                   ? 'Likes'

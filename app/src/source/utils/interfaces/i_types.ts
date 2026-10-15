@@ -12,7 +12,7 @@ export interface CommentRun extends Record<string, unknown> {
             url?: string;
             width?: number;
             height?: number;
-            isGif?: boolean;
+            isImage?: boolean;
         };
     };
     navigationEndpoint?: {
@@ -295,7 +295,7 @@ export type ICommentItem = CommentItem;
 
 export interface IParamSearch {
     links?: boolean;
-    gifs?: boolean;
+    images?: boolean;
     likes?: boolean;
     members?: boolean;
     replied?: boolean;
@@ -338,7 +338,7 @@ export interface IYCSOptions {
     highlightText?: boolean;
     sortTimestamp?: boolean;
     highlightExact?: boolean;
-    hideGifs?: boolean;
+    hideImages?: boolean;
     cache?: boolean;
     autoClear?: number;
     hiddenByDefault?: boolean;
@@ -373,7 +373,7 @@ export interface YouTubeApiComment {
         authorProfileImageUrl: string;
         authorChannelUrl: string;
         authorChannelId: { value: string };
-        imageUrl?: string;
+        imageUrl?: string; // Image or animated GIF attachment URL. URL expires six hours after retrieval.
         channelId?: string;
         videoId?: string;
         textDisplay: string;

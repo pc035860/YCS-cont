@@ -247,7 +247,7 @@ function formatRunsToText(runs: CommentRun[]): { fullText: string; renderFullTex
             const image = run.attachment.image;
             const width = image.width || 24;
             const height = image.height || 24;
-            renderFullText += `<img src="${safeUrl(image.url)}" alt="${encode(text)}" title="${encode(text)}" width="${width}" height="${height}" style="margin-left: 2px; margin-right: 2px;" class="ycs-attachment${image.isGif ? ' ycs-comment-gif' : ''}">`;
+            renderFullText += `<img src="${safeUrl(image.url)}" alt="${encode(text)}" title="${encode(text)}" width="${width}" height="${height}" style="margin-left: 2px; margin-right: 2px;" class="${image.isImage ? 'ycs-attachment ycs-comment-image' : 'ycs-attachment'}">`;
         } else {
             renderFullText += encode(text);
         }
@@ -299,12 +299,17 @@ function transformApiCommentToRenderer(
     const { runs, hasTimeline } = parseTextToRuns(apiComment.snippet.textDisplay, videoId);
     const imageUrl = apiComment.snippet.imageUrl;
     if (imageUrl && safeUrl(imageUrl) !== '#') {
+        /*
+         * Data API imageUrl covers both still images and animated GIFs, with no media-type signal.
+         * The URL expires six hours after retrieval;
+         * cached comments and exports preserve the URL, not a durable copy of the media.
+         */
         runs.push({
             text: '',
             attachment: {
                 image: {
                     url: imageUrl,
-                    isGif: true
+                    isImage: true
                 }
             }
         });

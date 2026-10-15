@@ -16,7 +16,7 @@ export function deriveComment(item: CommentItemLike): DerivedComment {
         | {
               text?: string;
               attachment?: {
-                  image?: { url?: string; isGif?: boolean };
+                  image?: { url?: string; isImage?: boolean };
               };
           }
         | undefined
@@ -43,7 +43,7 @@ export function deriveComment(item: CommentItemLike): DerivedComment {
         commentRenderer?.actionButtons?.commentActionButtonsRenderer?.creatorHeart || commentRenderer?.creatorHeart
     );
     const hasLinks = /https?:\/\//i.test(content);
-    const hasGifs = commentRenderer?.contentText?.runs?.some((run: any) => run?.attachment?.image?.isGif) ?? false;
+    const hasImages = commentRenderer?.contentText?.runs?.some((run: any) => run?.attachment?.image?.isImage) ?? false;
     const isTimeline = commentRenderer?.isTimeLine === 'timeline';
     const publishedTimeText = commentRenderer?.publishedTimeText?.runs?.[0]?.text || '';
     const isChannelOwner = Boolean(commentRenderer?.authorIsChannelOwner);
@@ -59,7 +59,7 @@ export function deriveComment(item: CommentItemLike): DerivedComment {
         isDonated,
         hasCreatorHeart,
         hasLinks,
-        hasGifs,
+        hasImages,
         isTimeline,
         isChannelOwner,
         publishedTimeText

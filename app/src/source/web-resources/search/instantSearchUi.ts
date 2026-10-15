@@ -33,6 +33,7 @@ export const INSTANT_ALWAYS_DEGRADED_FILTER_PARAMS: FilterParamKey[] = [
 export const INSTANT_UNLOCKABLE_FILTER_PARAMS: FilterParamKey[] = [
     'random',
     'links',
+    'images',
     'likes',
     'replied',
     'timestamp',

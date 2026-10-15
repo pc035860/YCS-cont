@@ -20,7 +20,7 @@ export const FILTER_BUTTONS: FilterButtonConfig[] = [
     { elementId: 'ycs_btn_heart', param: 'heart', supportsSort: true },
     { elementId: 'ycs_btn_verified', param: 'verified', supportsSort: true },
     { elementId: 'ycs_btn_links', param: 'links', supportsSort: true },
-    { elementId: 'ycs_btn_gifs', param: 'gifs' },
+    { elementId: 'ycs_btn_images', param: 'images' },
     { elementId: 'ycs_btn_likes', param: 'likes' },
     { elementId: 'ycs_btn_replied_comments', param: 'replied' },
     { elementId: 'ycs_btn_members', param: 'members', supportsSort: true },

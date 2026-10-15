@@ -161,7 +161,7 @@ function buildCommentImageUrl(renderer: any): string {
     const runs = renderer?.contentText?.runs;
     if (!Array.isArray(runs)) return '';
 
-    const imageRun = runs.find((run: any) => run?.attachment?.image?.isGif && run?.attachment?.image?.url);
+    const imageRun = runs.find((run: any) => run?.attachment?.image?.isImage && run?.attachment?.image?.url);
     return imageRun?.attachment?.image?.url || '';
 }
 

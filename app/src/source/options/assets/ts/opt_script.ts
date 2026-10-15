@@ -89,10 +89,10 @@ window.onload = async (): Promise<void> => {
             (document.getElementById('y_opts_hidden_by_default') as HTMLInputElement).checked = param;
         };
 
-        const setRenderHideGifs = (param: boolean): void => {
+        const setRenderHideImages = (param: boolean): void => {
             if (typeof param !== 'boolean') return;
 
-            (document.getElementById('y_opts_hide_gifs') as HTMLInputElement).checked = param;
+            (document.getElementById('y_opts_hide_images') as HTMLInputElement).checked = param;
         };
 
         const optSetSortTimestamp = async (opt: HTMLInputElement): Promise<void> => {
@@ -421,7 +421,7 @@ window.onload = async (): Promise<void> => {
                 ycs_btn_heart: '❤ (Heart)',
                 ycs_btn_verified: '✔ (Verified)',
                 ycs_btn_links: 'Links',
-                ycs_btn_gifs: '🖼️ (GIFs)',
+                ycs_btn_images: '🖼️ (Images)',
                 ycs_btn_likes: 'Likes',
                 ycs_btn_replied_comments: 'Replied',
                 ycs_btn_members: 'Members',
@@ -691,10 +691,10 @@ window.onload = async (): Promise<void> => {
             }
         };
 
-        const optSetHideGifs = async (opt: HTMLInputElement): Promise<void> => {
+        const optSetHideImages = async (opt: HTMLInputElement): Promise<void> => {
             try {
                 await chrome.storage.local.set({
-                    hideGifs: opt.checked
+                    hideImages: opt.checked
                 });
             } catch (err) {
                 console.error(err);
@@ -828,8 +828,8 @@ window.onload = async (): Promise<void> => {
                         setRenderHiddenByDefault(storageOpts[key]);
                         break;
 
-                    case 'hideGifs':
-                        setRenderHideGifs(storageOpts[key]);
+                    case 'hideImages':
+                        setRenderHideImages(storageOpts[key]);
                         break;
 
                     case 'sortTimestamp':
@@ -927,8 +927,8 @@ window.onload = async (): Promise<void> => {
                     optSetHiddenByDefault(e.target as HTMLInputElement);
                     break;
 
-                case 'y_opts_hide_gifs':
-                    optSetHideGifs(e.target as HTMLInputElement);
+                case 'y_opts_hide_images':
+                    optSetHideImages(e.target as HTMLInputElement);
                     break;
 
                 case 'y_opts_sort_timestamp':

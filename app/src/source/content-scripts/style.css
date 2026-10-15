@@ -20,7 +20,7 @@
   font-family: Roboto, Arial, sans-serif;
 }
 
-.ycs-app.ycs-hide-gifs .ycs-comment-gif {
+.ycs-app.ycs-hide-images .ycs-comment-image {
   display: none !important;
 }
 

@@ -142,6 +142,50 @@ test('generateCommentObjectFromFW populates author metadata and counts', () => {
     );
 });
 
+test('generateCommentObjectFromFW extracts image attachment and scales its dimensions', () => {
+    const comment = generateCommentObjectFromFW({
+        commentId: 'comment-with-image',
+        update: { properties: { content: { content: 'An image' } }, author: {} },
+        surfaceUpdate: {
+            imageAttachmentViewModel: {
+                commentImageAttachmentViewModel: {
+                    image: {
+                        sources: [
+                            { url: 'https://example.com/small.webp', width: 100, height: 50 },
+                            { url: 'https://example.com/large.webp', width: 1000, height: 500 }
+                        ]
+                    }
+                }
+            }
+        }
+    });
+
+    const imageRun = comment.commentRenderer.contentText.runs.find((run: any) => run?.attachment?.image?.isImage);
+    assert.deepStrictEqual(imageRun?.attachment?.image, {
+        url: 'https://example.com/large.webp',
+        isImage: true,
+        width: 228,
+        height: 114
+    });
+});
+
+test('generateCommentObjectFromFW ignores image attachment with an empty sources array', () => {
+    const comment = generateCommentObjectFromFW({
+        commentId: 'comment-with-empty-image-sources',
+        update: { properties: { content: { content: 'No webp source' } }, author: {} },
+        surfaceUpdate: {
+            imageAttachmentViewModel: {
+                commentImageAttachmentViewModel: { image: { sources: [] } }
+            }
+        }
+    });
+
+    assert.strictEqual(
+        comment.commentRenderer.contentText.runs.some((run: any) => run?.attachment?.image?.isImage),
+        false
+    );
+});
+
 test('processParentComment builds parent without continuations', () => {
     const thread = createParentThread();
 
