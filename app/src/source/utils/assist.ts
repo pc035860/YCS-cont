@@ -91,7 +91,8 @@ export {
     createVerifiedFilter,
     createMemberFilter,
     createCreatorHeartFilter,
-    createLinksFilter
+    createLinksFilter,
+    createImagesFilter
 } from './filters/commentsAgg';
 
 export {

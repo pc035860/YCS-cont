@@ -54,8 +54,8 @@ function makeComment(id: string): CommentItem {
 }
 
 test('DEGRADED_FILTER_ELEMENT_IDS derive from FILTER_BUTTONS', () => {
-    assert.equal(DEGRADED_FILTER_PARAMS.length, 12);
-    assert.equal(DEGRADED_FILTER_ELEMENT_IDS.length, 12);
+    assert.equal(DEGRADED_FILTER_PARAMS.length, 13);
+    assert.equal(DEGRADED_FILTER_ELEMENT_IDS.length, 13);
     assert.deepEqual(DEGRADED_FILTER_ELEMENT_IDS, [
         'ycs_btn_heart',
         'ycs_btn_verified',
@@ -65,6 +65,7 @@ test('DEGRADED_FILTER_ELEMENT_IDS derive from FILTER_BUTTONS', () => {
         'ycs_btn_timestamp_viz',
         'ycs_btn_random',
         'ycs_btn_links',
+        'ycs_btn_images',
         'ycs_btn_likes',
         'ycs_btn_replied_comments',
         'ycs_btn_timestamps',
@@ -73,9 +74,9 @@ test('DEGRADED_FILTER_ELEMENT_IDS derive from FILTER_BUTTONS', () => {
 });
 
 test('INSTANT_ALWAYS_DEGRADED_FILTER_PARAMS and INSTANT_UNLOCKABLE_FILTER_PARAMS partition DEGRADED_FILTER_PARAMS exactly', () => {
-    assert.equal(INSTANT_ALWAYS_DEGRADED_FILTER_PARAMS.length + INSTANT_UNLOCKABLE_FILTER_PARAMS.length, 12);
+    assert.equal(INSTANT_ALWAYS_DEGRADED_FILTER_PARAMS.length + INSTANT_UNLOCKABLE_FILTER_PARAMS.length, 13);
     const union = new Set([...INSTANT_ALWAYS_DEGRADED_FILTER_PARAMS, ...INSTANT_UNLOCKABLE_FILTER_PARAMS]);
-    assert.equal(union.size, 12);
+    assert.equal(union.size, 13);
     for (const param of DEGRADED_FILTER_PARAMS) {
         assert.ok(union.has(param), `${param} missing from tier union`);
     }
@@ -93,6 +94,7 @@ test('INSTANT_ALWAYS_DEGRADED_FILTER_PARAMS and INSTANT_UNLOCKABLE_FILTER_PARAMS
     assert.deepEqual(INSTANT_UNLOCKABLE_FILTER_PARAMS, [
         'random',
         'links',
+        'images',
         'likes',
         'replied',
         'timestamp',
@@ -123,6 +125,7 @@ test('isDegradedFilterParam marks incompatible instant filters', () => {
     assert.equal(isDegradedFilterParam('heart'), true);
     assert.equal(isDegradedFilterParam('timestampViz'), true);
     assert.equal(isDegradedFilterParam('links'), true);
+    assert.equal(isDegradedFilterParam('images'), true);
     assert.equal(isDegradedFilterParam('likes'), true);
     assert.equal(isDegradedFilterParam('replied'), true);
     assert.equal(isDegradedFilterParam('author'), true);
