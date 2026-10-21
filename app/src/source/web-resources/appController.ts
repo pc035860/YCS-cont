@@ -1878,6 +1878,10 @@ export function initApp(): void {
             elLoadCommentsChat.addEventListener('click', async function (e: MouseEvent): Promise<void> {
                 if (!elLiveApp.parentNode || !elLiveApp.parentElement) return;
 
+                // Capture the button before any await: currentTarget is null once the handler resumes
+                const currentTarget = e.currentTarget as HTMLButtonElement;
+                const defaultLabel = currentTarget.innerText;
+
                 // Check for live recording data before proceeding
                 const currentChatSource = getChatSource(state);
                 const currentChatCount = getCommentsChat(state).size;
@@ -1900,9 +1904,6 @@ export function initApp(): void {
                 state = clearCommentsChat(state);
                 state = setChatSource(state, undefined); // Clear source when loading new data
                 const commentsChat = getCommentsChat(state);
-
-                const currentTarget = e.currentTarget as HTMLButtonElement;
-                const defaultLabel = currentTarget.innerText;
 
                 clearButtonLabelDataset(currentTarget);
 
