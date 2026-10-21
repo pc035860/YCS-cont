@@ -227,6 +227,77 @@ async function getLiveChat(continuationData: any, signal: AbortSignal): Promise<
     }
 }
 
+/**
+ * Chat mode values reported by the live chat API in `liveChatCurrentFilter`.
+ * DEFAULT is the "Top chat" mode, which drops messages YouTube considers spam.
+ */
+const LIVE_CHAT_FILTER_MODE_DEFAULT = 'LIVE_CHAT_FILTER_MODE_DEFAULT';
+
+/**
+ * Extract the "Live chat" (all messages) reload continuation from a live chat response.
+ *
+ * The response carries both modes under
+ * `header.liveChatHeaderRenderer.viewSelector.sortFilterSubMenuRenderer.subMenuItems`,
+ * with `selected: true` marking the mode currently in use. Titles are localized, so the
+ * non-selected item is picked by flag rather than by label.
+ *
+ * Only tokens returned by a `get_live_chat` response work here: the ones on the watch page
+ * are mode-selector stubs that the endpoint rejects with HTTP 400.
+ */
+function extractUnfilteredContinuation(liveChatData: any): { continuation: string } | null {
+    const subMenuItems = wrapTryCatch(
+        () => liveChatData.header.liveChatHeaderRenderer.viewSelector.sortFilterSubMenuRenderer.subMenuItems
+    ) as any[] | undefined;
+
+    if (!Array.isArray(subMenuItems)) return null;
+
+    const candidate =
+        subMenuItems.find(
+            (item) => item?.selected === false && item?.continuation?.reloadContinuationData?.continuation
+        ) ?? subMenuItems[1];
+
+    const continuation = candidate?.continuation?.reloadContinuationData?.continuation;
+    return continuation ? { continuation } : null;
+}
+
+/**
+ * Fetch live chat with the "Live chat" (all messages) mode instead of "Top chat".
+ *
+ * The continuation from ytInitialData
+ * (`conversationBar.liveChatRenderer.continuations[0]`) selects YouTube's default "Top chat"
+ * mode, so the first response only holds server-side filtered messages. That same response
+ * carries the "Live chat" continuation, so one extra request replaces the filtered batch.
+ *
+ * Falls back to the "Top chat" batch whenever the unfiltered mode is unavailable, so a
+ * failure here never loses messages.
+ */
+async function getLiveChatUnfiltered(continuationData: any, signal: AbortSignal): Promise<LiveChatFetchResult> {
+    const filtered = await getLiveChat(continuationData, signal);
+
+    if (!filtered.success || filtered.data?.liveChatCurrentFilter !== LIVE_CHAT_FILTER_MODE_DEFAULT) {
+        return filtered;
+    }
+
+    const unfilteredContinuation = extractUnfilteredContinuation(filtered.data);
+    if (!unfilteredContinuation) {
+        console.warn('[YCS] getLiveChat: "Live chat" continuation not found, keeping "Top chat"');
+        return filtered;
+    }
+
+    const unfiltered = await getLiveChat(unfilteredContinuation, signal);
+    if (!unfiltered.success || !unfiltered.data) {
+        console.warn('[YCS] getLiveChat: "Live chat" fetch failed, keeping "Top chat" batch');
+        return filtered;
+    }
+
+    if (unfiltered.data.liveChatCurrentFilter === LIVE_CHAT_FILTER_MODE_DEFAULT) {
+        console.warn('[YCS] getLiveChat: server stayed in "Top chat" mode, keeping the first batch');
+        return filtered;
+    }
+
+    return unfiltered;
+}
+
 export async function getChatComments(
     signal: AbortSignal,
     elShowLoading: HTMLElement,
@@ -263,7 +334,7 @@ export async function getChatComments(
             onCommentAdded: (count: number) => showLoadComments(count, elShowLoading)
         };
 
-        const fetchResult = await getLiveChat(result.continuationData, signal);
+        const fetchResult = await getLiveChatUnfiltered(result.continuationData, signal);
 
         if (fetchResult.success && fetchResult.data?.actions?.length > 0) {
             console.log('IS LIVECHAT!!!!!', fetchResult.data);
@@ -637,7 +708,7 @@ export async function pollLiveChat(
             continuationData = existingContinuation;
         }
 
-        const fetchResult = await getLiveChat(continuationData, signal);
+        const fetchResult = await getLiveChatUnfiltered(continuationData, signal);
 
         // Handle HTTP errors (potential token expiration)
         if (!fetchResult.success) {

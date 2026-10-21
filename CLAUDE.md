@@ -241,6 +241,9 @@ Canonical behavior baseline doc:
 5. Innertube client type and auth header must be consistent
    ANDROID client + browser SAPISIDHASH authorization = HTTP 400. Only send auth headers with WEB client requests.
 
+6. Live chat starts in "Top chat" mode
+   `conversationBar.liveChatRenderer.continuations[0]` selects the filtered Top chat mode. Live chat fetching must upgrade to the "Live chat" continuation carried by the first `get_live_chat` response (`getLiveChatUnfiltered()`); the watch page's own sub-menu tokens are rejected with HTTP 400. Details: `app/docs/live-recording.md`
+
 ---
 
 ## Recent Significant Changes

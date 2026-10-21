@@ -198,6 +198,12 @@ Content-Type: application/json
 - **Continuation Count**: 2 tokens (replay + seek)
 - **Termination**: `continuation` is null or missing
 
+> **Live streams only:** `continuations[0]` selects the "Top chat" mode
+> (`liveChatCurrentFilter: LIVE_CHAT_FILTER_MODE_DEFAULT`), which drops messages YouTube considers
+> spam. Live chat fetching upgrades to the "Live chat" mode
+> (`LIVE_CHAT_FILTER_MODE_UNFILTERED`) using the sub-menu continuation carried by the first
+> `get_live_chat` response. See `docs/live-recording.md` → "Chat Mode (Top chat vs Live chat)".
+
 ```json
 {
   "continuationContents": {
@@ -346,6 +352,10 @@ End (no more messages)
 1. Try new API path (`continuations[0].reloadContinuationData`)
 2. Fallback to legacy API path (`header.viewSelector.sortFilterSubMenuRenderer.subMenuItems[1].continuation`)
 3. Deep search for `reloadContinuationData` across entire response
+
+For live streams the new API path starts in "Top chat" mode; `getLiveChatUnfiltered()` upgrades it to
+"Live chat" (all messages) after the first response. The legacy path already points at
+`subMenuItems[1]` ("Live chat").
 
 ✅ **Graceful Degradation**
 
