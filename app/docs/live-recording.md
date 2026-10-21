@@ -63,6 +63,42 @@ flowchart TD
 
 ---
 
+## Chat Mode (Top chat vs Live chat)
+
+YouTube serves live chat in two modes:
+
+| Mode | `liveChatCurrentFilter` | Content |
+|------|------------------------|---------|
+| Top chat | `LIVE_CHAT_FILTER_MODE_DEFAULT` | Server-side filtered; drops messages YouTube considers spam |
+| Live chat | `LIVE_CHAT_FILTER_MODE_UNFILTERED` | All messages |
+
+The continuation taken from `ytInitialData`
+(`conversationBar.liveChatRenderer.continuations[0].reloadContinuationData`) selects **Top chat**,
+so recording must upgrade to the unfiltered mode or it silently captures a filtered subset.
+
+`getLiveChatUnfiltered()` in `chat.ts` performs the upgrade:
+
+1. Fetch with the `ytInitialData` continuation.
+2. If the response reports `LIVE_CHAT_FILTER_MODE_DEFAULT`, read the "Live chat" continuation from
+   `header.liveChatHeaderRenderer.viewSelector.sortFilterSubMenuRenderer.subMenuItems` in that same
+   response (the non-`selected` item; titles are localized, so never match on label).
+3. Re-fetch once with it and use that batch. The response's `invalidationContinuationData` keeps
+   polling in the unfiltered mode, so later polls need no extra request.
+
+Constraints:
+
+- The sub-menu tokens on the **watch page** are mode-selector stubs and `get_live_chat` rejects them
+  with HTTP 400. Only tokens returned by a `get_live_chat` response work, which is why the upgrade
+  happens after the first fetch rather than in `getCDChat()`.
+- Recovery (`forceTokenRefresh`) re-runs the same path, so a reconnect re-applies the upgrade instead
+  of falling back to Top chat.
+- Any failure in the upgrade keeps the Top chat batch; messages are never dropped.
+
+Chat replay of a finished stream is unaffected: `get_live_chat_replay` does not apply the Top chat
+filter.
+
+---
+
 ## Configuration Constants
 
 Defined in `liveChatRecorder.ts`:
