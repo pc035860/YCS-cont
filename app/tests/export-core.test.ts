@@ -86,6 +86,57 @@ test('buildCommentsExportPayload maps comments and replies to export rows', () =
     assert.equal(payload.comments[0].commentReplies.replies[0].author.nameAuthor, 'Responder');
 });
 
+test('buildCommentsExportPayload includes attachment image URLs', () => {
+    const comments: CommentItem[] = [
+        {
+            commentRenderer: {
+                commentId: 'image-comment',
+                authorText: { simpleText: 'Image User' },
+                contentText: {
+                    fullText: 'A comment with an image',
+                    runs: [
+                        { text: 'A comment with an image' },
+                        {
+                            text: '',
+                            attachment: {
+                                image: {
+                                    isImage: true,
+                                    url: 'https://i.ytimg.com/comment.webp'
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            typeComment: 'C'
+        }
+    ];
+
+    const payload = buildCommentsExportPayload({ comments, videoId: 'vid' });
+
+    assert.equal(payload.comments[0].imageUrl, 'https://i.ytimg.com/comment.webp');
+});
+
+test('buildCommentsExportPayload excludes emoji image URLs', () => {
+    const comments: CommentItem[] = [
+        {
+            commentRenderer: {
+                commentId: 'emoji-comment',
+                authorText: { simpleText: 'Emoji User' },
+                contentText: {
+                    fullText: 'A comment with an emoji',
+                    runs: [{ text: ':wave:', attachment: { image: { url: 'https://i.ytimg.com/emoji.png' } } }]
+                }
+            },
+            typeComment: 'C'
+        }
+    ];
+
+    const payload = buildCommentsExportPayload({ comments, videoId: 'vid' });
+
+    assert.equal(payload.comments[0].imageUrl, undefined);
+});
+
 test('buildChatExportPayload extracts member badge text and channel IDs', () => {
     const chatMessages = [
         {

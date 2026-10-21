@@ -31,7 +31,14 @@ export interface ChatSearchResult {
     buttonStates: Record<string, SearchButtonState>;
 }
 
-const UNSUPPORTED_FILTERS: (keyof IParamSearch)[] = ['heart', 'likes', 'replied', 'random', 'quickTranscript'];
+const UNSUPPORTED_FILTERS: (keyof IParamSearch)[] = [
+    'heart',
+    'likes',
+    'replied',
+    'random',
+    'quickTranscript',
+    'images'
+];
 
 // Fuse cache for the full chat array (subsets still use transient instances).
 interface ChatFuseCache<T> {

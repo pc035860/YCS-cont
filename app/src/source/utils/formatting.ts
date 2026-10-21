@@ -357,6 +357,15 @@ function getCommentsHtmlText(comments: any): any | undefined {
             cmnt?.commentRenderer?.publishedTimeText?.simpleText ||
             '';
 
+        const commentContent = (cmnt: any): string => {
+            const text = cmnt?.commentRenderer?.contentText?.fullText || '';
+            const imageUrls = (cmnt?.commentRenderer?.contentText?.runs || [])
+                .filter((run: any) => run?.attachment?.image?.isImage)
+                .map((run: any) => run?.attachment?.image?.url)
+                .filter((url: unknown): url is string => typeof url === 'string' && url.length > 0);
+            return imageUrls.length > 0 ? `${text}\n${imageUrls.join('\n')}` : text;
+        };
+
         const renderTypeComment = (cmnt: any): string => {
             try {
                 if (cmnt?.typeComment === 'C') {
@@ -398,7 +407,7 @@ ${renderTypeComment(r)}
 ${r?.commentRenderer?.authorText?.simpleText || ''}
 ${authorChannelLine(r)}\n
 ${publishedNavigationBlock(r)}${publishedTimeLine(r)} | like: ${r?.commentRenderer?.likeCount || r?.commentRenderer?.voteCount?.simpleText || 0}${renderCountReply(r)}${getUserMember(r)}\n
-${r?.commentRenderer?.contentText?.fullText || ''}\n
+${commentContent(r)}\n
                         `;
                     }
 
@@ -422,7 +431,7 @@ ${renderTypeComment(c)}
 ${c?.commentRenderer?.authorText?.simpleText || ''}
 ${authorChannelLine(c)}\n
 ${publishedNavigationBlock(c)}${publishedTimeLine(c)} | like: ${c?.commentRenderer?.likeCount || c?.commentRenderer?.voteCount?.simpleText || 0}${renderCountReply(c)}${getUserMember(c)}\n
-${c?.commentRenderer?.contentText?.fullText || ''}
+${commentContent(c)}
 ${renderReplies(c)}
 #####\n`;
             } catch (e) {

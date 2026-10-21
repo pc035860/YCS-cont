@@ -7,6 +7,14 @@ export interface IStorageEstimate extends StorageEstimate {
 export interface CommentRun extends Record<string, unknown> {
     text?: string;
     simpleText?: string;
+    attachment?: {
+        image?: {
+            url?: string;
+            width?: number;
+            height?: number;
+            isImage?: boolean;
+        };
+    };
     navigationEndpoint?: {
         commandMetadata?: {
             webCommandMetadata?: {
@@ -287,6 +295,7 @@ export type ICommentItem = CommentItem;
 
 export interface IParamSearch {
     links?: boolean;
+    images?: boolean;
     likes?: boolean;
     members?: boolean;
     replied?: boolean;
@@ -329,6 +338,7 @@ export interface IYCSOptions {
     highlightText?: boolean;
     sortTimestamp?: boolean;
     highlightExact?: boolean;
+    hideImages?: boolean;
     cache?: boolean;
     autoClear?: number;
     hiddenByDefault?: boolean;
@@ -363,6 +373,7 @@ export interface YouTubeApiComment {
         authorProfileImageUrl: string;
         authorChannelUrl: string;
         authorChannelId: { value: string };
+        imageUrl?: string; // Image or animated GIF attachment URL. URL expires six hours after retrieval.
         channelId?: string;
         videoId?: string;
         textDisplay: string;
