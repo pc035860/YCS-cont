@@ -63,9 +63,9 @@ test('DEGRADED_FILTER_ELEMENT_IDS derive from FILTER_BUTTONS', () => {
         'ycs_btn_donated',
         'ycs_btn_author',
         'ycs_btn_timestamp_viz',
+        'ycs_btn_images',
         'ycs_btn_random',
         'ycs_btn_links',
-        'ycs_btn_images',
         'ycs_btn_likes',
         'ycs_btn_replied_comments',
         'ycs_btn_timestamps',
@@ -89,12 +89,12 @@ test('INSTANT_ALWAYS_DEGRADED_FILTER_PARAMS and INSTANT_UNLOCKABLE_FILTER_PARAMS
         'members',
         'donated',
         'author',
-        'timestampViz'
+        'timestampViz',
+        'images'
     ]);
     assert.deepEqual(INSTANT_UNLOCKABLE_FILTER_PARAMS, [
         'random',
         'links',
-        'images',
         'likes',
         'replied',
         'timestamp',
