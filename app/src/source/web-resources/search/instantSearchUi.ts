@@ -26,14 +26,16 @@ export const INSTANT_ALWAYS_DEGRADED_FILTER_PARAMS: FilterParamKey[] = [
     'members',
     'donated',
     'author',
-    'timestampViz'
+    'timestampViz',
+    // Data API currently returns no snippet.imageUrl, so an unlocked images filter would always be empty.
+    // Move back to INSTANT_UNLOCKABLE_FILTER_PARAMS if the Data API starts returning it.
+    'images'
 ];
 
 /** Filters that unlock once the instant session is complete (all API pages fetched). */
 export const INSTANT_UNLOCKABLE_FILTER_PARAMS: FilterParamKey[] = [
     'random',
     'links',
-    'images',
     'likes',
     'replied',
     'timestamp',
