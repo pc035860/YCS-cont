@@ -66,6 +66,14 @@
           <div class="ycs_description_option ycs_api_desc">
             <p>Show only the YCS toggle bar by default; click to expand. Applies to regular video pages only.</p>
           </div>
+
+          <div>
+            <label for="y_opts_hide_images">Hide images:</label>
+            <input type="checkbox" name="Hide images" id="y_opts_hide_images" class="ycs_opts_checkbox" />
+            <div class="ycs_description_option ycs_api_desc">
+              <p>Hide images in comment search results.</p>
+            </div>
+          </div>
         </div>
 
         <div>
@@ -227,6 +235,12 @@
               <span class="ycs_drag_handle">⋮⋮</span>
               <input type="checkbox" id="filter_opt_links" checked />
               <label for="filter_opt_links">Links</label>
+            </div>
+
+            <div class="ycs_filter_button_item" draggable="true" data-button-id="ycs_btn_images">
+              <span class="ycs_drag_handle">⋮⋮</span>
+              <input type="checkbox" id="filter_opt_images" checked />
+              <label for="filter_opt_images">🖼️ (Images)</label>
             </div>
 
             <div class="ycs_filter_button_item" draggable="true" data-button-id="ycs_btn_likes">

@@ -32,7 +32,8 @@ const UNSUPPORTED_FILTERS: (keyof IParamSearch)[] = [
     'donated',
     'members',
     'verified',
-    'quickChat'
+    'quickChat',
+    'images'
 ];
 
 // Fuse cache for the full cueGroups array (subsets still use transient instances).

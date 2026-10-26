@@ -175,7 +175,15 @@ import { renderCommentsResult, renderChatResult, renderTranscriptResult } from '
 
 const DEBUG = false;
 
-const CHAT_UNSUPPORTED_FILTERS = ['heart', 'likes', 'replied', 'random', 'quickTranscript', 'timestampViz'] as const;
+const CHAT_UNSUPPORTED_FILTERS = [
+    'heart',
+    'likes',
+    'replied',
+    'random',
+    'quickTranscript',
+    'timestampViz',
+    'images'
+] as const;
 const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'heart',
     'likes',
@@ -186,7 +194,8 @@ const TRANSCRIPT_UNSUPPORTED_FILTERS = [
     'members',
     'verified',
     'quickChat',
-    'timestampViz'
+    'timestampViz',
+    'images'
 ] as const;
 type SortAttribute = 'sort' | 'sortChat' | 'sortTrp';
 
@@ -2685,6 +2694,15 @@ export function initApp(): void {
                     }
                 };
 
+                const optHideImages = (value: boolean): void => {
+                    try {
+                        GlobalStore.hideImages = value;
+                        document.querySelector('.ycs-app')?.classList.toggle('ycs-hide-images', value);
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
                 const optHiddenByDefault = (opts: IYCSOptions): void => {
                     try {
                         const app = document.querySelector('.ycs-app') as HTMLElement;
@@ -2794,6 +2812,10 @@ export function initApp(): void {
 
                             case 'autoExpandReplyContext':
                                 optAutoExpandReplyContext(Boolean(opts.autoExpandReplyContext));
+                                break;
+
+                            case 'hideImages':
+                                optHideImages(Boolean(opts.hideImages));
                                 break;
 
                             case 'hiddenByDefault':

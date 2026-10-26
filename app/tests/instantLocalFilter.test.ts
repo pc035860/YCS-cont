@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import test from 'node:test';
 
 import { runSearch, runSearchOnComments } from '../src/source/web-resources/search/commentsSearch';
+import { deriveComment } from '../src/source/utils/filters/engine';
 import { createState, getComments, setComments } from '../src/source/web-resources/state';
 import type { CommentItem } from '../src/source/utils/interfaces/i_types';
 import type { SearchContext } from '../src/source/web-resources/search/types';
@@ -53,6 +54,30 @@ test('runSearchOnComments: likes filter sorts by likeCount desc', () => {
 
     const result = runSearchOnComments('', { likes: true }, items, baseContext);
     assert.deepEqual(commentIds(result.results), ['b', 'a', 'c']);
+});
+
+test('deriveComment: detects image attachments', () => {
+    const comment = makeComment('image-comment');
+    comment.commentRenderer.contentText = {
+        runs: [{ text: 'image', attachment: { image: { url: 'https://example.com/image.webp', isImage: true } } }]
+    };
+
+    assert.equal(deriveComment(comment).hasImages, true);
+});
+
+test('runSearchOnComments: Images filter includes replies with image attachments', () => {
+    const comment = makeComment('plain-comment');
+    const reply = makeComment('image-reply');
+    reply.typeComment = 'R';
+    reply.commentRenderer.contentText = {
+        runs: [
+            { text: 'reply image', attachment: { image: { url: 'https://example.com/reply.webp', isImage: true } } }
+        ]
+    };
+
+    const result = runSearchOnComments('', { images: true }, [comment, reply], baseContext);
+
+    assert.deepEqual(commentIds(result.results), ['image-reply']);
 });
 
 test('runSearchOnComments: sortFirst with publishedAtMs sorts by date desc (newest first) when preferPublishedAtOrder is set', () => {

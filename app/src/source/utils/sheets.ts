@@ -59,6 +59,7 @@ function getSheetComments(cmnts: Array<ISheetCommentsParam>): Array<ISheetCommen
                 'Author name': cmnt?.author?.nameAuthor,
                 'Author Channel': cmnt?.author?.channel,
                 'Comment message': cmnt?.commentMessage,
+                'Image URL': cmnt?.imageUrl,
                 'Channel owner': cmnt?.author?.authorIsChannelOwner,
                 Member: cmnt?.member,
                 Published: cmnt?.publishedTimeText,
@@ -134,6 +135,7 @@ function getSheetReplies(cmnts: Array<ISheetRepliesParam>): Array<ISheetReplies>
                         'Author name': reply?.author?.nameAuthor,
                         Channel: reply?.author?.channel,
                         'Reply message': reply?.commentMessage,
+                        'Image URL': reply?.imageUrl,
                         Member: reply?.member,
                         Published: reply?.publishedTimeText,
                         'Total likes': Number(reply?.totalLikes)

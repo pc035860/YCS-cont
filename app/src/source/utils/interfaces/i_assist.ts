@@ -136,6 +136,7 @@ export interface ISheetCommentsParam {
     };
     commentMessage: string;
     commentUrl: string;
+    imageUrl?: string;
     member: string;
     publishedTimeText: string;
     totalLikes: number;
@@ -146,6 +147,7 @@ export interface ISheetComments {
     'Author name': string;
     'Author Channel': string;
     'Comment message': string;
+    'Image URL'?: string;
     'Channel owner': boolean;
     Member: string | undefined;
     Published: string;
@@ -161,6 +163,7 @@ export interface ISheetReplies {
     'Author name': string;
     Channel: string;
     'Reply message': string;
+    'Image URL'?: string;
     Member: string;
     Published: string;
     'Total likes': number;

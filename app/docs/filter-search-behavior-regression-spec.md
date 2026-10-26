@@ -22,7 +22,7 @@ If implementation deviates from this spec without an explicit requirement change
 ### 2.2 FilterButton List
 
 - Sortable (re-click can toggle `newest/oldest`): `timestamps`, `author`, `heart`, `verified`, `links`, `members`, `donated`, `sortFirst`, `quickChat`, `quickTranscript`
-- Non-sortable: `timestampViz`, `likes`, `replied`, `random`
+- Non-sortable: `timestampViz`, `likes`, `replied`, `random`, `images`
 
 ### 2.3 State Symbols
 
@@ -183,12 +183,12 @@ If implementation deviates from this spec without an explicit requirement change
 
 ### 8.2 `chat` mode
 
-- Unsupported: `heart`, `likes`, `replied`, `random`, `quickTranscript`
+- Unsupported: `heart`, `likes`, `replied`, `random`, `quickTranscript`, `images`
 - If any unsupported filter is active, chat result is always `Found: 0`
 
 ### 8.3 `video` (transcript) mode
 
-- Unsupported: `heart`, `likes`, `replied`, `random`, `author`, `donated`, `members`, `verified`, `quickChat`
+- Unsupported: `heart`, `likes`, `replied`, `random`, `author`, `donated`, `members`, `verified`, `quickChat`, `images`
 - If any unsupported filter is active, transcript result is always `Found: 0`
 
 ### 8.4 `all` mode
@@ -285,7 +285,7 @@ In instant mode, plain text search is fully supported. Filters fall into two tie
 
 **Always incompatible** (Data API responses lack the required fields — `creatorHeart`, `verifiedAuthor`, `sponsorCommentBadge`, `donatedChip`, `authorIsChannelOwner`): `heart`, `verified`, `members`, `donated`, `author`, `timestampViz`. Also always degraded: extended search, open-all-comments window (`#ycs_open_all_comments_window`). **Export/save** (`#ycs_save_all_comments`) is degraded while the instant session is incomplete but unlocks once the session is complete — export then runs directly against the accumulated instant results (filename picks up a `— search "<query>"` suffix so the origin is visible).
 
-**Conditionally unlocked** (work locally on the instant subset once the session is complete): `random`, `links`, `likes`, `replied`, `timestamp`, `sortFirst`.
+**Conditionally unlocked** (work locally on the instant subset once the session is complete): `random`, `links`, `images`, `likes`, `replied`, `timestamp`, `sortFirst`.
 
 A session is **complete** when all of: session active, ≥1 result, and no `nextPageToken` remaining (single-page result, or every API page fetched via show-more). Unlocked filters then run **locally** over the instant result set — no API call — and `sortFirst`, `links`, `timestamp` order by `publishedAt` date instead of load order (Data API results are relevance-ordered, not load-ordered). `timestamp` only takes this date-order path when `sortTimestamp=false` (default); with `sortTimestamp=true` it still orders by the in-comment video timestamp, unaffected by this fix. This date-order fix is scoped to the instant local pipeline only (`preferPublishedAtOrder` opt-in in `commentsSearch.ts`): a full "Enable" Data API archive load shares the same transform (so it also carries `publishedAtMs`) but goes through the general `runSearch` path, which never opts in — its ordering, like full-archive Innertube ordering, is unchanged. Clearing an active filter on the same query also re-renders locally instead of re-hitting the API.
 

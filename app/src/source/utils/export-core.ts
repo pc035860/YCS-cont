@@ -157,12 +157,21 @@ function buildCommentMessage(renderer: any): string {
     return renderer?.contentText?.fullText || renderer?.renderFullText || '';
 }
 
+function buildCommentImageUrl(renderer: any): string {
+    const runs = renderer?.contentText?.runs;
+    if (!Array.isArray(runs)) return '';
+
+    const imageRun = runs.find((run: any) => run?.attachment?.image?.isImage && run?.attachment?.image?.url);
+    return imageRun?.attachment?.image?.url || '';
+}
+
 function buildMemberTooltip(renderer: any): string {
     return (wrapTryCatch(() => renderer?.sponsorCommentBadge?.sponsorCommentBadgeRenderer?.tooltip) as string) || '';
 }
 
 function createCommentExportItem(renderer: any, videoId: string): CommentExportItem {
     const commentId = renderer?.commentId || '';
+    const imageUrl = buildCommentImageUrl(renderer);
     return {
         commentUrl: buildCommentUrl(renderer, videoId, commentId),
         author: {
@@ -175,6 +184,7 @@ function createCommentExportItem(renderer: any, videoId: string): CommentExportI
             renderer?.publishedTimeText?.simpleText ||
             '',
         commentMessage: buildCommentMessage(renderer),
+        ...(imageUrl ? { imageUrl } : {}),
         totalLikes: parseLikeCount(renderer?.voteCount?.simpleText ?? renderer?.likeCount),
         member: buildMemberTooltip(renderer),
         commentReplies: {
