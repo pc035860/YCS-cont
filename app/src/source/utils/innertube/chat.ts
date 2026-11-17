@@ -120,6 +120,13 @@ async function getCDChat(signal: AbortSignal): Promise<ChatContinuationResult> {
         const ytData = (await getInitYtData(window.location.href, signal)) as any;
 
         if (ytData) {
+            // `isReplay` marks a finished broadcast: its continuation is a replay token, so the
+            // live chat endpoint rejects it with HTTP 400. Callers use this to skip that probe.
+            const isReplay =
+                wrapTryCatch(
+                    () => ytData.response.contents.twoColumnWatchNextResults.conversationBar.liveChatRenderer.isReplay
+                ) === true;
+
             const newApiData = wrapTryCatch(
                 () =>
                     ytData.response.contents.twoColumnWatchNextResults.conversationBar.liveChatRenderer.continuations[0]
@@ -130,7 +137,8 @@ async function getCDChat(signal: AbortSignal): Promise<ChatContinuationResult> {
                 return {
                     continuationData: newApiData,
                     apiVersion: 'new',
-                    sourcePath: 'continuations[0].reloadContinuationData'
+                    sourcePath: 'continuations[0].reloadContinuationData',
+                    isReplay
                 };
             }
 
@@ -146,7 +154,8 @@ async function getCDChat(signal: AbortSignal): Promise<ChatContinuationResult> {
                     continuationData: oldApiData,
                     apiVersion: 'old',
                     sourcePath:
-                        '[3].response.header.viewSelector.sortFilterSubMenuRenderer.subMenuItems[1].continuation.reloadContinuationData'
+                        '[3].response.header.viewSelector.sortFilterSubMenuRenderer.subMenuItems[1].continuation.reloadContinuationData',
+                    isReplay
                 };
             }
 
@@ -156,7 +165,8 @@ async function getCDChat(signal: AbortSignal): Promise<ChatContinuationResult> {
                 return {
                     continuationData: fallbackData,
                     apiVersion: 'fallback',
-                    sourcePath: 'deepSearch(reloadContinuationData)'
+                    sourcePath: 'deepSearch(reloadContinuationData)',
+                    isReplay
                 };
             }
         }
@@ -298,6 +308,55 @@ async function getLiveChatUnfiltered(continuationData: any, signal: AbortSignal)
     return unfiltered;
 }
 
+/**
+ * Fetch one page of chat replay.
+ *
+ * @param playerOffsetMs When provided, the request is sent in playerSeek mode with that offset;
+ *   omit it to follow a plain `liveChatReplayContinuationData` token.
+ * @returns The `liveChatContinuation` payload, or null when the request could not be made.
+ */
+async function fetchReplayPage(
+    continuationData: any,
+    signal: AbortSignal,
+    playerOffsetMs?: number
+): Promise<any | null> {
+    const usePlayerSeek = playerOffsetMs !== undefined;
+    const params = await getParamsForChat(window, continuationData, signal, false, playerOffsetMs ?? 0, usePlayerSeek);
+
+    if (!params) return null;
+
+    const res = await fetchR(`https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?prettyPrint=false`, {
+        ...params,
+        signal,
+        cache: 'no-store'
+    });
+
+    if (!res.ok) {
+        console.warn(`[YCS] chat replay HTTP error: ${res.status} ${res.statusText}`);
+        return null;
+    }
+
+    try {
+        const response = await res.json();
+        return response?.continuationContents?.liveChatContinuation ?? null;
+    } catch (e) {
+        // A malformed body must not discard the messages already collected
+        console.warn('[YCS] chat replay: failed to parse response', e);
+        return null;
+    }
+}
+
+/**
+ * Read the `liveChatReplayContinuationData` token that paginates the replay.
+ * Unlike the seek token, this one always advances to the next page.
+ */
+function extractReplayContinuation(liveChatContinuation: any): string | null {
+    const continuation = liveChatContinuation?.continuations?.find((c: any) => c.liveChatReplayContinuationData)
+        ?.liveChatReplayContinuationData?.continuation;
+
+    return typeof continuation === 'string' && continuation ? continuation : null;
+}
+
 export async function getChatComments(
     signal: AbortSignal,
     elShowLoading: HTMLElement,
@@ -334,12 +393,16 @@ export async function getChatComments(
             onCommentAdded: (count: number) => showLoadComments(count, elShowLoading)
         };
 
-        const fetchResult = await getLiveChatUnfiltered(result.continuationData, signal);
+        // A replay continuation is rejected by the live chat endpoint (HTTP 400), so only probe
+        // for an ongoing broadcast.
+        if (!result.isReplay) {
+            const fetchResult = await getLiveChatUnfiltered(result.continuationData, signal);
 
-        if (fetchResult.success && fetchResult.data?.actions?.length > 0) {
-            console.log('IS LIVECHAT!!!!!', fetchResult.data);
-            processLiveChatActions(fetchResult.data.actions, context);
-            return chatCmnts;
+            if (fetchResult.success && fetchResult.data?.actions?.length > 0) {
+                console.debug('IS LIVECHAT!!!!!', fetchResult.data);
+                processLiveChatActions(fetchResult.data.actions, context);
+                return chatCmnts;
+            }
         }
 
         if (useLegacyApi) {
@@ -391,186 +454,56 @@ export async function getChatComments(
             return chatCmnts;
         }
 
-        // Stage 1: Fetch initial response to get playerSeekContinuationData
-        let playerSeekToken: any = null;
-        let usePlayerSeekMode = true;
+        // Stage 1: initial response — carries the playerSeek token used to pin the start position
+        const initialPage = await fetchReplayPage(continuationData, signal);
+        if (!initialPage) {
+            console.warn('[YCS] chat replay: initial request failed');
+            return chatCmnts;
+        }
 
-        {
-            console.log('Fetching initial playerSeekContinuationData (New API)');
-            const params = await getParamsForChat(window, continuationData, signal, false);
+        const seekToken = initialPage.continuations?.find((c: any) => c.playerSeekContinuationData)
+            ?.playerSeekContinuationData?.continuation;
 
-            if (!params) {
-                console.error('Failed to get initial params');
-                return chatCmnts;
-            }
+        // Stage 2: first batch from offset 0, then paginate with liveChatReplayContinuationData.
+        // The seek token only guarantees the replay starts at the video beginning; it must not be
+        // used to advance the cursor. `get_live_chat_replay` answers a range of playerOffsetMs
+        // values with the same page, so an offset-driven loop can stall mid-stream and mistake the
+        // stall for the end of the chat (see docs/innertube-chat-replay-api-changes.md).
+        let nextContinuation: string | null = null;
 
-            const res = await fetchR(
-                `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?prettyPrint=false`,
-                {
-                    ...params,
-                    signal,
-                    cache: 'no-store'
-                }
-            );
-
-            if (!res.ok) {
-                // Stage 1 failure → terminate entire flow (Stage 2 requires token from here)
-                console.warn(`[YCS] chat replay HTTP error (initial): ${res.status} ${res.statusText}`);
-                return chatCmnts;
-            }
-
-            const response = await res.json();
-            const continuations = response?.continuationContents?.liveChatContinuation?.continuations;
-
-            // Try to extract playerSeekContinuationData
-            const playerSeekData = continuations?.find(
-                (c: any) => c.playerSeekContinuationData
-            )?.playerSeekContinuationData;
-
-            if (playerSeekData?.continuation) {
-                playerSeekToken = { continuation: playerSeekData.continuation };
-                console.log('Got initial playerSeekContinuationData, using playerOffsetMs mode');
+        if (seekToken) {
+            const firstPage = await fetchReplayPage({ continuation: seekToken }, signal, 0);
+            if (firstPage && Array.isArray(firstPage.actions) && firstPage.actions.length > 0) {
+                processReplayBatch(firstPage.actions, context);
+                nextContinuation = extractReplayContinuation(firstPage);
             } else {
-                // Fallback: use liveChatReplayContinuationData
-                console.warn(
-                    'No playerSeekContinuationData found, falling back to liveChatReplayContinuationData mode'
-                );
-                const liveChatReplayData = continuations?.find(
-                    (c: any) => c.liveChatReplayContinuationData
-                )?.liveChatReplayContinuationData;
-
-                if (liveChatReplayData?.continuation) {
-                    // Process the first batch of actions before starting the fallback loop
-                    const firstBatchActions = response?.continuationContents?.liveChatContinuation?.actions;
-                    if (Array.isArray(firstBatchActions) && firstBatchActions.length > 0) {
-                        console.log('Processing first batch in fallback mode:', firstBatchActions.length, 'actions');
-                        processReplayBatch(firstBatchActions, context);
-                    }
-
-                    playerSeekToken = { continuation: liveChatReplayData.continuation };
-                    usePlayerSeekMode = false;
-                } else {
-                    console.error('No continuation data found in initial response');
-                    return chatCmnts;
-                }
+                console.warn('[YCS] chat replay: seek(0) request failed, using the initial batch');
             }
         }
 
-        // Stage 2: Iterate using playerSeek + playerOffsetMs or fallback mode
-        if (usePlayerSeekMode) {
-            // New mode: playerSeek + playerOffsetMs (similar to legacy API)
-            let currentOffsetTimeMsec = 0;
-            let next = true;
-
-            while (next) {
-                const params = await getParamsForChat(
-                    window,
-                    playerSeekToken,
-                    signal,
-                    false,
-                    currentOffsetTimeMsec,
-                    true // usePlayerSeek = true
-                );
-
-                if (!params) {
-                    next = false;
-                    break;
-                }
-
-                const res = await fetchR(
-                    `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?prettyPrint=false`,
-                    {
-                        ...params,
-                        signal,
-                        cache: 'no-store'
-                    }
-                );
-
-                if (!res.ok) {
-                    console.warn(`[YCS] chat replay HTTP error (playerSeek): ${res.status} ${res.statusText}`);
-                    break;
-                }
-
-                const response = await res.json();
-                const cmnts = response?.continuationContents?.liveChatContinuation?.actions;
-
-                if (Array.isArray(cmnts) && cmnts.length > 0) {
-                    // Extract last offset time
-                    const lastOffsetTimeInCmnts = wrapTryCatch(() => {
-                        const offsetData = deepFindObjKey(cmnts[cmnts.length - 1], 'videoOffsetTimeMsec')[0];
-                        return (Object as any).entries(offsetData)[0][1];
-                    }) as number | undefined;
-
-                    // Check termination condition
-                    if (currentOffsetTimeMsec === lastOffsetTimeInCmnts) {
-                        next = false;
-                        break;
-                    }
-
-                    processReplayBatch(cmnts, context);
-
-                    // Update offset
-                    if (lastOffsetTimeInCmnts !== undefined) {
-                        currentOffsetTimeMsec = lastOffsetTimeInCmnts;
-                    }
-
-                    // Update playerSeekToken
-                    const continuations = response?.continuationContents?.liveChatContinuation?.continuations;
-                    const playerSeekData = continuations?.find(
-                        (c: any) => c.playerSeekContinuationData
-                    )?.playerSeekContinuationData;
-
-                    if (playerSeekData?.continuation) {
-                        playerSeekToken = { continuation: playerSeekData.continuation };
-                    } else {
-                        console.warn('[YCS] No playerSeekContinuationData in response, stopping');
-                        next = false;
-                        break;
-                    }
-                } else {
-                    next = false;
-                }
+        if (!nextContinuation) {
+            // No playerSeek support (or the seek request failed): the initial response is the first batch
+            if (Array.isArray(initialPage.actions) && initialPage.actions.length > 0) {
+                processReplayBatch(initialPage.actions, context);
             }
-        } else {
-            // Fallback mode: use liveChatReplayContinuationData (old logic)
-            let nextContinuation: any = playerSeekToken;
+            nextContinuation = extractReplayContinuation(initialPage);
+        }
 
-            while (nextContinuation) {
-                const params = await getParamsForChat(window, nextContinuation, signal, false);
-
-                if (!params) break;
-
-                const res = await fetchR(
-                    `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?prettyPrint=false`,
-                    {
-                        ...params,
-                        signal,
-                        cache: 'no-store'
-                    }
-                );
-
-                if (!res.ok) {
-                    console.warn(`[YCS] chat replay HTTP error (fallback): ${res.status} ${res.statusText}`);
-                    break;
-                }
-
-                const response = await res.json();
-                const cmnts = response?.continuationContents?.liveChatContinuation?.actions;
-
-                if (Array.isArray(cmnts) && cmnts.length > 0) {
-                    processReplayBatch(cmnts, context);
-                }
-
-                const continuations = response?.continuationContents?.liveChatContinuation?.continuations;
-                const continuationToken = continuations?.find((c: any) => c.liveChatReplayContinuationData)
-                    ?.liveChatReplayContinuationData?.continuation;
-
-                if (continuationToken) {
-                    nextContinuation = { continuation: continuationToken };
-                } else {
-                    break;
-                }
+        // Stage 3: paginate until the server stops offering a replay continuation
+        while (nextContinuation) {
+            const page = await fetchReplayPage({ continuation: nextContinuation }, signal);
+            if (!page) {
+                console.warn('[YCS] chat replay: request failed, stopping pagination');
+                break;
             }
+
+            if (Array.isArray(page.actions) && page.actions.length > 0) {
+                processReplayBatch(page.actions, context);
+            }
+
+            const following = extractReplayContinuation(page);
+            if (!following || following === nextContinuation) break;
+            nextContinuation = following;
         }
 
         return chatCmnts;
@@ -589,6 +522,8 @@ export async function checkIsLiveStream(signal?: AbortSignal): Promise<boolean> 
     try {
         const result = await getCDChat(signal as AbortSignal);
         if (!result.continuationData) return false;
+        // A finished broadcast is never an ongoing stream; skip the probe, which answers HTTP 400
+        if (result.isReplay) return false;
 
         const fetchResult = await getLiveChat(result.continuationData, signal as AbortSignal);
 
