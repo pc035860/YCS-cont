@@ -22,3 +22,6 @@ CLAUDE_PLANS
 PR_MESSAGE.md
 specs/
 CLAUDE.local.md
+
+# Release note drafts (consumed by `gh release create --notes-file`)
+/RELEASE_v*.md
