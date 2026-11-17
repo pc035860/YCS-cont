@@ -604,3 +604,301 @@ test('pollLiveChat keeps the Top chat batch when the server stays in Top chat mo
         mocks.restore();
     }
 });
+
+/**
+ * Chat replay pagination
+ *
+ * `getChatComments` uses the playerSeek token only to pin the replay start at offset 0, then
+ * paginates with `liveChatReplayContinuationData`. The seek endpoint answers a range of
+ * playerOffsetMs values with the same page, so an offset-driven loop stalls mid-stream and
+ * mistakes the stall for the end of the chat (issue #176: a 9.65h VOD stopped after 5.9 min).
+ */
+
+interface ReplayMessage {
+    timestampUsec: string;
+    offsetMs: number;
+    author: string;
+    text: string;
+}
+
+function buildReplayPage(options: { messages: ReplayMessage[]; replayToken?: string; seekToken?: string }): any {
+    const continuations: any[] = [];
+    if (options.replayToken) {
+        continuations.push({ liveChatReplayContinuationData: { continuation: options.replayToken } });
+    }
+    if (options.seekToken) {
+        continuations.push({ playerSeekContinuationData: { continuation: options.seekToken } });
+    }
+
+    return {
+        continuationContents: {
+            liveChatContinuation: {
+                actions: options.messages.map((message) => ({
+                    replayChatItemAction: {
+                        videoOffsetTimeMsec: String(message.offsetMs),
+                        actions: [
+                            {
+                                addChatItemAction: {
+                                    item: {
+                                        liveChatTextMessageRenderer: {
+                                            timestampUsec: message.timestampUsec,
+                                            authorName: { simpleText: message.author },
+                                            message: { runs: [{ text: message.text }] }
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                })),
+                continuations
+            }
+        }
+    };
+}
+
+function installReplayMocks(options: {
+    isReplay?: boolean;
+    initialPage: any;
+    seekPage?: any;
+    replayPages: Record<string, any>;
+}): { requests: any[]; restore: () => void } {
+    (global as any).window = {
+        location: { href: 'https://www.youtube.com/watch?v=test-video-id' },
+        ytcfg: { data_: { INNERTUBE_API_KEY: 'mock-api-key', INNERTUBE_CONTEXT: {} } }
+    };
+
+    const requests: any[] = [];
+    const jsonResponse = (payload: any) =>
+        ({ ok: true, status: 200, json: async () => payload, text: async () => JSON.stringify(payload) }) as Response;
+
+    const mockFetch = async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+        const urlStr = url.toString();
+
+        if (urlStr.includes('pbj=1')) {
+            const mockData = {
+                response: {
+                    contents: {
+                        twoColumnWatchNextResults: {
+                            conversationBar: {
+                                liveChatRenderer: {
+                                    isReplay: options.isReplay,
+                                    continuations: [{ reloadContinuationData: { continuation: 'reload-token' } }]
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            return jsonResponse(mockData);
+        }
+
+        const body = init?.body ? JSON.parse(init.body as string) : null;
+        requests.push({ url: urlStr, body });
+
+        if (urlStr.includes('get_live_chat_replay')) {
+            if (body?.continuation === 'reload-token') return jsonResponse(options.initialPage);
+            if (body?.continuation === 'seek-token') return jsonResponse(options.seekPage);
+            const page = options.replayPages[body?.continuation];
+            if (page) return jsonResponse(page);
+            return jsonResponse({ continuationContents: { liveChatContinuation: { actions: [], continuations: [] } } });
+        }
+
+        // get_live_chat: an empty batch means "not an ongoing broadcast"
+        return jsonResponse({ continuationContents: { liveChatContinuation: { actions: [] } } });
+    };
+
+    const originalFetch = global.fetch;
+    setFetchImplementation(mockFetch as any);
+    global.fetch = mockFetch as any;
+
+    return {
+        requests,
+        restore: () => {
+            global.fetch = originalFetch;
+            setFetchImplementation(originalFetch);
+            delete (global as any).window;
+        }
+    };
+}
+
+test('getChatComments paginates chat replay with the replay token after seek(0)', async () => {
+    const { getChatComments } = await import('../src/source/utils/innertube/chat');
+
+    const mocks = installReplayMocks({
+        isReplay: true,
+        initialPage: buildReplayPage({
+            messages: [{ timestampUsec: '1000', offsetMs: 0, author: '@a', text: 'first' }],
+            replayToken: 'replay-1',
+            seekToken: 'seek-token'
+        }),
+        seekPage: buildReplayPage({
+            messages: [
+                { timestampUsec: '1000', offsetMs: 0, author: '@a', text: 'first' },
+                { timestampUsec: '2000', offsetMs: 5000, author: '@b', text: 'second' }
+            ],
+            replayToken: 'replay-1',
+            seekToken: 'seek-token-2'
+        }),
+        replayPages: {
+            'replay-1': buildReplayPage({
+                messages: [{ timestampUsec: '3000', offsetMs: 9000, author: '@c', text: 'third' }],
+                replayToken: 'replay-2'
+            }),
+            'replay-2': buildReplayPage({
+                messages: [{ timestampUsec: '4000', offsetMs: 12000, author: '@d', text: 'fourth' }]
+            })
+        }
+    });
+
+    try {
+        const chatMap = new Map<number, object>();
+        const elShowLoading = { textContent: '' } as any;
+
+        await getChatComments(new AbortController().signal, elShowLoading, chatMap);
+
+        assert.deepStrictEqual(
+            [...chatMap.keys()],
+            [1000, 2000, 3000, 4000],
+            'every page of the replay must be collected, not just the pages the seek endpoint returns'
+        );
+
+        const seekRequests = mocks.requests.filter(
+            (request) => request.body?.continuation === 'seek-token' || request.body?.continuation === 'seek-token-2'
+        );
+        assert.strictEqual(seekRequests.length, 1, 'the seek token must be used once, to pin the start position');
+        assert.strictEqual(seekRequests[0].body.currentPlayerState?.playerOffsetMs, '0');
+
+        const replayRequests = mocks.requests.filter((request) => request.body?.continuation?.startsWith('replay-'));
+        assert.deepStrictEqual(
+            replayRequests.map((request) => request.body.continuation),
+            ['replay-1', 'replay-2'],
+            'pagination must follow liveChatReplayContinuationData'
+        );
+
+        const liveChatRequests = mocks.requests.filter((request) => request.url.includes('get_live_chat?'));
+        assert.strictEqual(liveChatRequests.length, 0, 'a replay page must not be probed with the live chat endpoint');
+    } finally {
+        mocks.restore();
+    }
+});
+
+test('getChatComments uses the initial batch when the replay offers no playerSeek token', async () => {
+    const { getChatComments } = await import('../src/source/utils/innertube/chat');
+
+    const mocks = installReplayMocks({
+        isReplay: true,
+        initialPage: buildReplayPage({
+            messages: [{ timestampUsec: '1000', offsetMs: 0, author: '@a', text: 'first' }],
+            replayToken: 'replay-1'
+        }),
+        replayPages: {
+            'replay-1': buildReplayPage({
+                messages: [{ timestampUsec: '2000', offsetMs: 5000, author: '@b', text: 'second' }]
+            })
+        }
+    });
+
+    try {
+        const chatMap = new Map<number, object>();
+        await getChatComments(new AbortController().signal, { textContent: '' } as any, chatMap);
+
+        assert.deepStrictEqual([...chatMap.keys()], [1000, 2000]);
+        assert.ok(
+            !mocks.requests.some((request) => request.body?.currentPlayerState),
+            'no seek request is possible without a playerSeek token'
+        );
+    } finally {
+        mocks.restore();
+    }
+});
+
+test('getChatComments falls back to the initial batch when the seek(0) page is empty', async () => {
+    const { getChatComments } = await import('../src/source/utils/innertube/chat');
+
+    const mocks = installReplayMocks({
+        isReplay: true,
+        initialPage: buildReplayPage({
+            messages: [{ timestampUsec: '1000', offsetMs: 0, author: '@a', text: 'first' }],
+            replayToken: 'replay-1',
+            seekToken: 'seek-token'
+        }),
+        seekPage: buildReplayPage({ messages: [] }),
+        replayPages: {
+            'replay-1': buildReplayPage({
+                messages: [{ timestampUsec: '2000', offsetMs: 5000, author: '@b', text: 'second' }]
+            })
+        }
+    });
+
+    try {
+        const chatMap = new Map<number, object>();
+        await getChatComments(new AbortController().signal, { textContent: '' } as any, chatMap);
+
+        assert.deepStrictEqual(
+            [...chatMap.keys()],
+            [1000, 2000],
+            'an unusable seek page must not drop the initial batch'
+        );
+    } finally {
+        mocks.restore();
+    }
+});
+
+test('checkIsLiveStream answers false for a replay page without probing the live chat endpoint', async () => {
+    const { checkIsLiveStream } = await import('../src/source/utils/innertube/chat');
+
+    const mocks = installReplayMocks({
+        isReplay: true,
+        initialPage: buildReplayPage({ messages: [] }),
+        replayPages: {}
+    });
+
+    try {
+        const isLive = await checkIsLiveStream(new AbortController().signal);
+
+        assert.strictEqual(isLive, false);
+        assert.strictEqual(
+            mocks.requests.filter((request) => request.url.includes('get_live_chat?')).length,
+            0,
+            'the live chat endpoint rejects replay continuations with HTTP 400'
+        );
+    } finally {
+        mocks.restore();
+    }
+});
+
+test('getChatComments falls back to the initial batch when the seek(0) page has no replay token', async () => {
+    const { getChatComments } = await import('../src/source/utils/innertube/chat');
+
+    const mocks = installReplayMocks({
+        isReplay: true,
+        initialPage: buildReplayPage({
+            messages: [{ timestampUsec: '1000', offsetMs: 0, author: '@a', text: 'first' }],
+            replayToken: 'replay-1',
+            seekToken: 'seek-token'
+        }),
+        // A seek page that carries messages but no way to continue
+        seekPage: buildReplayPage({
+            messages: [{ timestampUsec: '2000', offsetMs: 5000, author: '@b', text: 'second' }]
+        }),
+        replayPages: {
+            'replay-1': buildReplayPage({
+                messages: [{ timestampUsec: '3000', offsetMs: 9000, author: '@c', text: 'third' }]
+            })
+        }
+    });
+
+    try {
+        const chatMap = new Map<number, object>();
+        await getChatComments(new AbortController().signal, { textContent: '' } as any, chatMap);
+
+        assert.deepStrictEqual(
+            [...chatMap.keys()].sort((a, b) => a - b),
+            [1000, 2000, 3000],
+            'a seek page without a replay token must not end the load; the initial batch resumes it'
+        );
+    } finally {
+        mocks.restore();
+    }
+});

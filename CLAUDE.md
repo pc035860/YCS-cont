@@ -244,6 +244,12 @@ Canonical behavior baseline doc:
 6. Live chat starts in "Top chat" mode
    `conversationBar.liveChatRenderer.continuations[0]` selects the filtered Top chat mode. Live chat fetching must upgrade to the "Live chat" continuation carried by the first `get_live_chat` response (`getLiveChatUnfiltered()`); the watch page's own sub-menu tokens are rejected with HTTP 400. Details: `app/docs/live-recording.md`
 
+7. Chat replay paginates with `liveChatReplayContinuationData`, not `playerOffsetMs`
+   `playerOffsetMs` is sent once with value `0` to pin the replay start (the `reloadContinuationData` token is entry-point dependent). It must NOT advance the cursor: `get_live_chat_replay` answers a range of offsets with the same page, so an offset-driven loop stalls mid-stream and the `offset === lastOffset` check reads the stall as the end of the chat (a 9h39m VOD stopped at 5.9 min). Paginate by following the replay token until it is missing. Details: `app/docs/innertube-chat-replay-api-changes.md` → v2.1
+
+8. `liveChatRenderer.isReplay` gates the live chat probe
+   A replay continuation is rejected by `get_live_chat` with HTTP 400. `getCDChat()` reports `isReplay` so `getChatComments` / `checkIsLiveStream` skip that probe instead of logging a scary console error on every VOD.
+
 ---
 
 ## Recent Significant Changes

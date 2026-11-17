@@ -272,4 +272,10 @@ export interface ChatContinuationResult {
      * Useful for debugging and logging
      */
     sourcePath?: string;
+
+    /**
+     * Whether the page describes a finished broadcast (`liveChatRenderer.isReplay`).
+     * A replay continuation is rejected by the live chat endpoint, so callers can skip that probe.
+     */
+    isReplay?: boolean;
 }
